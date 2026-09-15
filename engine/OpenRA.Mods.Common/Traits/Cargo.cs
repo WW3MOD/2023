@@ -26,7 +26,12 @@ namespace OpenRA.Mods.Common.Traits
 	[Desc("This actor can transport Passenger actors.")]
 	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>, IProvideTooltipDescription
 	{
-		[Desc("Should this actor turn nutral when not loaded? For civilian buildings.")]
+		[Desc("Revert this actor to the Neutral player once the LAST passenger has been unloaded. ",
+			"Implemented in UnloadCargo.cs:234-238, which is a DIFFERENT path from the garrison ",
+			"buildings' own revert (GarrisonManager.DynamicOwnership -> CheckOwnershipAfterExit): ",
+			"the two coexist on all four garrison families and do not agree about port soldiers, ",
+			"because PassengerCount counts the Cargo hold only and a man deployed to a firing port ",
+			"has left it. It also assumes a player named \"Neutral\" exists and will throw if none does.")]
 		public readonly bool Neutral = false;
 
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]

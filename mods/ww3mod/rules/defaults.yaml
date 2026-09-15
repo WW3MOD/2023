@@ -225,6 +225,20 @@
 # with the critical token never granted nothing else covered that band. `heavy-damage-attained` is
 # ValidDamageStates: Heavy, Critical, so it spans exactly the same range the pair used to.
 # The token a consumer reads is what changed here; no token changed meaning.
+# THE ENEMY MUST SEE THESE, for the same reason and by the same mechanism as the occupancy pips
+# on WithGarrisonDecoration (civilian.yaml, structures-defenses.yaml). WithDecorationBaseInfo
+# .ValidRelationships defaults to Ally (WithDecorationBase.cs:107-108) and garrisoning TRANSFERS
+# ownership to the entering player (GarrisonManager.cs:263-267), so the opponent always evaluated
+# to Enemy and ShouldRender suppressed all three rungs (:165-170). An attacker wearing a garrison
+# down had no way to see he was making progress -- and progress is the whole of the interaction,
+# because Indestructible clamps the building at 1 HP rather than killing it, so there is no
+# collapse to read the result off. The damage state IS the result.
+#
+# Fog still decides it: ShouldRender tests World.FogObscures BEFORE the relationship gate
+# (:138-140) and WithDecoration overrides only Created and RenderDecoration, never ShouldRender,
+# so this is visible exactly when the building is. Only the three garrison families inherit this
+# template -- ^CivBuilding (civilian.yaml:135) and GTWR/PBOX/HBOX (structures-defenses.yaml:166,
+# :274, :384) -- so widening here reaches the garrison buildings and nothing else in the mod.
 ^GarrisonHealthPips:
 	WithDecoration@GarrisonHealth_Light:
 		Image: pips
@@ -232,18 +246,21 @@
 		Position: Top
 		Margin: 0,0
 		RequiresCondition: light-damage
+		ValidRelationships: Ally, Enemy, Neutral
 	WithDecoration@GarrisonHealth_Medium:
 		Image: pips
 		Sequence: pip-damage-vehicle-medium
 		Position: Top
 		Margin: 0,0
 		RequiresCondition: medium-damage
+		ValidRelationships: Ally, Enemy, Neutral
 	WithDecoration@GarrisonHealth_Heavy:
 		Image: pips
 		Sequence: pip-damage-vehicle-heavy
 		Position: Top
 		Margin: 0,0
 		RequiresCondition: heavy-damage-attained
+		ValidRelationships: Ally, Enemy, Neutral
 
 # ^DetectionProximity:
 # 	VisionModifier@1:

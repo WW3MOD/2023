@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine
+	# that runs this scenario.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrison-port-arc-highpriority.lua
+
+# Every attacker is held silent and fires only when the .lua issues an explicit Attack order.
+# This scenario measures a HEALTH DELTA and attributes it to one named shooter, so a second
+# unit opening up on its own would not just add noise - it would make the central assertion
+# ("the behind shooter did nothing") unfalsifiable.
+#
+# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires for the scenario
+# opponent. AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+# InitialStance`, so InitialStance alone is silently never read for a non-Playable slot.
+E1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# NOT held silent, and that is deliberate. The garrison's own deploy gate reads the BUILDING's
+# stance, not the soldier's (GarrisonManager.cs:672, :796), so holding the MT's fire would not
+# stop the deployment this scenario needs - but it would also not stop the garrison shooting,
+# because AttackGarrisoned drives the port from the building. Leaving MT at its shipped stance
+# keeps the one behaviour the scenario depends on (the Gunner stays deployed while Trigger is
+# alive) exactly as it ships.
+
+# THE SHOOTERS MUST SURVIVE THE STAGING, and nothing else in this file makes them.
+# HouseE1's garrison is a plain rifleman: 5.56mm.E3 reaches 10c0 with NO minimum range, so it
+# shoots the control's behind shooter at 6 cells for the entire run. Run 260915_215050 died on
+# exactly that -- "Actor 'e1 (dead)' does not define a property 'Attack'" -- AFTER both central
+# limbs had already answered correctly. The MT house is immune only because 60mm_Mortar carries
+# MinRange: 8c0 and every shooter there stands inside it.
+#
+# Raising e1 health is the smallest lever that does not touch the mechanism under test. Every
+# measurement in this scenario is taken on the TARGET's health (the garrisoned mt, the garrisoned
+# rifleman, the mt in the open) and never on a shooter's, so a shooter who cannot die changes no
+# verdict -- it only stops the staging killing the instrument. It also keeps Bait alive, which the
+# scenario silently depends on: he is the only target the north-east ports can confirm, and a dead
+# Bait recalls the Gunner from his port mid-measurement.
+#
+# Deliberately NOT applied to MT: the Gunner's and OpenMT's health ARE the measurement.
+E1:
+	Health:
+		HP: 1000000

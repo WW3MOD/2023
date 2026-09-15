@@ -172,7 +172,7 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class GarrisonManager : INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
+	public class GarrisonManager : ICargoCanLoadFilter, INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
 		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
 	{
 		public readonly GarrisonManagerInfo Info;
@@ -197,6 +197,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		// Suppress flag: prevents OnPassengerEntered/Exited from running during internal transitions
 		bool suppressNotifications;
+
+		/// <summary>
+		/// THE OWNER THIS BUILDING IS ALREADY SPOKEN FOR BY, set SYNCHRONOUSLY the moment the first
+		/// man boards — because the ownership change itself is not synchronous and cannot be.
+		/// <para>ChangeOwnerInPlace only ENQUEUES ChangeOwnerInPlaceSync as a frame-end task
+		/// (Actor.cs:535-538), and RideTransport.OnEnterComplete runs in a frame-end task too
+		/// (:69-87), drained from one FIFO. Two men completing entry on the same tick therefore both
+		/// see Owner == Neutral: the first boards and enqueues its flip, the second's CanLoad reads a
+		/// building that has not changed hands yet and boards as well, and then BOTH flips run in
+		/// order so the LAST man to board ends up owning the house. That is a live race independent
+		/// of the boarding filter, and it is why the filter could not see a hostile owner to refuse.</para>
+		/// <para>Deliberately NOT fixed by calling ChangeOwnerInPlaceSync here. Its contract requires
+		/// an enclosing frame-end task, and one path into OnPassengerEntered has none —
+		/// TransportProperties.LoadPassenger is Lua, called during the world tick. A claim that is
+		/// merely RECORDED synchronously needs no such contract and closes the window for every
+		/// caller.</para>
+		/// </summary>
+		Player claimedOwner;
 
 		// Force attack target set by player
 		Target forceTarget = Target.Invalid;
@@ -263,8 +281,15 @@ namespace OpenRA.Mods.Common.Traits
 			if (Info.DynamicOwnership && neutralPlayer != null)
 			{
 				var passengerOwner = passenger.Owner;
-				if (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral")
+
+				// claimedOwner, not just self.Owner: see the field's note. The first boarder of a tick
+				// takes the claim synchronously, so a second boarder in the same frame-end drain is
+				// measured against it rather than against an owner that has not been written yet.
+				if (claimedOwner == null && (self.Owner == neutralPlayer || self.Owner.InternalName == "Neutral"))
+				{
+					claimedOwner = passengerOwner;
 					self.ChangeOwnerInPlace(passengerOwner, updateGeneration: false);
+				}
 			}
 		}
 
@@ -300,6 +325,28 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// THE BOARDING RE-CHECK. The entry chain asks about relationships exactly once, at targeting
+		/// time, and by design it asks that of a NEUTRAL building — so the man who loses the race to a
+		/// contested house arrives at a building that has become his enemy's, with nothing left to
+		/// refuse him. Cargo.CanLoad runs this filter at the moment of boarding and
+		/// RideTransport.OnEnterComplete leaves him standing outside when it says no.
+		/// <para>Deliberately NOT a check in the order layer: ordering men into a neutral building must
+		/// stay legal, because that race is the mechanic rather than a bug in it.</para>
+		/// </summary>
+		bool ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)
+		{
+			if (passenger == null || passenger.Owner == null)
+				return true;
+
+			// claimedOwner ?? self.Owner — the claim is written synchronously on the first boarding of a
+			// tick, while self.Owner only catches up at frame end. Reading self.Owner alone is what let
+			// a hostile second boarder through in run 260915_191633 despite this filter being live.
+			var owner = claimedOwner ?? self.Owner;
+
+			return GarrisonBoardingMath.MayBoard(owner.RelationshipWith(passenger.Owner));
+		}
+
+		/// <summary>
 		/// After a soldier exits or dies, check if we need to revert ownership to neutral
 		/// or transfer to another allied player still inside.
 		/// </summary>
@@ -327,13 +374,33 @@ namespace OpenRA.Mods.Common.Traits
 			if (remainingOwners.Count == 0)
 			{
 				// No soldiers left → revert to neutral
+				claimedOwner = null;
 				if (self.Owner != neutralPlayer)
 					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
 			}
 			else if (!remainingOwners.Contains(self.Owner))
 			{
-				// Current owner has no soldiers left, but an ally does → transfer
-				self.ChangeOwnerInPlace(remainingOwners.First(), updateGeneration: false);
+				// Current owner has no soldiers left. The rule is, and always was, "but an ALLY does
+				// → transfer": this line used to read remainingOwners.First(), i.e. any player at all,
+				// so a building whose owner had been killed out handed itself to whoever was left —
+				// including an enemy. That is a capture with no CaptureManager, no Capturable, no
+				// technician and no timer, and none of the capture documentation mentions it.
+				var heir = GarrisonOwnershipMath.ChooseHeir(remainingOwners, p => self.Owner.IsAlliedWith(p));
+				if (heir != null)
+				{
+					claimedOwner = heir;
+					self.ChangeOwnerInPlace(heir, updateGeneration: false);
+				}
+				else if (self.Owner != neutralPlayer)
+				{
+					// Only non-allies are left inside. Falling back to Neutral rather than leaving the
+					// building with an owner who has nobody in it: it matches the no-occupants case
+					// directly above, and it is the one outcome that gives the hostile occupant
+					// nothing. Unreachable while EnterAlliedActorTargeter holds (it admits allied or
+					// neutral owners only), which is exactly why it must not be left to First().
+					claimedOwner = null;
+					self.ChangeOwnerInPlace(neutralPlayer, updateGeneration: false);
+				}
 			}
 		}
 
@@ -1170,14 +1237,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
-			var targetYaw = delta.Yaw;
-
+			// Shared with GarrisonPortOccupant.TargetableBy, which asks the mirrored question (who may
+			// shoot the man at this port). The two used to be separate hand-written copies that
+			// disagreed about whether the building's facing counts -- see GarrisonArcMath's header.
 			var bodyYaw = self.TraitOrDefault<IFacing>()?.Facing ?? WAngle.Zero;
-			var portYaw = bodyYaw + port.Yaw;
-
-			var leftTurn = (portYaw - targetYaw).Angle;
-			var rightTurn = (targetYaw - portYaw).Angle;
-			return Math.Min(leftTurn, rightTurn) <= port.Cone.Angle;
+			return GarrisonArcMath.IsWithinArc(bodyYaw, port.Yaw, port.Cone, delta.Yaw);
 		}
 
 		// Called by AttackGarrisoned when player issues force-attack

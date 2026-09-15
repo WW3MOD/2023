@@ -58,7 +58,16 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyCreated.Created(Actor self)
 		{
 			garrisonManager = self.Trait<GarrisonManager>();
-			health = self.Trait<IHealth>();
+
+			// TraitOrDefault, NOT Trait: this trait is inherited by actors that remove Health while
+			// keeping the garrison stack (V19.Husk, civilian.yaml:444-450 -- a wreck that still
+			// carries Cargo/GarrisonManager/GarrisonProtection). Trait<IHealth>() throws
+			// InvalidOperationException from TraitDictionary.Get on such an actor, which kills it at
+			// construction. Nothing in the YAML can catch that: GarrisonProtectionInfo declares
+			// Requires<GarrisonManagerInfo> and Requires<CargoInfo> but NOT Requires<HealthInfo>, so
+			// no lint has anything to flag. The two health == null guards below were written for
+			// exactly this case and were unreachable dead code while this line threw first.
+			health = self.TraitOrDefault<IHealth>();
 		}
 
 		/// <summary>
@@ -92,19 +101,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (shelterSoldiers.Length == 0)
 				return;
 
-			// Pick protection: RubbleProtection at 1HP rubble, otherwise interpolate by HP%.
-			int protection;
-			if (health.HP <= 1)
-			{
-				protection = info.RubbleProtection;
-			}
-			else
-			{
-				var hpPct = (float)health.HP / health.MaxHP;
-				protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
-			}
-
-			protection = protection.Clamp(0, 100);
+			// One source of truth for the tier maths. This used to be a verbatim second copy of
+			// GetCurrentProtection's body, with the public one never called by the private one --
+			// two implementations of the same curve, free to drift, where the panel readout comes
+			// from one and the damage that actually lands comes from the other. The health == null
+			// and health.IsDead cases GetCurrentProtection folds to 0 are already returned above,
+			// so the value is identical on every path that reaches here.
+			var protection = GetCurrentProtection();
 
 			var incomingDamage = e.Damage.Value;
 			if (incomingDamage <= 0)

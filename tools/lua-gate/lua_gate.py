@@ -403,6 +403,54 @@ def lua_globals_defined(text):
     return {k: v for k, v in out.items() if k not in local}
 
 
+def local_used_before_defined(text):
+    """`local function F` referenced at a line ABOVE its definition — nil at runtime.
+
+    A Lua local is only in scope from its definition onward, so a body compiled earlier
+    resolves the name as a GLOBAL and gets nil. It is not a scoping subtlety that bites
+    only sometimes: the call fails every time it executes, and because the offender is
+    usually on a FAILURE path it survives every green run and dies the first time the
+    test tries to report something. That is exactly how it shipped on 2026-09-15 --
+    `attempt to call global 'ReportGeometry' (a nil value)` from a Test.Fail branch, in a
+    scenario this gate had just passed.
+
+    Forward declarations (`local F` on its own, then `function F(...)` or `F = function`)
+    are honoured: the name is in scope from the bare `local` onward, which is the standard
+    idiom for mutual recursion and must not be flagged.
+    """
+    findings = []
+    depth = table_depth(text)
+
+    # Definition point per local name, and any earlier forward declaration.
+    defined = {}
+    for m in re.finditer(r"^\s*local\s+function\s+([A-Za-z_]\w*)", text, re.M):
+        defined.setdefault(m.group(1), m.start())
+    for m in re.finditer(r"^\s*local\s+([A-Za-z_]\w*)\s*=", text, re.M):
+        defined.setdefault(m.group(1), m.start())
+
+    forward = set()
+    for m in re.finditer(r"^\s*local\s+([A-Za-z_]\w*)\s*$", text, re.M):
+        forward.add(m.group(1))
+
+    for name, def_pos in defined.items():
+        if name in forward:
+            continue
+
+        for m in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"\s*\(", text):
+            if m.start() >= def_pos or depth(m.start()) != 0:
+                continue
+
+            findings.append((
+                line_of(text, m.start()), name,
+                f"`{name}` is called here but is defined as a local on line "
+                f"{line_of(text, def_pos)}. A Lua local is only in scope from its definition "
+                f"onward, so this call compiles to a GLOBAL lookup and is nil at runtime: "
+                f"\"attempt to call global '{name}' (a nil value)\". Move the definition above "
+                f"this use, or forward-declare it with a bare `local {name}`."))
+
+    return findings
+
+
 def line_of(text, pos):
     return text.count("\n", 0, pos) + 1
 
@@ -825,6 +873,9 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
         raw = fh.read()
     text = strip_lua(raw)
     rel = repo_rel(lua_path)
+
+    for lineno, symbol, message in local_used_before_defined(text):
+        findings.append(Finding("error", rel, lineno, symbol, message))
 
     bound = lua_bindings(text)
     own_globals = lua_globals_defined(text)

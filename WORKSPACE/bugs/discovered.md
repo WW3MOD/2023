@@ -5469,3 +5469,135 @@ shrinking the map preview slot, which is a visible change at every window size i
 buying permanently for an overflow that self-closes.
 
 (found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)
+
+## 2026-09-15: [med] `PBOX` never got the `^StandardVisionWhenLoaded` gate that `GTWR` and `HBOX` have, so an empty guard tower is blind while an empty pillbox sees normally (found while: civ-garrison audit, `wt/civ-garrison`)
+
+All three garrisonable defences inherit `^StandardVision` unconditionally from `^Defense`
+(`structures-defenses.yaml:5`). `GTWR` (`:80`) and `HBOX` (`:274`) then apply
+`Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded`, which re-declares `Vision@4`-`@10` with
+`RequiresCondition: loaded` (`defaults.yaml:156-171`) — i.e. it **gates** their vision behind being
+garrisoned. `PBOX` (`:176-195`) has no such line.
+
+So the asymmetry is the opposite of what the missing line suggests: an **empty `GTWR` or `HBOX` gives
+its owner no vision at all**, while an empty `PBOX` gives full standard vision. For a structure named
+Guard Tower that is a strange resting state. Both lines were added together in `4eed77af`
+("Progressive fog (#5)", 2023-07-17) and `PBOX` was simply never given one — an omission at the time,
+not a later regression.
+
+**NOT FIXED, and deliberately:** which of the two behaviours is correct is a design question, not a
+defect with an obvious direction, and "fixing" it either way is a balance change to shipped structures.
+Ranked as item #7 in `WORKSPACE/audit/260915-civ-garrison-audit.md`.
+
+## 2026-09-15: [low] `GarrisonPanelLogic` renders at most 4 reserve occupants against a capacity of 10 (found while: civ-garrison audit, `wt/civ-garrison`)
+
+The shelter loop is `for (var i = 0; i < 4; i++)` over `RESERVE_LABEL_{i}`
+(`GarrisonPanelLogic.cs:78-89`), and `chrome/ingame-player.yaml` declares exactly `RESERVE_LABEL_0..3`
+(`:987-1010`). `^CivBuilding` is `MaxWeight: 10` with 8 firing ports (`civilian.yaml:61`, `:73-114`).
+
+In the steady state this is invisible — 8 men at ports leaves 2 in reserve. It fails in the one state
+where the panel matters: a soldier recalled under suppression returns to the shelter and cannot re-man
+a port until suppression decays below `SuppressionRedeployThreshold`, so a garrison being suppressed is
+exactly the case that can hold many more than 4 in shelter at once, and the player is shown 4.
+
+Note this only becomes user-visible once `wt/garrison-panel` (`08c8cce0`) lands — the panel currently
+never appears at all. Adding rows also needs the container resized: the body already runs to y=216
+inside a 240-high container (`:1011-1014`). A single summary row (`[S] 7 in reserve, 2 pinned`) would
+be cheaper and cannot overflow at any capacity.
+
+## 2026-09-15: [RETRACTED — the claim below is FALSE] `CargoInfo.Neutral` is dead config (found while: civ-garrison audit, `wt/civ-garrison`)
+
+**RETRACTED THE SAME DAY.** `CargoInfo.Neutral` IS read, at `UnloadCargo.cs:234-238`. The grep behind
+this entry covered `Cargo.cs`, the `Garrison` folder and `Passenger.cs` and never looked at the
+activity that consumes it. The `[Desc]` rewritten by `0139ae1b` was corrected in the hygiene commit,
+and the real finding this exposed is filed as a separate entry below. Everything from here to the end
+of this entry is wrong and is kept only so the retraction has something to point at.
+
+`Cargo.cs:29-30` declares `public readonly bool Neutral` and **nothing in the engine reads it** — no
+reference in `Cargo.cs`, the `Garrison` traits, `Passenger`, or anywhere else. All four garrisonable
+families set it true: `civilian.yaml:59`, `structures-defenses.yaml:120`, `:224`, `:323`.
+
+The trap is that the behaviour its `[Desc]` promised ("Should this actor turn nutral when not loaded?
+For civilian buildings", sic) **does exist** — delivered by `GarrisonManager.DynamicOwnership` through
+`CheckOwnershipAfterExit` (`GarrisonManager.cs:306-337`). Someone wanting a garrisoned building to stay
+owned when it empties will set `Neutral: false`, see no change, and have no way to find out why.
+
+**FIXED** on `wt/civ-garrison` (`0139ae1b`) as a `[Desc]` correction only: the field now says it is
+unimplemented and names the trait that actually decides. Deleting the field and its four YAML setters
+is the better end state and is ranked as item #9 in the audit — not taken there because it is four YAML
+edits and that branch was barred from running the YAML lint.
+
+## 2026-09-15: [med] Two independent revert-to-neutral paths on every garrison building, and they disagree about port soldiers (found while: civ-garrison hygiene, `wt/civ-garrison`)
+
+Found by being wrong about the entry above: chasing down what `CargoInfo.Neutral` actually does
+turned up a second implementation of the behaviour `GarrisonManager` already provides.
+
+| | `UnloadCargo.cs:234-238` (`Cargo.Neutral`) | `GarrisonManager.CheckOwnershipAfterExit` (`DynamicOwnership`) |
+|---|---|---|
+| Fires when | the last **Cargo** passenger is unloaded through that activity | any occupant exits or dies |
+| Counts port soldiers | **NO** — `cargo.PassengerCount == 0` is the hold only, and `DeployToPort` removes a man from it | **YES** — walks `PortStates` then `shelterPassengers` |
+| Call | `self.ChangeOwnerSync(player, false)` | `ChangeOwnerInPlace(neutralPlayer, updateGeneration: false)` |
+| Missing Neutral player | `players.First(pl => pl.PlayerName == "Neutral")` **throws** | guarded — returns early when `neutralPlayer == null` |
+
+All four garrison families set `Cargo: Neutral: true` (`civilian.yaml:59`,
+`structures-defenses.yaml:119`, `:244`, `:364`) **and** carry `GarrisonManager` with
+`DynamicOwnership` defaulting true, so both paths are live on all 41 garrisonable actors.
+
+**The consequence to test:** unload the shelter of a building whose firing ports are still manned by
+the owner or an ally. `PassengerCount` is then 0 while men are still deployed in-world, so the
+`UnloadCargo` path hands the building to Neutral underneath them — a state
+`CheckOwnershipAfterExit` is specifically written to avoid, and one that would then also strip the
+owner's vision (every `Vision@` band on these actors is gated on `loaded`).
+
+**NOT FIXED, deliberately.** It lands on the same lines as the ally-inheritance change in
+`c08b6d56` and on the `Cargo` path a second worker is currently in; reconciling the two reverts
+wants one owner and one decision about which is authoritative. The cheap shape is for the
+`UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
+hold itself.
+
+## 2026-09-15: [RETRACTED, and replaced by a real one] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+
+**RETRACTED SAME DAY — the census was not broken.** This rested on a Cargo passenger reading
+`IsDead == true`, which `DOCS/recipes/AUTOTEST.md:352` refuted by direct measurement on 2026-09-06:
+passengers read `IsDead == false`, so the `not IsInWorld -> inShelter` branch was reachable and
+shelter occupants were always counted correctly. I cited that file as the source for the opposite
+claim without reading the line.
+
+**What running the fixed census DID expose is real, and worse: the house squad never enters the
+church.** Run 260915_182425 reported `house: 0 at ports, 0 in shelter, 6 still outside, 0 dead`, so
+the `02-suppressed` capture has been photographing six men in a field beside an empty building while
+its own `expects:` text describes a garrisoned one. Cause: `soldier.EnterTransport(house)` queues a
+`RideTransport` activity directly and does not board; `Test.ClickOrder` issues the real order and
+does. Third occurrence of that staging finding. **FIXED** on `wt/civ-garrison`.
+
+The census rewrite is kept anyway — it reads `GarrisonManager.PortStates` and `Cargo.Passengers`
+rather than inferring "at a port" from cell position — but it is an improvement, not a bug fix.
+
+### Original entry, wrong, kept so the retraction has something to point at
+
+```lua
+if s.IsDead then dead = dead + 1
+elseif not s.IsInWorld then inShelter = inShelter + 1
+```
+
+A `Cargo` passenger is out of world **and** reads `IsDead == true`, so the first branch always wins
+and the `inShelter` branch is unreachable. Every man in the hold is tallied as a casualty.
+
+**Masked, which is why it passes.** The scenario's verdict is `atPorts + inShelter == 0 -> Fail`, and
+its men do reach firing ports, so `atPorts` carries the assertion on its own. The census text it
+prints on failure would be actively misleading, though — it would report a full shelter as a wipe.
+
+**FIXED 2026-09-15** on `wt/civ-garrison`. The census now asks `Test.IsAtGarrisonPort` then
+`Test.IsLoadedInto` before it asks the actor anything, so the four states are classified truthfully;
+the verdict expression (`atPorts + inShelter == 0` → Fail) is byte-identical, so the gate is
+unchanged and only what it *reports* was wrong.
+
+**A SECOND INSTANCE IN THE SAME FILE WENT WITH IT, and that one was not cosmetic.** The suppression
+grant was guarded by `if not s.IsDead`, which is not a liveness test on anyone who might be
+sheltering — it *excludes* them. The house squad exists purely to put a six-slot pip grid in the
+`02-suppressed` capture, and its own header says that works "even if none of them are ever deployed
+to a port" — so the guard was skipping exactly those men, and that frame has never been able to show
+a suppression pip on the civilian building, which is half of what its `expects:` text asks the
+reader to check. Both guards now use a shared `StillInTheMatch(s, building)`.
+
+**Consequence to look for when it next runs:** `02-suppressed` should now show suppression pips on
+the civilian building as well as the tower. That is a change to a screenshot, not to a verdict.

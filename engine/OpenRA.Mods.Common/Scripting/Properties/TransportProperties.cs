@@ -44,6 +44,16 @@ namespace OpenRA.Mods.Common.Scripting
 			if (!a.IsIdle)
 				throw new LuaException("LoadPassenger requires the passenger to be idle.");
 
+			// CanLoad, not a bare Load. Cargo.CanLoad is what consults every ICargoCanLoadFilter on
+			// the transport (Cargo.cs:522-533), and going straight to Load walked past all of them --
+			// so a Lua map script could seat a passenger that the sim itself would have refused, which
+			// for a garrison building means seating an ENEMY. Throwing rather than returning silently
+			// because a script asking for an impossible seat has a bug in it, and a silent no-op is how
+			// that bug reaches a player instead of the author.
+			if (!cargo.CanLoad(a))
+				throw new LuaException($"LoadPassenger: {a} cannot be loaded into {Self} — the transport " +
+					"refused it (no space, loading blocked, or a cargo filter said no).");
+
 			cargo.Load(Self, a);
 		}
 

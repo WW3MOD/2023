@@ -36,29 +36,54 @@ local HouseSquad = nil
 
 -- Returns atPorts, inShelter, outside, dead.
 --
--- DeployToPort does SetPosition(soldier, self.Location) — a port soldier occupies the
--- BUILDING's own cell while in-world. A soldier in shelter has been removed from the
--- world entirely. A soldier still walking is in-world on some other cell.
---
 -- Count all four states separately and report them. Two earlier runs of this scenario
 -- were lost to a gate that collapsed them into one number: "0 soldiers here" reads
 -- identically whether they are walking, in shelter, or dead, and the runs could not be
 -- told apart afterwards. A failing test must say which state it actually found.
+--
+-- REWRITTEN 2026-09-15 to ask the TRAITS rather than infer from the actor. The previous version
+-- was NOT broken — an earlier draft of this comment claimed its `if s.IsDead` branch swallowed
+-- shelter occupants, and that was wrong: a Cargo passenger reads IsDead == FALSE, measured and
+-- recorded at DOCS/recipes/AUTOTEST.md:352. What the old version really did was infer "at a port"
+-- from POSITION (s.Location == building.Location), which is true of a port occupant but is a
+-- coincidence of how DeployToPort places him rather than a statement about ports.
+--
+-- Test.IsAtGarrisonPort reads GarrisonManager.PortStates and Test.IsLoadedInto reads
+-- Cargo.Passengers, so both answer from the state that defines the thing being counted. They are
+-- mutually exclusive by construction — DeployToPort calls cargo.Unload(self, soldier) before
+-- adding him to the world (GarrisonManager.cs) — so the order below is readability, not
+-- correctness.
+--
+-- Only once both trait questions say no do actor properties get a turn, and by then they are
+-- unambiguous: in world means standing somewhere, and out of world while in nobody's hold is the
+-- one combination that really is a casualty. See WORKSPACE/DISCOVERIES.md 2026-09-15.
 local function GarrisonCensus(squad, building)
 	local atPorts, inShelter, outside, dead = 0, 0, 0, 0
 	for _, s in ipairs(squad) do
-		if s.IsDead then
-			dead = dead + 1
-		elseif not s.IsInWorld then
-			inShelter = inShelter + 1
-		elseif s.Location.X == building.Location.X and s.Location.Y == building.Location.Y then
+		if Test.IsAtGarrisonPort(s, building) then
 			atPorts = atPorts + 1
-		else
+		elseif Test.IsLoadedInto(s, building) then
+			inShelter = inShelter + 1
+		elseif s.IsInWorld then
 			outside = outside + 1
+		else
+			dead = dead + 1
 		end
 	end
 
 	return atPorts, inShelter, outside, dead
+end
+
+-- "Still in the match", asked the same way the census asks it. This replaced `if not s.IsDead`,
+-- which was CORRECT — passengers read IsDead == false — so this is an explicitness change, not a
+-- fix; an earlier draft of this comment claimed otherwise and was wrong. It is kept because it
+-- states the intent positively (at a port, in a hold, or on his feet) rather than relying on the
+-- reader knowing which way IsDead falls for a man inside a building.
+--
+-- The real reason frame 02 has never shown a pip on the civilian building is upstream of this: the
+-- house squad never entered at all. See the staging note in WorldLoaded.
+local function StillInTheMatch(s, building)
+	return Test.IsAtGarrisonPort(s, building) or Test.IsLoadedInto(s, building) or s.IsInWorld
 end
 
 local function CensusText(label, squad, building)
@@ -74,8 +99,15 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Tower, House)
 	Test.SetZoom(2)
 
+	-- THROUGH THE ORDER LAYER. soldier.EnterTransport queues a RideTransport activity directly;
+	-- Test.ClickOrder issues a real EnterTransport order through Passenger.ResolveOrder. The two are
+	-- not interchangeable, and this scenario is the third place that bit: run 260915_182425 reported
+	-- "house: 0 at ports, 0 in shelter, 6 still outside" -- the church squad below has NEVER entered,
+	-- so the 02-suppressed frame has been photographing six men standing in a field next to an empty
+	-- building while its own expects: text describes a garrisoned one. The tower squad is switched
+	-- too, for one staging API in one file.
 	for _, s in ipairs(Squad) do
-		s.EnterTransport(Tower)
+		Test.ClickOrder(s, Tower)
 	end
 
 	-- The house squad never enters the verdict. Its only job is to put a six-occupant
@@ -83,7 +115,7 @@ WorldLoaded = function()
 	-- slot crowds the building sprite. Shelter occupants render pips too, so this works
 	-- even if none of them are ever deployed to a port.
 	for _, s in ipairs(HouseSquad) do
-		s.EnterTransport(House)
+		Test.ClickOrder(s, House)
 	end
 
 	-- Selecting the tower both raises the GARRISON_PANEL and switches the pip grid
@@ -142,7 +174,7 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(275, function()
 		for _, s in ipairs(Squad) do
-			if not s.IsDead then
+			if StillInTheMatch(s, Tower) then
 				for _ = 1, SuppressionToGrant do
 					s.GrantCondition("suppressed")
 				end
@@ -150,7 +182,7 @@ WorldLoaded = function()
 		end
 
 		for _, s in ipairs(HouseSquad) do
-			if not s.IsDead then
+			if StillInTheMatch(s, House) then
 				for _ = 1, SuppressionToGrant do
 					s.GrantCondition("suppressed")
 				end
