@@ -813,6 +813,62 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return cargo != null && cargo.Passengers.Contains(passenger);
 		}
 
+		[Desc("Which garrison firing port `soldier` is holding on `building`, as a human-readable " +
+			"string: \"index=N name=X yaw=Y cone=C\", or \"none\". The port IDENTITY is what decides " +
+			"whether a given attacker is inside the arc, and a scenario that assumes which port a man " +
+			"landed on is guessing -- deployment picks the first port with a CONFIRMED IN-ARC, IN-RANGE " +
+			"target, so a short-ranged garrison can end up facing somewhere the author did not intend. " +
+			"Test mode only.")]
+		public string GarrisonPortOf(Actor soldier, Actor building)
+		{
+			if (!TestMode.IsActive || soldier == null || building == null)
+				return "none";
+
+			var manager = building.TraitOrDefault<GarrisonManager>();
+			if (manager == null)
+				return "none";
+
+			for (var i = 0; i < manager.PortStates.Length; i++)
+			{
+				var ps = manager.PortStates[i];
+				if (ps.DeployedSoldier != soldier)
+					continue;
+
+				return $"index={i} name={ps.Port.Name} yaw={ps.Port.Yaw.Angle} cone={ps.Port.Cone.Angle}";
+			}
+
+			return "none";
+		}
+
+		[Desc("Why `target` is or is not targetable by `byActor`, trait by trait. Actor.IsTargetableBy " +
+			"is an OR across every ITargetable (Actor.cs:671-678), so a refusal means EVERY one said " +
+			"no -- and which ones were even enabled is the whole diagnosis. Reports the Target type " +
+			"(Invalid hides everything behind it), each targetable's name/enabled/answer, and the " +
+			"final verdict. Test mode only.")]
+		public string TargetableReport(Actor target, Actor byActor)
+		{
+			if (!TestMode.IsActive || target == null || byActor == null)
+				return "n/a";
+
+			var t = Target.FromActor(target);
+			var parts = new List<string>
+			{
+				$"targetType={t.Type}",
+				$"inWorld={target.IsInWorld}",
+				$"dead={target.IsDead}",
+				$"requiresForceFire={t.RequiresForceFire}"
+			};
+
+			foreach (var targetable in target.Targetables)
+				parts.Add($"{targetable.GetType().Name}[enabled={targetable.IsTraitEnabled()} " +
+					$"answers={targetable.TargetableBy(target, byActor)}]");
+
+			parts.Add($"isTargetableBy={target.IsTargetableBy(byActor)}");
+			parts.Add($"isValidFor={t.IsValidFor(byActor)}");
+
+			return string.Join(" ", parts);
+		}
+
 		[Desc("True when `soldier` is currently deployed to one of `building`'s garrison firing ports. " +
 			"A port occupant IS in the world, unlike a shelter occupant, but he is placed at the " +
 			"building's own Location — so position tells you he is at A port and nothing more. This " +

@@ -50,7 +50,13 @@
 local SetupWithin = 40      -- s for two men to walk in and claim their houses
 local DeployWithin = 40     -- s for GarrisonManager to confirm a target and man a port
 local HitWithin = 20        -- s for an in-arc shooter to land its first round
-local QuietFor = 12         -- s a blocked shooter is given to prove it lands nothing
+-- 30 s, not 12. 5.56mm.E3 is ReloadDelay 60 with Burst 2, and a port occupant carries
+-- DamageMultiplier@GarrisonCover: Modifier: 20 (infantry.yaml:213-215) -- so a permitted shooter
+-- lands roughly one 5-damage hit per reload cycle, and the control limb's whole evidence in run
+-- 260915_184416 was a single 200 -> 195. A 12 s window was about three chances to register a 5 hp
+-- delta: "took zero" was as likely to mean "missed" as "was refused", which makes a PASS here worth
+-- very little. This limb asserts a NEGATIVE, so it has to be the generous one.
+local QuietFor = 30         -- s a blocked shooter is given to prove it lands nothing
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
 
 local function OwnerOf(actor)
@@ -209,6 +215,7 @@ end
 -- PHASE 2 — THE ASSERTION. Due south of a north-east-facing port, at 384 WAngle units off a
 -- cone of 140, this shooter must land nothing at all.
 local function BehindShot()
+	ReportGeometry("BEHIND-SHOT", BehindShooter)
 	local baseline = HealthOf(Gunner)
 	BehindShooter.Attack(Gunner)
 
@@ -254,7 +261,23 @@ end
 -- PHASE 1a — the in-cone shot MUST land. This is the instrument check: it proves a rifleman can
 -- hurt this man at all, so that "no damage" in phase 2 means the arc refused him rather than
 -- the measurement never working.
+-- Everything the next reader needs to name the refusal, printed at the instant the order goes in.
+-- TargetableReport walks Actor.IsTargetableBy trait by trait, so "which targetable said no" stops
+-- being a guess; GarrisonPortOf names the port actually held, which two runs have now shown is not
+-- safe to assume.
+local function ReportGeometry(label, shooter)
+	print(label ..
+		" | port " .. Test.GarrisonPortOf(Gunner, HouseMT) ..
+		" | gunner cell " .. Gunner.Location.X .. "," .. Gunner.Location.Y ..
+		" inWorld=" .. tostring(Gunner.IsInWorld) ..
+		" | house cell " .. HouseMT.Location.X .. "," .. HouseMT.Location.Y ..
+		" | shooter cell " .. shooter.Location.X .. "," .. shooter.Location.Y ..
+		" | canTarget=" .. tostring(shooter.CanTarget(Gunner)) ..
+		" | " .. Test.TargetableReport(Gunner, shooter))
+end
+
 local function ConeShot()
+	ReportGeometry("CONE-SHOT", ConeShooter)
 	local baseline = HealthOf(Gunner)
 	-- Issued only after AwaitDeployment has seen the man in-world at a port, plus the settle below,
 	-- so Target.FromActor(Gunner) cannot still be Invalid. Attack() only LOGS an invalid target and
@@ -266,7 +289,12 @@ local function ConeShot()
 		function() return Gunner.IsDead or HealthOf(Gunner) < baseline end,
 		StopConeShooterThenMeasure,
 		function()
-			Test.Fail("the IN-CONE shooter landed nothing in " .. HitWithin .. "s. He stands on the " ..
+			Test.Fail("the IN-CONE shooter landed nothing in " .. HitWithin .. "s. ENGINE VERDICT AT " ..
+				"ORDER TIME: canTarget=" .. tostring(ConeShooter.CanTarget(Gunner)) .. "; port " ..
+				Test.GarrisonPortOf(Gunner, HouseMT) .. "; " .. Test.TargetableReport(Gunner, ConeShooter) ..
+				" -- if canTarget is FALSE the refusal is in targeting and the report above names which " ..
+				"targetable said no; if it is TRUE the refusal is downstream, in AttackBase or the " ..
+				"activity, and nothing in this file's geometry is at fault. He stands on the " ..
 				"same north-east diagonal as the port the Gunner is manning, 5.7 cells out, so " ..
 				"GarrisonPortOccupant.TargetableBy should admit him (yaw 896 against a port at 896). " ..
 				"Two readings and they need telling apart: either the arc gate now refuses " ..
