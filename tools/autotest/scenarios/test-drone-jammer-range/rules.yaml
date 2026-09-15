@@ -1,0 +1,32 @@
+Player:
+	-ConquestVictoryConditions:
+
+	# Neither player is a bot, so no module can move the operator or the drones. That is the
+	# whole confound-control strategy here: test-drone-lost-track had to remove three bot
+	# modules by name and zero the economy to stop its operator being walked around, and each
+	# of those removals was added reactively after a run was lost to it. A map with no bot has
+	# nothing to remove.
+	PlayerResources:
+		DefaultCash: 0
+		CashDropdownLocked: true
+
+	MapLayers:
+		# FOG OFF, DELIBERATELY, AND IT IS THE OPPOSITE CHOICE FROM test-drone-lost-track.
+		# That scenario is about what happens to a contact once it is NOT visible, so it needs
+		# fog. This one is about weapon reach, where fog would only introduce a second reason
+		# for the far drone to be left alone — "out of range" and "never acquired" would become
+		# indistinguishable, and the test would pass for the wrong reason at any range.
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-drone-jammer-range.lua

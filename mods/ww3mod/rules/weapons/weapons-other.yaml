@@ -687,7 +687,26 @@ DepthChargeDual:
 
 DroneTargeter:
 	ValidTargets: Ground, Water # TODO: Can target units? For AutoTarget
-	Range: 25c0
+	# 25c0 -> 33c0 (2026-09-15). MaxHoverDistanceCells is min(weaponRange, LeashCells - margin)
+	# (DroneTaskingMath.cs:47-55), so the weapon is a HARD CAP on how far a drone can be tasked
+	# no matter what the leash says: at the old 25c0 every leash above 28 was inert. Raised
+	# alongside quadcopterdrone's CarrierSlave.MaxDistance so the pair lands the ceiling at 30.
+	# WHAT THIS WIDENS, STATED PRECISELY — AN EARLIER VERSION OF THIS NOTE OVERSTATED IT.
+	# This is Armament@1 `primary` on ^DR, and it carries RequiresForceFire: True, so AutoTarget
+	# CANNOT fire it: ChooseArmamentsForTarget drops any armament with that flag when the attack is
+	# not forced (AttackBase.cs:467). So there are NO new automatic drone launches at any range.
+	# What does move:
+	#   - FORCE-FIRED launch reach, 25 -> 33 cells. That is the point of the change, and it applies
+	#     to a human player force-firing exactly as it does to either bot profile.
+	#   - AutoTarget's SCAN RADIUS, when ScanRadius is unset, is ab.GetMaximumRange()
+	#     (AutoTarget.cs:1181,1253), and that iterates every armament that is not disabled or
+	#     paused WITHOUT excluding RequiresForceFire (AttackBase.cs:591-605). So the operator now
+	#     sweeps 33 cells instead of 25 while it holds a loaded drone — a wider scan that still
+	#     cannot fire this weapon, and can only ever auto-engage with the 12-cell jammer below.
+	#     Note Armament@1's PauseOnCondition: !loaded || !ammo-primary — an operator with no drone
+	#     loaded has this armament paused, and its scan falls back to the jammer's range.
+	#   - RenderRangeCircle@1, the selected operator's larger white circle: 25 -> 33 cells.
+	Range: 33c0
 	BurstWait: 200
 	Projectile: InstantHit
 	Warhead@Target: TargetDamage
@@ -697,7 +716,14 @@ DroneTargeter:
 DroneJammer:
 	ValidTargets: Drone
 	BurstWait: 1
-	Range: 20c0
+	# 20c0 -> 12c0 (2026-09-15, user ruling: "it is too powerful now. Maybe 12 cells or so?").
+	# This is Armament@2 `secondary` on ^DR, so it is also what AutoTarget scans to when the only
+	# thing in reach is a drone, and RenderRangeCircle@2 draws it. Twenty cells reached almost as
+	# far as the operator's own 25-cell launch range, so an operator was a near-perfect counter to
+	# any drone that came near its own working area, for free and with no line of sight required.
+	# It keeps BurstWait: 1, so inside 12 cells it is still immediate — the change is reach, not
+	# rate. Pinned by test-drone-jammer-range, which brackets the new threshold at 11 and 13 cells.
+	Range: 12c0
 	Projectile: LaserZap
 		Width: 40
 		Duration: 10

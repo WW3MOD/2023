@@ -27,7 +27,13 @@ Categories: Test
 #                        that bubble the contact would be verified-clear the
 #                        instant the scout dies and there would be nothing to
 #                        remember. This is the single easiest thing to get wrong.
-#   Hover disc         — min(weapon range, LeashCells 25 - margin 3) = 22 cells,
+#   Hover disc         — min(weapon range 33, LeashCells 33 - margin 3) = 30 cells since
+#                        2026-09-15. WAS 22, and every figure below marked "run 8" was
+#                        measured under that. At 22 the nearest reachable cell to V was 8
+#                        cells out; at 30 it is ONE (47,53, measured), because the ceiling now
+#                        clears the operator's own 28-cell verifying radius — which is what
+#                        made a genuinely lost contact reachable at all. Historic 22-cell
+#                        numbers:
 #                        so the closest candidate to V is 30 - 22 = 8 cells away.
 #                        Well inside DroneVisionCells (28), so the falloff leaves
 #                        the contact worth ~181 of its 250 squares there.
@@ -100,7 +106,7 @@ Actors:
 	# structures (:223). Strip a map to "just the actors the test needs" and the only
 	# surviving POI is the ENEMY SR — and an operator standing near its own SR is by
 	# construction far from that one. Measured on the attempt without this derrick:
-	# every candidate in the 22-cell hover disc sat >=41 cells from (80,35) against
+	# every candidate in the then-22-cell hover disc sat >=41 cells from (80,35) against
 	# MaxPoiDistanceCells 40, so 388 of 388 candidates were refused TooFarFromPoi at
 	# all nine evaluations and no drone ever launched.
 	#
