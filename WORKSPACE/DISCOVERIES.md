@@ -3,6 +3,16 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - `IsIdle` is TRUE both before an order lands and after it finishes, so it cannot mean "has arrived" (`wt/civ-garrison`, run 260915_204319)
+
+**THE PREDICATE READS THE SAME FOR TWO OPPOSITE STATES.** `Test.IssueMoveOrder` goes through `World.IssueOrder`, so the order sits in the order queue and only becomes an activity a tick or more later; `Actor.IsIdle` is `CurrentActivity == null`. Between issuing a move and the order resolving, the actor is idle *because it has not started*. A `WaitUntil(..., function() return unit.IsIdle end, ...)` written to mean "wait until he has walked there" therefore fires on its FIRST POLL, before he has taken a step.
+
+**IT FAILS SILENTLY AND DOWNSTREAM, which is what makes it expensive.** The scenario then issued its attack order from the man's SPAWN cell — outside the garrison port's arc, correctly refused, the `Attack` activity dropped as invalid — and nothing re-issued it once he did arrive. The verdict twenty seconds later re-evaluated the same question at his FINAL cell and got the opposite answer. The run reported "the in-cone shooter landed nothing", which is true and tells you nothing.
+
+**THE INSTRUMENT THAT CAUGHT IT IS THE GENERAL LESSON: PRINT THE SAME FACT AT TWO MOMENTS.** `CONE-SHOT ... shooter cell 24,8 | canTarget=false` at order time, against `canTarget=true ... isValidFor=True` in the verdict. Neither line alone is a diagnosis; the DISAGREEMENT is, and it names the moment the order was issued as the thing that was wrong rather than the geometry, the arc, or the trait. Three earlier rounds on this scenario each printed one moment and misread it.
+
+**WAIT ON THE THING YOU ACTUALLY WANT.** Position, not activity: poll `Location` against the target cell (with a cell of slack, so a blocked exact cell parks the man next door instead of hanging the run), then a settle beat, then act. This is the same shape as the `AtPort`-before-`w.Add` race two rounds earlier — `PortStates[i].DeployedSoldier` is assigned synchronously while the man is added to the world in a frame-end task — and as the `claimedOwner` fix in the engine: **the state you are polling lags the thing you just asked for.** When a test asks the engine to do something and then measures the result, the gap between the request and the state is where the test breaks.
+
 ## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`)
 
 **THE PORT IS NOT A PROPERTY OF THE MAP, AND A SCENARIO THAT ASSUMES IT IS MEASURING SOMETHING ELSE.** `GarrisonManager` deploys a man to the first port that confirms an in-arc, in-range target (`ScanForTarget` arc-filters before scoring), so which port wins depends on every enemy on the map, the range of the weapon that scans, and the port declaration order. Three separate failures, all the same mistake, none of them the engine's fault:

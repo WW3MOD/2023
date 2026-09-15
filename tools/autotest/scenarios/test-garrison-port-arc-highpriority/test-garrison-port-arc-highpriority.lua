@@ -60,6 +60,8 @@ local QuietFor = 30         -- s a blocked shooter is given to prove it lands no
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
 local MoveWithin = 20       -- s for the two shooters to walk onto their derived bearings
 local HeldYaw = nil         -- the port yaw both shooters were positioned against
+local ConeCellX, ConeCellY = nil, nil       -- derived cell the in-cone shooter must stand on
+local BehindCellX, BehindCellY = nil, nil   -- derived cell the behind shooter must stand on
 
 local function OwnerOf(actor)
 	local o = actor.Owner
@@ -121,6 +123,14 @@ local BehindDistance = 6    -- cells along the opposite bearing
 local function YawToOffset(yaw, cells)
 	local radians = (yaw + 256) / 1024 * 2 * math.pi
 	return math.floor(cells * math.cos(radians) + 0.5), math.floor(cells * -math.sin(radians) + 0.5)
+end
+
+-- Arrival, with one cell of slack. An exact match would hang the run whenever the derived cell is
+-- occupied or unreachable and the pathfinder parks the man next to it; at ~5.7 cells out, being one
+-- cell off is about 10 degrees, against a cone of 140 units (49 degrees), so it cannot move a
+-- shooter across the arc boundary in either direction.
+local function AtCell(actor, x, y)
+	return math.abs(actor.Location.X - x) <= 1 and math.abs(actor.Location.Y - y) <= 1
 end
 
 -- "index=5 name=southwest2 yaw=384 cone=140", or "none".
@@ -265,6 +275,13 @@ end
 -- PHASE 2 — THE ASSERTION. Due south of a north-east-facing port, at 384 WAngle units off a
 -- cone of 140, this shooter must land nothing at all.
 local function BehindShot()
+	if not AtCell(BehindShooter, BehindCellX, BehindCellY) then
+		Test.Skip("the behind shooter is at " .. BehindShooter.Location.X .. "," ..
+			BehindShooter.Location.Y .. " rather than his derived cell " .. BehindCellX .. "," ..
+			BehindCellY .. ", so a quiet window here would measure a bearing nobody chose. " .. State())
+		return
+	end
+
 	ReportGeometry("BEHIND-SHOT", BehindShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	BehindShooter.Attack(Gunner)
@@ -320,6 +337,14 @@ end
 -- hurt this man at all, so that "no damage" in phase 2 means the arc refused him rather than
 -- the measurement never working.
 local function ConeShot()
+	if not AtCell(ConeShooter, ConeCellX, ConeCellY) then
+		Test.Skip("the in-cone shooter is at " .. ConeShooter.Location.X .. "," ..
+			ConeShooter.Location.Y .. " rather than his derived cell " .. ConeCellX .. "," ..
+			ConeCellY .. ". Round 4 failed exactly here, having ordered the attack from the spawn " ..
+			"cell; the CONE-SHOT line below must describe the cell he fires FROM. " .. State())
+		return
+	end
+
 	ReportGeometry("CONE-SHOT", ConeShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	-- Issued only after AwaitDeployment has seen the man in-world at a port, plus the settle below,
@@ -366,21 +391,40 @@ local function PlaceShooters()
 	local cx, cy = YawToOffset(yaw, ConeDistance)
 	local bx, by = YawToOffset(yaw, -BehindDistance)
 
-	Test.IssueMoveOrder(ConeShooter, CPos.New(HouseMT.Location.X + cx, HouseMT.Location.Y + cy))
-	Test.IssueMoveOrder(BehindShooter, CPos.New(HouseMT.Location.X + bx, HouseMT.Location.Y + by))
+	ConeCellX, ConeCellY = HouseMT.Location.X + cx, HouseMT.Location.Y + cy
+	BehindCellX, BehindCellY = HouseMT.Location.X + bx, HouseMT.Location.Y + by
+
+	Test.IssueMoveOrder(ConeShooter, CPos.New(ConeCellX, ConeCellY))
+	Test.IssueMoveOrder(BehindShooter, CPos.New(BehindCellX, BehindCellY))
 
 	print("PLACEMENT | held port " .. Test.GarrisonPortOf(Gunner, HouseMT) ..
-		" | cone shooter -> " .. (HouseMT.Location.X + cx) .. "," .. (HouseMT.Location.Y + cy) ..
-		" | behind shooter -> " .. (HouseMT.Location.X + bx) .. "," .. (HouseMT.Location.Y + by))
+		" | cone shooter -> " .. ConeCellX .. "," .. ConeCellY ..
+		" | behind shooter -> " .. BehindCellX .. "," .. BehindCellY)
 
-	-- Both men have a couple of cells to walk. Wait for BOTH to stop moving rather than for a
-	-- fixed delay, so a slow path does not silently become a measurement of a man still walking.
+	-- WAIT ON POSITION, NOT ON IsIdle. That is the whole of round 4's failure and it is a trap
+	-- worth naming: Test.IssueMoveOrder goes through World.IssueOrder, so the order sits in the
+	-- queue and only becomes an activity a tick or more later, while IsIdle is CurrentActivity ==
+	-- null -- TRUE BOTH BEFORE THE ORDER LANDS AND AFTER THE MOVE FINISHES. The wait fired on its
+	-- first poll, before either man had taken a step, and the attack was issued from the spawn
+	-- cell: outside the held port's cone, correctly refused, activity dropped, and nothing ever
+	-- re-issued it. run 260915_204319 caught it red-handed by reading the same fact twice --
+	-- "CONE-SHOT ... shooter cell 24,8 | canTarget=false" at order time against
+	-- "canTarget=true" in the verdict, by which point he had walked to 23,15.
+	--
+	-- An activity-based predicate cannot distinguish "not started" from "finished". Position can.
 	WaitUntil(MoveWithin,
-		function() return ConeShooter.IsIdle and BehindShooter.IsIdle end,
-		ConeShot,
+		function() return AtCell(ConeShooter, ConeCellX, ConeCellY) and AtCell(BehindShooter, BehindCellX, BehindCellY) end,
 		function()
-			Test.Skip("the shooters did not finish repositioning within " .. MoveWithin ..
-				"s, so neither limb could be measured from the held port's bearing. " .. State())
+			-- A settle beat after arrival, so the last move tick is behind us before anyone aims.
+			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), ConeShot)
+		end,
+		function()
+			Test.Skip("the shooters did not reach their derived cells within " .. MoveWithin ..
+				"s — cone shooter wanted " .. ConeCellX .. "," .. ConeCellY .. " and is at " ..
+				ConeShooter.Location.X .. "," .. ConeShooter.Location.Y .. "; behind shooter wanted " ..
+				BehindCellX .. "," .. BehindCellY .. " and is at " .. BehindShooter.Location.X .. "," ..
+				BehindShooter.Location.Y .. ". Neither limb can be measured from a bearing nobody is " ..
+				"standing on. " .. State())
 		end)
 end
 
