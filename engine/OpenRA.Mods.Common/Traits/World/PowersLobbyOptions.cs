@@ -157,9 +157,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the sandbox checkbox.")]
 		public readonly string PowersSandboxCheckboxDescription =
-			"Testing mode: every support power purchasable by both factions, including the " +
-			"event-only warheads, and no waiting. Ignores faction locks; strikes load instantly " +
-			"and launch the moment you order them. They still fly in from off-map";
+			"Sandbox/debug only, not for normal play: every support power purchasable by both " +
+			"factions, including the event-only warheads, and no waiting. Ignores faction locks; " +
+			"strikes load instantly and launch the moment you order them. They still fly in from " +
+			"off-map";
 
 		[Desc("Default sandbox setting. OFF, and unlike the two nuclear defaults above this one is",
 			"not expected to be revisited before release -- it is a permanent test mode, not a",

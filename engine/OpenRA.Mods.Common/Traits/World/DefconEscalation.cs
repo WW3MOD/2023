@@ -52,7 +52,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string ModeLabel = "Game mode";
 
 		[Desc("Tooltip for the game mode dropdown.")]
-		public readonly string ModeDescription = "Escalation opens the match with the border closed and steps the war up in phases: a no-rush period, then a cease-fire nobody has broken yet, then open war and the nuclear exchange. Skirmish is the ordinary game with no phases at all.";
+		public readonly string ModeDescription =
+			"Which game this is. Escalation runs the match in timed phases into a nuclear exchange; " +
+			"Skirmish is the ordinary game, with a nuclear shop and no phases at all. The controls " +
+			"below follow the mode you pick";
 
 		[Desc("Default game mode. MUST REMAIN " + nameof(DefconGameMode.Skirmish) + " until the feature is",
 			"complete: Skirmish is a strict no-op, so while this is the default nothing a player sees",
@@ -72,7 +75,9 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string StartAtLabel = "Opening phase";
 
 		[Desc("Tooltip for the starting phase dropdown.")]
-		public readonly string StartAtDescription = "The phase the match opens in. Positioning is the ceiling: it is the standing posture, so there is deliberately nothing calmer to climb down from. Starting later skips the phases before it.";
+		public readonly string StartAtDescription =
+			"The phase the match opens in. Positioning is the calmest there is, so starting later " +
+			"simply skips the phases before it";
 
 		[Desc("Default starting level. 3, 2 or 1 -- see " + nameof(DefconEscalationState.Ceiling) + ".")]
 		public readonly int StartAtDefault = DefconEscalationState.Ceiling;
@@ -105,8 +110,8 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the no-rush period dropdown.")]
 		public readonly string NoRushDescription =
-			"How long the border stays closed at the start of the match. Neither side may cross it or " +
-			"fire across it until this runs out. It scales that clock and nothing else";
+			"How long the border stays closed at the start of the match. Neither side may cross it " +
+			"or fire across it until this runs out";
 
 		[Desc("No-rush periods offered in the lobby, in MINUTES.",
 			"",
@@ -137,7 +142,7 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Tooltip for the first warheads dropdown.")]
 		public readonly string FirstWarheadsDescription =
-			"Minutes after the first kill before nuclear weapons are released.";
+			"How long after the first kill before nuclear weapons are released";
 
 		[Desc("First-warhead delays offered in the lobby, in MINUTES. See " + nameof(NoRushOptions) + ".")]
 		public readonly int[] FirstWarheadsOptions = { 2, 5, 7, 10, 15, 20 };

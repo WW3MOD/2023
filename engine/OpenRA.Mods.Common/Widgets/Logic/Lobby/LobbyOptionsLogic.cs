@@ -48,6 +48,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		readonly Func<bool> configurationDisabled;
 		MapPreview mapPreview;
 
+		// The `defcon-mode` value the current row set was built for. Compared in Tick so a host
+		// flipping the mode dropdown rebuilds the panel live, and so a NON-HOST client rebuilds too:
+		// LobbyInfo.GlobalSettings is the synced session state, so the change arrives at every
+		// client the same way a map change does.
+		string lastModeKey;
+
 		// Each instance of this logic is bound to one category — Common, Advanced or
 		// All — declared via a hidden Label@CATEGORY_FILTER inside the panel widget.
 		// Defaults to Advanced if no marker is found, so existing callers keep working.
@@ -147,6 +153,113 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		{
 			"shortgame", "crates", "creeps", "buildradius", "allybuild", "techlevel", "powers-enabled"
 		};
+
+		// ==================== MODE-DEPENDENT VISIBILITY ====================
+		//
+		// WHY THIS EXISTS. The lobby registers every option in every mode, so an Escalation host was
+		// reading four checkboxes deciding which nuclear tiers may be BOUGHT in a mode where nothing
+		// nuclear is purchasable at all, and a Skirmish host was reading two phase clocks and a
+		// nuclear posture that no code path in Skirmish ever consults. User, 2026-09-15: "we can
+		// enable/disable specific nukes even in Escalation mode, which is not necessary to even show
+		// in Escalation."
+		//
+		// THIS HIDES; IT DOES NOT UNREGISTER, and it does not write. Exactly like HiddenOptionIds
+		// above: LobbyCommands.LoadMapSettings registers every id ILobbyOptions yields with its
+		// shipped default regardless of anything here, so a trait that reads a hidden option still
+		// reads whatever the host last stored. Nothing on this path issues an `option <id> <value>`
+		// order -- the only IssueOrder calls in this file are inside the checkbox OnClick and the
+		// dropdown's SetupItem, both of which need a rendered widget to reach. So flipping the mode
+		// dropdown changes which rows DRAW and changes no stored value at all, and flipping it back
+		// restores the host's earlier choices untouched.
+		//
+		// SAME ON EVERY CLIENT. The mode is read from orderManager.LobbyInfo.GlobalSettings, which is
+		// synced session state, not a client-local preference -- so a non-host spectator sees exactly
+		// the row set the host sees. RebuildOptions re-runs from Tick when the value changes.
+
+		// Live ONLY in Escalation, and inert rather than merely unusual everywhere else:
+		//   * no-rush-period / first-warheads -- NuclearReleaseGate.Tick returns immediately when
+		//     `mode != DefconGameMode.Escalation` (NuclearReleaseLadder.cs:199), and
+		//     DefconEscalationState never runs its clock outside Escalation. In Sandbox the wall can
+		//     be up at the pinned level but the clock that would lower it never counts.
+		//   * nuclear-posture / nuclear-retaliation-window -- NuclearExchange is documented as a
+		//     "STRICT NO-OP OUTSIDE Escalation" on its own Desc (NuclearExchange.cs:106).
+		internal static readonly HashSet<string> EscalationOnlyOptionIds = new()
+		{
+			DefconEscalationInfo.NoRushOptionId,
+			DefconEscalationInfo.FirstWarheadsOptionId,
+			NuclearExchangeInfo.PostureOptionId,
+
+			// Removed by the exchange redesign in a separate branch. Listed by CONSTANT rather than
+			// by literal deliberately: when that branch deletes the constant this line fails to
+			// compile, which is the loud failure. A string literal would survive the deletion as a
+			// silently stale entry naming an option nobody registers.
+			NuclearExchangeInfo.RetaliationWindowOptionId,
+		};
+
+		// Live in Escalation AND Sandbox, dead in Skirmish. `defcon-start` is the odd one out and is
+		// NOT in the set above: Sandbox is "pinned at the configured level" (DefconEscalationState.cs),
+		// so the opening phase is the level Sandbox holds for the whole match and DefconWall reads it.
+		// Skirmish forces Level = NoLevel whatever this says, so there it governs nothing.
+		internal static readonly HashSet<string> SkirmishInertOptionIds = new()
+		{
+			DefconEscalationInfo.StartOptionId,
+		};
+
+		// Dead in Escalation, live in Skirmish and Sandbox.
+		//   * The unlock clock switches itself off in Escalation -- `Active = IntervalTicks > 0 &&
+		//     !sandbox && mode != DefconGameMode.Escalation` (NuclearUnlockClock.cs:319) -- and the
+		//     four tier checkboxes say so in their own generated description: "Ignored in Escalation,
+		//     where nothing nuclear is purchasable at all".
+		//   * tactical-nuke / high-yield-nuke / nuclear-arsenal gate powers whose `Prerequisites:
+		//     powers.event` no faction provides (player.yaml:144), so outside the sandbox they decide
+		//     nothing; in Escalation the ladder decides what may fire and these are pure noise. They
+		//     are HIDDEN here rather than retired outright -- see WORKSPACE/bugs/discovered.md for
+		//     why retiring them is not the mechanical change it looks like.
+		internal static readonly HashSet<string> EscalationInertOptionIds = new()
+		{
+			NuclearUnlockClockInfo.IntervalOptionId,
+			NuclearUnlockClockInfo.KilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.TwentyKilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.FiftyKilotonPurchasableOptionId,
+			NuclearUnlockClockInfo.HundredKilotonPurchasableOptionId,
+			"tactical-nuke",
+			"high-yield-nuke",
+			"nuclear-arsenal",
+		};
+
+		/// <summary>Whether <paramref name="optionId"/> should draw a row while the lobby is in <paramref name="mode"/>.</summary>
+		/// <remarks>
+		/// Pure, so it can be tested without a lobby. <paramref name="mode"/> is the raw wire value of
+		/// `defcon-mode` and is compared case-insensitively; an unrecognised or null mode shows
+		/// EVERYTHING, which is the safe direction -- a lobby that cannot tell which mode it is in
+		/// must not hide a control the host may need.
+		/// </remarks>
+		public static bool OptionVisibleInMode(string optionId, string mode)
+		{
+			if (optionId == null)
+				return true;
+
+			var escalation = string.Equals(mode, nameof(DefconGameMode.Escalation), StringComparison.OrdinalIgnoreCase);
+			var skirmish = string.Equals(mode, nameof(DefconGameMode.Skirmish), StringComparison.OrdinalIgnoreCase);
+			var sandbox = string.Equals(mode, nameof(DefconGameMode.Sandbox), StringComparison.OrdinalIgnoreCase);
+			if (!escalation && !skirmish && !sandbox)
+				return true;
+
+			if (escalation)
+				return !EscalationInertOptionIds.Contains(optionId);
+
+			// Skirmish or Sandbox.
+			if (EscalationOnlyOptionIds.Contains(optionId))
+				return false;
+
+			return !(skirmish && SkirmishInertOptionIds.Contains(optionId));
+		}
+
+		/// <summary>The lobby's current `defcon-mode` wire value, or null when there is no session yet.</summary>
+		string SelectedModeId()
+		{
+			return orderManager.LobbyInfo?.GlobalSettings?.OptionOrDefault(DefconEscalationInfo.ModeOptionId, null);
+		}
 
 		// ONE section list, shared by every category. Sections render in the declared order and
 		// each is named for the QUESTION a host is answering, not for the trait that happens to
@@ -379,13 +492,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			}
 
 			var newMapPreview = getMap();
-			if (newMapPreview == mapPreview)
+			var newModeKey = SelectedModeId();
+			if (newMapPreview == mapPreview && newModeKey == lastModeKey)
 				return;
 
+			// resetScroll only when the MAP changed. A mode flip swaps rows in and out of a panel the
+			// host is already reading, and yanking them back to the top -- past the map preview, which
+			// shares this scroll panel -- would be the same misbehaviour the accordion toggle was
+			// fixed for.
+			var mapChanged = newMapPreview != mapPreview;
 			Game.RunAfterTick(() =>
 			{
 				mapPreview = newMapPreview;
-				RebuildOptions();
+				RebuildOptions(mapChanged);
 			});
 		}
 
@@ -461,8 +580,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					.OrderBy(o => o.DisplayOrder)
 					.ToArray();
 
+			// Two hiding passes, and they are separate on purpose: HiddenOptionIds is a fixed list of
+			// options WW3MOD removed outright, while the mode filter is a live view of one that is
+			// registered, stored and read -- it is just not answerable in the mode the host has
+			// chosen. Neither pass writes a value; see the block comment on OptionVisibleInMode.
+			lastModeKey = SelectedModeId();
+			var modeKey = lastModeKey;
 			var visibleOptions = allOptions
-				.Where(o => !HiddenOptionIds.Contains(o.Id))
+				.Where(o => !HiddenOptionIds.Contains(o.Id) && OptionVisibleInMode(o.Id, modeKey))
 				.ToArray();
 
 			// One section list for every category. The category used to decide whether headers
