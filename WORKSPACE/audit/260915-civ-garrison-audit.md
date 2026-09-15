@@ -18,9 +18,9 @@ individually rather than trusted:
 | Prior item | Status now | Evidence |
 |---|---|---|
 | P1 #4 — decide what `Indestructible` is for | **RULED, leave as-is.** `EjectOnDeath`, both `Explodes`, every `SpawnActorOnDeath` husk and `INotifyKilled` stay permanently unreachable, **deliberately** | User ruling 2026-09-01, recorded in manager decision `31-garrison-destructibility-user-ruled-leave-as-is` |
-| P3 #13 — HP 2→1 protection cliff | **FIXED.** `CriticalProtection` re-cast as the zero-HP intercept and lowered 70 → 35, spreading the drop across the bar | `civilian.yaml:115-124`; commit `e24e1edb` |
+| P3 #13 — HP 2→1 protection cliff | **FIXED.** `CriticalProtection` re-cast as the zero-HP intercept and lowered 70 → 35, spreading the drop across the bar | `civilian.yaml:124-134`; commit `e24e1edb` |
 | P3 #11 — `RubbleProtection` implicit on GTWR/PBOX/HBOX | **FIXED.** All three now state it explicitly, and got the same `CriticalProtection` spread (50/50/48) | `structures-defenses.yaml:161-165`, `:255-259`, `:351-355` |
-| — `Cargo` emergency bail on buildings | **RULED + FIXED.** `EmergencyBailDamageState: Dead` with the user's reasoning in-tree | `civilian.yaml:63-71`; commits `481faa1f`, `15ae7d18` |
+| — `Cargo` emergency bail on buildings | **RULED + FIXED.** `EmergencyBailDamageState: Dead` with the user's reasoning in-tree | `civilian.yaml:66-76`; commits `481faa1f`, `15ae7d18` |
 | P3 #10 — `GetCurrentProtection` duplicated | **FIXED HERE** (§2, commit `3465099f`) | — |
 | P1 #2 — `CheckOwnershipAfterExit` transfers to any player | **STILL LIVE** | `GarrisonManager.cs:333-336` |
 | P1 #3 — `V19.Husk` throws on creation | **HALF-FIXED HERE**; YAML half ranked at #6 | `civilian.yaml:444-450` |
@@ -33,8 +33,8 @@ panel, so it never ticked. Read; not re-found. §5 audits what that panel will n
 **The census.** 38 actors inherit `^CivBuilding`, plus `GTWR`/`PBOX`/`HBOX` declaring the stack
 independently = **41 garrisonable actors**, not the brief's ~44. **[V]** The overcount of 3 comes from
 `civilian.yaml:145` (`^DesertCivBuilding` — a template, not an actor) and `:210` (a commented-out
-inherit). The brief's `Cargo` citation is off by one file revision: the block is `civilian.yaml:56-71`,
-not `:58-67`. **[V]**
+inherit). The brief's `Cargo` citation is off by one file revision: the block is `civilian.yaml:58-76`; the brief's
+`:58-67` starts right and stops nine lines early, before `EmergencyBailDamageState`. **[V]**
 
 ---
 
@@ -45,7 +45,7 @@ been put next to each other.
 
 **(a) A garrisoned building can only be force-fired.** `^CivBuilding` carries two mutually exclusive
 `Targetable` traits: the base one gated `!loaded`, and `Targetable@WhenGarrisoned` gated `loaded` with
-`RequiresForceFire: true` (`civilian.yaml:16-22`). `Target.RequiresForceFire` returns true when every
+`RequiresForceFire: true` (`civilian.yaml:17-23`). `Target.RequiresForceFire` returns true when every
 *enabled* targetable requires it (`Target.cs:131-151`), and while loaded exactly one is enabled — so it
 does. `AttackBase` then rejects the target outright for any non-force attack:
 `if (!forceAttack && (... || target.RequiresForceFire)) return false;` (`AttackBase.cs:442`). **[V]**
@@ -58,7 +58,7 @@ The one actor-directed attack order is `PoiOffensiveBotModule.cs:4720`, which is
 **(c) Shelter occupants are only reachable through damage to the building.** They are inside `Cargo`,
 hence out of world and not targetable by anything. The sole path to them is
 `GarrisonProtection.Damaged`, an `INotifyDamage` on the building that forwards a slice of the
-building's incoming damage to one random shelter occupant (`GarrisonProtection.cs:92-124`). **[V]**
+building's incoming damage to one random shelter occupant (`GarrisonProtection.cs:91-125`). **[V]**
 
 Put together: **a bot can never deal damage to a garrisoned building, so it can never deal any damage
 to anyone sheltering inside one.** Port soldiers remain killable — `GarrisonPortOccupant` sets
@@ -83,7 +83,7 @@ the commit message.
 
 | Commit | What |
 |---|---|
-| `5a9791bc` | **`GarrisonProtection` no longer throws on an actor that removed `Health`.** `Created` called `self.Trait<IHealth>()` unguarded (`:61`); `V19.Husk` inherits the garrison stack and then removes `Health` (`civilian.yaml:445-450`), so constructing one throws `InvalidOperationException` out of `TraitDictionary.Get`. `GarrisonProtectionInfo` requires `GarrisonManagerInfo` and `CargoInfo` but **not** `HealthInfo`, so no lint can see the combination. The trait's author expected null — both `GetCurrentProtection` and `Damaged` open with a `health == null` guard, and both were dead code because the `Created` line threw first. Now `TraitOrDefault<IHealth>()`. **[V]** |
+| `5a9791bc` | **`GarrisonProtection` no longer throws on an actor that removed `Health`.** `Created` called `self.Trait<IHealth>()` unguarded (pre-fix `:61`; now `TraitOrDefault` at `:70`); `V19.Husk` inherits the garrison stack and then removes `Health` (`civilian.yaml:445-450`), so constructing one throws `InvalidOperationException` out of `TraitDictionary.Get`. `GarrisonProtectionInfo` requires `GarrisonManagerInfo` and `CargoInfo` but **not** `HealthInfo`, so no lint can see the combination. The trait's author expected null — both `GetCurrentProtection` and `Damaged` open with a `health == null` guard, and both were dead code because the `Created` line threw first. Now `TraitOrDefault<IHealth>()`. **[V]** |
 | `3465099f` | **One copy of the protection curve, not two.** `Damaged` carried a verbatim reimplementation of `GetCurrentProtection`'s body and never called it — so the panel readout came from one copy and the damage that actually lands came from the other. Behaviour-preserving: `Damaged` already early-returns on the only two cases `GetCurrentProtection` folds to 0. Closes prior P3 #10. **[V]** |
 | `22f409d6` | **Garrisoned mortar and AT infantry stop being shootable through the wall.** See §3 — the one live defect found this pass that changes what a player experiences. |
 | `0139ae1b` | **`Cargo.Neutral`: say that it does nothing.** `[Desc]`-only. See §4. |
@@ -154,7 +154,7 @@ Three gaps, in descending order:
 **5a. The panel shows at most 4 of up to 10 reserve occupants.** The shelter loop runs `for (var i = 0;
 i < 4; i++)` over `RESERVE_LABEL_{i}` (`GarrisonPanelLogic.cs:78-89`), and `ingame-player.yaml` declares
 exactly `RESERVE_LABEL_0..3` (`:987-1010`). **[V]** `^CivBuilding` is `MaxWeight: 10` with 8 ports
-(`civilian.yaml:61`, `:73-114`). In the steady state that is fine — 8 at ports leaves 2 in reserve. It
+(`civilian.yaml:61`, `:79-119`). In the steady state that is fine — 8 at ports leaves 2 in reserve. It
 fails precisely when the panel matters most: soldiers recalled under fire go back to the shelter and
 cannot re-man a port until suppression decays below `SuppressionRedeployThreshold`, so a garrison being
 suppressed is exactly the state that can hold up to 10 men in shelter at once, and the player sees 4.
@@ -206,7 +206,7 @@ them, so "rubble" is the terminal state in both cases.)
 Nothing in `civilian.yaml` says any of this. The 18 desert houses are not tuned to be tougher — they
 are untuned, and `^TechBuilding`'s defaults are what a *tech* building wants, where `Concrete` pairs
 with a `Targetable` that most weapons cannot hit at all (`structures.yaml:186-215`). A civilian house
-overrides that `Targetable` (`civilian.yaml:16-18`) and so is fully hittable while keeping the armour
+overrides that `Targetable` (`civilian.yaml:17-19`) and so is fully hittable while keeping the armour
 class chosen for something unhittable.
 
 **This is the highest-value cheap balance item in the audit** and it is a pure YAML decision — but it
@@ -258,7 +258,7 @@ It is still worth recording, because the failure mode is nasty and silent: give 
 a facing and a port soldier can shoot in one arc while being shootable from a different one. This is
 the third instance of the same pattern in this subsystem — port geometry is *also* stated twice in YAML
 (`GarrisonManager.Ports` and the inert `AttackGarrisoned.PortOffsets/PortYaws/PortCones`,
-`civilian.yaml:73-114` vs `:141-143`), and `GarrisonProtection` had two copies of its curve until
+`civilian.yaml:79-119` vs `:141-143`), and `GarrisonProtection` had two copies of its curve until
 commit `3465099f` above.
 
 ---
@@ -271,16 +271,16 @@ Ordered by value-per-effort against release, per the user's standing instruction
 
 | # | Sev | Title | Proposed shape | Effort |
 |---|---|---|---|---|
-| 1 | **high** | **Bots can never damage a garrisoned building, so shelter occupants are invulnerable to the AI** (§1) | Two candidate shapes, and the cheap one is probably right. **(a)** Drop `RequiresForceFire: true` from `Targetable@WhenGarrisoned` (`civilian.yaml:20-22`) — a garrisoned building becomes auto-engageable by everyone, human and bot, which also fixes the "attack-move walks past" half. Risk: units now auto-acquire an *indestructible* building and can waste fire on it forever, which is exactly what the flag was presumably added to prevent. **(b)** Keep the flag and give one bot module a force-fire path against buildings carrying `GarrisonManager` with live occupants. Strictly better behaviour, strictly more code. Recommend costing (a) first with a combat-sim pass, because it is a one-line YAML change and its failure mode is visible immediately. | S to try (a), M for (b) |
-| 2 | **high** | **The enemy is never shown that a building is occupied** (prior P2 #6, still live) | `WithGarrisonDecoration` inherits `WithDecorationBaseInfo.ValidRelationships`, which defaults to `Ally` (`WithDecorationBase.cs:107-108`) and is not overridden (`civilian.yaml:134-136`). Because garrisoning transfers ownership, the opponent always evaluates to `Enemy` and every pip is suppressed — the readout is built, correct, and shown only to the player who already knows. Add `ValidRelationships: Ally, Enemy, Neutral`, or a reduced enemy-facing variant. Fog gating at `WithDecorationBase.cs:152-153` stays and keeps it honest. Still the single highest-value legibility change in the subsystem. | S |
+| 1 | **high** | **Bots can never damage a garrisoned building, so shelter occupants are invulnerable to the AI** (§1) | Two candidate shapes, and the cheap one is probably right. **(a)** Drop `RequiresForceFire: true` from `Targetable@WhenGarrisoned` (`civilian.yaml:20-23`) — a garrisoned building becomes auto-engageable by everyone, human and bot, which also fixes the "attack-move walks past" half. Risk: units now auto-acquire an *indestructible* building and can waste fire on it forever, which is exactly what the flag was presumably added to prevent. **(b)** Keep the flag and give one bot module a force-fire path against buildings carrying `GarrisonManager` with live occupants. Strictly better behaviour, strictly more code. Recommend costing (a) first with a combat-sim pass, because it is a one-line YAML change and its failure mode is visible immediately. | S to try (a), M for (b) |
+| 2 | **high** | **The enemy is never shown that a building is occupied** (prior P2 #6, still live) | `WithGarrisonDecoration` inherits `WithDecorationBaseInfo.ValidRelationships`, which defaults to `Ally` (`WithDecorationBase.cs:107-108`) and is not overridden (`civilian.yaml:136-138`). Because garrisoning transfers ownership, the opponent always evaluates to `Enemy` and every pip is suppressed — the readout is built, correct, and shown only to the player who already knows. Add `ValidRelationships: Ally, Enemy, Neutral`, or a reduced enemy-facing variant. Fog gating at `WithDecorationBase.cs:152-153` stays and keeps it honest. Still the single highest-value legibility change in the subsystem. | S |
 | 3 | **med** | **22 of 38 civilian buildings are an untuned second class: 60000 HP / `Armor: Concrete` inherited from `^TechBuilding`** (§6) | Decide the intended armour class for a civilian house and state it on `^CivBuilding` so nothing inherits the tech-building default by accident; then decide whether the 18 desert houses should have the temperate range's per-actor HP or one shared value. Pure YAML. A ~7.7× spread in effort-to-rubble between a desert house and a windmill under HIMARS is almost certainly not a designed difference. | S to decide, M to retune with combat-sim |
 | 4 | **med** | **`CheckOwnershipAfterExit` transfers to *any* remaining occupant, not any *ally*** (prior P1 #2, still live) | `GarrisonManager.cs:333-336` reads `remainingOwners.First()` with no relationship filter, while its own comment two lines up says *"but an ally does → transfer"* (`:334`). Code and spec disagree; the comment is the spec. Filter `remainingOwners` by relationship to the current owner. Independent of #5 and should not wait on it. | S + a test |
 | 5 | **med** | **Two hostile players can garrison the same building** (prior §3, unresolved) | The relationship gate appears exactly once, at targeting (`EnterAlliedActorTargeter.cs:49-54`, which admits allied **or neutral**); nothing re-checks through `Passenger.ResolveOrder`, `RideTransport.TryStartEnter`/`OnEnterComplete` or `Cargo.CanLoad`. Fix shape unchanged from the prior pass: an `ICargoCanLoadFilter` on `GarrisonManager` rejecting passengers not allied-or-neutral with the building's *current* owner — the extension point exists and `SupplyProvider` is the worked example. **Blocked on run Q3** (below): whether a non-owner can evacuate decides if this is an oddity or a men-permanently-lost bug. | M |
-| 6 | **med** | **`V19.Husk` still carries a garrison stack it cannot support** (prior P1 #3, engine half fixed here) | Commit `5a9791bc` stops the throw, but a wreck should not be garrisonable at all. The YAML half is **not as cheap as it looks and that is the finding**: removing `Cargo` from the husk orphans every consumer of the `loaded` condition that `^CivBuilding` supplies — `Targetable@WhenGarrisoned` (`civilian.yaml:19-22`) and all seven `Vision@4`–`@10` bands from `^StandardVisionWhenLoaded` — each of which then becomes a condition consumed but never granted. Whoever takes it must remove those too and must run the YAML lint, which this branch may not. | S once lint is available |
+| 6 | **med** | **`V19.Husk` still carries a garrison stack it cannot support** (prior P1 #3, engine half fixed here) | Commit `5a9791bc` stops the throw, but a wreck should not be garrisonable at all. The YAML half is **not as cheap as it looks and that is the finding**: removing `Cargo` from the husk orphans every consumer of the `loaded` condition that `^CivBuilding` supplies — `Targetable@WhenGarrisoned` (`civilian.yaml:20-23`) and all seven `Vision@4`–`@10` bands from `^StandardVisionWhenLoaded` — each of which then becomes a condition consumed but never granted. Whoever takes it must remove those too and must run the YAML lint, which this branch may not. | S once lint is available |
 | 7 | **med** | **An empty `GTWR` or `HBOX` gives its owner no vision; an empty `PBOX` gives full vision** (§7) | `PBOX` never received `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded` when `GTWR` and `HBOX` did (`4eed77af`, 2023). Decide which is intended and make all three match. A guard tower that is blind until garrisoned is defensible as a design, but it should be a decision. | S |
 | 8 | **med** | **The panel shows at most 4 of up to 10 reserve occupants** (§5a) | Loop bound is 4 (`GarrisonPanelLogic.cs:78`) against `MaxWeight: 10`. The panel body already fills its 240-high container to y=216, so this needs the container resized as well as rows added — or, cheaper and arguably better, collapse the reserve list to one summary row (`[S] 7 in reserve, 2 pinned`) that cannot overflow at any capacity. | M for rows, S for the summary row |
 | 9 | **low** | **Delete `Cargo.Neutral` rather than documenting it** (§4) | Commit `0139ae1b` corrects the `[Desc]`; the field is still there to be set. Remove the field (`Cargo.cs:29-30`) and its four setters (`civilian.yaml:59`, `structures-defenses.yaml:120`, `:224`, `:323`). Provably inert — nothing reads it — but it is four YAML edits and wants one lint run. | S |
-| 10 | **low** | **Port geometry is stated twice in YAML, one copy inert** (prior P3 #12) | `AttackGarrisoned.PortOffsets/PortYaws/PortCones` (`civilian.yaml:141-143` and the GTWR/PBOX/HBOX equivalents) is only a fallback for actors with no `GarrisonManager` (`AttackGarrisoned.cs:33-40`, `:180-181`), so it is dead on all 41. Two sources of truth for one geometry, in sync by luck. Delete the dead copy. | S |
+| 10 | **low** | **Port geometry is stated twice in YAML, one copy inert** (prior P3 #12) | `AttackGarrisoned.PortOffsets/PortYaws/PortCones` (`civilian.yaml:139-143` and the GTWR/PBOX/HBOX equivalents) is only a fallback for actors with no `GarrisonManager` (`AttackGarrisoned.cs:33-40`, `:180-181`), so it is dead on all 41. Two sources of truth for one geometry, in sync by luck. Delete the dead copy. | S |
 | 11 | **low** | **`^MT` / `^AT` `Targetable@HighPriority` also lacks `!parachute`** (§3) | The base `Targetable` is gated `!parachute && !garrisoned-at-port`; commit `22f409d6` added only the second conjunct, deliberately. A mortarman is still targetable through `Targetable@HighPriority` while parachuting, unlike every other infantry type. Same one-line shape, but it is an independent behavioural change and wants its own measurement. | S |
 | 12 | **low** | **`GarrisonPortOccupant.TargetableBy` omits the building facing that `IsTargetInPortArc` applies** (§8) | Inert today — no garrisonable actor has an `IFacing` trait — so this is a trap, not a bug. Extract one shared arc helper taking `(bodyYaw, portYaw, cone, targetYaw)` and call it from both sites. Cheap now, and the third instance of this exact duplication pattern in this subsystem. | S |
 | 13 | **low** | **`Inherits@CargoPips` is a no-op on all 41 actors** (prior P2 #9) | `WithCargoPipsDecoration` early-returns when the actor also has `WithGarrisonDecoration` (`:70`, `:97`), which all 41 do. The inherit is not harmless clutter — it is the line a future reader trusts when asking "does fullness render?". **Careful:** the same template also supplies `Cargo.LoadedCondition` and `NoUnloadNotification` (`defaults.yaml:1016-1023`); removing the inherit without re-stating those silently breaks the `loaded` condition that gates `Targetable@WhenGarrisoned`. Verify before cutting. | S |
