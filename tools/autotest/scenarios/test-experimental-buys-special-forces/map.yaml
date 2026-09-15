@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: experimental twins buy Special Forces, both factions (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Bot: experimental
+		Color: FF4444
+		Enemies: USA-bot
+
+# BOTH bots are `experimental` ON PURPOSE, and that is the difference from
+# test-experimental-msar-deploy, which pairs experimental against stable. The two UnitBuilder twins
+# under test are separate trait instances gated on separate conditions —
+# `enable-ai-experimental && player.nato` (ai-america.yaml:151) and
+# `enable-ai-experimental && player.brics` (ai-russia.yaml:150) — so a one-faction run leaves the
+# other twin's three YAML entries completely unexercised. sf.russia additionally carries
+# `~player.russia` (infantry-russia.yaml:103), so the America bot provably cannot field one on
+# Russia's behalf: each twin has to buy its own, which is the whole point of covering both here.
+#
+# NOTHING HERE IS AN SF, DELIBERATELY, AND THE TEST IS WORTHLESS IF THAT CHANGES.
+# The predicate is "each bot OWNS at least one sf.<faction>, and never more than 2". A pre-placed
+# one satisfies the lower arm without the bot doing anything, turning a procurement test into a
+# test that the harness can count actors. The two Supply Routes are the call-in beachheads (one per
+# player, as shipped) and are the only structures either bot needs to produce at all.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,16
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml
