@@ -67,7 +67,12 @@ directory is a real control rather than a second copy of the treatment.
 2026-09-15 — THE LEASH FIX CHANGED THE TREATMENT, NOT THIS ARM, AND THIS DECLARATION STAYS.
 The hover ceiling moved from 22 to 30 cells (CarrierSlave.MaxDistance 25->33, DroneTargeter
 25c0->33c0, LeashCells 25->33 on both profiles), so the treatment can now reach the vanish cell
-and is expected to PASS; its by-merit `fail` declaration is deleted. Nothing about that reaches
+and was expected to PASS. IT DID NOT, and its by-merit `fail` declaration is back --
+see that file for the hover-30 paired launch lines. THIS ARM IS HALF OF WHY: at t200 the two arms
+chose DIFFERENT cells for the first time (treatment 43,27, this arm 31,17), which is what proves
+the intel term moves the pick at all; and at t1800 BOTH arms retask to 47,55, which is what proves
+the second launch onto the contact is exploration ordering rather than the term. Neither statement
+was available from the treatment alone. Nothing about that reaches
 this arm: with IntelSampleInterval 999999 the contact table is still never written, every
 candidate still scores intelSquares 0, and a drone that cannot know where the enemy was cannot
 prefer that cell however far it can now fly.

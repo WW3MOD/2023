@@ -1227,11 +1227,20 @@ Player:
 		# CarrierSlave.MaxDistance and DroneTargeter's range all moved to put the hover ceiling at 30,
 		# which clears 28. The paragraph above about a contact the drone can park on keeping the full
 		# 247 and winning comfortably was, until that change, describing a situation the lost tier
-		# could never reach. It is now reachable, and the rig predicts 14 + 247 = 261 against a
-		# 248-square exploration alternative.
-		# WHAT DID NOT CHANGE: LostTrackIntelSquares. 1.315x still sits inside the pre-registered
-		# <=1.5x band, and it was never the right lever. Do not revisit it on the strength of the
-		# rig going green — the rig goes green because the drone can now reach the contact.
+		# could never reach. It is now reachable.
+		# THAT PREDICTION (14 + 247 = 261 against 248) WAS THEN MEASURED AND WAS WRONG, BOTH WAYS.
+		# The hunt cell moved to 1 cell from V and IntelFalloff(247,1,28) = 238 exactly as predicted,
+		# but its reveal went 14 -> 0 (a cell nearer V is deeper inside ground the scout just
+		# verified: moving toward the contact buys intel by spending reveal), AND the same raise grew
+		# ChooseTargetCell's box from 45^2 to 61^2, which found a better exploration prize, bestReveal
+		# 248 -> 287. Hunt 192 -> 238; the alternative 248 -> 287. The deficit barely moved and the
+		# rig is re-declared fail-by-merit. The term DOES move the pick — the arms chose different
+		# cells at t200 for the first time — just not to the contact.
+		# WHAT DID NOT CHANGE: LostTrackIntelSquares. TWO independent measurements now sit inside the
+		# pre-registered <=1.5x band — 1.315x at hover 22, and a 1.21x-1.28x BRACKET at hover 30
+		# (a bracket because the launch line prints the intel at the CHOSEN cell, and at hover 30 the
+		# treatment's chosen cell is no longer the reveal argmax; at hover 22 both arms picked the
+		# same cell, which is what made a point estimate sound there). Do not raise it.
 		#
 		# ===== SUPERSEDED: MEASURED ONCE, 2026-09-01 — THE SIZING QUESTION WAS OPEN =====
 		# LostTrackIntelSquares is no longer purely a reasoned estimate, but it is NOT calibrated,

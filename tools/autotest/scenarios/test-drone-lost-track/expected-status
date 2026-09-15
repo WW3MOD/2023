@@ -1,0 +1,62 @@
+fail
+BY MERIT, RE-DECLARED 2026-09-15 AFTER THE LEASH FIX. The @experimental drone operator still
+does not prefer a lost-track contact over the best ground it could explore. The scenario and the
+code are both correct; what moved is the geometry, and it was not enough.
+
+THIS DECLARATION WAS DELETED EARLIER THE SAME DAY AND IS BACK. The leash fix (hover ceiling 22 ->
+30, clearing the operator's 28-cell verifying radius) predicted 252-261 against 248 and a PASS.
+That prediction was wrong, in two ways that are worth more than the prediction was:
+
+PAIRED LAUNCH LINES AT HOVER 30 -- treatment 260915_200535_p8719, control 260915_205136_p52938:
+
+  tick  TREATMENT                                              CONTROL
+  200   cell=43,27 reveal=287 intel=17                         cell=31,17 reveal=287 intel=0
+        bestintel=238 bestintelcell=47,53 bestintelreveal=0    records=0
+  1800  cell=47,55 reveal=194 intel=57 bestintel=57            cell=47,55 reveal=248 intel=0
+
+1. THE FIX WORKED IN INTEL SPACE AND STILL LOST. The reachable hunt cell moved from 8 cells out
+   to 1 (47,53) and IntelFalloff(247, 1, 28) = 238, exactly as predicted. But bestintelreveal
+   went 14 -> 0: a hunt cell nearer V sits deeper inside ground the scout just verified, so it
+   reveals nothing. Moving toward the contact BUYS INTEL BY SPENDING REVEAL.
+
+2. THE SAME RAISE FED THE OTHER SIDE. ChooseTargetCell scans a (2*maxHover+1)^2 box, 45^2 = 2025
+   -> 61^2 = 3721 candidates, and the bigger box found a better exploration prize: bestReveal
+   248 -> 287. Hunt went 192 -> 238 (+46); the alternative went 248 -> 287 (+39) at a cell that
+   also carries intel of its own. The deficit barely moved.
+
+THE TERM DID MOVE THE PICK, AND THAT IS NOT NOTHING. The two arms chose DIFFERENT cells at t200
+for the first time in this scenario's history -- treatment 43,27, control 31,17, both against
+bestReveal 287 -- so the intel term demonstrably shifts the argmax. It does not shift it to the
+contact.
+
+THE SECOND LAUNCH IS NOT THE FEATURE WORKING. Both arms retask to 47,55 at t1800, one cell from
+the vanish cell. The control has records=0 and intel=0, so that is exploration ordering reaching
+the same ground once the nearer prize is consumed. Two further tells inside the treatment alone:
+its t1800 bestintel=57 is exactly IntelFalloff(60, 1, 28), i.e. IntelSquares returned areaSquares
+EXACTLY, which per DroneTaskingMath.IntelSquares happens when ageTicks <= FreshSightingTicks (50)
+-- the decay ramp at that age would give ~89. The contact was being OBSERVED by then, so t1800 is
+not a lost-track decision at all.
+
+HOW SHORT, AND WHY IT IS A BRACKET RATHER THAN THE PRE-REGISTERED POINT ESTIMATE. The formula
+  multiplier = (reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)
+needs the intel AT THE REVEAL ARGMAX. The launch line prints the intel at the CHOSEN cell, and
+this time the treatment's chosen cell (43,27) is NOT the reveal argmax -- the control proves the
+argmax is 31,17, because with intel 0 everywhere its winner must be it. So the denominator is
+unobserved and the exact figure is not derivable. What IS derivable, from the treatment beating
+both 31,17 and 47,53:
+  worth_hunt   = 0 + 238 = 238
+  worth_chosen = between 287 and 304  (>= the argmax's 287; <= bestReveal 287 + its own intel 17)
+  multiplier on bestintel  =  1.21x .. 1.28x
+1.21x is the LOWER bound, not the answer. The whole bracket sits inside the pre-registered <=1.5x
+band, whose ruling is: the term is roughly right and this is a hard case -- CHANGE NOTHING.
+(The earlier 1.315x, taken at hover 22, was sound because BOTH arms chose 29,25 there, which made
+intel_at_reveal_argmax observable. That coincidence is gone.)
+
+DO NOT TOUCH LostTrackIntelSquares. Two independent measurements now put the shortfall inside the
+change-nothing band, and CONTROL-ARM.md names setting it to whatever flips this scenario as
+tuning-to-pass. The leash/weapon/model change stays: it was a coherence fix -- a lost contact was
+structurally unreachable before it -- and it is pinned by DroneLeashCoherenceTest. It is simply
+not sufficient on this geometry.
+
+REMOVE THIS FILE in the same commit as whatever makes the operator prefer the lost-track contact.
+A pass against a live `fail` declaration is RED on purpose: it means the premise moved.

@@ -61,7 +61,48 @@ one.
 
 ## Expected results
 
-## 2026-09-15: the rig should now go GREEN, and the reason is reach rather than weight
+## 2026-09-15: the rig did NOT go green — what the leash fix actually bought
+
+**The prediction in this section was wrong and is kept below rather than edited**, because the
+two ways it was wrong are worth more than the prediction was. Measured at hover 30, both arms:
+
+```
+tick  TREATMENT                                            CONTROL
+200   cell=43,27 reveal=287 intel=17                       cell=31,17 reveal=287 intel=0
+      bestintel=238 bestintelcell=47,53 bestintelreveal=0  records=0
+1800  cell=47,55 reveal=194 intel=57 bestintel=57          cell=47,55 reveal=248 intel=0
+```
+
+**It worked in intel space and still lost.** The hunt cell moved from 8 cells out to 1 and
+`IntelFalloff(247, 1, 28)` = 238, exactly as predicted below. But `bestintelreveal` went 14 → **0**:
+a cell nearer V is deeper inside ground the scout just verified. **Moving toward the contact buys
+intel by spending reveal.**
+
+**And the same raise fed the other side.** The candidate box went 45² = 2025 → 61² = 3721 and found
+a better prize: `bestReveal` 248 → 287. Hunt 192 → 238 (+46); the alternative 248 → 287 (+39) at a
+cell carrying its own intel. The deficit barely moved.
+
+**The term does move the pick.** The arms chose *different* cells at t200 for the first time ever
+here — 43,27 vs 31,17. It does not move it to the contact.
+
+**The t1800 retask is not the feature.** Both arms go to 47,55. And the treatment's `bestintel=57`
+there is exactly `IntelFalloff(60, 1, 28)`, i.e. `IntelSquares` returned `areaSquares` **exactly**,
+which happens when `ageTicks <= FreshSightingTicks` — the decay ramp would give ~89. The contact was
+being observed by t1800, so that launch is not a lost-track decision at all.
+
+**The shortfall is a BRACKET, 1.21×–1.28×, not a point.** The pre-registered formula needs the intel
+at the *reveal argmax*; the launch line prints it at the *chosen* cell, and this time those differ
+(the control proves the argmax is 31,17). Derivable: `worth_hunt` = 0 + 238 = 238 against a winner
+worth 287–304. The whole bracket is inside the ≤1.5× change-nothing band, as was the 1.315× measured
+at hover 22 — where both arms happened to pick the same cell, which is what made the point estimate
+sound then.
+
+**`LostTrackIntelSquares` stays at 250.** Two independent measurements, two different geometries,
+both inside the band.
+
+---
+
+### The prediction this section replaced (2026-09-15, falsified same day)
 
 `test-drone-lost-track`'s `expected-status` declaration is **deleted** as of this change. It
 declared a by-merit `fail` and its own closing line said to remove it in the same commit as
@@ -203,7 +244,7 @@ winner `35,31` carries intel 34, so its own reveal `r` satisfies `r + 34 ≥ 315
 The term's *displacement power* is its value at the best hunt cell minus its value at the
 reveal argmax. `IntelFalloff` is monotonically decreasing in distance, so `bestIntel` is
 always at the **closest candidate to the vanish cell**, which the leash fixes at **8** cells
-(V sits 30 cells from the operator against a 22-cell leash; run 8 measured
+(V sat 30 cells from the operator against a then-22-cell leash; run 8 measured
 `bestintelcell=39,51`, exactly 8 out):
 
 > `247·(28−8+1)/29 − 247·(28−28+1)/29 = 178 − 8 = **170 squares**`
@@ -293,7 +334,7 @@ denominator was unaffected.
 **Scope, and it is narrower than any number here looks.** This is one point, not a
 calibration. `reveal=307` is this map's strongest exploration alternative; `bestintelreveal=95`
 is the terrain around one hunt cell; and the 8-cell closest approach follows from V sitting 30
-cells out against a 22-cell leash. That geometry is close to **worst case for the term**: a
+cells out against a then-22-cell leash. That geometry is close to **worst case for the term**: a
 contact nearer the operator would be reachable at lower falloff — at 0 cells the value is the
 full 247 rather than 178 — so the term would win comfortably. So whatever the re-measured
 shortfall turns out to be, it is an **upper bound on the general case**, and must never be
