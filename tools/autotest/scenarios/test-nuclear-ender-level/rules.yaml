@@ -45,37 +45,47 @@ World:
 		HundredKilotonCooldownTicks: 60
 
 	# ==== SHIPPED LOBBY CONFIGURATION, PINNED. THE ABSENT LINE IS THE POINT OF THE FILE ====
-	# Every value below is the trait's own shipped default (PowersLobbyOptions.cs:68, :111, :144,
-	# :185); they are written out and LOCKED so no saved session or host default can move one out
-	# from under the run, not to change anything.
+	# Every value below is the trait's own shipped default; they are written out and LOCKED so no
+	# saved session or host default can move one out from under the run, not to change anything.
 	#
 	# PowersSandboxCheckboxEnabled IS FALSE AND MUST STAY FALSE. ProvidesPrerequisite@SandboxEvent
-	# grants `powers.event` while that option is on (player.yaml:192-194), which is the one
-	# prerequisite the three game-enders declare and no faction provides. Turn it on and every
-	# assertion here passes on a build with the defect fully intact -- which is exactly why
-	# test-nuclear-exchange cannot see this bug: its rules.yaml sets it for unrelated reasons.
+	# grants `powers.event` while that option is on (player.yaml), which is the one prerequisite the
+	# three game-enders declare and no faction provides. Turn it on and every assertion here passes
+	# on a build with the defect fully intact -- which is exactly why test-nuclear-exchange cannot
+	# see this bug: its rules.yaml sets it for unrelated reasons.
 	#
-	# HighYieldNuke IS ON, AND THAT IS WHAT MAKES PHASES F AND H MEAN ANYTHING. That power is band 5
-	# (6 Mt) and declares `powers.event` with NO faction name beside it, so under the user's ruling
-	# of 2026-09-14 -- "national ender only", exactly one END cameo per side -- it is armed by
-	# nobody. The scenario asserts it reads `hidden` at an OPEN END LEVEL, and a negative
-	# assertion is only evidence while every OTHER gate on that power is open: leave the checkbox
-	# at false and `hidden` would be true because its RequiresCondition was unsatisfied, which is
-	# not the thing under test. ON and LOCKED is the setting that makes the reading about
-	# attribution.
+	# TWO MORE PINS USED TO LIVE HERE AND WERE REMOVED ON 2026-09-15 WITH THE OPTIONS THEY PINNED.
+	# `high-yield-nuke` and `tactical-nuke` were retired that day; each gated exactly one event-tier
+	# power. Neither removal weakens a phase of this scenario, and the reasoning differs per power,
+	# so both halves are written out:
 	#
-	# TacticalNuke IS OFF, its shipped default. It is a BAND 2 power that also declares
-	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt level; phase D
-	# asserts it stays dark, which is the negative control on the fix's scope.
+	#   * HighYieldNuke WAS PINNED ON, and that was what made phases F and H evidence: they assert
+	#     it reads `hidden` at an OPEN END LEVEL because it names no nation, and a negative
+	#     assertion is only evidence while every OTHER gate on the power is open. With the checkbox
+	#     gone that gate is now open UNCONDITIONALLY -- the power's RequiresCondition is
+	#     `nuclear-release-gameender` alone, satisfied at an open END level -- so the reading is
+	#     still about attribution and no longer depends on this file remembering to tick a box.
+	#     STRICTLY STRONGER. What refuses it is NuclearGameEnders.ArmableBy: subtract the overridden
+	#     `powers.event` and its owner set is EMPTY.
+	#     (PHASE A also asserts `hidden` on this power but is NOT an attribution reading and never
+	#     was: it reads at RELEASE, which is level 1, so the game-ender band is ungranted and the
+	#     band alone explains it. It is the baseline F and H are measured against. The pin made no
+	#     difference there either way.)
+	#
+	#   * TacticalNuke WAS PINNED OFF, and phase C's negative control USED TO REST ON THAT. It no
+	#     longer does, and this is the one place in the change where a control's claim NARROWED
+	#     rather than held: TacNuke is band 2, its RequiresCondition is now `nuclear-release-20kt`
+	#     alone and IS satisfied at level 2. What keeps it dark is the EVENT TIER -- band 2 is below
+	#     the GameEnder rung, so NuclearExchangeInfo.OverriddenPrerequisites never waives
+	#     `powers.event` for it (ArmableAtTopRung), and sandbox is locked off above. The control
+	#     therefore still binds, but on "the prerequisite override did not reach below the top rung"
+	#     rather than on "the grant path re-checked the power's own condition". The .lua says the
+	#     same thing at TACNUKE; keep the two in step.
 	PowersLobbyOptions:
 		NuclearArsenalCheckboxEnabled: true
 		NuclearArsenalCheckboxLocked: true
 		PowersSandboxCheckboxEnabled: false
 		PowersSandboxCheckboxLocked: true
-		HighYieldNukeCheckboxEnabled: true
-		HighYieldNukeCheckboxLocked: true
-		TacticalNukeCheckboxEnabled: false
-		TacticalNukeCheckboxLocked: true
 
 	# THE FINAL EXCHANGE STAYS OFF, by leaving DoomsdayStrikeInfo.RunInTestMode at its default false
 	# (DoomsdayStrike.cs:100-104, :458-459). Stated as a comment rather than written as

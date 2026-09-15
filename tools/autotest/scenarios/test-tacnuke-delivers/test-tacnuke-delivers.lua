@@ -10,15 +10,16 @@
 -- predicate SupportPowersWidget filters its icon list on (SupportPowersWidget.cs:136), which is the
 -- only way to tell a power the host ENABLED from one that is merely still charging — a disabled
 -- power is still a key in SupportPowerManager.Powers, so ActivateSupportPower reports both as
--- 'not-ready'. Its sibling test-tacnuke-lobby-gated-off asserts the same reading comes back
--- 'hidden' when the option is left at its shipped default of OFF.
+-- 'not-ready'. It used to have a sibling, test-tacnuke-lobby-gated-off, asserting the same reading
+-- came back 'hidden' with the lobby option at its shipped default of OFF; that option was retired
+-- on 2026-09-15 and the sibling deleted with it.
 --
 -- The binding returns ONE BARE TOKEN; Test.GetSupportPowerBin gives the key list separately. An
 -- earlier version appended " (bin: ...)" to the state, which made every exact comparison against it
 -- unsatisfiable — the assertion below was one of four sites carrying that bug and would have failed
 -- this scenario without the shipped behaviour being wrong at all.
 --
--- WHY A LIVE ICON IS NOT ENOUGH ON ITS OWN: `RequiresCondition: !tacnuke-disabled` could be
+-- WHY A LIVE ICON IS NOT ENOUGH ON ITS OWN: `RequiresCondition: nuclear-release-20kt` could be
 -- satisfied while the missile actor, its sequence or its Explodes payload are broken, and the run
 -- would still show a cameo. So the kill is asserted too, and the entry cell with it — a nuke that
 -- detonates on the target while having been spawned there is the SpawnActorPower shape, not an
@@ -301,10 +302,12 @@ local function finish()
 			.. " 'refused' means the Powers queue rejected the order (check"
 			.. " PowersSandboxCheckboxEnabled, which provides this power's powers.event tier, and"
 			.. " DefaultCash against the 15000 price), 'loading' means the purchase never"
-			.. " completed. If the magazine IS ready and the state is still 'hidden', the lobby"
-			.. " gate closed: check that the option id 'tactical-nuke' matches on both sides and"
-			.. " that GrantWhenOptionDisabled is still true (the polarity is deliberate; see"
-			.. " player.yaml). 'absent' means the trait is not on the Player actor at all."
+			.. " completed. If the magazine IS ready and the state is still 'hidden', the power's"
+			.. " own RequiresCondition is unsatisfied: it is `nuclear-release-20kt` alone since the"
+			.. " `tactical-nuke` checkbox was retired (2026-09-15), and outside Escalation every"
+			.. " band is granted on the first tick -- so a 'hidden' here means the release ladder"
+			.. " did not grant, not that a lobby gate closed. 'absent' means the trait is not on"
+			.. " the Player actor at all."
 			.. " || " .. summary)
 		return
 	end

@@ -2,18 +2,18 @@
 # scenario that proved this delivery path; only the notes that differ are restated.
 
 World:
-	# The tactical nuke ships lobby-gated and OFF, so without this the power's trait is disabled by
-	# `RequiresCondition: !tacnuke-disabled` and there is nothing to fire. Enabled AND locked, so no
-	# lobby default or saved session can move it out from under the run.
+	# THE TACTICAL NUKE IS EVENT TIER (`Prerequisites: powers.event`, player.yaml) and powers.event
+	# is provided by no faction -- only by the unfiltered ProvidesPrerequisite traits gated on
+	# `!powers-sandbox-disabled`. Without sandbox the power is never Permitted, so it is absent from
+	# the buy tab and the purchase is refused. Locked so no lobby default or saved session can move
+	# it out from under the run.
 	#
-	# THE SANDBOX SWITCH IS THE SECOND HALF OF THE SAME GATE, added 2026-09-07. The tactical nuke is
-	# now EVENT TIER (`Prerequisites: powers.event`, player.yaml) and powers.event is provided by no
-	# faction -- only by the unfiltered ProvidesPrerequisite traits gated on
-	# `!powers-sandbox-disabled`. With the checkbox on and sandbox off the power is still not
-	# Permitted, so it is absent from the buy tab and the purchase is refused.
+	# `TacticalNukeCheckboxEnabled: true` + `Locked: true` USED TO SIT HERE TOO, against a checkbox
+	# that shipped OFF. It was RETIRED on 2026-09-15 -- it gated this one power, which is event tier,
+	# so it only ever decided anything inside the sandbox this file already turns on. The power's
+	# RequiresCondition is now `nuclear-release-20kt` alone, and outside Escalation every band is
+	# granted on the first tick, so nothing this scenario measures moves.
 	PowersLobbyOptions:
-		TacticalNukeCheckboxEnabled: true
-		TacticalNukeCheckboxLocked: true
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true
 	-StartGameNotification:

@@ -239,8 +239,10 @@ namespace OpenRA.Test
 		/// <summary>
 		/// The power key handed to TestHarness.EnsurePower(player, proxy, powerKey, tick). Counted
 		/// alongside the ordered ones because a scenario can legitimately BUY a power it never
-		/// fires: test-tacnuke-lobby-gated-off buys a Kinzhal purely as a positive control, and that
-		/// purchase needs money and a real proxy exactly as a fired one does.
+		/// fires -- a purchase made purely as a positive control needs money and a real proxy
+		/// exactly as a fired one does. (The example this used to name, test-tacnuke-lobby-gated-off
+		/// buying a Kinzhal it never launched, was deleted on 2026-09-15 with the lobby option it
+		/// measured. The shape it illustrated is still legitimate, which is why this stays.)
 		/// </summary>
 		static readonly Regex EnsureVariable =
 			new Regex("EnsurePower\\s*\\(\\s*[A-Za-z_][\\w.]*\\s*,\\s*[A-Za-z_]\\w*\\s*,\\s*([A-Za-z_]\\w*)\\s*,");
@@ -275,21 +277,19 @@ namespace OpenRA.Test
 		/// Powers a scenario fires ON PURPOSE EXPECTING TO BE REFUSED, so the checks below must not
 		/// demand that it be able to obtain them.
 		///
-		/// THIS IS ONE NAME AND IT SHOULD STAY THAT SHORT. It is not an exemption from the rule, it
-		/// is the statement that the scenario's SUBJECT IS the refusal: test-tacnuke-lobby-gated-off
-		/// issues the nuke order specifically to prove that a power the host did not enable cannot
-		/// be fired past the UI either (its check 3), and handing it the money and the sandbox
-		/// switch would turn that assertion into a tautology. Its own rules.yaml says the same thing
-		/// from the other side, and its Kinzhal CONTROL is still held to every rule here.
+		/// THIS LIST IS NOW EMPTY AND THAT IS THE CORRECT STATE, not a gap waiting to be filled. Its
+		/// one entry was test-tacnuke-lobby-gated-off, which issued a nuke order specifically to
+		/// prove that a power the host had not enabled could not be fired past the UI either. The
+		/// `tactical-nuke` checkbox it measured was retired on 2026-09-15 and the scenario was
+		/// deleted with it, so the refusal it asserted has no subject left.
 		///
-		/// Anything added to this list needs the same argument written beside it. "The purchase was
+		/// KEPT RATHER THAN DELETED because the SHAPE recurs: a scenario whose subject IS a refusal
+		/// must not be handed the money and the sandbox switch that would turn its assertion into a
+		/// tautology. Anything added here needs that argument written beside it. "The purchase was
 		/// awkward to set up" is not that argument.
 		/// </summary>
 		static string[] DeliberateRefusals(string scenario)
 		{
-			if (scenario == "test-tacnuke-lobby-gated-off")
-				return new[] { "TacNukeStrike" };
-
 			return Array.Empty<string>();
 		}
 

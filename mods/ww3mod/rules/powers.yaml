@@ -129,12 +129,12 @@
 # weapons-superweapons.yaml:32 and its AtomicHighYield banner, NuclearYieldTest.AllNukes,
 # gen_fireball_light.YIELDS, and the radii the three of them agree on.
 #
-# THE STRING NOW LIVES IN SIX PLACES, not the two the rest of this header describes. The buy tab
-# reads the Tooltip here, the support bin reads SupportPower Name in rules/player.yaml:479 and :597,
-# and the LOBBY reads a third pair -- PowersLobbyOptions.TacticalNukeCheckboxLabel and
-# HighYieldNukeCheckboxLabel, C# defaults with no YAML override anywhere in the mod. A rename that
-# misses the lobby pair calls the same weapon two things in two panels exactly as described above,
-# and nothing lints the link.
+# THE STRING NOW LIVES IN FOUR PLACES, not the two the rest of this header describes. The buy tab
+# reads the Tooltip here and the support bin reads SupportPower Name in rules/player.yaml:479 and
+# :597. It used to live in a third pair as well -- PowersLobbyOptions.TacticalNukeCheckboxLabel and
+# HighYieldNukeCheckboxLabel -- but those two lobby checkboxes were RETIRED on 2026-09-15, so a
+# rename no longer has a lobby row to fall out of step with. The remaining pair still has nothing
+# linting it.
 #
 # ---- BUILD DURATIONS ----
 # Ticks at Timestep 60 (0.06 s), NOT the 25 tps several in-tree comments still assert. The duration

@@ -41,6 +41,64 @@ The fix is still correct and still worth making: the trait IS live in a real lob
 **WHY THE 71/1 SPLIT IS THE WHOLE STORY.** Copying the three flags in the `Player` constructor's client branch fixes the `NonCombatant` seat and CANNOT fix the other 71, because `Player.Spectating` is `!inMissionMap && (spectating || WinState != Undefined)` (`Player.cs:86`) and `inMissionMap` is `MapVisibility.MissionSelector`, which every autotest map sets. The field is now copied faithfully and the property still reads false. **A source fix that is provably right can still leave the majority case untouched, and the only way to know which you are in is to count.** Reading the authored flag directly (`CombatantSides.CountsAsASide`) is what covers the 71 — which is why collapsing the last two bare `NonCombatant || Spectating` predicates onto it was not tidying.
 
 **AND THE ZERO-ACTORS FIGURE IS THE SAFETY ARGUMENT FOR THE WHOLE CHANGE.** A spectator seat gets no `PlayerMask` (`Player.cs:207`), which sounds alarming and is not: with no actors owned there is no pathfinding query, no `AllPlayersMask` membership that matters, and no relationship test against anything. It also explains why the bug was invisible for so long — a leaked participant that owns nothing leaks an EMPTY field. `test-observer-not-a-sighting-participant` has to author `Enemies: Russia` on the Observer and turn fog off precisely to make the leak non-empty enough to assert on.
+## 2026-09-15 - Retiring the two per-power nuclear lobby gates: the two powers they gated are held shut by DIFFERENT mechanisms, and only one of the two autotest controls resting on them survived intact (`wt/nuke-retire`)
+
+**THE CHANGE.** `tactical-nuke` and `high-yield-nuke` are gone: both `LobbyBooleanOption`s, their
+twelve Info fields, their two `GrantConditionOnLobbyOption` traits, the two dead runtime properties,
+and the `!tacnuke-disabled &&` / `!highyieldnuke-disabled &&` conjuncts. The recipe in
+`WORKSPACE/bugs/discovered.md` (same date) was correct and is now marked done. What follows is what
+the recipe did not say.
+
+**THE TWO POWERS LOOK SYMMETRIC AND ARE NOT.** Both are event tier (`Prerequisites: powers.event`,
+provided by no faction), both were gated by one checkbox apiece, both sit on a
+`nuclear-release-*` band. A reader will assume removing the two checkboxes is one argument applied
+twice. It is two arguments, and they diverge **in Escalation**:
+
+| | `@TacNuke` (band 2, 20 kt) | `@HighYieldNuke` (band 5 / GameEnder, 6 Mt) |
+|---|---|---|
+| Skirmish | event tier — not purchasable | event tier — not purchasable |
+| Escalation | armed on `SupportPowerInstance.Permitted`, which ANDs `prereqsAvailable` → **the tier refuses it** | `OverriddenPrerequisites` **waives `powers.event` at the top rung**, so the tier does NOT refuse it |
+| what actually refuses it in Escalation | the prerequisite | `NuclearGameEnders.ArmableBy`: subtract the waived `powers.event` and the **owner set is EMPTY**, and an empty owner set returns false |
+
+`NuclearExchangeInfo.OverriddenPrerequisites` is read **only** on the `GameEnder` rung
+(`NuclearExchange.ArmableAtTopRung`), which is the single fact the whole safety argument turns on. If
+that override were ever widened below the top rung, removing `tactical-nuke` would become the change
+that hands every side a free 20 kt warhead at level 2 — and nothing in the lobby would be left to
+stop it. **The scoping of that override is now load-bearing in a way it was not before this change.**
+
+**ONE AUTOTEST CONTROL NARROWED, AND IT IS THE ONE THING HERE THAT IS STRICTLY WORSE.**
+`test-nuclear-ender-level` phase C asserts `TacNukeStrike` reads `hidden` at a level 2 that lights
+`RuIskander`. It still passes — but it used to pass because the power's own `RequiresCondition` was
+unsatisfied (checkbox off), and it now passes because the event tier refuses it. The claim changed
+from *"the grant path re-checked the power's own condition"* to *"the prerequisite override did not
+reach below the top rung"*. Both are worth guarding; they are not the same guard, and the OLD one no
+longer has a home. Recovering it needs a different power — one with a condition that can be false.
+The sibling control in phases A/F/H went the other way and got **stronger**: `HighYieldNukeStrike`'s
+`hidden` reading no longer depends on the scenario remembering to pin a checkbox ON, so it is now
+unconditionally about attribution.
+
+**`hidden` IS OVER-DETERMINED AND THAT IS WHY BOTH READINGS SURVIVED AT ALL.** An unsatisfied
+`RequiresCondition` and an unmet tier prerequisite produce the *same* token from
+`Test.GetSupportPowerState` (`mods/ww3mod/scripts/test-helpers.lua:317` lists both causes). A
+scenario asserting `hidden` therefore cannot tell you WHICH gate held — which is exactly why
+`test-tacnuke-lobby-gated-off`'s own header already called its reading over-determined, and why
+deleting that scenario costs nothing: the claim it made is carried by the tier.
+
+**THE STALE-COUNT TRAP, AGAIN, AND IT IS WORTH THE PARAGRAPH.** Deleting ONE scenario invalidated a
+prose count — *"nine scenarios fire nuclear powers … eight of the nine set
+`PowersSandboxCheckboxEnabled`, the ninth needs no exemption"* — repeated verbatim at **four**
+sites: `NuclearUnlockClock.cs:51`, `GrantConditionOnNuclearRelease.cs:69`, `player.yaml:1518`, and
+the deleted scenario's own file. Nothing links them and nothing lints them. The deleted scenario was
+*the ninth* — the one carrying the irregular exemption — so the count went to eight AND the
+exemption became uniform, which is a second fact the old text would have gone on denying. Re-verified
+by enumeration before rewriting all four. **Grep prose counts when you delete anything a comment
+might have counted.**
+
+**AND THE GREP TRAP THE RECIPE NAMED, ONE LEVEL DEEPER.** A lobby option is settable by ID and by the
+Info field it is built from, and only the ID is greppable as an ID — the recipe says this. What it
+missed: `grep -l` on the Info field then over-counts, because most hits are **comments discussing**
+the field rather than lines setting it. Nine directories matched; **four** actually set it. Both
+errors are in the same direction as carelessness and in opposite directions from each other.
 
 ## 2026-09-15 - `make all` NEVER compiles `OpenRA.Test`, in either configuration, because the upstream solution gives it no `Build.0` — so a merge can leave the test project broken while `make all` reports "Build succeeded" twice (`wt/exchange-v2`, merge `c00ff468`)
 
@@ -74,7 +132,7 @@ This matters the moment a cooldown stops being a property of the POWER. Escalati
 **INCIDENTAL, AND THE SECOND TIME THIS MONTH: `make check` CAUGHT AN ERROR THAT `make all` AND `dotnet test` BOTH PASSED.** A `/// <summary>` containing the literal text `enemy <side> level X->Y` is malformed XML (CS1570, "End tag 'summary' does not match the start tag 'side'"). Release strips the analyzers and the Debug gate does not; the build was green, 3308 NUnit tests passed, and `check` was two errors. CLAUDE.md already says a green Release build is not evidence about the Debug gate — this is a fresh instance, and the failure mode is a doc comment that reads perfectly in the editor.
 ## 2026-09-15 - A lobby option is settable by TWO spellings and only one is greppable; and `LobbyTimelineChromeTest`'s height budget has been modelling four Escalation dropdowns since a fifth and sixth were added (`wt/lobby-cleanup`, base `main @ a755942e`)
 
-**1. GREPPING FOR A LOBBY OPTION ID FINDS THE MINORITY OF THE PLACES THAT SET IT.** A scenario can pin an option two ways: by the wire id in its Lua, or by overriding the trait Info field the option is BUILT from in its `rules.yaml` (`TacticalNukeCheckboxEnabled: true`), which contains the id nowhere. For the two nuclear gates the split is **2 files by id, 9 directories by Info field** -- so `grep -rln "tactical-nuke\|high-yield-nuke" tools/autotest/scenarios` returns 2 and the honest answer is 10. A retirement estimate built on the first number under-counts the work by 5x. **Generalise: before scoping any lobby-option change, grep for BOTH the id and the `*Info` field names that feed `new LobbyOption(...)` / `new LobbyBooleanOption(...)` for it.** The same applies to `nuclear-arsenal`, `powers-sandbox` and every option in `PowersLobbyOptions` and `NuclearUnlockClock`, all of which are shaped this way.
+**1. GREPPING FOR A LOBBY OPTION ID FINDS THE MINORITY OF THE PLACES THAT SET IT.** A scenario can pin an option two ways: by the wire id in its Lua, or by overriding the trait Info field the option is BUILT from in its `rules.yaml` (`TacticalNukeCheckboxEnabled: true`), which contains the id nowhere. For the two nuclear gates the split is **2 files by id, 9 directories by Info field** -- so `grep -rln "tactical-nuke\|high-yield-nuke" tools/autotest/scenarios` returns 2 and the honest answer is 10. **[CORRECTED 2026-09-15, while executing the retirement: of those 9 directories only FOUR actually SET an Info field (`test-tacnuke-delivers`, `test-heavy-strike-wrecks-economy`, `test-nuclear-ender-level`, `test-tacnuke-lobby-gated-off`); the other five mention the field only in COMMENTS, which `grep -l` cannot distinguish from a setting. So the id-grep under-counts AND the field-grep over-counts, in opposite directions. The lesson below is unchanged -- grep both -- but grep for the field being ASSIGNED (`^\s*Field: `), not merely named.]** A retirement estimate built on the first number under-counts the work by 5x. **Generalise: before scoping any lobby-option change, grep for BOTH the id and the `*Info` field names that feed `new LobbyOption(...)` / `new LobbyBooleanOption(...)` for it.** The same applies to `nuclear-arsenal`, `powers-sandbox` and every option in `PowersLobbyOptions` and `NuclearUnlockClock`, all of which are shaped this way.
 
 **2. DELETING A LOBBY OPTION DOES NOT FREEZE IT AT ITS DEFAULT -- IT INVERTS IT WHENEVER THE DEFAULT IS `true`.** `GrantConditionOnLobbyOption` computes `OptionOrDefault(Option, !GrantWhenOptionDisabled)` (`GrantConditionOnLobbyOption.cs:47-48`), so the REGISTERED default and the UNREGISTERED fallback are independent values. Every WW3MOD gate uses `GrantWhenOptionDisabled: true`, which makes the unregistered fallback `false` -- matching the shipped default only for options that default OFF. `high-yield-nuke` defaults ON, so deleting it silently hides a 6 Mt weapon that the sandbox is supposed to sell. `world.yaml:758-778` documents this for `nuclear-arsenal` and `powers-sandbox` under "HIDING IS NOT DELETING"; the generalisation is that **the safe lever for removing a lobby ROW is always visibility, and deletion is only safe for an option whose registered default is already `false`.** Full audit of the two nuclear gates in `WORKSPACE/bugs/discovered.md` (2026-09-15).
 

@@ -5357,7 +5357,18 @@ which is the single flip that would undo the ruling.
 
 (found while working on: the END-window game-ender grant, `wt/ender-grant`)
 
-## 2026-09-15 — Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it
+## 2026-09-15 — ~~Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it~~ **[DONE 2026-09-15, `wt/nuke-retire`]**
+
+> **RETIREMENT SHIPPED.** The recipe at the end of this entry was followed and held on every
+> point; the audit below re-derived independently and agreed. Two corrections to the entry
+> itself, both found while executing it: the scenario list names `test-nuclear-ender-window`,
+> which **does not exist** — the real one is `test-nuclear-ender-level`; and the count of
+> scenario `rules.yaml` files actually carrying an Info-field override was **4**, not 9/10
+> (`test-tacnuke-delivers`, `test-heavy-strike-wrecks-economy`, `test-nuclear-ender-level`,
+> `test-tacnuke-lobby-gated-off`). The other six mention the fields only in COMMENTS, which
+> `grep -l` does not distinguish from a setting — the same trap the entry identifies, one
+> level further in. What was NOT anticipated is in DISCOVERIES.md under the same date: the
+> two powers are held shut by **different mechanisms**, and one autotest control narrowed.
 
 **THE BACKLOG ITEM'S PREMISE IS CORRECT.** Both options gate one `powers.event` power apiece
 (`MissileStrikePower@TacNuke`, `MissileStrikePower@HighYieldNuke`), and `powers.event` is provided
