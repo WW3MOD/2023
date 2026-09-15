@@ -1615,7 +1615,15 @@ TL:
 		Cost: 300
 	UpdatesPlayerStatistics:
 		AddToArmyValue: true
+	# !garrisoned-at-port for the reason ^Infantry's own Targetable carries it (:62-63).
+	# Actor.IsTargetableBy ORs across every enabled ITargetable (Actor.cs:671-678), so an
+	# ungated Targetable here answers "yes" for any attacker and GarrisonPortOccupant's
+	# firing-arc test (GarrisonPortOccupant.cs:91-122) never gets to say no. Without this
+	# line a mortar or AT man at a port is shootable from behind the building, unlike every
+	# other infantry type, AND keeps broadcasting HighPriorityInfantry from inside it --
+	# so the auto-target bands that name that type actively prefer him.
 	Targetable@HighPriority:
+		RequiresCondition: !garrisoned-at-port
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	SpeedMultiplier:
 		Modifier: 90
@@ -1749,7 +1757,15 @@ SN:
 ^AT:
 	Inherits@Type: ^CamoSoldier
 	Inherits@AutoTarget: ^AutoTargetMHL
+	# !garrisoned-at-port for the reason ^Infantry's own Targetable carries it (:62-63).
+	# Actor.IsTargetableBy ORs across every enabled ITargetable (Actor.cs:671-678), so an
+	# ungated Targetable here answers "yes" for any attacker and GarrisonPortOccupant's
+	# firing-arc test (GarrisonPortOccupant.cs:91-122) never gets to say no. Without this
+	# line a mortar or AT man at a port is shootable from behind the building, unlike every
+	# other infantry type, AND keeps broadcasting HighPriorityInfantry from inside it --
+	# so the auto-target bands that name that type actively prefer him.
 	Targetable@HighPriority:
+		RequiresCondition: !garrisoned-at-port
 		TargetTypes: Ground, Infantry, HighPriorityInfantry
 	Buildable:
 		Queue: Infantry
