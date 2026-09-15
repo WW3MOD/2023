@@ -3,6 +3,34 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - `lua-gate` cannot see a FieldLoader parse error in `map.yaml`, so a scenario can pass every static gate available to a launch-barred worker and still throw at load (`wt/garrison-followups`)
+
+**THE INSTANCE.** `test-bot-damages-garrisoned-building/map.yaml` carried `Facing: East` on a placed
+actor. The scenario passed `make lua-gate` twice, `make check`, `make all` and `dotnet test`, was
+committed and handed over — and the run died at map load with
+`OpenRA.YamlException: FieldLoader: Cannot parse 'East' into WAngle` (`FieldLoader.cs:254` via
+`GetValue`), **exit 3**, before a single tick. The RED run that was queued behind it was skipped.
+
+**WHY EVERY GATE MISSED IT, and the shape is worth carrying past this one field.** `lua-gate` reads
+`map.yaml` only for STRUCTURE — which files are declared, whether `Scripts:` sits under `World`,
+whether a top-level key is mis-cased. It never asks the engine to *load* an actor, so it cannot type
+a field value. `make check` and `dotnet test` never touch scenario content at all. `make nav-guard`
+is scenario-blind (`CLAUDE.md`). **The only gate that would have caught it is the YAML lint**
+(`./utility.sh --check-yaml ../tools/autotest/scenarios/<name>` from the repository root), which is
+exactly the gate a launch-barred dispatch tends to forbid. So: *a scenario that passes everything a
+launch-barred worker is allowed to run is NOT known to load.* Say so when handing one over, and ask
+the manager to lint it before the first launch.
+
+**THE FIELD ITSELF.** A `map.yaml` `Facing:` is a raw `WAngle` and `FieldLoader` has no name table
+for it — the four compass names exist only in the **Lua** binding (`AngleGlobal.cs:23-38`,
+`Angle.East => new WAngle(768)`), which is why the same scenario's `Actor.Create(..., Facing =
+Angle.East)` in the `.lua` is correct and the `map.yaml` line next to it is not. WAngle is
+**counterclockwise**: N 0, W 256, S 512, E 768 (`DOCS/reference/conventions.md` §WAngle). Corpus
+check at the time of the fix: this was the **only** non-numeric `Facing:`/`TurretFacing:` in all 335
+scenario `map.yaml` files and all 10 shipped maps —
+`grep -rnE '^\s+(Turret)?Facing: ' … | grep -vE ': -?[0-9]+$'` settles it in a second and needs no
+build.
+
 ## 2026-09-15 - "selected then dropped" and "never selected" are BOTH true of a `RequiresForceFire` actor, and a deployed port soldier stands on the building's own cell — so any test of "can X damage a garrison" that lets a port deploy passes on a broken build (`wt/garrison-forcefire`)
 
 **THE AUDIT'S OPEN QUESTION HAS TWO ANSWERS, ONE PER PATH, AND THE FIX HAD TO COVER BOTH.** The audit

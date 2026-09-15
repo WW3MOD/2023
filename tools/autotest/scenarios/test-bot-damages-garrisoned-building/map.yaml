@@ -98,7 +98,11 @@ Actors:
 	Rifle: abrams
 		Owner: USA
 		Location: 77,10
-		Facing: East
+		# 768 = East. A map.yaml Facing is a raw WAngle and FieldLoader has no name table for it:
+		# `Facing: East` parses in Lua (Angle.East is a WAngle object) and throws at MAP LOAD with
+		# "Cannot parse 'East' into WAngle" (FieldLoader.cs:254). WAngle is COUNTERCLOCKWISE --
+		# N 0, W 256, S 512, E 768 -- see DOCS/reference/conventions.md. This one points at ChurchB.
+		Facing: 768
 	BotSR: supplyroute
 		Owner: USA-bot
 		Location: 3,28
