@@ -1,0 +1,56 @@
+World:
+	# THE SANDBOX SWITCH, copied from demo-highyield-nuke and load-bearing for the same reason:
+	# MissileStrikePower@HighYieldNuke is EVENT TIER (`Prerequisites: powers.event`) and no faction
+	# provides that tier -- only the unfiltered ProvidesPrerequisite traits gated on
+	# `!powers-sandbox-disabled`. Without this the power is not Permitted, it never appears in the
+	# buy tab, and the purchase below is refused. Enabled AND locked so no lobby default can move it.
+	#
+	# The power's OWN lobby gate (HighYieldNukeCheckboxEnabled) is left at its shipped default, so a
+	# refusal still means the shipped default moved rather than that an override failed.
+	PowersLobbyOptions:
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-garrisoned-emplacement-under-nuke.lua
+
+Player:
+	# Russia loses everything it owns inside the fireball. Without this the match can end on
+	# elimination before the verdict is written.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+	PlayerResources:
+		DefaultCash: 120000
+	MissileStrikePower@HighYieldNuke:
+		# 100 ticks (6.0 s) against the shipped 500 (30 s). The public countdown is a real mechanic
+		# and is not what this scenario is about; shortening it keeps the run inside its deadline.
+		MissileDelay: 100
+
+GTWR:
+	# No port may deploy, so the men stay in the hold and the strike lands on a building that is
+	# genuinely loaded. GarrisonManager reads the BUILDING's stance (:796, :865, :1316). Both fields
+	# because AutoTarget.cs:497 picks InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+E1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+# THE PURCHASE. Every shipped support power carries `RequiresPurchase: True`, so a shot must be
+# BOUGHT; ChargeInterval and StartFullyCharged are read and discarded under that flag
+# (SupportPowerManager.cs:228-229). 5 ticks instead of the shipped 3000 so the magazine is loaded a
+# few ticks after the script starts buying rather than three minutes later.
+power.highyieldnuke:
+	Buildable:
+		BuildDuration: 5
