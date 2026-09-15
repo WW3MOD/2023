@@ -914,8 +914,20 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// A nuclear weapon has been RELEASED by this player -- called from MissileStrikePower.Activate,
-		/// once per launch order however many warheads it delivers.
+		/// <para>A nuclear weapon has been RELEASED by this player -- called from
+		/// MissileStrikePower.Activate, once per launch order however many warheads it delivers.</para>
+		///
+		/// <para>RETURNS FALSE WHEN THE LAUNCH MUST NOT HAPPEN, and the caller is required to abort on
+		/// it. This used to return void and the salvo flew regardless, so a launch the state machine
+		/// refused still detonated, still killed, cost its side no cooldown and escalated nobody --
+		/// the one outcome this whole model has no answer for. Reachable today through
+		/// DevMode.FastCharge, which clamps any countdown over 2500 subticks and so can make a cameo
+		/// Ready while the side is still inside its cooldown (found by review, 2026-09-15).</para>
+		///
+		/// <para>TRUE FOR EVERY ORDINARY NO-OP. Outside Escalation, before release, and for a
+		/// non-nuclear power there is no exchange to consult and the weapon is none of this trait's
+		/// business -- Skirmish and Sandbox must fire exactly as they always have. Only the two
+		/// ALARMING refusals stop a warhead.</para>
 		/// </summary>
 		// THE DETERMINISM ARGUMENT IS UNCHANGED BY v2. The only caller is MissileStrikePower.Activate,
 		// reached exclusively through SupportPowerManager.ResolveOrder -> SupportPowerInstance.Activate.
@@ -923,10 +935,10 @@ namespace OpenRA.Mods.Common.Traits
 		// client resolves the same order on the same tick. Everything read here is either on the order
 		// (the firing player) or a compile-time constant (the weapon's declared yield), and
 		// NuclearExchangeState is integer arithmetic with no shared random number in it.
-		public void ReportNuclearRelease(Player firer, int tons)
+		public bool ReportNuclearRelease(Player firer, int tons)
 		{
 			if (state == null || Mode != DefconGameMode.Escalation)
-				return;
+				return true;
 
 			var firerSide = SideOf(firer);
 			var levelsBefore = SnapshotLevels();
@@ -940,24 +952,49 @@ namespace OpenRA.Mods.Common.Traits
 				// the side's having drifted apart -- and the symptom in a match is a warhead that
 				// lands and escalates nobody, which is invisible without this line.
 				if (outcome.IsAlarming)
+				{
 					Log.Write("debug", $"NUCLEAR LAUNCH REFUSED: {firer?.InternalName ?? "unknown"} " +
 						$"(side {firerSide}) fired {tons} t, band {(NuclearRung)outcome.Band}, but " +
 						$"{outcome.Refusal} -- side level {(NuclearRung)state.LevelFor(firerSide)}, " +
-						$"cooldown {state.CooldownFor(firerSide)}. THE POWER SHOULD NOT HAVE BEEN READY.");
+						$"cooldown {state.CooldownFor(firerSide)}. THE POWER SHOULD NOT HAVE BEEN READY. " +
+						"NO WARHEAD WAS RELEASED.");
 
-				return;
+					// THE ONLY PATH THAT STOPS A SALVO. An alarming refusal means the rules say this
+					// launch cannot exist, so letting the warhead fly anyway would be the worst of
+					// both: the damage lands, the firer pays nothing, and the victim is not escalated.
+					return false;
+				}
+
+				// AND THE ORDINARY REFUSALS LET IT FLY. A pre-release or non-nuclear report is not a
+				// rule violation, it is a question this trait has no opinion about.
+				return true;
 			}
 
 			// ONE SHOT LOCKS OUT THE WHOLE SIDE. Done on the COUNTED edge and nowhere else: a launch
 			// the state machine refused must not spend a cooldown either, or a Lua scenario poking the
 			// trait directly could mute an arsenal that was never fired.
-			SetSideCooldown(firerSide, outcome.CooldownTicks);
+			//
+			// AND NOT AT ALL ON A GAME-ENDER, WHICH IS NOT THE SAME AS "A COOLDOWN OF ZERO" (found by
+			// review, 2026-09-15). The state deliberately charges the top rung nothing, because the
+			// match is ending -- but pushing that 0 down onto the powers would write TotalTicks = 0
+			// across the side's whole arsenal, which is the shape a PURCHASED power has: no clock, no
+			// countdown, everything instantly Ready, and SupportPowerChargeBar dividing by it. In a
+			// TestMode session without RunInTestMode the final exchange is inert and the match does
+			// NOT end, so the firer would simply be handed free shots at every band it holds.
+			//
+			// Leaving the arsenal untouched is the honest reading either way: firing a game-ender
+			// neither costs a cooldown nor clears one, and whatever the side already owed keeps
+			// running.
+			if (!outcome.FinalExchange)
+				SetSideCooldown(firerSide, outcome.CooldownTicks);
 
 			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
 				$"band {outcome.Band} -> cooldown {outcome.CooldownTicks}" + EscalationSummary(levelsBefore));
 
 			if (outcome.FinalExchange)
 				BeginFinalExchange(firer);
+
+			return true;
 		}
 
 		/// <summary>Every side's level right now, in registration order, for the launch log's before/after.</summary>

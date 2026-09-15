@@ -74,23 +74,44 @@ local AIM_X, AIM_Y = 32, 8
 -- measurement of when that thing happened. NuclearExchangeInfo.GrantRetryTicks is 30, so 65 ticks
 -- between a launch and the check that reads its grant is twice the budget the engine gives itself.
 --
--- EVERY LAUNCH BY ONE SIDE IS AT LEAST 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, against the
--- 60-tick cooldowns rules.yaml compresses to. USA fires at 80, 220 and 360; Russia at 150 and 290.
--- The margins are deliberate: a cooldown that bit here would fail this file for a reason it is not
--- about, and the gate itself is test-nuclear-exchange's subject.
+-- ==== EVERY CHECK IS 40 TICKS AFTER THE RISE IT READS, AND THAT NUMBER IS AN ASSERTION ====
+-- RETIMED 2026-09-15 AFTER REVIEW, which found the previous gap of 65 made four of these phases
+-- VACUOUS. rules.yaml compresses the cooldowns to 60, so a band that was never granted at all --
+-- one left counting down its own constructed interval -- would have reached zero by rise+65 and
+-- read `ready` anyway. The run would go green over a completely broken grant path, and the only
+-- reason it did not on 2026-09-15 is that the TOP rung fails differently (`hidden`, because
+-- `powers.event` is never Permitted without the override). The lower three rungs passed on nothing.
+--
+-- 40 IS BOUNDED AT BOTH ENDS AND NEITHER BOUND IS SLACK:
+--     > 30  NuclearExchangeInfo.GrantRetryTicks. A correct grant lands on the tick after the rise;
+--           30 is the budget it is allowed, so a check inside it could fail a working build.
+--     < 60  the compressed cooldown. A band charging from scratch still has ~20 ticks left here, so
+--           it reads `charging:20` and the check FAILS -- which is what makes every `ready` below
+--           evidence that the grant ran rather than evidence that enough time passed.
+--
+-- EVERY LAUNCH BY ONE SIDE IS STILL >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so the cooldown
+-- never blocks a scripted shot: USA fires at 80, 220 and 360; Russia at 150 and 290. And every
+-- RECIPIENT is off cooldown at the moment it is escalated (USA's ends at 140/280, Russia's at
+-- 210/350, each before the rise that follows it), so every check below reads the cooldown-ZERO case:
+-- granted means READY, full stop.
 local RELEASE_CHECK_TICK = 60
-local L1_TICK            = 80    -- USA  band 1  -> RU  level 2
-local L2_CHECK_TICK      = 145
-local L2_TICK            = 150   -- RU   band 2  -> USA level 3
-local L3_CHECK_TICK      = 215
-local L3_TICK            = 220   -- USA  band 3  -> RU  level 4
-local L4_CHECK_TICK      = 285
-local L4_TICK            = 290   -- RU   band 4  -> USA level 5 = GameEnder
-local END_CHECK_TICK     = 355   -- <<< THE ASSERTION THE USER'S BUG IS
+local L1_TICK            = 80    -- USA  band 1  -> RU  level 2   (USA cooldown to 140)
+local L2_CHECK_TICK      = 120   -- rise + 40
+local L2_TICK            = 150   -- RU   band 2  -> USA level 3   (RU  cooldown to 210)
+local L3_CHECK_TICK      = 190   -- rise + 40
+local L3_TICK            = 220   -- USA  band 3  -> RU  level 4   (USA cooldown to 280)
+local L4_CHECK_TICK      = 260   -- rise + 40
+local L4_TICK            = 290   -- RU   band 4  -> USA level 5 = GameEnder  (RU cooldown to 350)
+local END_CHECK_TICK     = 330   -- rise + 40  <<< THE ASSERTION THE USER'S BUG IS
 local L5_TICK            = 360   -- USA  band 4 (its own level 5 allows it) -> RU level 5
-local END2_CHECK_TICK    = 425
-local FIRE_ENDER_TICK    = 430
-local BUDGET_TICK        = 520
+local END2_CHECK_TICK    = 400   -- rise + 40: RUSSIA's ender, on a side that owes nothing
+-- THE RATCHET CHECK IS DELIBERATELY NOT AT rise + 40. USA fired at t360 and owes 60 ticks, so its
+-- own ender is legitimately CHARGING until t420 -- asserting `ready` at 400 would be asserting the
+-- cooldown does not apply to the firer. Reading it at 440 says two things at once: the level did
+-- not fall, AND the cameo came back on the side cooldown like every other band.
+local RATCHET_CHECK_TICK = 440
+local FIRE_ENDER_TICK    = 450
+local BUDGET_TICK        = 560
 
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
@@ -121,6 +142,18 @@ WorldLoaded = function()
 		local got = state(player, key)
 		if got ~= want then
 			fault("%s's %s reads %q, expected %q. %s", who, key, got, want, why)
+			return false
+		end
+
+		return true
+	end
+
+	-- `charging:<n>` is the one token in the vocabulary that carries a value, so it is matched by
+	-- PREFIX where every other reading is compared exactly.
+	local function expectCharging(player, who, key, why)
+		local got = state(player, key)
+		if got:sub(1, 9) ~= "charging:" then
+			fault("%s's %s reads %q, expected a `charging:<ticks>` reading. %s", who, key, got, why)
 			return false
 		end
 
@@ -367,17 +400,38 @@ WorldLoaded = function()
 				"A SECOND END CAMEO APPEARED IN RUSSIA'S COLUMN. Russia's half of the 2026-09-14"
 				.. " ruling: the unowned 6 Mt strike is withheld from both sides, not from one") and ok
 
-			-- USA'S OWN END SURVIVED L5, WHICH IS THE RATCHET. Under v1 this pinned a SPEND rule --
-			-- a window was one shot and firing at or above its band consumed it. There is no spend
-			-- in v2: a level is permanent, so firing anything at all must leave it exactly where it
-			-- was. USA fired 65 ticks ago and the cooldowns here are 60, so this also says the
-			-- cameo came back rather than merely never leaving.
-			ok = expect(USA, "USA", USA_ENDER, "ready",
-				"USA LOST ITS END LEVEL BY FIRING. Levels NEVER fall -- that is the whole of the"
-				.. " ratchet -- and a side that dropped a rung by using it would be v1's one-shot"
-				.. " window coming back under a new name") and ok
+			-- AND USA'S OWN ENDER IS CHARGING RIGHT NOW, NOT GONE. USA fired 40 ticks ago against a
+			-- 60-tick cooldown, so the honest reading here is `charging:` -- the level is intact and
+			-- the SIDE is reloading. Asserting `ready` at this tick would be asserting the firer
+			-- escapes its own cooldown at the top rung, which is the one place that matters most.
+			ok = expectCharging(USA, "USA", USA_ENDER,
+				"USA FIRED AT LEVEL 5 AND ITS OWN ENDER IS NOT ON THE SIDE COOLDOWN. `ready` means"
+				.. " the firer escaped the lockout it just paid for; `hidden` means it lost the"
+				.. " LEVEL by firing, which is v1's one-shot window coming back under a new name."
+				.. " The ratchet half is asserted at t" .. RATCHET_CHECK_TICK) and ok
 
 			note(ok, "both enders ok at t%d", tick)
+			Trigger.AfterDelay(1, step)
+			return
+		end
+
+		-- ---- PHASE H2. THE RATCHET, READ ONCE THE FIRER'S COOLDOWN HAS RUN OUT.
+		-- Two claims in one reading: USA still HOLDS level 5 after firing (levels never fall), and
+		-- its ender came back on the SIDE cooldown like every other band rather than on one of its
+		-- own. Under v1 the first claim needed an argument about the window SPEND rule; under v2
+		-- there is nothing to spend, which is itself the thing worth pinning.
+		if tick == RATCHET_CHECK_TICK then
+			local ok = expect(USA, "USA", USA_ENDER, "ready",
+				string.format("USA's ender did not come back %d ticks after it fired, against the"
+					.. " 60-tick cooldown in rules.yaml. `charging:` means the top rung is on a"
+					.. " longer clock than the rest of the side's arsenal -- the cooldown is the"
+					.. " SIDE's and every band shares it. `hidden` means USA LOST ITS END LEVEL BY"
+					.. " FIRING, and levels never fall", tick - L5_TICK))
+
+			ok = expect(USA, "USA", RU_ENDER, "hidden",
+				"the faction lock must survive a cooldown cycle as well as a grant") and ok
+
+			note(ok, "ratchet ok at t%d (fired t%d)", tick, L5_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end

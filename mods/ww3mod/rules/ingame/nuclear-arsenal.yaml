@@ -452,7 +452,9 @@ Player:
 	# IT MATTERED TO THE EXCHANGE, which is how the error was found, and that consequence is now
 	# gone twice over: each faction holds one warhead per band, and since 2026-09-14 firing any
 	# warhead in a band puts the whole band on its regeneration timer for the whole firing side
-	# (NuclearExchange.PutBandOnRegen). The regeneration interval is the interval between shots.
+	# (NuclearExchange.SetSideCooldown). Since exchange v2 (2026-09-15) the lockout is SIDE-WIDE
+	# rather than per band, so firing this silences every band the side holds, and the interval is the
+	# interval between shots BY THAT SIDE at any yield.
 	#
 	# WHAT ACTUALLY DIFFERS FROM THE AMERICAN WEAPON AT THE SAME YIELD. The warheads are identical
 	# by design (see the long note in weapons-nuclear-arsenal.yaml); everything that makes these

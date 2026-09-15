@@ -160,6 +160,48 @@ WorldLoaded = function()
 		return true
 	end
 
+	-- The ticks left on a `charging:<n>` reading, or nil for any other token.
+	local function chargingTicks(player, key)
+		local got = state(player, key)
+		if got:sub(1, 9) ~= "charging:" then
+			return nil
+		end
+
+		return tonumber(got:sub(10))
+	end
+
+	-- ==== TWO POWERS ON ONE SIDE MUST CARRY THE SAME NUMBER, AND THAT IS THE NON-VACUOUS FORM ====
+	-- ADDED 2026-09-15 AFTER REVIEW. `expectCharging` alone cannot tell "the side cooldown was
+	-- applied to this band" from "this band was never granted and is counting down its own
+	-- constructed interval" -- both read `charging:`, and the second is precisely the defect the
+	-- first GREEN run of this file hit (a 20 kt cameo at 06:34 on a side that had fired nothing).
+	--
+	-- COMPARED AGAINST A SIBLING RATHER THAN AGAINST A TICK COUNT COMPUTED HERE. A side cooldown is
+	-- ONE number shared by every band the side holds, so the honest assertion is that two of its
+	-- powers agree -- which needs no arithmetic about when the shot happened, survives any retiming
+	-- of the phases, and fails loudly if the two are on independent clocks. The tolerance is for the
+	-- one or two ticks a grant can lag its trigger by, not for slop in the rule.
+	local function expectSameCooldown(player, who, newKey, carrierKey, why)
+		local new = chargingTicks(player, newKey)
+		local carrier = chargingTicks(player, carrierKey)
+
+		if new == nil or carrier == nil then
+			fault("%s: %s reads %q and %s reads %q; both must be `charging:<ticks>` for the"
+				.. " side-cooldown comparison to mean anything. %s",
+				who, newKey, state(player, newKey), carrierKey, state(player, carrierKey), why)
+			return false
+		end
+
+		if math.abs(new - carrier) > 3 then
+			fault("%s's %s has %d ticks left but its own %s has %d -- a side cooldown is ONE clock"
+				.. " shared by every band the side holds, so these must agree. %s",
+				who, newKey, new, carrierKey, carrier, why)
+			return false
+		end
+
+		return true
+	end
+
 	-- Fire, and treat anything but "issued" as fatal to everything downstream. A climb that stalls
 	-- at rung N makes every later reading meaningless rather than merely wrong, so say so.
 	local function launch(player, who, key, why)
@@ -237,10 +279,17 @@ WorldLoaded = function()
 
 		-- ---- PHASE C. THE RATCHET EDGE AND THE SIDE-WIDE COOLDOWN, together.
 		if tick == RATCHET_CHECK_TICK then
+			-- THE COOLDOWN-ZERO HALF OF THE GRANT RULE, and it is non-vacuous by arithmetic rather
+			-- than by hope: a band that was never granted counts down its OWN interval, which
+			-- rules.yaml sets to 320 for 20 kt, so at 65 ticks past the rise it would read
+			-- `charging:255` and nothing like `ready`. NuclearExchangeInfo.GrantRetryTicks is 30, so
+			-- 65 ticks is twice the budget the engine gives itself.
 			local ok = expect(Russia, "Russia", RU_20KT, "ready",
 				"being hit by 1 kt must raise Russia's LEVEL to 20 kt, ready to fire now -- Russia"
-				.. " did not fire, so Russia is on no cooldown. `hidden` means the level rise, the"
-				.. " condition or the loaded shot did not arrive")
+				.. " did not fire, so Russia is on no cooldown, and a granted band on a side that"
+				.. " owes nothing must be READY within GrantRetryTicks. `charging:` means the grant"
+				.. " never reached this power and it is running down its own 320-tick interval;"
+				.. " `hidden` means the level rise did not reach the condition layer at all")
 			ok = expect(USA, "USA", USA_20KT, "hidden",
 				"THE FIRER CLIMBED BY FIRING. That is decision 06's shared pressure ladder, where"
 				.. " both sides always read the same rung and going first was free -- not the"
@@ -289,6 +338,18 @@ WorldLoaded = function()
 				.. " reach the condition layer at all")
 			ok = expectCharging(USA, "USA", USA_20KT,
 				"same defect, one band down -- USA reached level 3, so 2 and 3 are both new") and ok
+
+			-- AND THE NUMBERS MUST MATCH, WHICH IS WHAT MAKES THE TWO READINGS ABOVE EVIDENCE.
+			-- USA_1KT has carried the side cooldown since t120 and was not granted by this rise; the
+			-- two new bands were. If the grant never ran, the new bands are counting down their OWN
+			-- constructed intervals (320 and 340 from rules.yaml) and will not agree with it -- which
+			-- is exactly how this file passed phase D on a broken build before 2026-09-15.
+			ok = expectSameCooldown(USA, "USA", USA_50KT, USA_1KT,
+				"THE NEW BAND IS ON A CLOCK OF ITS OWN. A level rise must leave the granted band"
+				.. " carrying the SIDE's remaining cooldown, not the band's own interval and not a"
+				.. " fresh full one") and ok
+			ok = expectSameCooldown(USA, "USA", USA_20KT, USA_1KT,
+				"same comparison, one band down") and ok
 
 			-- AND THE FIRER OF THE 20 KT IS NOW DOWN TOO, at every band including the one it did not
 			-- fire. Russia holds 1 kt and 20 kt at level 2; both must be silent.
@@ -371,6 +432,10 @@ WorldLoaded = function()
 		-- prerequisite that no faction provides, and a fix that reached for MakeReady there without
 		-- re-applying the cooldown would open the game-ender early. One tick of that is the match.
 		if tick == END_LOCKED_TICK then
+			-- THE SAME PAIR OF READINGS AS PHASE D, for the same reason: `charging:` alone cannot
+			-- tell a correctly-applied side cooldown from a band that was never granted. USA_100KT
+			-- was granted by this same rise and USA_50KT has carried the cooldown since t560, so the
+			-- ender is compared against the carrier rather than against a tick count.
 			local ok = expectCharging(USA, "USA", USA_ENDER,
 				"USA'S GAME-ENDER IS FIREABLE INSIDE ITS OWN COOLDOWN. USA reached level 5 at t"
 				.. FIRE_100KT_TICK .. " and has been reloading since t" .. FIRE_50KT_TICK .. "."
@@ -391,6 +456,13 @@ WorldLoaded = function()
 			ok = expect(Russia, "Russia", RU_ENDER, "hidden",
 				"Russia reached level 5 by firing. A side can only be escalated by being shot at;"
 				.. " `ready` here is decision 06's shared ladder coming back at the top rung") and ok
+
+			ok = expectSameCooldown(USA, "USA", USA_ENDER, USA_50KT,
+				"THE GAME-ENDER IS ON A CLOCK OF ITS OWN. The top rung is armed through a different"
+				.. " path from every band below it (ArmableAtTopRung overrides the `powers.event`"
+				.. " prerequisite), and that path has to apply the side's remaining cooldown exactly"
+				.. " as the ordinary one does -- at this rung, being a few hundred ticks early is"
+				.. " the match") and ok
 
 			note(ok, "END-locked ok at t%d (100 kt fired t%d)", tick, FIRE_100KT_TICK)
 			Trigger.AfterDelay(1, step)

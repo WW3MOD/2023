@@ -150,6 +150,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>The charge interval this power is counting against, in ticks. 0 for a purchased power,
 		/// which has no timer at all.</para>
 		///
+		/// <para>ANYTHING THAT WRITES <see cref="remainingSubTicks"/> FROM THIS VALUE IS COUPLED TO
+		/// WHOEVER SET IT LAST. <see cref="ResetTimer"/> assigns `TotalTicks * 100`, so for a power
+		/// carrying a nuclear SIDE cooldown it re-arms the full lockout rather than the side's
+		/// remaining ticks, and the cameo then disagrees with the ledger. Nothing in ww3mod reaches
+		/// that today -- `InfiltrateForSupportPowerReset` is the one caller and no actor in the mod
+		/// carries it -- but a mod that wires spy infiltration against a nuclear power gets exactly
+		/// that desynchronisation, and the fix would be to route it through
+		/// NuclearExchange rather than to touch the timer directly.</para>
+		///
 		/// <para>SETTABLE SINCE THE NUCLEAR EXCHANGE v2, AND ONLY FROM <see cref="SetCooldown"/>. It was
 		/// readonly while every timer was a property of the POWER; Escalation's side cooldown is a
 		/// property of the SIDE and of the band that was fired, so the same 1 kt warhead is on a five
@@ -179,8 +188,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// its own RequiresCondition, and not a spent one-shot.</para>
 		///
 		/// <para>THIS IS NOT A WEAKER `Permitted` AND IS NOT FOR GENERAL USE. It exists for the two paths
-		/// that are LICENSED to override a prerequisite — the final exchange and the retaliation window at
-		/// <see cref="NuclearRung.GameEnder"/>, both of which hand out powers gated on `powers.event`, a
+		/// that are LICENSED to override a prerequisite — the final exchange and the nuclear exchange's
+		/// TOP RUNG at <see cref="NuclearRung.GameEnder"/>, both of which hand out powers gated on
+		/// `powers.event`, a
 		/// name no faction provides. Those paths need to know whether everything else about the power is
 		/// in order before they decide to override the one thing that is not; asking `Permitted` gives
 		/// them a flat no and asking nothing at all would force readiness onto a power whose own
@@ -244,8 +254,17 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public void SetCooldown(int ticks)
 		{
-			if (ticks < 0)
-				ticks = 0;
+			// ZERO MEANS "READY NOW", NOT "NO TIMER AT ALL", and the difference is a whole economy.
+			// TotalTicks == 0 is the shape a PURCHASED power has: Tick clamps the countdown to [0, 0],
+			// the cameo draws a full clock forever, and SupportPowerChargeBar divides by it. A caller
+			// meaning "this is available again" must not be able to write that by accident -- which a
+			// game-ender's zero cooldown very nearly did (review, 2026-09-15). Leave the interval
+			// alone and just empty the countdown.
+			if (ticks <= 0)
+			{
+				remainingSubTicks = 0;
+				return;
+			}
 
 			TotalTicks = ticks;
 			remainingSubTicks = ticks * 100;
@@ -332,7 +351,7 @@ namespace OpenRA.Mods.Common.Traits
 			// which draws a full circle -- the correct picture for a shot sitting in the magazine.
 			// ==== THE ESCALATION BYPASS, AND IT IS THE ONE PLACE THE ECONOMY IS DECIDED ====
 			// Decision 02: in DEFCON Escalation nothing nuclear is purchasable -- a band is a free
-			// power on a regeneration timer. EscalationRegenTicks returns that timer, or -1 for the
+			// power on a regeneration timer. EscalationCooldownTicks returns that timer, or -1 for the
 			// ordinary purchase economy, and -1 is what EVERY power outside Escalation and every
 			// non-nuclear power inside it gets. So Skirmish, Sandbox and every other mod are
 			// byte-identical to before by construction rather than by care.

@@ -54,8 +54,16 @@ local COOLDOWN_TICKS = 300
 local ARMED_CHECK_TICK = 90                        -- release is at tick 10; 80 ticks of slack
 local HOLDING_CHECK_TICK = 280                     -- ~4 more evaluations of not firing
 local USA_FIRE_TICK = 300
-local LEVEL_HOLD_CHECK_TICK = USA_FIRE_TICK + 80   -- the rise crosses a world trait, a player trait
-                                                   -- and a condition; GrantRetryTicks is 30
+-- THE RISE CROSSES A WORLD TRAIT, A PLAYER TRAIT AND A CONDITION; GrantRetryTicks is 30, so 80 is
+-- well past the budget the engine gives itself.
+--
+-- AND 80 IS ALSO SHORTER THAN THE COOLDOWN, WHICH IS WHAT MAKES THE READING NON-VACUOUS. Checked at
+-- review, 2026-09-15: a band that was never granted counts down its OWN constructed interval, which
+-- rules.yaml sets to 300 here -- so at 80 ticks past the rise it would read `charging:220`, nowhere
+-- near `ready`, and the check fails. (test-nuclear-ender-level had the opposite problem and had to
+-- be retimed: its 60-tick cooldowns were SHORTER than its 65-tick check gap, so an ungranted band
+-- had already reached zero by the check and four of its phases passed on nothing.)
+local LEVEL_HOLD_CHECK_TICK = USA_FIRE_TICK + 80
 local CUT_ARMY_TICK = 400
 local LAUNCH_CHECK_TICK = CUT_ARMY_TICK + EVALUATION_INTERVAL * (LOSING_STREAK_REQUIRED + 3)
 -- THE EARLIEST THE BOT CAN FIRE IS t550 (three evaluations at 50 ticks after the cut at t400) and

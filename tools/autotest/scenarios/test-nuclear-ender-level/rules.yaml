@@ -30,7 +30,15 @@ World:
 		# test-nuclear-exchange's phase G2 -- but a scenario configured so the property could not
 		# hold is a scenario that would pass over its removal.
 		#
-		# EVERY LAUNCH BY ONE SIDE IS >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so 60 never bites.
+		# EVERY LAUNCH BY ONE SIDE IS >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so 60 never blocks
+		# a scripted shot.
+		#
+		# AND 60 IS THE UPPER BOUND ON THE .lua's CHECK GAP, WHICH IS THE LESS OBVIOUS CONSTRAINT.
+		# Every phase there reads its band 40 ticks after the rise that granted it, and 40 has to be
+		# BELOW this number: a band that was never granted counts down its own constructed interval,
+		# so if the gap exceeded 60 it would have reached zero on its own and read `ready` whether the
+		# grant ran or not. Raising this value is safe; LOWERING it below ~45 silently makes four
+		# phases of that file vacuous. Found at review, 2026-09-15, after the gap had been 65.
 		KilotonCooldownTicks: 60
 		TwentyKilotonCooldownTicks: 60
 		FiftyKilotonCooldownTicks: 60
