@@ -38,25 +38,22 @@ local HouseSquad = nil
 -- identically whether they are walking, in shelter, or dead, and the runs could not be
 -- told apart afterwards. A failing test must say which state it actually found.
 --
--- CORRECTED 2026-09-15: THE SHELTER BRANCH WAS UNREACHABLE AND EVERY MAN IN THE HOLD WAS
--- TALLIED AS A CASUALTY. The old order asked `if s.IsDead` first, and a Cargo passenger is
--- removed from the world AND reads IsDead == true — so a sheltering soldier took the dead
--- branch every time and `elseif not s.IsInWorld` could never be reached. The scenario still
--- passed because its gate rests on atPorts (see the delayed check below) and its men do reach
--- ports; what it would have printed on FAILURE was a full shelter reported as a wipe, which is
--- the one thing this census exists to prevent.
+-- REWRITTEN 2026-09-15 to ask the TRAITS rather than infer from the actor. The previous version
+-- was NOT broken — an earlier draft of this comment claimed its `if s.IsDead` branch swallowed
+-- shelter occupants, and that was wrong: a Cargo passenger reads IsDead == FALSE, measured and
+-- recorded at DOCS/recipes/AUTOTEST.md:352. What the old version really did was infer "at a port"
+-- from POSITION (s.Location == building.Location), which is true of a port occupant but is a
+-- coincidence of how DeployToPort places him rather than a statement about ports.
 --
--- The fix is to ask the TRAITS before the actor. Test.IsAtGarrisonPort reads
--- GarrisonManager.PortStates and Test.IsLoadedInto reads Cargo.Passengers; both answer
--- truthfully whatever IsDead and IsInWorld say. The two are mutually exclusive by
--- construction — DeployToPort calls cargo.Unload(self, soldier) before adding him to the world
--- (GarrisonManager.cs), so a man at a port is no longer a passenger — and the order below is
--- therefore for readability, not correctness.
+-- Test.IsAtGarrisonPort reads GarrisonManager.PortStates and Test.IsLoadedInto reads
+-- Cargo.Passengers, so both answer from the state that defines the thing being counted. They are
+-- mutually exclusive by construction — DeployToPort calls cargo.Unload(self, soldier) before
+-- adding him to the world (GarrisonManager.cs) — so the order below is readability, not
+-- correctness.
 --
 -- Only once both trait questions say no do actor properties get a turn, and by then they are
--- safe: in-world means he is genuinely standing somewhere (a port soldier occupies the
--- BUILDING's own cell, but he has already been counted), and out-of-world-and-not-in-a-hold is
--- the one state that really is a casualty. See WORKSPACE/DISCOVERIES.md 2026-09-15.
+-- unambiguous: in world means standing somewhere, and out of world while in nobody's hold is the
+-- one combination that really is a casualty. See WORKSPACE/DISCOVERIES.md 2026-09-15.
 local function GarrisonCensus(squad, building)
 	local atPorts, inShelter, outside, dead = 0, 0, 0, 0
 	for _, s in ipairs(squad) do
@@ -74,13 +71,14 @@ local function GarrisonCensus(squad, building)
 	return atPorts, inShelter, outside, dead
 end
 
--- "Still in the match", asked the same way the census asks it and for the same reason. A man in a
--- Cargo hold reads IsDead == true, so `if not s.IsDead` is not a liveness test on anyone who might
--- be sheltering — it is a test that excludes them. That mattered below: the house squad exists to
--- put a six-slot pip grid in frame 02, its own header says it works "even if none of them are ever
--- deployed to a port", and the guard on the suppression grant was skipping precisely those men. The
--- 02-suppressed capture has therefore never been able to show a suppression pip on the civilian
--- building, which is half of what its expects: text asks the reader to check.
+-- "Still in the match", asked the same way the census asks it. This replaced `if not s.IsDead`,
+-- which was CORRECT — passengers read IsDead == false — so this is an explicitness change, not a
+-- fix; an earlier draft of this comment claimed otherwise and was wrong. It is kept because it
+-- states the intent positively (at a port, in a hold, or on his feet) rather than relying on the
+-- reader knowing which way IsDead falls for a man inside a building.
+--
+-- The real reason frame 02 has never shown a pip on the civilian building is upstream of this: the
+-- house squad never entered at all. See the staging note in WorldLoaded.
 local function StillInTheMatch(s, building)
 	return Test.IsAtGarrisonPort(s, building) or Test.IsLoadedInto(s, building) or s.IsInWorld
 end
@@ -98,8 +96,15 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Tower, House)
 	Test.SetZoom(2)
 
+	-- THROUGH THE ORDER LAYER. soldier.EnterTransport queues a RideTransport activity directly;
+	-- Test.ClickOrder issues a real EnterTransport order through Passenger.ResolveOrder. The two are
+	-- not interchangeable, and this scenario is the third place that bit: run 260915_182425 reported
+	-- "house: 0 at ports, 0 in shelter, 6 still outside" -- the church squad below has NEVER entered,
+	-- so the 02-suppressed frame has been photographing six men standing in a field next to an empty
+	-- building while its own expects: text describes a garrisoned one. The tower squad is switched
+	-- too, for one staging API in one file.
 	for _, s in ipairs(Squad) do
-		s.EnterTransport(Tower)
+		Test.ClickOrder(s, Tower)
 	end
 
 	-- The house squad never enters the verdict. Its only job is to put a six-occupant
@@ -107,7 +112,7 @@ WorldLoaded = function()
 	-- slot crowds the building sprite. Shelter occupants render pips too, so this works
 	-- even if none of them are ever deployed to a port.
 	for _, s in ipairs(HouseSquad) do
-		s.EnterTransport(House)
+		Test.ClickOrder(s, House)
 	end
 
 	-- Selecting the tower both raises the GARRISON_PANEL and switches the pip grid
