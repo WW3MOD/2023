@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535)
+
+**THE INSTANCE.** Tuning 38 garrisonable civilian buildings from their sprites turned up that
+**twenty-one of them declared neither `Health` nor `Armor`** — V12, V13, V19 and every desert
+building V20-V37 — and therefore took `HP 60000` / `Armor: Concrete` from `^TechBuilding`
+(`structures.yaml:160`). Reading the actor blocks makes them look tuned; reading the *resolved*
+rules shows one value repeated. Among the twenty-one: two haystacks, a well head with a wall stub,
+a ruin with market awnings, and a row of single-room mud huts — all concrete, all at the hit points
+of a reinforced bunker, all holding ten men behind eight firing ports. **[V]**
+
+**THE SHAPE, WHICH IS NOT SPECIFIC TO BUILDINGS.** An inherited default and a deliberate choice are
+the same text — namely, no text. `git log` cannot show you a number nobody wrote, grep cannot find
+it, and a reviewer reading `V29:` sees four tidy lines and no reason to suspect anything. The only
+way to see it is to **resolve the inheritance and look at the distribution**: 22 actors sharing one
+HP value is a fact about the YAML that no single actor's YAML contains. A fifteen-line MiniYaml
+resolver over `mods/ww3mod/rules` settles it in a second and needs no build, and the same query
+immediately flags the reverse case — a value stated identically on 37 actors is also usually a
+template that should have been per-actor.
+
+**THE COROLLARY THAT COST THE MOST HERE.** `^CivBuilding` declared one eight-port firing ring for
+every inheritor. Ports are a `WVec` offset from the building centre, so the *same* ring means
+something different on every footprint: 560 world units in X is 55% of a 1x1's width, 27% of a
+2x2's and 11% of V37's 5x2. The bigger the building, the further inside its own sprite the whole
+garrison stands. **A shared absolute offset under a varying extent is a uniform value that silently
+is not uniform**, and it is worth looking for wherever a template hands out positions rather than
+scalars.
+
+**WHY THE FIRST FIX REPRODUCED THE BUG.** Replacing the ring with a per-actor radius chosen per axis
+put the 60-degree diagonals of a six-port ring at (+/-966, +/-645) on a 2x2 of half-extent 1024 —
+back inside the building, for the same reason at a smaller scale. The ring has to CIRCUMSCRIBE the
+footprint along each port's own bearing. `CivBuildingPortCoverageTest` now asserts the invariant
+directly (`|X| >= halfX or |Y| >= halfY`) rather than the formula, which is why it catches both the
+original defect and the near-miss that was written to fix it.
+
+## 2026-09-15 - `EnterTransport` moved nobody into a NEUTRAL civilian building while the same order into an owned one worked, and no gate on the path explains it (`wt/garrison-tuning`, run 260915_210535_p58516_demo-garrison-lineup)
+
+**THE OBSERVATION, WHICH IS NOT YET A DIAGNOSIS.** Six squads were ordered into six garrisonable
+buildings in one scenario at one tick. The three whose buildings were **USA-owned** (GTWR, PBOX,
+HBOX) boarded and manned ports. The three whose buildings were **Neutral** (V01, V19, RUSHOUSE)
+**did not move at all** — capture 006 shows all ten riflemen still standing in the two start files
+they were placed in, four cells away. `debug.log` is clean, no Lua error, all 19 captures taken.
+Squad size equalled `MaxWeight` in all six cases, so it is not a capacity refusal. **[V]**
+
+**EVERY OBVIOUS GATE WAS CHECKED AND NONE OF THEM IS IT.** `EnterAlliedActorTargeter.CanTargetActor`
+explicitly permits neutral targets (`:49-54`) — and is not on this path anyway, since
+`MobileProperties.EnterTransport` queues a `RideTransport` activity directly rather than issuing an
+order. `RideTransport` and its `Enter` base carry no relationship test. `Cargo.LoadingBlocked` is
+written only by `HeliEmergencyLanding`. `Cargo`'s only `ICargoCanLoadFilter` is `SupplyProvider`,
+which no civilian building has. `GarrisonManager` observes entry through `INotifyPassengerEntered`
+and cannot refuse it. **[V]**
+
+**WHY IT MATTERS MORE THAN A BROKEN DEMO.** Walking into a neutral civilian building is *how a
+player garrisons one*. If this reproduces outside the scenario, the civilian half of the garrison
+feature is unreachable in ordinary play and only the three built emplacements work — which would
+also mean the sibling `test-garrison-suppression-readout` has been loading nothing into its house
+squad since it was written, unnoticed, because its verdict only ever covered the tower.
+
+**THE DEMO WAS ROUTED AROUND IT, NOT FIXED.** `LoadPassenger`
+(`TransportProperties.cs:42-48`) teleports the man into `Cargo` and still fires
+`INotifyPassengerEntered`, so the real bookkeeping runs and the captures can proceed.
+`test-garrison-neutral-entry` isolates the one variable — same actor type, same squad, one copy
+Neutral and one owned, side by side, with the owned lane as a control so that "both lanes failed"
+cannot be misread as "neutral entry is broken". Unrun as of this entry.
+
 ## 2026-09-15 - A garrison port's `Offset` Z is discarded for the SOLDIER and kept for his MUZZLE FLASH, so every shipped port's Z raises the gun-flash off the man who is firing it (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
 
 **THE SPLIT.** `GarrisonPort.Offset` is a `WVec` and every shipped port sets a non-zero Z — 200 on the
