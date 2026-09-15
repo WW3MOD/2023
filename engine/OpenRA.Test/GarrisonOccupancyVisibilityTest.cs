@@ -19,8 +19,9 @@ using OpenRA.Traits;
 namespace OpenRA.Test
 {
 	/// <summary>
-	/// The occupancy readout on a garrisoned building must be visible to the ENEMY, which is the one
-	/// player it was never shown to.
+	/// Both readouts on a garrisoned building — the occupancy pips (WithGarrisonDecoration) and the
+	/// damage-state pips (^GarrisonHealthPips) — must be visible to the ENEMY, which is the one player
+	/// neither was ever shown to.
 	///
 	/// <para>WithDecorationBaseInfo.ValidRelationships defaults to Ally (WithDecorationBase.cs:107-108),
 	/// and garrisoning TRANSFERS ownership of the building to the entering player
@@ -48,8 +49,8 @@ namespace OpenRA.Test
 		static PlayerRelationship Parse(string value, string where)
 		{
 			Assert.That(value, Is.Not.Null.And.Not.Empty,
-				$"{where} sets no ValidRelationships, so it inherits the C# default of Ally and the " +
-				"enemy sees no occupancy pips at all.");
+				$"{where} sets no ValidRelationships, so it inherits the C# default of Ally and this " +
+				"readout is invisible to the enemy.");
 
 			// Enum.Parse handles the comma-separated flags spelling MiniYaml uses ("Ally, Enemy, Neutral").
 			Assert.That(Enum.TryParse<PlayerRelationship>(value, true, out var parsed), Is.True,
@@ -118,6 +119,83 @@ namespace OpenRA.Test
 			}
 		}
 
+
+		/// <summary>The ^GarrisonHealthPips template, which is where the damage-state rungs live. It is
+		/// a single node carrying three WithDecoration traits, so unlike WithGarrisonDecoration it is
+		/// found by name rather than by scanning for the trait.</summary>
+		static MiniYamlNode HealthPipTemplate()
+		{
+			var node = ModRulesYaml.AllRuleNodes()
+				.Where(x => x.Node.Key == "^GarrisonHealthPips")
+				.Select(x => x.Node)
+				.SingleOrDefault();
+
+			Assert.That(node, Is.Not.Null,
+				"^GarrisonHealthPips is not declared exactly once across the rules. It is the only place " +
+				"the garrison damage rungs are configured, so this fixture can no longer see them.");
+
+			return node;
+		}
+
+		static MiniYamlNode[] HealthPipRungs()
+		{
+			var rungs = HealthPipTemplate().Value.Nodes
+				.Where(n => n.Key.StartsWith("WithDecoration@GarrisonHealth_", StringComparison.Ordinal))
+				.ToArray();
+
+			Assert.That(rungs.Length, Is.EqualTo(3),
+				"expected exactly 3 WithDecoration@GarrisonHealth_ rungs (Light, Medium, Heavy); found " +
+				$"{rungs.Length}: {string.Join(", ", rungs.Select(r => r.Key))}. A rung added without a " +
+				"ValidRelationships line is invisible to the enemy; one removed is a damage step the " +
+				"attacker can no longer read. Update the count deliberately.");
+
+			return rungs;
+		}
+
+		[Test]
+		public void EveryGarrisonHealthPipAdmitsTheEnemy()
+		{
+			// The damage rungs matter MORE to an enemy than to the owner, because Indestructible clamps
+			// a garrison building at 1 HP instead of killing it: there is no collapse to read progress
+			// off, so the damage state is the only signal that wearing the building down is working.
+			foreach (var rung in HealthPipRungs())
+			{
+				var where = $"^GarrisonHealthPips/{rung.Key} (defaults.yaml)";
+				var relationships = Parse(ModRulesYaml.Child(rung.Value, "ValidRelationships"), where);
+
+				Assert.That(relationships.HasRelationship(PlayerRelationship.Enemy), Is.True,
+					$"{where} has ValidRelationships: '{relationships}', which excludes Enemy. Because " +
+					"garrisoning transfers ownership, the opponent always evaluates to Enemy — so an " +
+					"attacker grinding a garrison down cannot see that anything is happening.");
+
+				Assert.That(relationships.HasRelationship(PlayerRelationship.Ally), Is.True,
+					$"{where} no longer admits Ally, so the garrisoning player has lost his own damage " +
+					"readout.");
+
+				Assert.That(relationships.HasRelationship(PlayerRelationship.Neutral), Is.True,
+					$"{where} no longer admits Neutral.");
+			}
+		}
+
+		[Test]
+		public void WideningTheHealthPipsReachesGarrisonBuildingsAndNothingElse()
+		{
+			// ^GarrisonHealthPips is a shared template, so widening it is only safe while the set of
+			// actors that inherit it IS the garrison set. If some unrelated structure starts inheriting
+			// it, that structure silently starts showing its damage state to the enemy too.
+			var inheritors = ModRulesYaml.AllRuleNodes()
+				.Where(x => ModRulesYaml.Parents(x.Node).Contains("^GarrisonHealthPips"))
+				.Select(x => x.Node.Key)
+				.OrderBy(k => k, StringComparer.Ordinal)
+				.ToArray();
+
+			Assert.That(inheritors, Is.EqualTo(new[] { "GTWR", "HBOX", "PBOX", "^CivBuilding" }),
+				"the set of actors inheriting ^GarrisonHealthPips changed to [" +
+				string.Join(", ", inheritors) + "]. This template was widened to Enemy on the " +
+				"understanding that only garrison buildings use it; anything else inheriting it now " +
+				"reveals its damage state to opponents as a side effect.");
+		}
+
 		[Test]
 		public void TheEngineDefaultWouldStillHideTheEnemy()
 		{
@@ -135,6 +213,14 @@ namespace OpenRA.Test
 			Assert.That(shipped.ValidRelationships.HasRelationship(PlayerRelationship.Ally), Is.True,
 				"the decoration default no longer admits Ally either — every decoration in the mod that " +
 				"relies on the default has just gone invisible to its own owner.");
+
+			// Same guard for the plain WithDecoration the three health rungs use. Different Info class,
+			// same base default, and the ^GarrisonHealthPips assertions would go equally vacuous.
+			var healthRung = new WithDecorationInfo();
+
+			Assert.That(healthRung.ValidRelationships.HasRelationship(PlayerRelationship.Enemy), Is.False,
+				"WithDecorationInfo now admits Enemy by default, so the three ValidRelationships lines on " +
+				"^GarrisonHealthPips no longer prove anything.");
 		}
 
 		[Test]
@@ -159,6 +245,15 @@ namespace OpenRA.Test
 				"check that makes enemy-visible occupancy honest lives in the base implementation, so " +
 				"the override must be read to confirm it still calls World.FogObscures — otherwise a " +
 				"remembered building under fog will report live occupancy to an enemy who cannot see it.");
+
+			var healthDeclared = typeof(WithDecoration)
+				.GetMethod("ShouldRender", BindingFlags.Instance | BindingFlags.NonPublic)
+				?.DeclaringType;
+
+			Assert.That(healthDeclared, Is.EqualTo(typeof(WithDecorationBase<WithDecorationInfo>)),
+				$"WithDecoration now overrides ShouldRender (declared on {healthDeclared}), so the same " +
+				"question has to be re-asked for the three ^GarrisonHealthPips rungs: a remembered " +
+				"building under fog must not report its live damage state to an enemy who cannot see it.");
 		}
 	}
 }
