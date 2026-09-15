@@ -33,29 +33,56 @@ local HouseSquad = nil
 
 -- Returns atPorts, inShelter, outside, dead.
 --
--- DeployToPort does SetPosition(soldier, self.Location) — a port soldier occupies the
--- BUILDING's own cell while in-world. A soldier in shelter has been removed from the
--- world entirely. A soldier still walking is in-world on some other cell.
---
 -- Count all four states separately and report them. Two earlier runs of this scenario
 -- were lost to a gate that collapsed them into one number: "0 soldiers here" reads
 -- identically whether they are walking, in shelter, or dead, and the runs could not be
 -- told apart afterwards. A failing test must say which state it actually found.
+--
+-- CORRECTED 2026-09-15: THE SHELTER BRANCH WAS UNREACHABLE AND EVERY MAN IN THE HOLD WAS
+-- TALLIED AS A CASUALTY. The old order asked `if s.IsDead` first, and a Cargo passenger is
+-- removed from the world AND reads IsDead == true — so a sheltering soldier took the dead
+-- branch every time and `elseif not s.IsInWorld` could never be reached. The scenario still
+-- passed because its gate rests on atPorts (see the delayed check below) and its men do reach
+-- ports; what it would have printed on FAILURE was a full shelter reported as a wipe, which is
+-- the one thing this census exists to prevent.
+--
+-- The fix is to ask the TRAITS before the actor. Test.IsAtGarrisonPort reads
+-- GarrisonManager.PortStates and Test.IsLoadedInto reads Cargo.Passengers; both answer
+-- truthfully whatever IsDead and IsInWorld say. The two are mutually exclusive by
+-- construction — DeployToPort calls cargo.Unload(self, soldier) before adding him to the world
+-- (GarrisonManager.cs), so a man at a port is no longer a passenger — and the order below is
+-- therefore for readability, not correctness.
+--
+-- Only once both trait questions say no do actor properties get a turn, and by then they are
+-- safe: in-world means he is genuinely standing somewhere (a port soldier occupies the
+-- BUILDING's own cell, but he has already been counted), and out-of-world-and-not-in-a-hold is
+-- the one state that really is a casualty. See WORKSPACE/DISCOVERIES.md 2026-09-15.
 local function GarrisonCensus(squad, building)
 	local atPorts, inShelter, outside, dead = 0, 0, 0, 0
 	for _, s in ipairs(squad) do
-		if s.IsDead then
-			dead = dead + 1
-		elseif not s.IsInWorld then
-			inShelter = inShelter + 1
-		elseif s.Location.X == building.Location.X and s.Location.Y == building.Location.Y then
+		if Test.IsAtGarrisonPort(s, building) then
 			atPorts = atPorts + 1
-		else
+		elseif Test.IsLoadedInto(s, building) then
+			inShelter = inShelter + 1
+		elseif s.IsInWorld then
 			outside = outside + 1
+		else
+			dead = dead + 1
 		end
 	end
 
 	return atPorts, inShelter, outside, dead
+end
+
+-- "Still in the match", asked the same way the census asks it and for the same reason. A man in a
+-- Cargo hold reads IsDead == true, so `if not s.IsDead` is not a liveness test on anyone who might
+-- be sheltering — it is a test that excludes them. That mattered below: the house squad exists to
+-- put a six-slot pip grid in frame 02, its own header says it works "even if none of them are ever
+-- deployed to a port", and the guard on the suppression grant was skipping precisely those men. The
+-- 02-suppressed capture has therefore never been able to show a suppression pip on the civilian
+-- building, which is half of what its expects: text asks the reader to check.
+local function StillInTheMatch(s, building)
+	return Test.IsAtGarrisonPort(s, building) or Test.IsLoadedInto(s, building) or s.IsInWorld
 end
 
 local function CensusText(label, squad, building)
@@ -110,7 +137,7 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(275, function()
 		for _, s in ipairs(Squad) do
-			if not s.IsDead then
+			if StillInTheMatch(s, Tower) then
 				for _ = 1, SuppressionToGrant do
 					s.GrantCondition("suppressed")
 				end
@@ -118,7 +145,7 @@ WorldLoaded = function()
 		end
 
 		for _, s in ipairs(HouseSquad) do
-			if not s.IsDead then
+			if StillInTheMatch(s, House) then
 				for _ = 1, SuppressionToGrant do
 					s.GrantCondition("suppressed")
 				end

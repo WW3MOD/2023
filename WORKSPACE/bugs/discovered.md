@@ -5488,7 +5488,7 @@ wants one owner and one decision about which is authoritative. The cheap shape i
 `UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
 hold itself.
 
-## 2026-09-15: [low] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+## 2026-09-15: [low, FIXED] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
 
 ```lua
 if s.IsDead then dead = dead + 1
@@ -5502,7 +5502,18 @@ and the `inShelter` branch is unreachable. Every man in the hold is tallied as a
 its men do reach firing ports, so `atPorts` carries the assertion on its own. The census text it
 prints on failure would be actively misleading, though — it would report a full shelter as a wipe.
 
-**NOT FIXED.** It is a passing scenario I cannot re-run from this branch, and the correct instrument
-(`Test.IsLoadedInto`, added on `wt/civ-garrison`) changes what its census means; whoever next touches
-that scenario should switch it over and re-run. Same defect class as the two fixed here — see
-`WORKSPACE/DISCOVERIES.md` 2026-09-15.
+**FIXED 2026-09-15** on `wt/civ-garrison`. The census now asks `Test.IsAtGarrisonPort` then
+`Test.IsLoadedInto` before it asks the actor anything, so the four states are classified truthfully;
+the verdict expression (`atPorts + inShelter == 0` → Fail) is byte-identical, so the gate is
+unchanged and only what it *reports* was wrong.
+
+**A SECOND INSTANCE IN THE SAME FILE WENT WITH IT, and that one was not cosmetic.** The suppression
+grant was guarded by `if not s.IsDead`, which is not a liveness test on anyone who might be
+sheltering — it *excludes* them. The house squad exists purely to put a six-slot pip grid in the
+`02-suppressed` capture, and its own header says that works "even if none of them are ever deployed
+to a port" — so the guard was skipping exactly those men, and that frame has never been able to show
+a suppression pip on the civilian building, which is half of what its `expects:` text asks the
+reader to check. Both guards now use a shared `StillInTheMatch(s, building)`.
+
+**Consequence to look for when it next runs:** `02-suppressed` should now show suppression pips on
+the civilian building as well as the tower. That is a change to a screenshot, not to a verdict.
