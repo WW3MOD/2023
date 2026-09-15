@@ -3,6 +3,24 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-15 - The "Unload All" bug was NOT reachable through Unload All: two IResolveOrder implementors on one actor, one synchronous and one queued (`wt/garrison-unload`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When two traits on the same actor both implement `IResolveOrder` for the same order string, `Actor.ResolveOrder` runs both — and **one doing its work SYNCHRONOUSLY while the other only QUEUES an activity is an ordering guarantee, not a race.** The synchronous one always wins the tick. That can silently make a real defect unreachable through the gesture it obviously belongs to, and reachable only through a different gesture nobody was looking at.
+
+Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests `cargo.PassengerCount == 0`, which counts the **Cargo hold only** — `GarrisonManager.DeployToPort` calls `cargo.Unload` on a man who mans a firing port, so a port occupant is not a passenger. The audit filed this as "Unload All on a house whose ports are manned makes it neutral". **It does not**, and cannot: `GarrisonManager.ResolveOrder` clears every port synchronously (`GarrisonManager.cs:1561-1592`) while `Cargo.ResolveOrder` only queues the activity (`Cargo.cs:459`), so the ports are already empty by the time the flip is evaluated and its answer is right by accident.
+
+**The path that DOES reach it** is the class-grouped unload menu: `CargoUnloadMenuLogic` issues `UnloadCargoPassenger` per man (`:241`), `Cargo.ResolveOrder` turns each into its own `UnloadCargo` (`:467`), and nothing in that chain touches a port. Its candidate filter (`:90-107`) asks only for a non-empty `Cargo` owned by the local player — **it does not exclude garrison buildings**, and it is bound in this mod (`chrome/ingame-player.yaml:6`, hotkey `J`). So the bug is real and player-reachable; only the gesture named in the item was wrong.
+
+**WHY THE FIX IS A VETO AND NOT A SECOND CHECK.** `Cargo.Unload` notifies `INotifyPassengerExited` **synchronously** (`Cargo.cs:671-672`), which reaches `GarrisonManager.CheckOwnershipAfterExit` — the port-aware implementation — while `UnloadCargo`'s flip is a frame-end task queued *after* it. The correct answer was already on record and the Cargo flip overwrote it. There was nothing to re-derive, and re-deriving it would have recreated the disagreement. `IOverridesCargoNeutralRevert` (new) is answered true by `GarrisonManager` under **exactly the guard `CheckOwnershipAfterExit` early-returns on**, so the two cannot disagree about which is in charge.
+
+**AND THE CHEAP LESSON:** before writing a scenario for "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. Two implementors is the normal case on a garrison building, not an exotic one.
+
+## 2026-09-15 - A rifle cannot target ANY building in this mod, so a building makes a useless garrison bait (`wt/garrison-unload`)
+
+`^5.56mm` declares `ValidTargets: Infantry, Vehicle, AirLight` (`weapons-ballistics.yaml:105`) and every civilian building's target types are `Ground, C4, DetonateAttack, Structure, Defense` (`civilian.yaml:17-19`) — **disjoint sets**. `GarrisonManager` skips any soldier whose armament is not `IsValidAgainst` the candidate before scoring it, so **an enemy building placed to make a garrison man its ports mans nothing**, and the scenario runs green having measured its own absence. The bait must be infantry or a vehicle. Armour class is a red herring here: validity is decided on target TYPES, and the armour tables never enter it.
+
+**Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
+
 ## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`)
 
 **THE PORT IS NOT A PROPERTY OF THE MAP, AND A SCENARIO THAT ASSUMES IT IS MEASURING SOMETHING ELSE.** `GarrisonManager` deploys a man to the first port that confirms an in-arc, in-range target (`ScanForTarget` arc-filters before scoring), so which port wins depends on every enemy on the map, the range of the weapon that scans, and the port declaration order. Three separate failures, all the same mistake, none of them the engine's fault:
