@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-16 - A terrain border that leaks for infantry and not vehicles is leaking through a terrain type INSIDE it, not round its ends (`wt/defcon-wall-region`, base `main @ 4df25ac4`)
+
+**THE DEFCON 3 BORDER CAN NOW BE AUTHORED AS A SET OF CELLS** (`DefconWallInfo.RegionTerrainTypes` /
+`RegionCells`), and the first map it was tried on produced a failure whose obvious explanation was
+wrong twice running. Blocking `Water, River, Bridge` on `river-zeta-ww3` separates every **vehicle**
+locomotor cleanly — 2667/2622 cells, the six spawns splitting 3/3 — while leaving `foot`,
+`foot-mountainer`, `walker`, `template` and both amphibious foot classes as **one** 6843-cell
+component containing all six spawns.
+
+**HYPOTHESIS 1, AND IT FITS THE EVIDENCE PERFECTLY: the river stops short of the map edge.** It
+really does. `river-zeta-ww3` has three water-free rows at each end (y3–y5, y77–y79), the water spans
+only x31–x41 at y2 and x59–x69 at y76, and "infantry walk round the end over the beach" explains the
+vehicle/infantry split exactly, because a vehicle cannot ford the river anywhere. **Capping both ends
+changed nothing — at any width.** Rectangles from 66 cells up to 126 cells produced a byte-identical
+failure list. A hypothesis that survives being acted on and produces no change is not weak evidence
+against itself; it is refuted, and the six-name failure list not moving by a single entry said so.
+
+**HYPOTHESIS 2 WAS THE ROW SCAN ITSELF, AND IT WAS LYING BY CONSTRUCTION.** The scan that located the
+end gaps reported each row's water extent as `min(x)..max(x)`, which silently asserts the span is
+solid. It is not. **The channel has dry ROCK outcrops inside it.** The actual crossing is mid-river at
+x51–60, y43–49, over cells whose terrain type is `Rock` — and `foot` lists `Rock` in its
+`TerrainSpeeds` while `heavywheeled` does not. *That single terrain difference is the entire
+vehicle-versus-infantry split*, which had been attributed to fording ability the whole time. Adding
+`Rock` to the type list separates every locomotor at 721 cells and makes the end caps unnecessary,
+because the same rock closes those rows too.
+
+**WHAT FOUND IT WAS TRACING A PATH, WHICH SHOULD HAVE BEEN THE FIRST MOVE AND WAS THE THIRD.** A
+breadth-first walk from one spawn to an opposed one, printing the cells it used, localised the
+crossing in one run after two rounds of geometric reasoning had pointed at the wrong end of the map.
+**Generalise: when a barrier leaks, ask the pathfinder where it went. Do not scan the barrier's
+extent for holes — a scan shows you every gap, including all the ones nothing is using, and the gap
+being used may not be a gap in the barrier at all but a passable type within it.**
+
+**AND THE PER-LOCOMOTOR AXIS IS NEW WITH REGIONS, WHICH IS WHY NOTHING EXISTING COVERED IT.** A line
+border is a statement about POSITION: `SideOf` is a sign test that gives the same answer for every
+actor. A region border is a statement about REACHABILITY, and reachability is a property of the
+MOVER — so a region that separates the map for one locomotor may not for another, and there is no
+single answer to "does this border divide the map". `tools/nav-guard/defcon_wall_audit.py
+--region-terrain` therefore reports separation **per locomotor** and fails if any mover class that
+can reach a spawn is left undivided. **A region checked against one locomotor is not checked.**
+
+**A COROLLARY FOR THE BRIEFS: the measurement `river-zeta-ww3` was handed down with — "one connected
+7060-cell component containing all six spawns" — is a FOOT-CLASS result quoted as a universal one.**
+It is approximately right for the foot class (6843 here) and flatly wrong for every vehicle, which
+was already separated before anything was authored. A connectivity number without a locomotor beside
+it is not a fact about the map.
+
 ## 2026-09-15 - `IsIdle` is TRUE both before an order lands and after it finishes, so it cannot mean "has arrived" (`wt/civ-garrison`, run 260915_204319)
 ## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
 
