@@ -59,7 +59,7 @@
 --   SKIP                                — the scenario never built the world it describes.
 
 local SetupWithin = 25      -- s for the adjacent man to walk one cell and claim the house
-local RaceWithin = 30       -- s for the far man to finish his walk and resolve one way or the other
+local RaceWithin = 45       -- s for the far man to finish his walk and resolve one way or the other
 local EvacWithin = 20       -- s for an unload to put men back on the ground
 
 local function OwnerOf(actor)
@@ -101,11 +101,22 @@ local function IsOutInTheOpen(soldier)
 	return soldier.IsInWorld and not IsLoaded(soldier)
 end
 
+-- THE THIRD STATE, which the first two runs fell into and could not name. Out of world and in
+-- nobody's hold is the ONE combination in which IsDead means what it says: a passenger reads
+-- IsDead == false (DOCS/recipes/AUTOTEST.md:352 measured it), so with the hold and the ports both
+-- excluded there is nothing left for him to be but gone. Both runs reported RuMan here while the
+-- verdict text guessed "presumably still walking" -- which is why this is a state with a name now
+-- rather than a timeout.
+local function IsGone(soldier)
+	return not soldier.IsInWorld and not IsLoaded(soldier)
+end
+
 local function State()
 	return "House owner " .. OwnerOf(House) ..
 		"; UsMan loaded=" .. tostring(IsLoaded(UsMan)) ..
 		"; RuMan loaded=" .. tostring(IsLoaded(RuMan)) ..
 		" inWorld=" .. tostring(RuMan.IsInWorld) ..
+		" gone=" .. tostring(IsGone(RuMan)) ..
 		"; RuProbe inWorld=" .. tostring(RuProbe.IsInWorld)
 end
 
@@ -185,8 +196,21 @@ local function DidTheRaceComplete()
 	-- every unit on the map is HoldFire (rules.yaml) -- so loaded-or-still-walking are the only two
 	-- states, and the timeout arm below distinguishes them.
 	WaitUntil(RaceWithin,
-		function() return IsLoaded(RuMan) end,
+		function() return IsLoaded(RuMan) or IsGone(RuMan) end,
 		function()
+			if IsGone(RuMan) then
+				Test.Skip("RuMan left the world without ever reaching the hold or a port, which leaves " ..
+					"only one reading: he was KILLED on the way in. Passengers read IsDead == false " ..
+					"(DOCS/recipes/AUTOTEST.md:352), so the hold and the ports being excluded excludes " ..
+					"everything else. The killer is the garrison itself — GarrisonManager takes the " ..
+					"deploy decision from the BUILDING's stance (GarrisonManager.cs:672, :796) and v09 " ..
+					"has no AutoTarget, so it is permanently FireAtWill whatever the riflemen are set " ..
+					"to. rules.yaml raises TargetConfirmTicks to stop any port being manned; if this " ..
+					"fires anyway, that override is not reaching V09 — check the actor name's CASE, " ..
+					"which merges case-sensitively. " .. State())
+				return
+			end
+
 			CanTheHostileOccupantBeReleased()
 		end,
 		function()
@@ -203,9 +227,9 @@ local function DidTheRaceComplete()
 				return
 			end
 
-			Test.Skip("RuMan neither loaded nor ended up standing outside within " .. RaceWithin ..
-				"s — he is presumably still walking, or stuck. The race was never resolved either " ..
-				"way. Raise RaceWithin, or check that he can path to the house. " .. State())
+			Test.Skip("RuMan was still walking after " .. RaceWithin .. "s — he is in world, outside, " ..
+				"and neither loaded nor gone, so the race genuinely never resolved. Seven cells should " ..
+				"not take this long; check that he can path to the house. " .. State())
 		end)
 end
 

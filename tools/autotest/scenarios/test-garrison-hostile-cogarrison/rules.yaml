@@ -27,3 +27,20 @@ E1:
 	AutoTarget:
 		InitialStance: HoldFire
 		InitialStanceAI: HoldFire
+
+# THE GARRISON MUST NOT BE ABLE TO MAN A PORT, or it shoots the very man this scenario is measuring.
+# Runs 260915_175947 and 260915_182209 both ended with RuMan out of world, in nobody's hold, and
+# reading IsDead -- which (passengers read IsDead == FALSE, DOCS/recipes/AUTOTEST.md:352) means he
+# was KILLED on his way in. The riflemen's HoldFire above does not prevent it: GarrisonManager reads
+# the BUILDING's stance for the deploy decision (`autoTarget?.Stance ?? UnitStance.FireAtWill`,
+# GarrisonManager.cs:672, :796) and v09 carries no AutoTarget at all, so the building is
+# permanently FireAtWill however its occupants are set.
+#
+# Raising TargetConfirmTicks is the smallest lever that closes it: a port needs a target held for
+# this many ticks before it deploys anyone, so at this value no port is ever manned, nobody fires,
+# and the entry race is measured without a firefight in the middle of it. This scenario asserts
+# nothing about ports, so nothing is lost -- and the port-occupant case is still handled by
+# IsLoaded in the .lua, which counts a man at a port as inside.
+V09:
+	GarrisonManager:
+		TargetConfirmTicks: 1000000
