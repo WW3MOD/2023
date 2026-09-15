@@ -11,7 +11,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-using OpenRA.Network;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -130,11 +129,24 @@ namespace OpenRA.Mods.Common.Traits
 			if (objectiveID < 0)
 				return;
 
-			var myTeam = self.World.LobbyInfo.ClientWithIndex(self.Owner.ClientIndex).Team;
+			// ==== `LobbyTeams`, NEVER `ClientWithIndex(p.ClientIndex)` ========================
+			// FIXED 2026-09-15. Both lookups here asked `ClientWithIndex(p.ClientIndex).Team`, which
+			// answers "which client is ASSOCIATED with this player" and not "does a client OWN it".
+			// Player.cs:191 gives every player with no client of its own the HOST'S client index, so
+			// for a map player that returned the human's client and the map's `Team:` was dead text
+			// -- every non-client player grouped under the host's team, and a map whose sides are
+			// authored rather than lobby-assigned was scored as though the host owned all of them.
+			// There was no `PlayerReference.Team` fallback here at all to be unreachable.
+			// Same defect, same fix, as NuclearExchange.SideKeyFor at b6e1ac8c.
+			//
+			// The first lookup was also an unguarded dereference: `ClientWithIndex` is a
+			// SingleOrDefault and returns null when no client carries that index (`?? 0` on a
+			// session with no admin), which this would have NREd on. LobbyTeams is null-safe.
+			var myTeam = LobbyTeams.TeamFor(self.World, self.Owner);
 			var victoriousTeam = self.World.Players.Where(p => !p.NonCombatant && p.Playable)
 				.Select(p => (Player: p, PlayerStatistics: p.PlayerActor.TraitOrDefault<PlayerStatistics>()))
 				.OrderByDescending(p => p.PlayerStatistics?.Experience ?? 0)
-				.GroupBy(p => (self.World.LobbyInfo.ClientWithIndex(p.Player.ClientIndex) ?? new Session.Client()).Team)
+				.GroupBy(p => LobbyTeams.TeamFor(self.World, p.Player))
 				.OrderByDescending(g => g.Sum(gg => gg.PlayerStatistics?.Experience ?? 0))
 				.First();
 

@@ -136,7 +136,16 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			foreach (var player in world.Players)
 			{
-				if (player.NonCombatant || player.Spectating)
+				// ONE PREDICATE, NOT A FOURTH COPY (CombatantSides, 2026-09-15). The bare
+				// `NonCombatant || Spectating` this replaces could not see a map-authored
+				// spectator seat with a lobby client in it: `Player.Spectating` is
+				// `!inMissionMap && (spectating || WinState != Undefined)` (Player.cs:86) and
+				// inMissionMap is MapVisibility.MissionSelector, which EVERY autotest scenario
+				// sets -- so that arm is dead in a scenario by construction, no matter what the
+				// constructor now copies through. 71 scenarios author exactly that seat, and each
+				// was building and ticking a full per-player sighting field for a player that owns
+				// no actors and that nothing reads.
+				if (!CombatantSides.CountsAsASide(player))
 					continue;
 
 				// Fog-correct last-seen memory requires a FrozenActorLayer + MapLayers.
