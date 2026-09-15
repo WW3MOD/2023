@@ -316,11 +316,15 @@ namespace OpenRA.Mods.Common.Traits
 		// filled in the same ordered pass and is identical on every client.
 		readonly Dictionary<int, string> sideNames = new Dictionary<int, string>();
 
-		// Each side's LEVEL SERIAL last tick, so a rise can be spotted without either trait having to
-		// call the other. The serial and not the level itself: they carry the same information here
-		// (levels never fall, so every change is a rise), and watching the serial keeps this in step
-		// with the banner widget, which watches the same edge for the same reason.
-		readonly Dictionary<int, int> lastSeenSerial = new Dictionary<int, int>();
+		// Each side's LEVEL last tick, so a rise can be spotted without either trait having to call
+		// the other.
+		//
+		// THE LEVEL AND NOT THE SERIAL, and the difference is load-bearing here where it is not in
+		// the banner widget. Both find the same EDGE -- levels never fall, so every change is a rise
+		// -- but this consumer needs the VALUE as well, to know which bands are newly granted. A
+		// serial says only "something moved". Storing the serial instead is what broke the grant
+		// path: see ReconcileGrants.
+		readonly Dictionary<int, int> lastSeenLevel = new Dictionary<int, int>();
 
 		// Outstanding "make this player's newly granted bands fire-ready" requests. The band is the
 		// LOWEST newly granted one; everything from there up to the side's level is topped up in the
@@ -638,7 +642,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			foreach (var side in state.Sides)
-				lastSeenSerial[side] = state.LevelSerialFor(side);
+				lastSeenLevel[side] = state.LevelFor(side);
 
 			// WHO IS IN THE MATCH, NAMED RATHER THAN COUNTED, and written on every Escalation match
 			// rather than only on the warning path. A miscounted side is silent everywhere else --
@@ -736,24 +740,38 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			foreach (var side in state.Sides)
 			{
-				var serial = state.LevelSerialFor(side);
-				if (!lastSeenSerial.TryGetValue(side, out var before))
-					before = 0;
+				var now = state.LevelFor(side);
+				if (!lastSeenLevel.TryGetValue(side, out var before))
+					before = (int)NuclearRung.Hold;
 
-				if (serial == before)
+				if (now == before)
 					continue;
 
-				lastSeenSerial[side] = serial;
+				lastSeenLevel[side] = now;
 
-				// EVERYTHING FROM THE BOTTOM UP, not just the newly granted step. A rise from 1 to 3
-				// grants 2 and 3 -- but a band the side already held may ALSO need attention, because
-				// it could be sitting at the full cooldown its own last shot put it on while the side
-				// cooldown has since been shortened by nothing at all. Starting at Kiloton costs one
-				// extra loop over at most five powers and removes a whole class of "which bands did
-				// this rise touch" reasoning; MakeBandsReady stops at the side's level.
+				// ==== THE REQUEST COVERS THE NEWLY GRANTED BANDS ONLY, AND THAT IS NOT A NARROWING ====
+				// FIXED 2026-09-15, after this queued `Kiloton` instead and broke three scenarios.
+				// The reasoning for the wider range was that it "removes a whole class of 'which bands
+				// did this rise touch' reasoning" for the cost of one extra loop. It removed something
+				// else as well: MakeBandsReady's return value is what the RETRY BUDGET keys off, and a
+				// range starting at the bottom always contains a band the side has held since release.
+				// That band arms on the first attempt, the request reports itself finished, and the
+				// band the rise actually granted -- whose condition has not crossed from the player
+				// actor yet -- is never looked at again. It then sits on its own constructed interval
+				// and counts down a cooldown nobody asked for: a 20 kt cameo reading 06:34 on a side
+				// that had fired nothing (demo-defcon-readout frame 08, 2026-09-15).
+				//
+				// The wider range was not buying anything either. A band the side ALREADY held is
+				// already carrying the side's cooldown -- SetSideCooldown wrote it to every band, and
+				// SupportPowerInstance.Tick decrements it in step with the state -- so there is nothing
+				// to top up. `before + 1` is the range that needs work, and it is what v1 used.
+				var from = before + 1;
+				if (from < (int)NuclearRung.Kiloton)
+					from = (int)NuclearRung.Kiloton;
+
 				foreach (var p in combatants)
 					if (SideOf(p) == side)
-						pendingReady[p] = ((int)NuclearRung.Kiloton, info.GrantRetryTicks);
+						pendingReady[p] = (from, info.GrantRetryTicks);
 			}
 		}
 
@@ -787,7 +805,10 @@ namespace OpenRA.Mods.Common.Traits
 				pendingReady[r.Player] = (r.FromBand, r.TicksLeft);
 		}
 
-		/// <summary>True once at least one power in the granted range was reached.</summary>
+		/// <summary>
+		/// True once EVERY power in the granted range has been armed -- see
+		/// <see cref="NuclearExchangeState.GrantSatisfied"/> for why it is not "at least one".
+		/// </summary>
 		bool MakeBandsReady(Player player, int fromBand)
 		{
 			var manager = player.PlayerActor?.TraitOrDefault<SupportPowerManager>();
@@ -812,12 +833,20 @@ namespace OpenRA.Mods.Common.Traits
 			// no TechTree arms no game-ender, which is the failing-closed half of ArmableBy.
 			var techTree = player.PlayerActor?.TraitOrDefault<TechTree>();
 
-			var any = false;
+			// COUNTED, NOT FLAGGED. `armed >= inRange` is the retry predicate; `armed > 0` was the
+			// bug. A band can hold more than one power for this player -- the event tier puts two
+			// extra game-enders at the top rung, and `powers-sandbox` puts the other faction's whole
+			// ladder alongside its own -- so even a correctly scoped range can contain one power that
+			// arms immediately and one whose condition is still crossing from the player actor.
+			var inRange = 0;
+			var armed = 0;
 
 			foreach (var (instance, band) in NuclearPowersOf(manager))
 			{
 				if (band < fromBand || band > toBand)
 					continue;
+
+				inRange++;
 
 				// PERMITTED IS THE GATE FOR EVERY BAND BUT THE TOP, and it is what the retry budget
 				// exists for: it folds in `instancesEnabled`, which is false until the band condition
@@ -831,13 +860,18 @@ namespace OpenRA.Mods.Common.Traits
 				// countdown. The zero is then corrected below when the side owes time.
 				instance.MakeReady();
 
+				// AND THEN THE SIDE'S REMAINING COOLDOWN, IF IT OWES ONE. Read from the RECIPIENT's
+				// side -- `side` is SideOf(player) and this method only ever runs for the player it
+				// was queued for -- so a side escalated by an enemy launch owes nothing and keeps the
+				// zero MakeReady just wrote. Reading the FIRER's cooldown here would hand every
+				// victim the aggressor's lockout, which is the opposite of the rule.
 				if (cooldown > 0)
 					instance.SetCooldown(cooldown);
 
-				any = true;
+				armed++;
 			}
 
-			return any;
+			return NuclearExchangeState.GrantSatisfied(inRange, armed);
 		}
 
 		/// <summary>

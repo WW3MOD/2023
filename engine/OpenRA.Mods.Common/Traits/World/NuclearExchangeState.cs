@@ -395,6 +395,36 @@ namespace OpenRA.Mods.Common.Traits
 			return For(side)?.LevelSerial ?? 0;
 		}
 
+		/// <summary>
+		/// <para>Has a readiness request finished, or must it be retried? True when every power in the
+		/// newly granted range has been armed, and when there was nothing in the range to arm.</para>
+		///
+		/// <para>IT IS NOT `armed &gt; 0`, AND THAT DISTINCTION COST THREE SCENARIOS ON 2026-09-15.
+		/// Arming a granted band needs a retry budget at all because the band condition is granted by
+		/// a PLAYER-actor trait while the grant is issued from the WORLD actor, so it lands one or two
+		/// ticks late (see NuclearExchange's header). A predicate reading "at least one power was
+		/// armed" reports the request finished on the FIRST tick whenever the range contains any power
+		/// that was already permitted -- and the band that was actually just granted is then never
+		/// looked at again. It keeps its own constructed interval and counts that down instead, so the
+		/// player watches a cameo reload a weapon they never fired.</para>
+		///
+		/// <para>THE RANGE CAN CONTAIN MORE THAN ONE POWER EVEN WHEN IT IS SCOPED TO ONE BAND, which is
+		/// why fixing the range alone would not have been enough: the top rung holds all three
+		/// game-enders, and `powers-sandbox` puts the other faction's whole ladder beside a player's
+		/// own. So "at least one" can be satisfied by a sibling at the same band.</para>
+		///
+		/// <para>THE COST OF BEING STRICT IS BOUNDED AND SMALL. A power in range that can NEVER be
+		/// armed -- the wrong faction's game-ender, a weapon whose lobby checkbox is off -- keeps this
+		/// false until the caller's retry budget runs out. That budget is 30 ticks
+		/// (<see cref="NuclearExchangeInfo.GrantRetryTicks"/>), the work is a walk over at most a
+		/// handful of powers, and every power that CAN be armed was armed on the first pass anyway.
+		/// Failing slow beats failing silent.</para>
+		/// </summary>
+		public static bool GrantSatisfied(int powersInRange, int powersArmed)
+		{
+			return powersArmed >= powersInRange;
+		}
+
 		/// <summary>May this side fire band <paramref name="band"/> right now? Rule 2, stated once.</summary>
 		// ONE PREDICATE, THREE CALLERS -- ReportLaunch's gate, the bot's policy input and the ledger.
 		// Three hand-rolled copies of `band <= Level && Cooldown == 0` is how one of them ends up

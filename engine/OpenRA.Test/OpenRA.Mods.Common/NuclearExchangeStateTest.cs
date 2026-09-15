@@ -240,6 +240,84 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void ALevelRiseLeavesTheVICTIMReadyNowAndAReloadingSideWaitingExactly()
+		{
+			// ==== THE NUMBER THE GRANT PATH READS, AND THE ONE IT GOT WRONG ON 2026-09-15 ====
+			// NuclearExchange.MakeBandsReady arms a newly granted band and then leaves it carrying
+			// `state.CooldownFor(side)`. WHICH side is the whole question, and both answers look
+			// plausible at the call site: the launch that caused the rise belongs to the FIRER, and
+			// the band being armed belongs to the VICTIM. This pins that the victim owes nothing.
+
+			// (a) THE VICTIM IS READY ON THE TICK ITS LEVEL RISES. It did not fire, so it is on no
+			// cooldown, and the band it was just handed is fireable immediately -- which is the
+			// entire point of being escalated. A victim handed the AGGRESSOR's lockout would be
+			// punished for being shot at.
+			var state = Released();
+			state.ReportLaunch(America, B61LowTons);
+
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
+			Assert.That(state.CooldownFor(Russia), Is.EqualTo(0),
+				"THE VICTIM WAS HANDED A COOLDOWN BY BEING SHOT AT. A cooldown belongs to the side " +
+				"that fired; this is the value a newly granted power is left carrying");
+			Assert.That(state.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.True,
+				"the band a rise just granted must be fireable on the tick it arrives");
+
+			// (b) A SIDE ESCALATED WHILE RELOADING OWES EXACTLY ITS OWN REMAINING COOLDOWN -- not the
+			// full interval, not the firer's, and not zero. Zero is the one that matters: it is what
+			// MakeReady leaves behind, and a grant that forgot to correct it would hand a reloading
+			// side a free shot at a bigger band. Being shot at while reloading is the ORDINARY case
+			// in this model, not an edge one.
+			const int Elapsed = 120;
+
+			var both = Released();
+			both.ReportLaunch(Russia, B61LowTons);              // Russia now owes Cooldowns[0]
+			Assert.That(both.CooldownFor(Russia), Is.EqualTo(Cooldowns[0]));
+
+			Advance(both, Elapsed);
+			both.ReportLaunch(America, B61LowTons);             // ...and is escalated mid-cooldown
+
+			Assert.That(both.LevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton),
+				"the rise must land whether or not the side is reloading");
+			Assert.That(both.CooldownFor(Russia), Is.EqualTo(Cooldowns[0] - Elapsed),
+				"being escalated RESTARTED or CLEARED the victim's own cooldown. A launch moves the " +
+				"other side's LEVEL and nothing else about it");
+			Assert.That(both.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.False,
+				"A SIDE FIRED THE BAND IT WAS JUST GRANTED WHILE STILL RELOADING. The level and the " +
+				"cooldown are separate gates and both have to be open");
+
+			// ...and it becomes fireable exactly when its own cooldown ends, not a tick either side.
+			Advance(both, Cooldowns[0] - Elapsed - 1);
+			Assert.That(both.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.False);
+			both.Tick();
+			Assert.That(both.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.True);
+		}
+
+		[Test]
+		public void AGrantIsFinishedOnlyWhenEVERYPowerInRangeIsArmed()
+		{
+			// THE PREDICATE THE RETRY BUDGET KEYS OFF, AND THE REGRESSION IT PINS. On 2026-09-15 this
+			// was `armed > 0` inside NuclearExchange.MakeBandsReady, and three scenarios failed the
+			// same way: the range contained a band the side had held since release, that band armed on
+			// the first tick, the request reported itself finished, and the band the rise had actually
+			// granted -- still one tick behind its condition -- was never looked at again.
+			Assert.That(NuclearExchangeState.GrantSatisfied(2, 1), Is.False,
+				"ONE OF TWO IS NOT DONE. This exact call returning true is the 2026-09-15 defect: a " +
+				"newly granted cameo left counting down its own interval on a side that fired nothing");
+
+			Assert.That(NuclearExchangeState.GrantSatisfied(2, 2), Is.True);
+			Assert.That(NuclearExchangeState.GrantSatisfied(1, 0), Is.False);
+			Assert.That(NuclearExchangeState.GrantSatisfied(1, 1), Is.True);
+
+			// NOTHING IN RANGE IS FINISHED, NOT PENDING. A side with no power at the granted band --
+			// a stripped arsenal, or a faction that simply has none there -- must not burn the whole
+			// retry budget waiting for a power that does not exist.
+			Assert.That(NuclearExchangeState.GrantSatisfied(0, 0), Is.True);
+
+			// And it cannot be tripped into false by a caller that over-counts.
+			Assert.That(NuclearExchangeState.GrantSatisfied(1, 2), Is.True);
+		}
+
+		[Test]
 		public void TheCooldownRunsOutAfterExactlyItsOwnLength()
 		{
 			// N TICKS MEANS N TICKS, not N +/- 1. The same decrement idiom DefconEscalationState and
