@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: drone jammer reaches 11 cells and not 13
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 98,82
+
+Bounds: 0,0,98,82
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# Pins DroneJammer's range after it was cut 20c0 -> 12c0 on 2026-09-15.
+#
+# ONE RUN BRACKETS THE THRESHOLD FROM BOTH SIDES, which is the whole design: two enemy drones
+# are placed due east of one operator, at 11 and 13 cells, and the verdict needs the near one
+# damaged AND the far one untouched. A one-sided test ("the jammer fires") would stay green if
+# the range were reverted to 20c0, or raised to 40; only the far drone's SURVIVAL pins the
+# number from above.
+#
+# GEOMETRY. Ranges are horizontal: Target.IsInRange compares HorizontalLengthSquared and its
+# own comment says height is ignored (Target.cs:201-202), so the drones' CruiseAltitude of
+# 3c768 does not eat into the 12-cell budget and the cell distances below are the real ones.
+#   Operator   (18,45)  — the same clear ground test-drone-lost-track uses, 4 cells from its SR.
+#   Near drone (29,45)  — 11 cells due east. Inside 12. MUST take damage.
+#   Far drone  (31,45)  — 13 cells due east. Outside 12. MUST NOT.
+# Only 2 cells separate the two arms, so DRIFT IS THE OBVIOUS CONFOUND and the Lua does not
+# assume it away: it re-measures both distances every sample and fails the run as SETUP INVALID
+# if either drone crosses the 12-cell line it was placed on the safe side of. A drifting drone
+# reports itself instead of quietly producing the wrong verdict.
+#
+# WHY DAMAGE IS THE OBSERVABLE. DroneJammer carries two warheads — SpreadDamage (3) and a
+# GrantExternalCondition granting `dronedisable` for 5 ticks. Lua can read Health and cannot
+# read a condition, and 3 damage against the drone's 50 HP is unambiguous and cumulative at
+# BurstWait 1. "Health < MaxHealth" is therefore the cheapest true statement of "was jammed".
+#
+# NO BOT PLAYS THIS MAP. The operator engages through ^AutoTarget, which is a trait and needs no
+# bot: defaults.yaml:848-852 records that ^DR already auto-acquires a drone through the generic
+# Air band and fires DroneJammer at it. Adding a bot would add every recruitment and economy
+# confound that cost test-drone-lost-track four launches, for nothing.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		LockFaction: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 14,45
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 80,35
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,45
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 80,35
+
+	# The jammer. Placed rather than produced so the run does not depend on a build order.
+	Operator: dr.america
+		Owner: USA
+		Location: 18,45
+
+Rules: rules.yaml
