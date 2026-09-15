@@ -10,69 +10,69 @@
 #endregion
 
 /*
- * THE NUCLEAR EXCHANGE -- Escalation's replacement for the shared pressure ladder, as the user
- * ruled it on 2026-09-13 (manager-2b944571 decision 01). Two things per SIDE and nothing else:
+ * THE NUCLEAR EXCHANGE -- Escalation's arms-control model, v2, as the user ruled it on 2026-09-15
+ * (manager-2b944571 decision 03, spec 02). TWO NUMBERS PER SIDE AND NOTHING ELSE:
  *
- *     PermanentLevel  -- the highest band this side may fire freely, on cooldown. Never falls.
- *     WindowLevel + WindowTicksRemaining -- a RETALIATION GRANT one band above what this side was
- *                        last hit with, valid for a window and then gone.
+ *     Level         -- 0 (Hold), or 1..5. The highest band this side may fire. NEVER FALLS.
+ *     CooldownTicks -- one countdown per SIDE. While it is above zero, NO nuclear power belonging
+ *                      to ANY player on that side may fire, at any band.
  *
  * A plain class with no dependency on Actor, World or the lobby, for exactly the reason
  * DefconEscalationState, NuclearReleaseLadder and NuclearUnlockSchedule are plain classes and each
  * says so in its own header: nothing in OpenRA.Test can construct a World, so arithmetic living
  * inside a trait method is arithmetic verified by reading only.
  *
- * ==== WHAT THIS SUPERSEDES, AND WHY THE OLD SHAPE IS GONE RATHER THAN TUNED ====
- * Decision 06's ladder was ONE shared counter that both sides read, so "going first is free" was
- * its known and accepted cost: the firer was released exactly as far as the victim. The 2026-09-13
- * ruling inverts that -- firing is what ARMS THE OTHER SIDE and nothing else does -- so a shared
- * counter cannot express it. The pressure value, its doubling and the per-firer breakdown kept for
- * the "asymmetric variant" are all deleted rather than left inert; the asymmetric variant is what
- * this file IS.
+ * ==== WHAT V2 REPLACES, AND WHY THE OLD SHAPE IS GONE RATHER THAN TUNED ====
+ * v1 (decision 01) gave a side a PERMANENT level plus a RETALIATION WINDOW one band above whatever
+ * it was last hit with, and put each BAND on its own regeneration timer. The user played it and
+ * ruled against it: "too many nukes in flight, no chance to build forces". The window was the main
+ * source of that -- it granted a bigger weapon AND demanded it be used inside a few minutes, so
+ * every exchange became a burst -- and N bands on N independent timers let a side fire several
+ * warheads a minute underneath the burst.
+ *
+ * Lengthening the timers could not fix it: with per-band clocks a side still holds up to four
+ * ready warheads at once, so the RATE is the number of bands, not the interval. The window could
+ * not be kept either, because "reply within 1:00 or lose the grant" is the reply-or-lose pressure
+ * the ruling rejects by name. So both are deleted rather than retuned, and what is left is the
+ * smallest model that still says the one thing the design has always said: USING NUKES ESCALATES
+ * THE ENEMY.
  *
  * ==== THE RULES, IN THE ORDER THEY FIRE ====
  *  1. RELEASE. Unchanged, and still owned by NuclearReleaseLadder's gate on DefconEscalation: a
- *     countdown runs from DEFCON 1 and on expiry BOTH sides' PermanentLevel becomes Kiloton. Before
- *     that every side is at Hold and no warhead of any yield is permitted, so rule 2 cannot fire.
- *  2. ANY LAUNCH ARMS THE OTHER SIDE. Side A fires band Y, and for every other side B:
- *         B.PermanentLevel = max(B.PermanentLevel, Y)        -- parity in kind, permanently
- *         B.WindowLevel    = max(B.WindowLevel, Y + 1)       -- one band up, for a window
- *         B.WindowTicksRemaining = the full window           -- RESTARTED on every hit
- *     Wherever it lands. There is no damage attribution and no demonstration shot; the ruling
- *     rejected decision 14's 10 % rule outright.
- *  3. THE WINDOW LAPSES. At zero the grant is GONE and the side is back at its PermanentLevel.
- *     There are no indefinite grants -- which is the whole reason a held apocalypse cannot stall
- *     the match.
- *  4. FIRING INSIDE THE WINDOW is rule 2 again with a bigger Y -- replying at Y+1 arms the other
- *     side permanently at Y+1 and opens their window at Y+2 -- AND SPENDS THE WINDOW. The band
- *     becomes permanent for the OTHER side, never for the firer, so a side cannot climb by firing.
- *     Firing AT OR BELOW one's own permanent level arms the other side only by the band actually
- *     fired: FIRING SMALL DOES NOT ESCALATE MUCH, which is what makes the winner's play restraint.
- *  5. GAME-ENDERS ARE REACHABLE ONLY AS A WINDOW GRANT. Nothing ever writes GameEnder into a
- *     PermanentLevel -- rule 2's permanent raise is capped one band below the top, EXPLICITLY and
- *     not as a consequence of the other rules (see the comment at the cap; writing it as a
- *     consequence was a bug the fixture caught). Firing one begins the final exchange, which is the
- *     trait's business rather than this class's.
+ *     countdown runs from DEFCON 1 and on expiry EVERY side's Level becomes Kiloton with no
+ *     cooldown. Before that every side is at Hold and no warhead of any yield is permitted, so
+ *     rule 3 cannot fire.
+ *  2. AVAILABILITY. A side may fire band b iff b <= Level AND CooldownTicks == 0. Both halves are
+ *     side-wide: a team of two fires ONCE per cooldown between them, not once each.
+ *  3. FIRING. Side A fires band b (one activation, however many warheads the salvo delivers):
+ *         A.CooldownTicks = the cooldown for band b            -- the firer pays, alone
+ *         for every ENEMY side B: B.Level = max(B.Level, min(b + 1, 5))   -- PERMANENT
+ *     A's own Level is unchanged by its own fire, and A's allies share A's side, so they are not a
+ *     separate case: they are the same row.
+ *  4. END. At Level 5 the side's NATIONAL game-ender is fireable under the same cooldown rule.
+ *     Firing one sets FinalExchange on the outcome and takes NO cooldown -- the match is over, and
+ *     a lockout the match never outlives would be a number nobody reads.
+ *  5. ESCALATION IS ASYMMETRIC BY DESIGN. The aggressor hands the defender a bigger weapon and
+ *     never itself. A side that never fires keeps its enemy at Level 1 forever; being hit by a
+ *     100 kt gives END. That is the deterrent, and it is accepted rather than tolerated.
  *
- * ==== THE WINDOW IS ONE SHOT, AND THE PERMANENT BANDS REGENERATE (decision 02, 2026-09-13) ====
+ * ==== WHY A DROPPED LAUNCH IS AN ALARM AND NOT A SHRUG ====
+ * ReportLaunch refuses a launch above the firer's Level or inside its cooldown, and says WHICH.
+ * Neither is reachable by clicking: the band condition is ungranted above the Level, and the
+ * cooldown is on the support power's own timer, so a refused launch means the two layers have
+ * disagreed -- which is a bug, and is the kind that otherwise shows up only as a nuke that
+ * escalated nobody. The trait logs the reason; the refusal enum exists so it can.
+ *
+ * ==== NOTHING IS PURCHASABLE (decision 02, 2026-09-13, unchanged) ====
  * "In escalation it is only on the timer etc ... nothing is purchasable." Money never touches a
- * nuke in this mode. Two different economies sit on top of the state above:
+ * nuke in this mode. IsFreeTimerPower is that rule; SupportPowerInstance's constructor is where it
+ * bites, building the charge bank DISABLED so the cameo leaves the shop entirely.
  *
- *   PERMANENT bands are free powers on a REGENERATION TIMER, one interval per band, scaled by
- *   Nuclear Posture. That timer lives on the power (SupportPowerInstance.TotalTicks, fed by
- *   NuclearExchange.EscalationRegenTicks); nothing here counts it.
- *
- *   A WINDOW grant is free, ready the instant the window opens, and ONE SHOT. Firing it is what
- *   this class enforces: ReportLaunch CLOSES the firer's own window when the band fired is the one
- *   that window granted. The grant then vanishes exactly as it would have on lapse.
- *
- * AN EARLIER VERSION OF THIS FILE SAID THE OPPOSITE -- "while it is open the side may fire that
- * band as often as its cooldown allows" -- and that was the interim purchase-based reading, before
- * the economy was ruled. It is superseded rather than merely retuned: a window that could be fired
- * twice is a second warhead the other side was never told about.
- *
- * A REPEAT HIT STILL RESTARTS THE WINDOW rather than banking a second one, which is what makes
- * "one shot" bounded rather than absolute: being shot at again re-opens the reply.
+ * WHERE THE COOLDOWN IS ACTUALLY COUNTED IS BOTH HERE AND ON THE POWER, deliberately. This class
+ * owns the number the LEDGER draws and the number the launch gate tests; SupportPowerInstance owns
+ * the copy that greys the cameo and draws its clock. They are set from the same value on the same
+ * tick and decrement in step -- see NuclearExchange.SetSideCooldown for why a power whose band is
+ * not granted cannot drift out of step, and why the grant path re-synchronises it.
  *
  * ==== DETERMINISM ====
  * Integer arithmetic throughout, no RNG, no wall-clock, no floating point. Side keys are supplied
@@ -100,17 +100,15 @@ namespace OpenRA.Mods.Common.Traits
 		Massive = 2
 	}
 
-	/// <summary>The posture multiplier, as a percentage of a power's shipped ChargeInterval.</summary>
+	/// <summary>The posture multiplier, as a percentage of a band's shipped cooldown.</summary>
 	// UNTUNED PLACEHOLDERS. Nobody has played this mode; 150/100/60 are round numbers either side of
 	// "as shipped" and are the user's brief rather than a measurement.
 	//
-	// AND THEY CURRENTLY SCALE NOTHING ON THE SHIPPED ARSENAL, which is a fact about the mod rather
-	// than about this code: every nuclear power in mods/ww3mod/rules/ingame/nuclear-arsenal.yaml sets
-	// RequiresPurchase: True (:108, :158, :199, :257, :315, :367, :458, :504, :552, :611), and
-	// SupportPowerInstance forces TotalTicks to 0 for a purchased power (SupportPowerManager.cs:229),
-	// so there is no interval for a multiplier to multiply. This is built against ChargeInterval
-	// anyway so that it is correct on the day a nuclear power carries one; see
-	// SupportPowerInstance's constructor for where it is applied.
+	// THEY ARE LIVE SINCE decision 02 MADE ESCALATION'S NUKES FREE. While every nuclear power was
+	// RequiresPurchase its TotalTicks was forced to 0 (SupportPowerManager.cs) and there was no
+	// interval for a multiplier to multiply; the bypass gave them one. This is applied ONCE, where
+	// the side cooldown table is built -- see NuclearExchange's constructor -- so a cooldown that
+	// has reached this class is already scaled and must not be scaled again.
 	public static class NuclearPostureScale
 	{
 		public const int LimitedPercent = 150;
@@ -140,10 +138,39 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
+	/// <summary>Why <see cref="NuclearExchangeState.ReportLaunch"/> refused a launch.</summary>
+	// SPLIT INTO "not our business" AND "should have been impossible", because the trait logs the
+	// two at different volumes. The first four are ordinary no-ops -- a Skirmish match, a Lua
+	// scenario poking the trait before release, the Tsar Bomba, a non-nuclear power. The last two
+	// mean a power was Ready that the rules say could not have been, which is a defect.
+	public enum NuclearLaunchRefusal
+	{
+		/// <summary>Not refused.</summary>
+		None = 0,
+
+		/// <summary>Skirmish or Sandbox: there is no exchange at all.</summary>
+		NotEscalation = 1,
+
+		/// <summary>The release gate has not opened.</summary>
+		NotReleased = 2,
+
+		/// <summary>Above <see cref="NuclearReleaseLadder.SandboxOnlyAboveTons"/> -- the Tsar Bomba.</summary>
+		AboveSandboxCeiling = 3,
+
+		/// <summary>A yield that is on no rung at all.</summary>
+		NotNuclear = 4,
+
+		/// <summary>ALARM: the band fired is above this side's Level.</summary>
+		AboveLevel = 5,
+
+		/// <summary>ALARM: this side is inside its cooldown.</summary>
+		OnCooldown = 6
+	}
+
 	/// <summary>What one call to <see cref="NuclearExchangeState.ReportLaunch"/> did.</summary>
 	public readonly struct NuclearLaunchOutcome
 	{
-		/// <summary>False when the launch was dropped whole -- wrong mode, before release, or not nuclear.</summary>
+		/// <summary>False when the launch was refused; <see cref="Refusal"/> says why.</summary>
 		public readonly bool Counted;
 
 		/// <summary>The band that was fired, as a <see cref="NuclearRung"/> value.</summary>
@@ -152,14 +179,29 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>A game-ender was released: the match ends, and the trait is what begins it.</summary>
 		public readonly bool FinalExchange;
 
-		public NuclearLaunchOutcome(bool counted, int band, bool finalExchange)
+		/// <summary>The cooldown this launch put the firing side on. 0 for a game-ender.</summary>
+		public readonly int CooldownTicks;
+
+		/// <summary>Why it was refused, or <see cref="NuclearLaunchRefusal.None"/>.</summary>
+		public readonly NuclearLaunchRefusal Refusal;
+
+		public NuclearLaunchOutcome(bool counted, int band, bool finalExchange, int cooldownTicks,
+			NuclearLaunchRefusal refusal)
 		{
 			Counted = counted;
 			Band = band;
 			FinalExchange = finalExchange;
+			CooldownTicks = cooldownTicks;
+			Refusal = refusal;
 		}
 
-		public static readonly NuclearLaunchOutcome Dropped = new NuclearLaunchOutcome(false, (int)NuclearRung.Hold, false);
+		public static NuclearLaunchOutcome Refused(NuclearLaunchRefusal refusal, int band)
+		{
+			return new NuclearLaunchOutcome(false, band, false, 0, refusal);
+		}
+
+		/// <summary>True for the two refusals that mean a power was Ready when it should not have been.</summary>
+		public bool IsAlarming => Refusal == NuclearLaunchRefusal.AboveLevel || Refusal == NuclearLaunchRefusal.OnCooldown;
 	}
 
 	public class NuclearExchangeState
@@ -167,26 +209,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>One side's whole position. A side is a TEAM, or a player with no team.</summary>
 		public sealed class SideState
 		{
-			/// <summary>The highest band this side may fire freely. Never falls.</summary>
-			public int PermanentLevel = (int)NuclearRung.Hold;
+			/// <summary>The highest band this side may fire. NEVER FALLS.</summary>
+			public int Level = (int)NuclearRung.Hold;
 
-			/// <summary>The band this side's retaliation window grants. Meaningless while the window is shut.</summary>
-			public int WindowLevel = (int)NuclearRung.Hold;
-
-			/// <summary>Ticks of window left. 0 is shut.</summary>
-			public int WindowTicksRemaining;
+			/// <summary>Ticks until this side may fire ANY band again. 0 is ready.</summary>
+			public int CooldownTicks;
 
 			/// <summary>
-			/// Bumped every time the window is OPENED OR RESTARTED. A consumer that has to act once
-			/// per grant -- making the granted tier fire-ready, say -- watches this rather than
-			/// watching WindowTicksRemaining, which cannot distinguish "restarted on the same band"
-			/// from "not yet ticked".
+			/// Bumped every time <see cref="Level"/> RISES. A consumer that has to act once per rise
+			/// -- a banner announcing it -- could watch the level itself, and this is here for the
+			/// consumer that wants the edge without holding a copy of the value.
 			/// </summary>
-			public int WindowSerial;
+			public int LevelSerial;
 		}
 
 		readonly DefconGameMode mode;
-		readonly int retaliationWindowTicks;
+
+		// ALREADY POSTURE-SCALED when it arrives; see NuclearPostureScale. Indexed from
+		// NuclearRung.Kiloton, which is what CooldownTicksFor indexes against.
+		readonly int[] cooldownTicksPerBand;
 
 		// REGISTRATION ORDER, not Dictionary order. Every enumeration this class exposes walks this
 		// list, so the order is identical on every client and in every test. See the header.
@@ -196,18 +237,22 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Whether the release gate has opened. Until it has, every side is at Hold.</summary>
 		public bool Released { get; private set; }
 
-		public NuclearExchangeState(DefconGameMode mode, int retaliationWindowTicks)
+		public NuclearExchangeState(DefconGameMode mode, IReadOnlyList<int> cooldownTicksPerBand)
 		{
 			this.mode = mode;
 
-			// Clamped rather than trusted, for NuclearReleaseLadder's reason: the Info refuses a
-			// non-positive value, but this class is constructible from a test and from any future
-			// caller, and a negative window would make every grant lapse on the tick it opened.
-			this.retaliationWindowTicks = retaliationWindowTicks < 0 ? 0 : retaliationWindowTicks;
+			// COPIED, NOT ALIASED, and clamped rather than trusted. The Info refuses a non-positive
+			// value in RulesetLoaded, but this class is constructible from a test and from any future
+			// caller, and a negative cooldown would read as "ready" the tick after firing.
+			if (cooldownTicksPerBand == null || cooldownTicksPerBand.Count == 0)
+				this.cooldownTicksPerBand = new[] { 0 };
+			else
+			{
+				this.cooldownTicksPerBand = new int[cooldownTicksPerBand.Count];
+				for (var i = 0; i < cooldownTicksPerBand.Count; i++)
+					this.cooldownTicksPerBand[i] = cooldownTicksPerBand[i] < 0 ? 0 : cooldownTicksPerBand[i];
+			}
 		}
-
-		/// <summary>The window length this state was built with, in ticks.</summary>
-		public int RetaliationWindowTicks => retaliationWindowTicks;
 
 		/// <summary>Sides, in registration order.</summary>
 		public IReadOnlyList<int> Sides => sideKeys;
@@ -260,18 +305,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// <para>Ticks a band takes to come back after being fired, given the four per-band intervals in
+		/// <para>The SIDE COOLDOWN a shot at this band costs, given the four per-band intervals in
 		/// ascending band order. The list is <see cref="NuclearRung.Kiloton"/> through
-		/// <see cref="NuclearRung.HundredKiloton"/>; anything outside that range takes the last entry.</para>
+		/// <see cref="NuclearRung.HundredKiloton"/>; anything outside that range takes the last
+		/// entry.</para>
 		///
-		/// <para>GAME-ENDERS TAKE THE TOP ENTRY AND NEVER SPEND IT. That band is reachable only as a
-		/// window grant, and firing one begins the final exchange, so its regeneration timer is a
-		/// post-fire lockout that the match never outlives. It is given a real value anyway rather
-		/// than 0, because 0 would mean "ready again on the next tick" and would make the one-shot
-		/// rule depend on the window being closed in the same tick rather than on the timer as
-		/// well.</para>
+		/// <para>RENAMED FROM `RegenTicksFor` WITH v2 AND THE MEANING CHANGED WITH IT. It used to be
+		/// "how long until THIS BAND comes back for this side", one independent clock per band. It is
+		/// now "how long until ANY band comes back for this side", one clock, chosen by the band that
+		/// was fired. Same table, same indexing, a different quantity -- so the name had to move too.</para>
+		///
+		/// <para>A GAME-ENDER NEVER REACHES THIS. <see cref="ReportLaunch"/> sets no cooldown at the top
+		/// rung because the match is ending; the top entry is still returned for a caller that asks,
+		/// so the table has no hole in it.</para>
 		/// </summary>
-		public static int RegenTicksFor(int band, IReadOnlyList<int> perBandTicks)
+		public static int CooldownTicksFor(int band, IReadOnlyList<int> perBandTicks)
 		{
 			if (perBandTicks == null || perBandTicks.Count == 0)
 				return 0;
@@ -326,40 +374,43 @@ namespace OpenRA.Mods.Common.Traits
 			return sides.TryGetValue(side, out var state) ? state : null;
 		}
 
-		public int PermanentLevelFor(int side)
-		{
-			return For(side)?.PermanentLevel ?? (int)NuclearRung.Hold;
-		}
-
-		/// <summary>The window's band, or Hold when no window is open.</summary>
-		public int WindowLevelFor(int side)
-		{
-			var s = For(side);
-			return s != null && s.WindowTicksRemaining > 0 ? s.WindowLevel : (int)NuclearRung.Hold;
-		}
-
-		public int WindowTicksRemainingFor(int side)
-		{
-			return For(side)?.WindowTicksRemaining ?? 0;
-		}
-
 		/// <summary>
-		/// Everything this side may fire right now: its permanent level, or its window's band while
-		/// one is open. THE ONE NUMBER the condition layer reads.
+		/// The highest band this side may fire. THE ONE NUMBER the condition layer reads -- see
+		/// <see cref="GrantConditionOnNuclearRelease"/>.
 		/// </summary>
-		public int ReleasedLevelFor(int side)
+		public int LevelFor(int side)
+		{
+			return For(side)?.Level ?? (int)NuclearRung.Hold;
+		}
+
+		/// <summary>Ticks until this side may fire again, at any band. 0 is ready.</summary>
+		public int CooldownFor(int side)
+		{
+			return For(side)?.CooldownTicks ?? 0;
+		}
+
+		/// <summary>Bumped on every RISE of this side's level; see <see cref="SideState.LevelSerial"/>.</summary>
+		public int LevelSerialFor(int side)
+		{
+			return For(side)?.LevelSerial ?? 0;
+		}
+
+		/// <summary>May this side fire band <paramref name="band"/> right now? Rule 2, stated once.</summary>
+		// ONE PREDICATE, THREE CALLERS -- ReportLaunch's gate, the bot's policy input and the ledger.
+		// Three hand-rolled copies of `band <= Level && Cooldown == 0` is how one of them ends up
+		// disagreeing with the others about the boundary, and the boundary here is <=, not <.
+		public bool MayFire(int side, int band)
 		{
 			var s = For(side);
-			if (s == null)
-				return (int)NuclearRung.Hold;
+			if (s == null || band <= (int)NuclearRung.Hold)
+				return false;
 
-			var window = s.WindowTicksRemaining > 0 ? s.WindowLevel : (int)NuclearRung.Hold;
-			return window > s.PermanentLevel ? window : s.PermanentLevel;
+			return band <= s.Level && s.CooldownTicks <= 0;
 		}
 
 		/// <summary>
-		/// The release gate has opened: every side holds the lowest band permanently, from now on.
-		/// Returns true the first time only, so a caller may poll it.
+		/// The release gate has opened: every side holds the lowest band, with no cooldown, from now
+		/// on. Returns true the first time only, so a caller may poll it.
 		/// </summary>
 		public bool Release()
 		{
@@ -371,102 +422,101 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var key in sideKeys)
 			{
 				var s = sides[key];
-				if (s.PermanentLevel < (int)NuclearRung.Kiloton)
-					s.PermanentLevel = (int)NuclearRung.Kiloton;
+				if (s.Level < (int)NuclearRung.Kiloton)
+				{
+					s.Level = (int)NuclearRung.Kiloton;
+					s.LevelSerial++;
+				}
+
+				// RELEASE CLEARS ANY COOLDOWN, which cannot happen in play -- nothing can have been
+				// fired before the gate opened, because ReportLaunch refuses every launch until it
+				// does. Written anyway so that "release is the same for everybody" is true of the
+				// STATE and not only of the paths that reach it.
+				s.CooldownTicks = 0;
 			}
 
 			return true;
 		}
 
 		/// <summary>
-		/// One tick of every open window. Returns the sides whose window LAPSED on this tick, in
-		/// registration order, so a caller can undo whatever it did when the window opened.
+		/// One tick of every running cooldown. Returns the sides whose cooldown reached zero ON THIS
+		/// TICK, in registration order, so a caller can announce it.
 		/// </summary>
-		// Allocates only when something actually lapses, which is at most a handful of ticks in a
-		// whole match: the null stays null on every other tick and the caller treats it as empty.
-		public List<int> TickWindows()
+		// Allocates only when something actually expires, which is a handful of ticks in a whole
+		// match: the null stays null on every other tick and the caller treats it as empty.
+		public List<int> Tick()
 		{
-			List<int> lapsed = null;
+			List<int> expired = null;
 
 			foreach (var key in sideKeys)
 			{
 				var s = sides[key];
-				if (s.WindowTicksRemaining <= 0)
+				if (s.CooldownTicks <= 0)
 					continue;
 
 				// The decrement idiom DefconEscalationState.Tick and NuclearReleaseLadder.Tick both
-				// use, so a window of N ticks is open for exactly N ticks rather than N +/- 1.
-				if (--s.WindowTicksRemaining > 0)
+				// use, so a cooldown of N ticks blocks for exactly N ticks rather than N +/- 1.
+				if (--s.CooldownTicks > 0)
 					continue;
 
-				s.WindowLevel = (int)NuclearRung.Hold;
-				(lapsed ??= new List<int>()).Add(key);
+				(expired ??= new List<int>()).Add(key);
 			}
 
-			return lapsed;
+			return expired;
 		}
 
 		/// <summary>
 		/// Side <paramref name="firerSide"/> has released a warhead of <paramref name="tons"/> tons of
-		/// TNT. Arms every other side by rule 2.
+		/// TNT. Rule 3: the firer takes the cooldown, every enemy side takes the level.
 		/// </summary>
 		public NuclearLaunchOutcome ReportLaunch(int firerSide, int tons)
 		{
 			// Skirmish and Sandbox have no exchange at all -- their release is NuclearUnlockClock's
 			// schedule, which no detonation moves. Same strict-no-op rule the ladder carried.
 			if (mode != DefconGameMode.Escalation)
-				return NuclearLaunchOutcome.Dropped;
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.NotEscalation, (int)NuclearRung.Hold);
 
 			// A LAUNCH BEFORE RELEASE IS DROPPED WHOLE. Nothing a player can click reaches here while
 			// the gate is shut, because every nuclear power is gated on a band condition that is not
-			// granted -- but a Lua scenario or a bot calling the trait directly can, and arming a
+			// granted -- but a Lua scenario or a bot calling the trait directly can, and escalating a
 			// side off the back of one would let a match arrive at release already escalated.
 			if (!Released)
-				return NuclearLaunchOutcome.Dropped;
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.NotReleased, (int)NuclearRung.Hold);
 
 			// THE TSAR BOMBA GATE, checked before the band. Nothing a player can click reaches here
 			// with a 50 Mt warhead -- MissileStrikePower@TsarBomba is gated on the unrestricted
 			// condition, which is never granted inside Escalation -- but a Lua scenario calling the
-			// trait directly can, and arming the other side with a game-ender off the back of a weapon
-			// that is not in play would end the match by a route decision 04 closed.
+			// trait directly can, and escalating the other side to END off the back of a weapon that
+			// is not in play would end the match by a route decision 04 closed.
 			if (tons > NuclearReleaseLadder.SandboxOnlyAboveTons)
-				return NuclearLaunchOutcome.Dropped;
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.AboveSandboxCeiling, (int)NuclearRung.Hold);
 
 			var band = NuclearReleaseLadder.RungForYield(tons);
 			if (band <= (int)NuclearRung.Hold)
-				return NuclearLaunchOutcome.Dropped;
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.NotNuclear, (int)NuclearRung.Hold);
 
-			var windowBand = band + 1;
-			if (windowBand > NuclearReleaseLadder.Highest)
-				windowBand = NuclearReleaseLadder.Highest;
-
-			// A PERMANENT LEVEL IS CAPPED ONE BELOW THE TOP, and this is an EXPLICIT rule rather
-			// than a consequence of the others -- it was written as a consequence and was WRONG,
-			// which NuclearExchangeStateTest.GameEndersAreReachableOnlyThroughAWindow caught.
-			//
-			// The reasoning that failed: "nothing can fire a game-ender without a window, so no
-			// permanent level can ever be raised to one". True of every band EXCEPT the top, because
-			// firing a game-ender is itself a launch and rule 2 would hand the other side parity in
-			// kind -- a PERMANENT game-ender, which is exactly the indefinite draw card decision 01
-			// rules out ("If the window lapses, no side holds a game-ender").
-			//
-			// It does not matter in play, because that launch also begins the final exchange and the
-			// match ends. It matters here, because otherwise the invariant holds by luck -- resting
-			// on DoomsdayStrike being wired and reaching every side before anyone reads a level.
-			var permanentBand = band;
-			if (permanentBand >= (int)NuclearRung.GameEnder)
-				permanentBand = (int)NuclearRung.GameEnder - 1;
-
-			// THE WINDOW IS SPENT BY FIRING IT (decision 02). Only when the band fired IS the band the
-			// window granted: a side sitting on a 50 kt window that fires its permanent 1 kt has not
-			// used the grant and keeps it. Done before the arming loop below purely so the firer's own
-			// state is settled in one place; the loop skips the firer either way.
+			// ==== THE TWO ALARMING REFUSALS. See the header: neither is reachable by clicking. ====
 			var firer = For(firerSide);
-			if (firer != null && firer.WindowTicksRemaining > 0 && band >= firer.WindowLevel)
-			{
-				firer.WindowTicksRemaining = 0;
-				firer.WindowLevel = (int)NuclearRung.Hold;
-			}
+			if (firer == null || band > firer.Level)
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.AboveLevel, band);
+
+			if (firer.CooldownTicks > 0)
+				return NuclearLaunchOutcome.Refused(NuclearLaunchRefusal.OnCooldown, band);
+
+			var finalExchange = band >= (int)NuclearRung.GameEnder;
+
+			// THE FIRER PAYS, AND ONLY THE FIRER'S SIDE. A game-ender takes none: the match ends on
+			// this launch, so a lockout would be a number nobody lives to read -- and zero here is not
+			// "ready again next tick" for the same reason.
+			var cooldown = finalExchange ? 0 : CooldownTicksFor(band, cooldownTicksPerBand);
+			firer.CooldownTicks = cooldown;
+
+			// ONE BAND ABOVE WHAT LANDED ON THEM, CAPPED AT THE TOP RUNG, AND PERMANENT. Wherever it
+			// lands: there is no damage attribution and no demonstration shot, which is the rule
+			// decision 01 chose over decision 14's 10 % and which v2 keeps unchanged.
+			var granted = band + 1;
+			if (granted > NuclearReleaseLadder.Highest)
+				granted = NuclearReleaseLadder.Highest;
 
 			foreach (var key in sideKeys)
 			{
@@ -475,23 +525,17 @@ namespace OpenRA.Mods.Common.Traits
 
 				var s = sides[key];
 
-				if (permanentBand > s.PermanentLevel)
-					s.PermanentLevel = permanentBand;
-
-				// max(), not assignment: a side already holding a window for a BIGGER band must not
-				// have it cut down by a subsequent small shot. "A hit at a higher band raises the
-				// window's band to the max" (decision 01).
-				if (s.WindowTicksRemaining <= 0 || windowBand > s.WindowLevel)
-					s.WindowLevel = windowBand;
-
-				// RESTARTED ON EVERY HIT, including a hit that changed neither level. Being shot at
-				// again is what re-opens the reply window; that is the rule, and it is also what
-				// makes repeated small strikes a real cost to the side firing them.
-				s.WindowTicksRemaining = retaliationWindowTicks;
-				s.WindowSerial++;
+				// max(), not assignment: LEVELS NEVER FALL is the whole of the ratchet, and a side
+				// already at 50 kt must not be cut back to 20 kt by a subsequent 1 kt shot. This is
+				// also why a side cannot climb by firing small on purpose -- it climbs nobody.
+				if (granted > s.Level)
+				{
+					s.Level = granted;
+					s.LevelSerial++;
+				}
 			}
 
-			return new NuclearLaunchOutcome(true, band, band >= (int)NuclearRung.GameEnder);
+			return new NuclearLaunchOutcome(true, band, finalExchange, cooldown, NuclearLaunchRefusal.None);
 		}
 	}
 }

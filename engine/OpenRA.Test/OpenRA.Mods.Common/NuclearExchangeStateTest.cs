@@ -1,7 +1,7 @@
 #region Copyright & License Information
 /*
- * THE NUCLEAR EXCHANGE'S STATE MACHINE -- permanent parity plus a retaliation window, as the user
- * ruled it on 2026-09-13 (manager-2b944571 decision 01).
+ * THE NUCLEAR EXCHANGE'S STATE MACHINE -- a permanent LEVEL ratchet plus one side-wide COOLDOWN, as
+ * the user ruled it on 2026-09-15 (manager-2b944571 decision 03, spec 02).
  *
  * Every rule lives in NuclearExchangeState, a plain class with no world dependency, for the reason
  * DefconEscalationState's header gives: nothing in OpenRA.Test can construct a World, so arithmetic
@@ -9,11 +9,18 @@
  * worth having, and it is the whole verification of the model -- NuclearExchange (the trait) is a
  * thin shell over this and can only be checked by playing a match.
  *
- * THE LOAD-BEARING TESTS ARE FiringSmallDoesNotEscalateMuch AND GameEndersAreReachableOnlyThroughAWindow.
- * The first is the user's entire reason for judging the model sound -- "the winner's correct play is
- * restraint" only holds if firing at your own level arms the loser at that level and no higher. The
- * second is what stops a held apocalypse existing at all: nothing ever writes GameEnder into a
- * permanent level, so there is no draw card to keep.
+ * THE LOAD-BEARING TESTS ARE FiringDoesNotEscalateYourself, LevelsNeverFall AND
+ * TheCooldownIsSideWideAndBlocksEveryBand.
+ *   The first is the user's entire reason for judging the model sound -- "the aggressor hands the
+ *   defender a bigger weapon and never itself", so a side that fires cannot climb by doing it.
+ *   The second is the ratchet: a small shot after a big one must not cut the victim back down,
+ *   which is the one arithmetic slip that would turn max() into assignment and go unnoticed in play.
+ *   The third is the anti-spam rule the whole of v2 exists for -- one shot per side per cooldown,
+ *   at EVERY band and for every teammate, which is what "too many nukes in flight" was about.
+ *
+ * WHAT WAS DELETED WITH v1 AND IS NOT COMING BACK: the retaliation window, its lapse, its restart,
+ * its one-shot spend, and the four per-band regeneration clocks. Six tests went with them. See
+ * NuclearExchangeState's header for why they were deleted rather than retuned.
  */
 #endregion
 
@@ -30,7 +37,11 @@ namespace OpenRA.Test
 		const int America = 1;
 		const int Russia = 2;
 
-		const int Window = 3000;  // 3:00 at the mod's 60 ms timestep, the shipped default.
+		// THE SHIPPED COOLDOWNS, WHICH IS WHAT MAKES THESE TESTS ABOUT THE SHIPPED GAME. 5/7/9/12
+		// minutes at the mod's 60 ms timestep; the identity is that a tick count divided by 1000 is
+		// its length in minutes. Restated rather than read off the Info so a test that expects 7000
+		// says 7000, and TheShippedCooldownsAreTheUsersRuling is where the two are tied together.
+		static readonly int[] Cooldowns = { 5000, 7000, 9000, 12000 };
 
 		const int B61LowTons = 300;          // 0.3 kt -> Kiloton
 		const int AtomicTons = 20000;        // 20 kt  -> TwentyKiloton
@@ -43,9 +54,9 @@ namespace OpenRA.Test
 		// SHUT: nothing is permitted until DEFCON 1 plus the first-warheads delay. A fixture that
 		// skipped this step would assert "nothing is permitted" over and over instead of testing the
 		// exchange each test is actually about.
-		static NuclearExchangeState Released(int windowTicks = Window)
+		static NuclearExchangeState Released(int[] cooldowns = null)
 		{
-			var state = new NuclearExchangeState(DefconGameMode.Escalation, windowTicks);
+			var state = new NuclearExchangeState(DefconGameMode.Escalation, cooldowns ?? Cooldowns);
 			state.RegisterSide(America);
 			state.RegisterSide(Russia);
 
@@ -53,271 +64,395 @@ namespace OpenRA.Test
 			return state;
 		}
 
-		[Test]
-		public void ReleaseGivesBothSidesTheLowestBandPermanently()
+		/// <summary>Run <paramref name="ticks"/> ticks of cooldown off the clock.</summary>
+		static void Advance(NuclearExchangeState state, int ticks)
 		{
-			var state = new NuclearExchangeState(DefconGameMode.Escalation, Window);
+			for (var i = 0; i < ticks; i++)
+				state.Tick();
+		}
+
+		[Test]
+		public void ReleaseGivesEverySideTheLowestBandAndNoCooldown()
+		{
+			var state = new NuclearExchangeState(DefconGameMode.Escalation, Cooldowns);
 			state.RegisterSide(America);
 			state.RegisterSide(Russia);
 
-			// BEFORE RELEASE, NOTHING. Not "the bottom band" -- HOLD, which grants no condition at
-			// all, so every nuclear cameo is dark.
 			foreach (var side in new[] { America, Russia })
-				Assert.That(state.ReleasedLevelFor(side), Is.EqualTo((int)NuclearRung.Hold),
-					$"side {side} held a band before release");
+				Assert.That(state.LevelFor(side), Is.EqualTo((int)NuclearRung.Hold),
+					"a side holds nothing before the release gate opens");
 
 			Assert.That(state.Release(), Is.True);
+			Assert.That(state.Release(), Is.False, "Release must report the EDGE, so a caller may poll it");
 
 			foreach (var side in new[] { America, Russia })
-				Assert.That(state.PermanentLevelFor(side), Is.EqualTo((int)NuclearRung.Kiloton),
-					$"side {side} did not get the 1 kt band at release");
-
-			// Release is once. A second call changes nothing, so the trait may poll
-			// DefconEscalation.NuclearReleaseOpen every tick rather than latch an edge of its own.
-			Assert.That(state.Release(), Is.False);
-			Assert.That(state.Released, Is.True);
-
-			// AND IT DOES NOT OPEN A WINDOW. Release is parity, not a provocation; a window that
-			// opened here would hand both sides the 20 kt band for three minutes having been fired
-			// at by nobody.
-			foreach (var side in new[] { America, Russia })
-				Assert.That(state.WindowTicksRemainingFor(side), Is.EqualTo(0),
-					$"release opened a retaliation window for side {side}");
-		}
-
-		[Test]
-		public void AnyLaunchArmsTheOtherSideInKindAndOneBandAbove()
-		{
-			var state = Released();
-
-			var outcome = state.ReportLaunch(America, AtomicTons);
-			Assert.That(outcome.Counted, Is.True);
-			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.TwentyKiloton));
-			Assert.That(outcome.FinalExchange, Is.False);
-
-			// PARITY IN KIND: Russia now holds 20 kt permanently, wherever the warhead landed. There
-			// is no damage attribution in this model -- the ruling rejected decision 14's 10 % rule.
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
-
-			// AND ONE BAND ABOVE IT, for a window.
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(Window));
-			Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-
-			// THE FIRER GAINS NOTHING. This is the inversion of decision 06's shared ladder, where
-			// going first was free and both sides climbed together. Firing is now a cost.
-			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.Kiloton),
-				"the firer climbed by firing; that is the shared ladder, not the exchange");
-			Assert.That(state.WindowTicksRemainingFor(America), Is.EqualTo(0));
-		}
-
-		[Test]
-		public void TheWindowLapsesAndTheGrantIsGone()
-		{
-			var state = Released();
-			state.ReportLaunch(America, AtomicTons);
-
-			// Open for exactly Window ticks: not one short, not one long.
-			for (var i = 0; i < Window - 1; i++)
 			{
-				var lapsed = state.TickWindows();
-				Assert.That(lapsed, Is.Null, $"the window lapsed on tick {i + 1} of {Window}");
-				Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+				Assert.That(state.LevelFor(side), Is.EqualTo((int)NuclearRung.Kiloton),
+					"release is simultaneous and symmetric: every side reaches level 1 together");
+				Assert.That(state.CooldownFor(side), Is.EqualTo(0),
+					"release hands out a loaded warhead, not one that is already reloading");
+				Assert.That(state.MayFire(side, (int)NuclearRung.Kiloton), Is.True);
+				Assert.That(state.MayFire(side, (int)NuclearRung.TwentyKiloton), Is.False,
+					"release opens the LOWEST band only; nothing above it is reachable until somebody fires");
 			}
-
-			var last = state.TickWindows();
-			Assert.That(last, Is.Not.Null.And.EqualTo(new[] { Russia }), "the window did not lapse on its last tick");
-
-			// THE GRANT IS GONE AND THE PARITY IS NOT. "If the window lapses unused, B stays at Y."
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(0));
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
-			Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
-
-			// And it stays gone. There is no indefinite grant anywhere in this model, which is what
-			// stops a held apocalypse stalling the match.
-			for (var i = 0; i < 10000; i++)
-				Assert.That(state.TickWindows(), Is.Null, "a lapsed window lapsed again");
 		}
 
 		[Test]
-		public void EveryHitRestartsTheWindowAndABiggerHitRaisesIt()
+		public void FiringRaisesTheENEMYOneBandAbove()
 		{
 			var state = Released();
 
-			state.ReportLaunch(America, AtomicTons);
-			for (var i = 0; i < Window / 2; i++)
-				state.TickWindows();
+			var outcome = state.ReportLaunch(America, B61LowTons);
+			Assert.That(outcome.Counted, Is.True);
+			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.Kiloton));
 
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(Window - (Window / 2)));
+			// RULE 3, THE HALF THAT IS THE WHOLE DESIGN: b + 1, to the enemy, permanently.
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton),
+				"being hit by 1 kt must raise the victim to 20 kt");
+			Assert.That(state.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.True,
+				"the victim is not on a cooldown -- it did not fire -- so its new band is fireable now");
+			Assert.That(state.MayFire(Russia, (int)NuclearRung.FiftyKiloton), Is.False,
+				"one band above, not two");
+		}
 
-			// A SECOND HIT AT THE SAME BAND RESTARTS THE CLOCK. Being shot at again is what re-opens
-			// the reply; that is also what makes repeated small strikes a real cost to the firer.
-			var serialBefore = state.For(Russia).WindowSerial;
-			state.ReportLaunch(America, AtomicTons);
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(Window));
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-			Assert.That(state.For(Russia).WindowSerial, Is.EqualTo(serialBefore + 1),
-				"a restart must be observable; the trait makes the granted tier fire-ready off this");
+		[Test]
+		public void FiringDoesNotEscalateYourself()
+		{
+			// THE USER'S REASON FOR JUDGING THE MODEL SOUND, and the one assertion that separates it
+			// from decision 06's shared pressure ladder, where both sides always read the same rung
+			// and "going first is free" was the stated and accepted cost.
+			var state = Released();
 
-			// A BIGGER HIT RAISES THE BAND.
-			state.ReportLaunch(America, W76Tons);
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.HundredKiloton));
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder));
-
-			// AND A SMALLER ONE AFTERWARDS DOES NOT CUT IT DOWN. "A hit at a higher band raises the
-			// window's band to the max" -- max, so a 0.3 kt shot cannot disarm a window already open
-			// at the top, which would otherwise be a way to defuse a reply by firing something tiny.
 			state.ReportLaunch(America, B61LowTons);
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder),
-				"a small hit cut down a window that was already open higher");
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.HundredKiloton),
-				"a permanent level fell");
-		}
+			Assert.That(state.LevelFor(America), Is.EqualTo((int)NuclearRung.Kiloton),
+				"THE FIRER CLIMBED BY FIRING. A side can only be escalated by being shot at");
 
-		[Test]
-		public void FiringSmallDoesNotEscalateMuch()
-		{
-			// THE USER'S WHOLE ARGUMENT FOR THE MODEL, as a test. The winner holds at the loser's
-			// level and absorbs small strikes; the loser attrits at its permanent level. Neither
-			// side climbs unless somebody chooses to, and this is what "chooses to" means
-			// arithmetically.
-			var state = Released();
-
-			// A hundred exchanges at the bottom band. Both sides keep firing 0.3 kt at each other and
-			// NEITHER permanent level moves past 1 kt.
-			for (var i = 0; i < 100; i++)
-			{
-				state.ReportLaunch(America, B61LowTons);
-				state.ReportLaunch(Russia, B61LowTons);
-			}
-
-			foreach (var side in new[] { America, Russia })
-			{
-				Assert.That(state.PermanentLevelFor(side), Is.EqualTo((int)NuclearRung.Kiloton),
-					$"side {side} climbed on small shots alone; restraint is no longer the winner's play");
-				Assert.That(state.WindowLevelFor(side), Is.EqualTo((int)NuclearRung.TwentyKiloton),
-					$"side {side}'s window is not one band up");
-			}
-
-			// TAKING THE WINDOW IS WHAT CLIMBS. Russia answers at 20 kt, which is the band its window
-			// granted, and America is armed at 20 kt permanently with a 50 kt window in turn.
-			state.ReportLaunch(Russia, AtomicTons);
-			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.TwentyKiloton));
-			Assert.That(state.WindowLevelFor(America), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-
-			// And Russia is still at 1 kt permanently. Firing the window did not buy the band.
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.Kiloton),
-				"firing inside the window raised the FIRER's permanent level");
-		}
-
-		[Test]
-		public void GameEndersAreReachableOnlyThroughAWindow()
-		{
-			var state = Released();
-
-			// Walk the ladder to the top the only way it can be walked: a chain of deliberate replies.
+			// AND A BIG SHOT ESCALATES NOBODY BUT THE ENEMY EITHER. America is put at the top rung by
+			// hand and fires a 100 kt: Russia goes to END, America stays exactly where it was. A side
+			// cannot buy itself a single band, at any price, ever.
+			Advance(state, Cooldowns[0]);
+			state.For(America).Level = (int)NuclearRung.HundredKiloton;
 			state.ReportLaunch(America, W76Tons);
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder),
-				"a 100 kt hit must open a game-ender window; that is the only route to the top band");
-
-			// NOTHING EVER WRITES GameEnder INTO A PERMANENT LEVEL. The permanent level is capped at
-			// the band FIRED, and the top band is unreachable without a window, so there is no way to
-			// end up holding a game-ender indefinitely.
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.HundredKiloton));
-
-			var outcome = state.ReportLaunch(Russia, SarmatRvTons);
-			Assert.That(outcome.Counted, Is.True);
-			Assert.That(outcome.FinalExchange, Is.True, "firing a game-ender must begin the final exchange");
-			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.GameEnder));
-
-			// America's window is CLAMPED at the top rather than running off the end of the enum.
-			Assert.That(state.WindowLevelFor(America), Is.EqualTo((int)NuclearRung.GameEnder));
-			// THE CAP THAT IS AN EXPLICIT RULE RATHER THAN A CONSEQUENCE. Firing a game-ender is
-			// still a launch, so rule 2 would hand America parity in kind -- a PERMANENT game-ender,
-			// which is the indefinite draw card the ruling rules out. It does not matter in play
-			// because the match is ending; it matters here because otherwise the invariant rests on
-			// DoomsdayStrike being wired and reaching every side in time.
-			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.HundredKiloton),
-				"a game-ender hit wrote GameEnder into a permanent level; the draw card is back");
-
-			// And letting the window lapse takes it away rather than banking it.
-			for (var i = 0; i < Window; i++)
-				state.TickWindows();
-
-			Assert.That(state.ReleasedLevelFor(America), Is.EqualTo((int)NuclearRung.HundredKiloton));
+			Assert.That(state.LevelFor(America), Is.EqualTo((int)NuclearRung.HundredKiloton),
+				"firing the biggest thing it held moved the firer's own level");
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder));
 		}
 
 		[Test]
-		public void NothingIsArmedBeforeReleaseOrOutsideEscalation()
+		public void LevelsNeverFall()
 		{
-			// A launch before the gate opens is DROPPED WHOLE. Nothing a player can click reaches
-			// here -- every nuclear power is gated on a band condition that is not granted -- but a
-			// Lua scenario or a bot can, and arming a side off the back of one would let a match
-			// arrive at release already escalated.
-			var shut = new NuclearExchangeState(DefconGameMode.Escalation, Window);
+			// THE RATCHET. max(), not assignment -- a side hit by a 100 kt and then by a 1 kt keeps
+			// END. Written as a sequence rather than as one call because the slip this catches is in
+			// the SECOND launch, and a single-shot test cannot reach it.
+			var state = Released();
+
+			// THE LEVEL IS SET BY HAND RATHER THAN CLIMBED TO, and every test in this file that fires
+			// above band 1 has to: rule 2 refuses a launch above the firer's own level, so a fixture
+			// that just called ReportLaunch with a 100 kt would be measuring the refusal instead of
+			// the ratchet. Three tests here were written that way and failed on exactly that.
+			state.For(America).Level = (int)NuclearRung.HundredKiloton;
+
+			state.ReportLaunch(America, W76Tons);
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder),
+				"being hit by 100 kt reaches END -- min(b + 1, 5)");
+
+			Advance(state, Cooldowns[3]);
+			state.ReportLaunch(America, B61LowTons);
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder),
+				"A SMALL SHOT CUT THE VICTIM BACK DOWN. Levels are permanent; this is assignment " +
+				"where the rule says max()");
+		}
+
+		[Test]
+		public void TheLadderClimbsOneStepPerExchange()
+		{
+			// THE WHOLE MATCH, IN ONE TEST, because the interesting property is the SHAPE of the
+			// climb rather than any single step: alternating fire walks both sides up, and reaching
+			// END takes a 100 kt landing on you. This is the arithmetic test-nuclear-ender-level
+			// measures through the support power bin.
+			var state = Released();
+
+			state.ReportLaunch(America, B61LowTons);                 // b1 -> RU level 2
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
+
+			state.ReportLaunch(Russia, AtomicTons);                  // b2 -> US level 3
+			Assert.That(state.LevelFor(America), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+
+			Advance(state, Cooldowns[0]);
+			state.ReportLaunch(America, B61MaxTons);                 // b3 -> RU level 4
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.HundredKiloton));
+
+			Advance(state, Cooldowns[1]);
+			state.ReportLaunch(Russia, W76Tons);                     // b4 -> US level 5
+			Assert.That(state.LevelFor(America), Is.EqualTo((int)NuclearRung.GameEnder));
+
+			// AND THE FIRER IS STILL WHERE IT WAS AT EACH STEP. Russia fired the 100 kt that gave
+			// America END; Russia's own level is what America's 50 kt gave it and nothing more.
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.HundredKiloton),
+				"the side that fired the 100 kt escalated itself to END");
+		}
+
+		[Test]
+		public void TheCooldownIsSideWideAndBlocksEveryBand()
+		{
+			// THE ANTI-SPAM RULE, AND THE WHOLE POINT OF v2. One shot silences the side's WHOLE
+			// arsenal -- not the band that fired, which is what v1 did and what the user played and
+			// ruled against ("too many nukes in flight").
+			var state = Released();
+
+			// AMERICA IS PUT AT LEVEL 3 BY HAND RATHER THAN BY HAVING RUSSIA FIRE A 20 KT. Both reach
+			// the same level, but the second leaves RUSSIA on a 7000-tick cooldown of its own -- and
+			// the enemy's cooldown is one of the two things this test is asserting is ZERO. A fixture
+			// that produced the state it wanted through a launch would be asserting against its own
+			// setup, which is how this test failed the first time it was written.
+			state.For(America).Level = (int)NuclearRung.FiftyKiloton;
+
+			var outcome = state.ReportLaunch(America, B61LowTons);
+			Assert.That(outcome.Counted, Is.True);
+			Assert.That(outcome.CooldownTicks, Is.EqualTo(Cooldowns[0]),
+				"a 1 kt shot costs the 1 kt band's cooldown");
+			Assert.That(state.CooldownFor(America), Is.EqualTo(Cooldowns[0]));
+
+			// EVERY BAND, INCLUDING THE TWO THE SIDE HOLDS AND DID NOT FIRE. Under v1 both of these
+			// were still loaded and the side fired three warheads inside one interval.
+			foreach (var band in new[] { NuclearRung.Kiloton, NuclearRung.TwentyKiloton, NuclearRung.FiftyKiloton })
+				Assert.That(state.MayFire(America, (int)band), Is.False,
+					$"{band} was fireable while the side was on cooldown");
+
+			// THE ENEMY IS UNAFFECTED. A cooldown belongs to the side that fired; a launch that
+			// silenced both sides would be an entirely different game -- and it is the enemy, not the
+			// firer, that is handed the bigger weapon.
+			Assert.That(state.CooldownFor(Russia), Is.EqualTo(0));
+			Assert.That(state.MayFire(Russia, (int)NuclearRung.TwentyKiloton), Is.True,
+				"being shot at must leave the victim able to answer immediately");
+
+			// AND A SECOND LAUNCH INSIDE IT IS REFUSED, LOUDLY. Nothing a player can click reaches
+			// this -- the cooldown is on the power's own timer -- so a refusal means the two layers
+			// disagree, which is why the reason is on the outcome rather than being a bare false.
+			var blocked = state.ReportLaunch(America, B61LowTons);
+			Assert.That(blocked.Counted, Is.False);
+			Assert.That(blocked.Refusal, Is.EqualTo(NuclearLaunchRefusal.OnCooldown));
+			Assert.That(blocked.IsAlarming, Is.True,
+				"a launch inside a cooldown is a defect, not an ordinary no-op");
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton),
+				"A REFUSED LAUNCH ESCALATED THE ENEMY ANYWAY -- Russia is at 2 from the 1 kt that " +
+				"landed, and the blocked second shot must not have moved it to 2 again or beyond");
+		}
+
+		[Test]
+		public void TheCooldownRunsOutAfterExactlyItsOwnLength()
+		{
+			// N TICKS MEANS N TICKS, not N +/- 1. The same decrement idiom DefconEscalationState and
+			// NuclearReleaseLadder both use, and the same off-by-one it is written that way to avoid:
+			// a cooldown drawn as 5:00 that ends at 4:59 is the class of lie the readout work removed.
+			var state = Released();
+			state.ReportLaunch(America, B61LowTons);
+
+			Advance(state, Cooldowns[0] - 1);
+			Assert.That(state.CooldownFor(America), Is.EqualTo(1));
+			Assert.That(state.MayFire(America, (int)NuclearRung.Kiloton), Is.False,
+				"one tick short of the end is still inside the cooldown");
+
+			var expired = state.Tick();
+			Assert.That(expired, Is.Not.Null, "Tick must REPORT the side whose cooldown just ended");
+			Assert.That(expired, Does.Contain(America));
+			Assert.That(state.CooldownFor(America), Is.EqualTo(0));
+			Assert.That(state.MayFire(America, (int)NuclearRung.Kiloton), Is.True);
+
+			// ONCE, ON THE EDGE. A caller announcing the recovery must not be told about it again on
+			// every subsequent tick.
+			Assert.That(state.Tick(), Is.Null, "the expiry was reported twice");
+		}
+
+		[Test]
+		public void ABiggerShotCostsALongerCooldown()
+		{
+			// THE PRICE RISES WITH THE BAND, which is what makes a 1 kt a cheap probe and a 100 kt a
+			// commitment. Asserted through ReportLaunch rather than off the table, because the table
+			// is only half the rule -- the other half is that ReportLaunch picks the entry for the
+			// band it was HANDED rather than for the side's level.
+			foreach (var (tons, expected) in new[]
+			{
+				(B61LowTons, Cooldowns[0]),
+				(AtomicTons, Cooldowns[1]),
+				(B61MaxTons, Cooldowns[2]),
+				(W76Tons, Cooldowns[3]),
+			})
+			{
+				var state = Released();
+
+				// Hand the firer the level it needs by having the OTHER side fire the band below.
+				state.For(America).Level = NuclearReleaseLadder.Highest;
+
+				var outcome = state.ReportLaunch(America, tons);
+				Assert.That(outcome.Counted, Is.True, $"a {tons} t launch was refused at the top level");
+				Assert.That(outcome.CooldownTicks, Is.EqualTo(expected), $"{tons} t bought the wrong cooldown");
+				Assert.That(state.CooldownFor(America), Is.EqualTo(expected));
+			}
+		}
+
+		[Test]
+		public void AGameEnderTakesNoCooldownAndOpensTheFinalExchange()
+		{
+			var state = Released();
+			state.For(America).Level = (int)NuclearRung.GameEnder;
+
+			var outcome = state.ReportLaunch(America, SarmatRvTons);
+			Assert.That(outcome.Counted, Is.True);
+			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.GameEnder));
+			Assert.That(outcome.FinalExchange, Is.True,
+				"the trait begins DoomsdayStrike's final exchange off this flag and nothing else");
+
+			// NO COOLDOWN AT THE TOP RUNG. The match ends on this launch, so a lockout would be a
+			// number nobody lives to read -- and 0 here is not "ready again next tick" for the same
+			// reason. Pinned because the natural implementation is to index the table and get 12000.
+			Assert.That(outcome.CooldownTicks, Is.EqualTo(0));
+			Assert.That(state.CooldownFor(America), Is.EqualTo(0));
+
+			// The victim is capped at END and cannot go past it.
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.GameEnder));
+			Assert.That(state.LevelFor(Russia), Is.LessThanOrEqualTo(NuclearReleaseLadder.Highest));
+		}
+
+		[Test]
+		public void FiringAboveYourLevelIsRefusedLoudly()
+		{
+			// UNREACHABLE BY CLICKING -- the band condition for a level a side does not hold is never
+			// granted, so its cameo does not exist. That is exactly why it is worth refusing rather
+			// than trusting: a Lua scenario or a future bot calling the trait directly can reach it,
+			// and a warhead that lands and escalates nobody is invisible without this.
+			var state = Released();
+
+			var outcome = state.ReportLaunch(America, W76Tons);
+			Assert.That(outcome.Counted, Is.False);
+			Assert.That(outcome.Refusal, Is.EqualTo(NuclearLaunchRefusal.AboveLevel));
+			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.HundredKiloton),
+				"the refusal must name the band that was attempted, or the log cannot say what happened");
+			Assert.That(outcome.IsAlarming, Is.True);
+
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.Kiloton),
+				"A REFUSED LAUNCH ESCALATED THE ENEMY ANYWAY");
+			Assert.That(state.CooldownFor(America), Is.EqualTo(0),
+				"A REFUSED LAUNCH SPENT A COOLDOWN. The trait sets the side's arsenal on the " +
+				"COUNTED edge only, and this is what that guard rests on");
+		}
+
+		[Test]
+		public void NothingEscalatesBeforeReleaseOrOutsideEscalation()
+		{
+			// THE FOUR ORDINARY REFUSALS, which are no-ops rather than alarms: the trait logs the
+			// two alarming ones and stays quiet about these.
+			var shut = new NuclearExchangeState(DefconGameMode.Escalation, Cooldowns);
 			shut.RegisterSide(America);
 			shut.RegisterSide(Russia);
 
-			Assert.That(shut.ReportLaunch(America, W76Tons).Counted, Is.False);
-			Assert.That(shut.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
+			var before = shut.ReportLaunch(America, AtomicTons);
+			Assert.That(before.Counted, Is.False);
+			Assert.That(before.Refusal, Is.EqualTo(NuclearLaunchRefusal.NotReleased));
+			Assert.That(before.IsAlarming, Is.False);
+			Assert.That(shut.LevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold),
+				"a match must not arrive at release already escalated");
 
-			// SKIRMISH AND SANDBOX ARE STRICT NO-OPS. Skirmish is the shipped default game mode, the
-			// user tests from main, and every nuclear demo scenario under tools/autotest/scenarios
-			// runs in one of the two. Their bands come from NuclearUnlockClock instead.
 			foreach (var mode in new[] { DefconGameMode.Skirmish, DefconGameMode.Sandbox })
 			{
-				var state = new NuclearExchangeState(mode, Window);
-				state.RegisterSide(America);
-				state.RegisterSide(Russia);
+				var other = new NuclearExchangeState(mode, Cooldowns);
+				other.RegisterSide(America);
+				other.RegisterSide(Russia);
 
-				Assert.That(state.Release(), Is.False, $"{mode} released");
-				Assert.That(state.ReportLaunch(America, W76Tons).Counted, Is.False, $"{mode} counted a launch");
-				Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
+				Assert.That(other.Release(), Is.False, "the exchange does not exist outside Escalation");
+
+				var outcome = other.ReportLaunch(America, AtomicTons);
+				Assert.That(outcome.Counted, Is.False);
+				Assert.That(outcome.Refusal, Is.EqualTo(NuclearLaunchRefusal.NotEscalation));
+				Assert.That(other.LevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
 			}
+
+			// A NON-NUCLEAR POWER. MissileStrikePower.Activate already filters on a positive yield,
+			// so this is the belt to that braces.
+			var state = Released();
+			Assert.That(state.ReportLaunch(America, 0).Refusal, Is.EqualTo(NuclearLaunchRefusal.NotNuclear));
 		}
 
 		[Test]
-		public void TheTsarBombaArmsNobody()
+		public void TheTsarBombaEscalatesNobody()
 		{
-			// Decision 04: "kept in code but cannot be used in game for now (keep it for sandbox)."
-			// It is unreachable in Escalation through the CONDITION -- the power is gated on
-			// nuclear-release-unrestricted, which is never granted there -- and this is the second
-			// statement of that rule, the one a YAML edit cannot reach. Without it a Lua scenario
-			// firing one would arm the other side with a game-ender and end the match.
+			// DECISION 04: the 50 Mt warhead is unreachable in normal play, and the gate is checked
+			// BEFORE the band so a Lua scenario calling the trait directly cannot hand the other side
+			// END by a route that ruling closed.
 			var state = Released();
+			state.For(America).Level = NuclearReleaseLadder.Highest;
 
 			var outcome = state.ReportLaunch(America, TsarBombaTons);
-			Assert.That(outcome.Counted, Is.False, "a 50 Mt warhead armed the other side");
-			Assert.That(outcome.FinalExchange, Is.False);
-			Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.Kiloton));
-
-			// The boundary is exclusive: exactly SandboxOnlyAboveTons is still in play, which is what
-			// makes this a statement about the GAP between 6 Mt and 50 Mt rather than a tuned edge.
-			Assert.That(state.ReportLaunch(America, NuclearReleaseLadder.SandboxOnlyAboveTons).Counted, Is.True);
+			Assert.That(outcome.Counted, Is.False);
+			Assert.That(outcome.Refusal, Is.EqualTo(NuclearLaunchRefusal.AboveSandboxCeiling));
+			Assert.That(outcome.FinalExchange, Is.False,
+				"a 50 Mt warhead must not open the final exchange either");
+			Assert.That(state.LevelFor(Russia), Is.EqualTo((int)NuclearRung.Kiloton));
 		}
 
 		[Test]
-		public void MoreThanTwoSidesArmsEveryOtherSide()
+		public void MoreThanTwoSidesEscalatesEveryOtherSide()
 		{
-			// NOT ENFORCEMENT, BY INSTRUCTION. The design is two sides (decision 15); a lobby that
-			// produces three gets a warning from the trait and this arithmetic, which is the honest
-			// reading of "the other side" when there is more than one of them.
-			const int China = 3;
+			// NOT ENFORCED, BY INSTRUCTION (decision 15 says two sides; the trait warns and carries
+			// on). "Every OTHER side" is the honest reading of "the other side" when there is more
+			// than one, and it is asserted so a three-way lobby has a defined behaviour rather than
+			// an accidental one.
+			const int Third = 3;
 
-			var state = new NuclearExchangeState(DefconGameMode.Escalation, Window);
+			var state = new NuclearExchangeState(DefconGameMode.Escalation, Cooldowns);
 			state.RegisterSide(America);
 			state.RegisterSide(Russia);
-			state.RegisterSide(China);
+			state.RegisterSide(Third);
 			state.Release();
 
+			// Level set by hand so the 20 kt launch is permitted; see LevelsNeverFall.
+			state.For(America).Level = (int)NuclearRung.TwentyKiloton;
 			state.ReportLaunch(America, AtomicTons);
 
-			foreach (var side in new[] { Russia, China })
-				Assert.That(state.ReleasedLevelFor(side), Is.EqualTo((int)NuclearRung.FiftyKiloton),
-					$"side {side} was not armed by a launch from a third side");
+			foreach (var side in new[] { Russia, Third })
+				Assert.That(state.LevelFor(side), Is.EqualTo((int)NuclearRung.FiftyKiloton),
+					$"side {side} was not escalated by a launch it was not the firer of");
 
-			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.Kiloton));
+			// THE FIRER IS UNMOVED -- still the level the fixture handed it, not one step further on.
+			Assert.That(state.LevelFor(America), Is.EqualTo((int)NuclearRung.TwentyKiloton));
+
+			// AND ONLY THE FIRER PAYS, however many sides it just escalated. A cooldown that spread
+			// with the escalation would silence two innocent sides off one shot.
+			Assert.That(state.CooldownFor(America), Is.EqualTo(Cooldowns[1]));
+			Assert.That(state.CooldownFor(Russia), Is.EqualTo(0));
+			Assert.That(state.CooldownFor(Third), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void TheLevelSerialMarksEveryRiseAndNothingElse()
+		{
+			// THE ONE THING A BANNER CAN WATCH. It carries no more information than the level does --
+			// levels never fall -- and it exists so the widget and NuclearExchange.ReconcileGrants
+			// watch the same edge rather than two derivations of it.
+			var state = new NuclearExchangeState(DefconGameMode.Escalation, Cooldowns);
+			state.RegisterSide(America);
+			state.RegisterSide(Russia);
+
+			Assert.That(state.LevelSerialFor(America), Is.EqualTo(0));
+
+			state.Release();
+			var afterRelease = state.LevelSerialFor(Russia);
+			Assert.That(afterRelease, Is.GreaterThan(0), "release is itself a rise, Hold -> 1 kt");
+
+			state.ReportLaunch(America, B61LowTons);
+			Assert.That(state.LevelSerialFor(Russia), Is.EqualTo(afterRelease + 1));
+			Assert.That(state.LevelSerialFor(America), Is.EqualTo(afterRelease),
+				"the FIRER's serial moved; only being shot at raises a level");
+
+			// A HIT THAT CHANGES NOTHING BUMPS NOTHING. v1's window serial was restarted on every hit
+			// on purpose -- being shot at again re-opened the reply -- and that is exactly the
+			// behaviour v2 must NOT have: a second 1 kt against a side already at 20 kt is not news,
+			// and a banner firing on it would announce an escalation that did not happen.
+			Advance(state, Cooldowns[0]);
+			var beforeRepeat = state.LevelSerialFor(Russia);
+			state.ReportLaunch(America, B61LowTons);
+			Assert.That(state.LevelSerialFor(Russia), Is.EqualTo(beforeRepeat),
+				"a hit that raised no level bumped the serial anyway");
 		}
 
 		[Test]
@@ -326,97 +461,44 @@ namespace OpenRA.Test
 			var state = Released();
 
 			state.RegisterSide(America);
-			Assert.That(state.Sides.Count, Is.EqualTo(2), "a side was registered twice");
+			Assert.That(state.Sides.Count, Is.EqualTo(2), "RegisterSide is not idempotent");
 
-			// A player the trait could not map to a side -- a spectator, or Neutral -- reads HOLD
-			// rather than throwing. The trait's SideOf returns 0 for exactly that case.
-			Assert.That(state.ReleasedLevelFor(0), Is.EqualTo((int)NuclearRung.Hold));
-			Assert.That(state.WindowTicksRemainingFor(0), Is.EqualTo(0));
+			// AN UNKNOWN SIDE IS NOT A CRASH AND NOT A SIDE. The ledger asks about OpposingSideOf,
+			// which is 0 in a one-sided match, and 0 was never registered.
+			Assert.That(state.LevelFor(0), Is.EqualTo((int)NuclearRung.Hold));
+			Assert.That(state.CooldownFor(0), Is.EqualTo(0));
+			Assert.That(state.LevelSerialFor(0), Is.EqualTo(0));
+			Assert.That(state.MayFire(0, (int)NuclearRung.Kiloton), Is.False);
 			Assert.That(state.For(0), Is.Null);
 
-			// And a launch attributed to no side still arms everybody, because `key == firerSide` is
-			// false for every real side. That is the safe direction: an unattributable launch must
-			// not silently arm nobody.
-			state.ReportLaunch(0, AtomicTons);
+			// A LAUNCH BY AN UNREGISTERED SIDE IS REFUSED rather than escalating everybody. It cannot
+			// happen -- SideOf returns 0 only for a non-combatant, which holds no powers -- but the
+			// failure mode if it did is every real side climbing off a phantom.
+			var outcome = state.ReportLaunch(0, B61LowTons);
+			Assert.That(outcome.Counted, Is.False);
+			Assert.That(outcome.Refusal, Is.EqualTo(NuclearLaunchRefusal.AboveLevel));
 			foreach (var side in new[] { America, Russia })
-				Assert.That(state.ReleasedLevelFor(side), Is.EqualTo((int)NuclearRung.FiftyKiloton));
+				Assert.That(state.LevelFor(side), Is.EqualTo((int)NuclearRung.Kiloton));
 		}
 
 		[Test]
 		public void ASideIsAnyCombatantAndNotOnlyALobbySlot()
 		{
-			// A REGRESSION TEST WITH A RUN BEHIND IT. This rule read `!NonCombatant && Playable` and
-			// dropped Russia from test-nuclear-exchange, because that scenario's map.yaml wrote
-			// `Playable: True` on USA and not on Russia -- and PlayerReference.Playable defaults to
-			// FALSE (PlayerReference.cs:24). The run logged "NUCLEAR RELEASE: all 1 sides", every
-			// Russian nuclear power stayed dark for the whole match, and DefconWall logged "derived
-			// from 2 home(s) in 2 group(s)" off the same players on the same tick.
+			// `Playable` IS NOT PART OF THE TEST, and a first version of this rule had it and was
+			// wrong. PlayerReference.Playable defaults to FALSE and says only "is this a slot the
+			// lobby offers", so requiring it silently drops every map-authored combatant.
 			//
-			// So the assertion that matters is the NEGATIVE one: a player who is not a lobby slot is
-			// still a side. Everything else here is the boundary around it.
+			// IT COST A SCENARIO RUN: test-nuclear-exchange authored `Playable: True` on USA and not
+			// on Russia, and the run logged "NUCLEAR RELEASE: all 1 sides" while DefconWall -- reading
+			// the same players with this predicate -- logged two groups on the same tick.
 			Assert.That(NuclearExchangeState.CountsAsASide(false, false), Is.True,
-				"an ordinary combatant is a side");
+				"an ordinary combatant, playable or not, is a side");
 
-			// Neutral, Creeps and the world owner. Arming them would put a phantom third side into
-			// the count and make every launch warn about a lobby nobody configured.
 			Assert.That(NuclearExchangeState.CountsAsASide(true, false), Is.False,
-				"a non-combatant became a side");
-
-			// A spectator has no side to be on, which is DefconWall's reasoning verbatim
-			// (DefconWall.cs:294-297) -- including them would arm somebody who cannot fire.
+				"Neutral, Creeps and the world owner are not sides");
 			Assert.That(NuclearExchangeState.CountsAsASide(false, true), Is.False,
-				"a spectator became a side");
-
+				"a spectator cannot fire and must not be escalated");
 			Assert.That(NuclearExchangeState.CountsAsASide(true, true), Is.False);
-		}
-
-		[Test]
-		public void FiringTheWindowSpendsIt()
-		{
-			// DECISION 02: the window grant is ONE SHOT and vanishes when it is used. An earlier
-			// version of this file asserted the opposite -- that a side could fire the granted band as
-			// often as its cooldown allowed until the window lapsed -- which was the interim
-			// purchase-based reading, before the economy was ruled.
-			var state = Released();
-			state.ReportLaunch(America, AtomicTons);
-
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-
-			// Russia takes the window. The grant is spent on the spot, with most of its clock unused.
-			state.ReportLaunch(Russia, B61MaxTons);
-
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(0),
-				"firing the granted band left the window open; it is one shot");
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.Hold));
-
-			// AND THE FIRER DID NOT KEEP THE BAND. "The band becomes permanent for the OTHER side, not
-			// for the firer" -- so Russia is back to what it was armed with, and America now holds the
-			// 50 kt it was just hit by.
-			Assert.That(state.PermanentLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton),
-				"firing the window raised the FIRER's permanent level");
-			Assert.That(state.ReleasedLevelFor(Russia), Is.EqualTo((int)NuclearRung.TwentyKiloton));
-			Assert.That(state.PermanentLevelFor(America), Is.EqualTo((int)NuclearRung.FiftyKiloton));
-		}
-
-		[Test]
-		public void FiringBelowTheWindowKeepsIt()
-		{
-			// THE OTHER HALF OF ONE-SHOT, and the half that is easy to get wrong by spending the window
-			// on any launch at all. A side sitting on a 50 kt grant that answers with its permanent
-			// 20 kt has not used the grant and must still hold it -- otherwise firing anything at all
-			// would disarm you, and the correct play would be never to shoot back.
-			var state = Released();
-			state.ReportLaunch(America, AtomicTons);
-
-			var ticksBefore = state.WindowTicksRemainingFor(Russia);
-			state.TickWindows();
-
-			state.ReportLaunch(Russia, AtomicTons);
-
-			Assert.That(state.WindowLevelFor(Russia), Is.EqualTo((int)NuclearRung.FiftyKiloton),
-				"firing BELOW the granted band spent the window");
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(ticksBefore - 1),
-				"the window's clock was disturbed by a launch that did not use it");
 		}
 
 		[Test]
@@ -497,95 +579,42 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void ALaunchNamesTheBandThatGoesOnCooldownForTheWholeSide()
+		public void TheShippedCooldownsAreTheUsersRuling()
 		{
-			// THE PURE HALF OF THE BAND-LEVEL REGENERATION RULING (2026-09-14). The write itself needs
-			// a World -- NuclearExchange.PutBandOnRegen walks every combatant's SupportPowerManager --
-			// so what is verifiable here is the decision that drives it: WHICH band a launch spends,
-			// and whether it spends one at all. Everything downstream of those two answers is a loop.
-			var state = Released();
-
-			// TWO DIFFERENT WEAPONS, ONE COOLDOWN. The 0.3 kt B61 and the 1 kt 9M729 are different
-			// warheads on opposite ladders and they report the SAME band, which is the whole content
-			// of "firing any weapon in a band puts the band on its timer". Before the ruling a side
-			// holding both fired twice; now the first shot names the unit the second one is denied.
-			Assert.That(NuclearReleaseLadder.RungForYield(B61LowTons),
-				Is.EqualTo(NuclearReleaseLadder.RungForYield(1000)),
-				"the 0.3 kt B61 and the 1 kt 9M729 must share a band or they share no cooldown");
-
-			var outcome = state.ReportLaunch(America, B61LowTons);
-			Assert.That(outcome.Counted, Is.True);
-			Assert.That(outcome.Band, Is.EqualTo((int)NuclearRung.Kiloton),
-				"the band put on cooldown is the band of the warhead that was fired");
-
-			// AND THE INTERVAL IS THE BAND'S, not the weapon's. Both warheads resolve to the same
-			// entry in the regeneration table, so resetting them together cannot desynchronise them.
-			var table = new NuclearExchangeInfo().RegenTicks();
-			Assert.That(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(B61LowTons), table),
-				Is.EqualTo(NuclearExchangeState.RegenTicksFor(NuclearReleaseLadder.RungForYield(1000), table)));
-
-			// A DROPPED LAUNCH SPENDS NO COOLDOWN, and this is the guard that matters: the trait
-			// calls PutBandOnRegen only on the counted edge. A Lua scenario poking ReportLaunch with
-			// a 50 Mt warhead, or before release, must not silently mute a band nobody fired.
-			Assert.That(state.ReportLaunch(America, TsarBombaTons).Counted, Is.False,
-				"a warhead above the ladder is dropped whole, so no band goes on cooldown");
-
-			var shut = new NuclearExchangeState(DefconGameMode.Escalation, Window);
-			shut.RegisterSide(America);
-			shut.RegisterSide(Russia);
-			Assert.That(shut.ReportLaunch(America, B61LowTons).Counted, Is.False,
-				"a launch before the release gate opens is dropped, so no band goes on cooldown");
-
-			var skirmish = new NuclearExchangeState(DefconGameMode.Skirmish, Window);
-			skirmish.RegisterSide(America);
-			Assert.That(skirmish.ReportLaunch(America, B61LowTons).Counted, Is.False,
-				"outside Escalation there is no free-timer economy to spend");
-		}
-
-		[Test]
-		public void EachBandRegeneratesOnItsOwnTimerAndThePostureScalesThem()
-		{
-			// UNTUNED PLACEHOLDERS (3:00 / 4:00 / 5:00 / 6:00). Pinned because they are a brief rather
-			// than a measurement -- the kind of value that gets quietly "corrected" by someone who
-			// assumes it was derived -- and because at the mod's 60 ms timestep a tick count divided
-			// by 1000 is its length in minutes, which is the identity to check any change against.
+			// USER-RULED 2026-09-15, NOT MEASURED. 5/7/9/12 minutes -- "nukes become rare
+			// punctuation; conventional play dominates" -- and pinned here for the reason every
+			// placeholder in this repo is pinned: a value nobody derived is exactly the kind a later
+			// reader "corrects" on the assumption that it was.
+			//
+			// AND THE IDENTITY THE TICK RATE RESTS ON: at the mod's 60 ms timestep a tick count
+			// divided by 1000 is its length in minutes. 5000 / 1000 = 5:00. Read as 25 tps these
+			// would be 3:20 / 4:40 / 6:00 / 8:00 -- the same 1.5x error this repo has made eleven
+			// times, and the one that would make the whole ruling land 40 % short.
 			var info = new NuclearExchangeInfo();
-			var table = info.RegenTicks();
+			var table = info.CooldownTicks();
 
-			Assert.That(table, Is.EqualTo(new[] { 3000, 4000, 5000, 6000 }));
-
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.Kiloton, table), Is.EqualTo(3000));
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.TwentyKiloton, table), Is.EqualTo(4000));
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.FiftyKiloton, table), Is.EqualTo(5000));
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.HundredKiloton, table), Is.EqualTo(6000));
+			Assert.That(table, Is.EqualTo(Cooldowns));
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.Kiloton, table), Is.EqualTo(5000));
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.TwentyKiloton, table), Is.EqualTo(7000));
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.FiftyKiloton, table), Is.EqualTo(9000));
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.HundredKiloton, table), Is.EqualTo(12000));
 
 			// BIGGER IS SLOWER, asserted as a shape rather than as four numbers, so a retune that
 			// keeps the intent cannot fail this and one that inverts it cannot pass.
 			for (var i = 1; i < table.Count; i++)
 				Assert.That(table[i], Is.GreaterThan(table[i - 1]),
-					"a larger warhead regenerates faster than a smaller one");
+					"a larger warhead costs a shorter lockout than a smaller one");
 
-			// THE GAME-ENDER BAND TAKES THE TOP ENTRY. It is only ever a window grant and firing one
-			// ends the match, so this is a post-fire lockout the match never outlives -- but it must
-			// not be 0, or "one shot" would rest on the window closing in the same tick.
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.GameEnder, table), Is.EqualTo(6000));
-			Assert.That(NuclearExchangeState.RegenTicksFor((int)NuclearRung.Hold, table), Is.EqualTo(3000),
-				"HOLD is not a band anyone fires; it must not index out of the table");
-
-			// THE POSTURE IS THE MODE'S ONE ECONOMIC LEVER now that nothing is bought. Flexible is the
-			// identity, and any drift there would move every nuclear timer in the mod without anyone
-			// choosing to.
-			foreach (var ticks in table)
-				Assert.That(NuclearPostureScale.Apply(ticks, NuclearPosture.Flexible), Is.EqualTo(ticks));
-
-			Assert.That(NuclearPostureScale.Apply(3000, NuclearPosture.Limited), Is.EqualTo(4500));
-			Assert.That(NuclearPostureScale.Apply(3000, NuclearPosture.Massive), Is.EqualTo(1800));
-			Assert.That(NuclearPostureScale.Apply(6000, NuclearPosture.Limited), Is.EqualTo(9000));
-			Assert.That(NuclearPostureScale.Apply(6000, NuclearPosture.Massive), Is.EqualTo(3600));
+			// OUT-OF-RANGE INDEXING IS CLAMPED AT BOTH ENDS. HOLD is not a band anyone fires and the
+			// game-ender band takes no cooldown at all (see AGameEnderTakesNoCooldown...), but the
+			// lookup must not throw for either -- NuclearBotModuleInfo's radius table documents this
+			// same convention and would be the next thing to copy it.
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.Hold, table), Is.EqualTo(5000));
+			Assert.That(NuclearExchangeState.CooldownTicksFor((int)NuclearRung.GameEnder, table), Is.EqualTo(12000));
 		}
 
 		[Test]
-		public void ThePostureScalesChargeIntervalsAndNothingElse()
+		public void ThePostureScalesCooldownsAndNothingElse()
 		{
 			// UNTUNED PLACEHOLDERS (150 / 100 / 60 %). They are pinned here because they are a brief
 			// rather than a measurement, which is exactly the kind of value that gets quietly
@@ -596,16 +625,21 @@ namespace OpenRA.Test
 
 			// FLEXIBLE IS THE IDENTITY, not "approximately the shipped value". It is the default, so
 			// any drift here would move every nuclear cooldown in the mod without anyone choosing to.
-			foreach (var ticks in new[] { 1, 7, 100, 3000, 10000 })
+			foreach (var ticks in new[] { 1, 7, 100, 5000, 12000 })
 				Assert.That(NuclearPostureScale.Apply(ticks, NuclearPosture.Flexible), Is.EqualTo(ticks));
 
-			Assert.That(NuclearPostureScale.Apply(10000, NuclearPosture.Limited), Is.EqualTo(15000));
-			Assert.That(NuclearPostureScale.Apply(10000, NuclearPosture.Massive), Is.EqualTo(6000));
+			// THE SHIPPED TABLE AT BOTH EXTREMES, which is the range a host can actually produce:
+			// 7:30 at the slowest 1 kt, 3:00 at the fastest. "At least three minutes between shots,
+			// whatever the host picks" is the claim the abuse review rests on.
+			Assert.That(NuclearPostureScale.Apply(5000, NuclearPosture.Limited), Is.EqualTo(7500));
+			Assert.That(NuclearPostureScale.Apply(5000, NuclearPosture.Massive), Is.EqualTo(3000));
+			Assert.That(NuclearPostureScale.Apply(12000, NuclearPosture.Limited), Is.EqualTo(18000));
+			Assert.That(NuclearPostureScale.Apply(12000, NuclearPosture.Massive), Is.EqualTo(7200));
 
 			// MULTIPLY BEFORE DIVIDE. Written `ticks * (60 / 100)` the parenthesis evaluates to 0 in
-			// integer arithmetic and every interval collapses to nothing -- which is not a rounding
-			// error but a total loss of the value. NuclearUnlockSchedule.TicksForMinutes carries the
-			// same idiom for the same reason.
+			// integer arithmetic and every cooldown collapses to nothing -- which is not a rounding
+			// error but a total loss of the value, and here it would be the spam v2 exists to stop.
+			// NuclearUnlockSchedule.TicksForMinutes carries the same idiom for the same reason.
 			Assert.That(NuclearPostureScale.Apply(1, NuclearPosture.Massive), Is.EqualTo(0),
 				"one tick at 60 % truncates to zero, which is the floor this idiom has");
 			Assert.That(NuclearPostureScale.Apply(7, NuclearPosture.Massive), Is.EqualTo(4));
@@ -619,33 +653,32 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheRetaliationWindowConvertsMinutesExactly()
+		public void TheStateHonoursWhateverCooldownTableItIsHanded()
 		{
-			// The lobby offers MINUTES and the state machine counts TICKS, and the conversion is
-			// NuclearUnlockSchedule.TicksForMinutes -- multiply before divide, so three minutes at the
-			// mod's 60 ms timestep is exactly 3000 ticks and not the 2880 that `minutes * 60 *
-			// (1000 / timestep)` produces. A window drawn as 3:00 that expires at 2:53 is the class
-			// of lie this whole branch exists to remove.
-			const int Timestep = 60;
+			// THE POSTURE IS APPLIED ONCE, BY THE TRAIT, BEFORE THE TABLE GETS HERE -- see
+			// NuclearExchange.ScaledCooldownTicks. This class must therefore apply nothing further,
+			// and a second application would be 225 % at Limited. The only way to pin that from a
+			// world-free fixture is to hand it a table and check the number comes back unchanged.
+			var state = Released(new[] { 300, 400, 500, 600 });
 
-			Assert.That(NuclearUnlockSchedule.TicksForMinutes(1, Timestep), Is.EqualTo(1000));
-			Assert.That(NuclearUnlockSchedule.TicksForMinutes(2, Timestep), Is.EqualTo(2000));
-			Assert.That(NuclearUnlockSchedule.TicksForMinutes(3, Timestep), Is.EqualTo(3000));
-			Assert.That(NuclearUnlockSchedule.TicksForMinutes(5, Timestep), Is.EqualTo(5000));
-			Assert.That(NuclearUnlockSchedule.TicksForMinutes(10, Timestep), Is.EqualTo(10000));
+			state.ReportLaunch(America, B61LowTons);
+			Assert.That(state.CooldownFor(America), Is.EqualTo(300),
+				"the state re-scaled a table that arrived already scaled");
 
-			// Every offered value converts, and the default is one of them. A value the option does
-			// not define throws KeyNotFoundException on the next CLIENT JOIN, so the host sees a
-			// working lobby and the next player to connect is thrown out.
-			var info = new NuclearExchangeInfo();
-			Assert.That(info.RetaliationWindowOptions, Is.EqualTo(new[] { 1, 2, 3, 5, 10 }));
-			Assert.That(info.RetaliationWindowOptions, Does.Contain(info.RetaliationWindowDefault));
-			Assert.That(info.RetaliationWindowValues().ContainsKey(info.RetaliationWindowDefault.ToString()), Is.True);
+			// A DEGENERATE TABLE MUST NOT THROW. The Info refuses non-positive values in
+			// RulesetLoaded, but this class is constructible from a test and from any future caller,
+			// and a negative cooldown would read as "ready" on the tick after firing.
+			var odd = new NuclearExchangeState(DefconGameMode.Escalation, new[] { -5 });
+			odd.RegisterSide(America);
+			odd.RegisterSide(Russia);
+			odd.Release();
+			Assert.That(odd.ReportLaunch(America, B61LowTons).CooldownTicks, Is.EqualTo(0));
 
-			// And the state machine honours whatever it is handed, including a one-minute window.
-			var state = Released(NuclearUnlockSchedule.TicksForMinutes(1, Timestep));
-			state.ReportLaunch(America, AtomicTons);
-			Assert.That(state.WindowTicksRemainingFor(Russia), Is.EqualTo(1000));
+			var empty = new NuclearExchangeState(DefconGameMode.Escalation, null);
+			empty.RegisterSide(America);
+			empty.RegisterSide(Russia);
+			empty.Release();
+			Assert.That(empty.ReportLaunch(America, B61LowTons).Counted, Is.True);
 		}
 	}
 }
