@@ -5,6 +5,100 @@
 
 ---
 
+- [2026-09-15] [DESIGN QUESTION, NOT A BUG — RAISED WITH THE USER] **WW3MOD's DEFCON 2 cease-fire has
+  no length of its own and can last a single tick.** 3 → 2 is the no-rush clock; 2 → 1 has NO clock
+  and fires on the first qualifying enemy-caused death (`DefconCasualtyObserver` →
+  `DefconEscalation.ReportCasualty`). `DefconWallInfo.ActiveLevels = { 3 }`, so both armies spend the
+  whole no-rush period staged ON the border and are in contact the instant it drops. Measured on the
+  same build and scenario: run `260914_181212` → DEFCON 2 lasted **670 ticks** (40 s); run
+  `260915_012829` → **1 tick**. The phase is exactly as long as the first kill takes, and the better
+  the bots stage, the shorter it gets.
+  **NOT FILED AS A DEFECT.** Everything here is behaving as written, and whether a cease-fire phase
+  that can vanish in a tick is the intended design is the user's call — the manager is raising it
+  separately. If the answer is "it needs a floor", that is a change to `DefconEscalationState` and
+  `test-escalation-full-match` is where it would be measured.
+  **IT DID BREAK AN OBSERVER, TWICE.** A 5-tick poller cannot see a 1-tick phase, so run 4's
+  assertion reported "DEFCON never left 3 in 24001 ticks" and blamed the no-rush clock, which had
+  fired at exactly 5000. Fixed by exposing the transition ticks
+  (`DefconEscalation.LevelReachedTick` → `Test.DefconLevelReachedTick`) and asserting on those.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
+- [2026-09-14] [LOW — A TRAP FOR SCENARIO AUTHORS, NOT A GAMEPLAY BUG] **`player.WinState` can never
+  leave `Undefined` in a TestMode session, so no autotest scenario can detect "the match ended"
+  through it — including a match that ran its full Dead Hand salvo.**
+  `ConquestVictoryConditions.ITick.Tick` returns early on `TestMode.IsActive`
+  (`engine/OpenRA.Mods.Common/Traits/Player/ConquestVictoryConditions.cs:63-64`), which is correct
+  and documented ("the test harness owns the verdict ... would only race the test's own assertions
+  and pop a stray Mission Accomplished"). The composition nobody wrote down is that `objectiveID` is
+  assigned ONLY inside that same method (`:73-74`), so it remains `-1`, and
+  `INotifyTimeLimit.NotifyTimerExpired` opens with `if (objectiveID < 0) return;` (`:92-95`). So the
+  time-limit path is a no-op in test mode at BOTH ends: the initial notification and
+  `DoomsdayStrike.Resolve`'s re-raise.
+  **NOT A PLAYER-FACING DEFECT.** A human lobby is not test mode: the tick guard is off, the
+  objective registers on the first tick, and Time limit + Nuclear ending resolves a winner normally.
+  Verified by reading, not by playing.
+  **WHAT IT COST:** run `260914_191513` reported "the match never reached an ending by tick 24001"
+  for a match that had very likely ended correctly, and the obvious reading of that verdict was a
+  user-facing defect in a shipped lobby combination. Compounded by there being NO logging anywhere
+  on the clock→ending path, so "never fired", "fired and declined", and "worked, observer wrong"
+  were indistinguishable.
+  **ADDRESSED, not fixed at source:** `TimeLimitManager` now logs on expiry and
+  `DoomsdayStrike.BeginFinalExchange` logs which of its three bails it takes; a new
+  `Test.DoomsdayState()` exposes the ending itself and `test-escalation-full-match` asserts on that
+  instead, carrying `WinState` as a reading labelled inert. **Whether `ConquestVictoryConditions`
+  SHOULD register its objective outside the TestMode guard is a real open question and is not
+  answered here** — doing so would let `WinState` work in scenarios, but the guard exists to stop
+  victory tracking racing test assertions, and moving the registration without moving the guard
+  wants its own change and its own run.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
+- [2026-09-14] [MEDIUM — FIXED IN THE CONSUMERS, NOT AT SOURCE] **`Player`'s two constructor branches
+  do not populate the same fields: the CLIENT branch never assigns `NonCombatant`, `Playable` or
+  `spectating` from the `PlayerReference`, so those three are ALWAYS FALSE for any slot a lobby
+  client occupies — including every `Playable: True` autotest Observer, where the harness seats its
+  own local client.** `Player.cs:161-204`. The map-player branch (`client == null`, `:187-203`) does
+  copy them through — `NonCombatant = pr.NonCombatant; Playable = pr.Playable; spectating =
+  pr.Spectating;` — while the client branch (`:170-186`) copies ClientIndex, colour, name, faction,
+  `HomeLocation`, spawn and handicap and touches none of the three. Writing `NonCombatant: True` on
+  such a slot therefore has **no runtime effect whatsoever**.
+  **SECONDARY, AND IT CANNOT COVER FOR THE ABOVE:** `Player.Spectating` is `!inMissionMap &&
+  (spectating || WinState != WinState.Undefined)` (`Player.cs:86`) with `inMissionMap =
+  world.Map.Visibility.HasFlag(MapVisibility.MissionSelector)` (`:167`), which EVERY autotest
+  scenario sets (`AUTOTEST.md` map.yaml rule 1). So both runtime arms of the usual
+  `NonCombatant || Spectating` filter are dead in a scenario, by two independent mechanisms.
+  **OBSERVED COST, TWICE:** runs `260914_141246` and `260914_181212` both logged `DEFCON wall: no
+  line derived from 3 combatant home(s) in 3 alliance group(s); the wall stays down.` plus `NUCLEAR
+  EXCHANGE sides: USA-bot(-2), Russia-bot(-3), Observer(-4)`. The second run already carried
+  `NonCombatant: True`, which is what proved the flag was being dropped rather than mis-set. A
+  three-way free-for-all derives no line on purpose (`DefconWallTest.cs:395`), so the DEFCON 3
+  border never stood for a whole no-rush period.
+  **FIXED IN THE TWO CONSUMERS** (`CombatantSides.cs`, new): `CountsAsASide` now also reads
+  `Player.PlayerReference`, and `DefconWall.cs:310` and `NuclearExchange.cs:711` share that one
+  predicate instead of two copies. Safe because a REAL lobby spectator is a client with no slot and
+  gets no `Player` at all — the new arm can only ever exclude a map-authored spectator/non-combatant
+  slot that a client is sitting in. NUnit-pinned in `CombatantSidesTest.cs`.
+  **NOT FIXED AT SOURCE, AND STILL OPEN.** `Player.cs`'s client branch is the real defect and every
+  other reader of those three fields still has it. Two more call sites carry the same filter shape
+  and were deliberately LEFT ALONE, being outside this task's scope and inside a guarded subsystem:
+  `SightingThreatLayer.cs:139` and `InfluenceStack.cs:44`. The latter is governed by
+  `DOCS/reference/influence-stack.md`'s byte-identity invariant and by CLAUDE.md's rule against
+  silent `@stable` drift — changing who is in the belief layer would move the benchmark control, so
+  it wants its own measured change rather than a drive-by. **Whoever takes that on: the right fix is
+  probably in `Player`'s constructor (copy the three flags in both branches, or hoist them above the
+  `if`), not five copies of a widened predicate.**
+  **`test-bot-defcon-wall` IS NOT A COUNTEREXAMPLE** — it has no `NonCombatant` either
+  (`map.yaml:45-50`) and its own debug.log shows the same phantom Observer side; its wall stands
+  because it AUTHORS `Start: 44,0 / End: 44,59` (`rules.yaml:44-46`) and `DefconWall.WorldLoaded`
+  early-returns on `!info.DeriveFromSpawns || !geometry.IsDegenerate`, so the combatant count is
+  never taken. A third combatant is free when nobody is counting, which is why the dedicated test
+  for the feature takes the one path that cannot observe the bug.
+  **BLAST RADIUS, SWEPT:** 72 slots across `tools/autotest/scenarios/` carry `Spectating: True` and
+  **71 omit `NonCombatant`** — harmless in nearly all, since both traits are strict no-ops in
+  Skirmish. Exactly two combine Escalation + a DERIVED wall + an Observer:
+  `test-bot-defcon2-breaks-peace` (opens at DEFCON 2, wall down regardless) and
+  `test-escalation-full-match`.
+  (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
+
 - [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
   visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
   visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and

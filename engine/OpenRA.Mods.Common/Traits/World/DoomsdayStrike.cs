@@ -452,11 +452,29 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public void BeginFinalExchange(Player trigger)
 		{
-			if (triggered || !enabled)
+			// WHICH BAIL, NAMED. Three ways in and out of here and none of them logged anything until
+			// 2026-09-14: a match that simply never ended looked identical whether this was never
+			// called, called with the checkbox off, or called in a test-mode session that had not
+			// opted in. Each is a different fix, so each says so.
+			if (triggered)
+			{
+				Log.Write("debug", $"FINAL EXCHANGE: already triggered at tick {world.WorldTick}; call ignored (idempotent).");
 				return;
+			}
+
+			if (!enabled)
+			{
+				Log.Write("debug", $"FINAL EXCHANGE: declined at tick {world.WorldTick} -- the `{DoomsdayStrikeInfo.DoomsdayOptionId}` lobby option is off, so the clock ends the match on score instead.");
+				return;
+			}
 
 			if (TestMode.IsActive && !info.RunInTestMode)
+			{
+				Log.Write("debug", $"FINAL EXCHANGE: declined at tick {world.WorldTick} -- test-mode session and {nameof(DoomsdayStrikeInfo.RunInTestMode)} is false. Set it in the scenario's rules.yaml to let the salvo run.");
 				return;
+			}
+
+			Log.Write("debug", $"FINAL EXCHANGE opening at tick {world.WorldTick}, trigger {trigger?.InternalName ?? "time limit"}.");
 
 			triggered = true;
 

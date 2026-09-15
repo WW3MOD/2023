@@ -300,7 +300,14 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				// Spectators and the world/neutral players have no side to be on. Including them
 				// would drag a centroid toward a player who is not in the match.
-				if (player.NonCombatant || player.Spectating)
+				//
+				// SHARED WITH NuclearExchange RATHER THAN SPELLED OUT, and the two runs that forced
+				// that are named in CombatantSides' header. This used to read
+				// `player.NonCombatant || player.Spectating` and both of those runtime flags are
+				// FALSE for a client-occupied slot however the map authored it (Player.cs's client
+				// branch never assigns them), so an Observer counted as a third alliance group here
+				// and the wall silently stayed down for the whole of DEFCON 3.
+				if (!CombatantSides.CountsAsASide(player))
 					continue;
 
 				var group = -1;
