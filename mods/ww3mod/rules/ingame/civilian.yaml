@@ -19,7 +19,32 @@
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
-		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
+		# NO `Defense`, unlike the base Targetable above and unlike GTWR/PBOX/HBOX, which are real
+		# emplacements and keep it. A civilian house advertising itself as a defence inverted the
+		# preference an attacker is supposed to have: ^AutoTargetGroundAntiTank scores `Defense` at
+		# 3 on its @Default band and `Infantry` at 2 on @Lower (defaults.yaml:699-709), so on its
+		# non-stance-fireatwill band an AT unit preferred shelling the house to shooting the men
+		# leaning out of its ports.
+		#
+		# READ THIS BEFORE PUTTING `Defense` BACK -- the token is load-bearing in a second way that
+		# is invisible from here. Exactly ONE AutoTargetPriority band in the whole mod names `Ground`
+		# or `Structure` in an explicit ValidTargets -- HIND's own hand-rolled @FireAtWill
+		# (aircraft-russia.yaml:119-122), which is why HIND is absent from the list below. Both facts
+		# are pinned by GarrisonTargetBandTest, which fails if a second one ever appears. The
+		# ^AutoTarget base chain still sees this building because its @FireAtWill band declares no
+		# ValidTargets at all and so takes the engine default `Ground, Water, Air`
+		# (AutoTargetPriority.cs:21) -- but every band on the ^AutoTargetGround* and ^AutoTargetAll*
+		# chains lists its targets explicitly, out of {Infantry, Vehicle, Water, Underwater, Air,
+		# Defense, Mine}, so `Defense` was their ONLY handle on a civilian house. Dropping it
+		# removes a garrisoned house from the AutoTargetPriority candidate set of FIFTEEN actors
+		# outright -- a BAND claim, not a capability one; whether a given actor's warhead could hurt
+		# a building is a separate filter, and for HIMARS and iskander it plainly can. They are: GTWR, FTUR,
+		# PBOX, HBOX, GUN, iskander, HIMARS, tunguska, strykershorad, A10, FROG, MI28, MIG,
+		# littlebird and HELI. For the AT band that IS the intended outcome -- the men win because
+		# the house stops being a candidate -- but it also means the mod's two rocket-artillery
+		# pieces no longer auto-acquire the building they are best at reducing. Manager ruling
+		# 2026-09-15; one token reverts it.
+		TargetTypes: Ground, C4, DetonateAttack, Structure
 		# NO RequiresForceFire, and the deletion is the fix -- 63018cfa (2026-04-05) put it here to
 		# "prevent enemies from auto-targeting the building structure and force them to engage port
 		# soldiers instead", and the consequence nobody costed is that it made a garrison UNKILLABLE
