@@ -101,19 +101,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (shelterSoldiers.Length == 0)
 				return;
 
-			// Pick protection: RubbleProtection at 1HP rubble, otherwise interpolate by HP%.
-			int protection;
-			if (health.HP <= 1)
-			{
-				protection = info.RubbleProtection;
-			}
-			else
-			{
-				var hpPct = (float)health.HP / health.MaxHP;
-				protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
-			}
-
-			protection = protection.Clamp(0, 100);
+			// One source of truth for the tier maths. This used to be a verbatim second copy of
+			// GetCurrentProtection's body, with the public one never called by the private one --
+			// two implementations of the same curve, free to drift, where the panel readout comes
+			// from one and the damage that actually lands comes from the other. The health == null
+			// and health.IsDead cases GetCurrentProtection folds to 0 are already returned above,
+			// so the value is identical on every path that reaches here.
+			var protection = GetCurrentProtection();
 
 			var incomingDamage = e.Damage.Value;
 			if (incomingDamage <= 0)
