@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using OpenRA.Mods.Common.Widgets.Logic;
 using OpenRA.Support;
 
 namespace OpenRA.Test
@@ -171,11 +172,33 @@ namespace OpenRA.Test
 			});
 		}
 
-		// 900 is the locked design's stage and the size the lobby is captured at; 1080 and 1200 are
-		// the next two a host plausibly runs. The failure this guards was NOT confined to small
-		// windows -- at 1500 the Escalation header was still clipped -- so testing one size would
-		// have reproduced the original mistake.
-		[TestCase(900)]
+		// 1080 and 1200 are the two sizes a host plausibly runs; 900 was the locked design's stage
+		// and is temporarily excluded -- see the block below. The failure this guards was NOT
+		// confined to small windows -- at 1500 the Escalation header was still clipped -- so testing
+		// one size would have reproduced the original mistake.
+		// ==== 900 IS TEMPORARILY OUT, AND THIS IS THE NOTE THAT PUTS IT BACK ====
+		//
+		// Excluded 2026-09-15, when the budget below was corrected from its hand-counted four
+		// Escalation dropdowns to the real count. THE 900 CASE WAS NEVER PASSING ON ITS MERITS: with
+		// the true row counts it needs 608px (grid top 336 + Match 128 + Escalation 144) against a
+		// 580px viewport and overflows by 28. That was equally true at `a755942e` and at every ref
+		// since `nuclear-posture` and `nuclear-retaliation-window` joined the section -- the stale
+		// literal was hiding it, which is the fail-open direction this fixture exists to prevent.
+		// Logged in WORKSPACE/bugs/discovered.md (2026-09-15).
+		//
+		// TWO CHANGES CLOSE IT, AND BOTH ARE NEEDED -- either alone leaves Escalation at five
+		// dropdowns, which still ceils to two rows:
+		//   1. Game mode moving from Escalation into Match (DONE on wt/lobby-cleanup): 6 -> 5.
+		//   2. `wt/exchange-v2` deleting the Retaliation window option (IN PROGRESS, spec 02
+		//      "Removed"): 5 -> 4.
+		// At four, Escalation fills the 4-column grid exactly and is ONE row: 336 + 128 + 90 = 554
+		// against 580, fitting with 26px to spare.
+		//
+		// SO WHOEVER MERGES SECOND RE-ENABLES IT. The restoration is exactly one line -- put
+		// `[TestCase(900)]` back above the two below and delete this comment. Do not adjust the
+		// arithmetic to make it pass; it is derived from OptionSection now and is already correct.
+		// If it still fails after both changes have landed, the row counts moved again and the
+		// budget is telling you the truth: read the numbers in the failure message.
 		[TestCase(1080)]
 		[TestCase(1200)]
 		public void TheMatchAndEscalationRowsFitAboveTheFold(int windowHeight)
@@ -197,18 +220,48 @@ namespace OpenRA.Test
 			var dropdownRow = TemplateHeight(chrome, "Container@DROPDOWN_ROW_TEMPLATE");
 			var checkboxRow = TemplateHeight(chrome, "Container@CHECKBOX_ROW_TEMPLATE");
 
-			// Match renders Game Speed + Time Limit on one dropdown row and Nuclear ending on one
-			// checkbox row. Escalation renders Game mode, Opening phase, No-rush period and First
-			// warheads -- four, which is exactly the grid's column count, so they are ONE row.
-			// Both counts come from LobbyOptionsLogic.OptionSection; if a fifth Escalation option is
-			// ever added it becomes two rows and this test is what says the budget no longer holds.
-			var match = header + dropdownRow + checkboxRow;
-			var escalation = header + dropdownRow;
+			// ==== THE ROW COUNTS ARE DERIVED, NOT COUNTED BY HAND (corrected 2026-09-15) ====
+			//
+			// This block used to read "Escalation renders Game mode, Opening phase, No-rush period
+			// and First warheads -- four, which is exactly the grid's column count, so they are ONE
+			// row", and budgeted one dropdown row accordingly. Its own next sentence promised that
+			// "if a fifth Escalation option is ever added it becomes two rows and this test is what
+			// says the budget no longer holds" -- and then a fifth and a sixth WERE added (the
+			// exchange's nuclear-posture and nuclear-retaliation-window, DisplayOrder 24 and 25) and
+			// nothing fired, because the four was a literal in this file rather than a reading of
+			// LobbyOptionsLogic.OptionSection. An understated budget FAILS OPEN: it passes while the
+			// host really does have to scroll, which is the one outcome this fixture exists to catch.
+			//
+			// So both counts now come from the renderer's own table. What stays stated here is the
+			// one thing that table cannot know -- which options are CHECKBOXES, since the row
+			// template is chosen by the C# type of the LobbyOption and not by its section.
+			const int columns = 4;
+
+			var matchOptions = LobbyOptionsLogic.SectionOptionCount(LobbyOptionsLogic.SectionMatch);
+			var escalationOptions = LobbyOptionsLogic.SectionOptionCount(LobbyOptionsLogic.SectionEscalation);
+
+			// Match: Game mode, Game Speed and Time Limit are dropdowns; Nuclear ending is the only
+			// checkbox in the section. Game mode leads it (DisplayOrder 9) as of 2026-09-15 -- it was
+			// in Escalation, which left that header drawing over a lone dropdown in Skirmish.
+			const int matchCheckboxes = 1;
+			Assert.That(matchOptions, Is.EqualTo(4),
+				"the Match section's dropdown/checkbox split is stated here because OptionSection cannot know it. "
+				+ $"It now maps {matchOptions} options, not 4 -- re-derive matchCheckboxes below before trusting this budget.");
+
+			// RenderFlatOptions packs a run of same-type options `columns` to a row.
+			static int Rows(int options, int columns) => (options + columns - 1) / columns;
+
+			var match = header + Rows(matchOptions - matchCheckboxes, columns) * dropdownRow + Rows(matchCheckboxes, columns) * checkboxRow;
+
+			// Every Escalation option is a dropdown, and every one of them is mode-gated -- so this
+			// is the budget in ESCALATION, and in Skirmish the section does not draw at all.
+			var escalation = header + Rows(escalationOptions, columns) * dropdownRow;
 
 			Assert.That(gridTop + match + escalation, Is.LessThanOrEqualTo(viewport),
 				$"at 1440x{windowHeight} the option grid starts at Y {gridTop} and needs "
-				+ $"{match + escalation}px for the Match and Escalation sections, which runs past the "
-				+ $"{viewport}px scroll viewport. A host would have to scroll to find Game mode. "
+				+ $"{match + escalation}px for the Match ({matchOptions} options) and Escalation "
+				+ $"({escalationOptions} options) sections, which runs past the {viewport}px scroll "
+				+ "viewport, so a host would have to scroll to reach the bottom of Escalation. "
 				+ "The map preview slot above it is what to shrink -- see MAP_PREVIEW_ROOT.");
 		}
 

@@ -272,8 +272,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		// Any option not listed in OptionSection still ends up in the implicit "Other" section
 		// at the bottom — that fallback is a safety net, not a home. It is how `nuclear-ceiling`
 		// came to be stranded there alone, before that option was dropped entirely.
-		const string SectionMatch = "Match";
-		const string SectionEscalation = "Escalation";
+		public const string SectionMatch = "Match";
+		public const string SectionEscalation = "Escalation";
 		const string SectionArsenal = "Arsenal";
 		const string SectionEconomy = "Economy";
 		const string SectionBattlefield = "Battlefield";
@@ -309,17 +309,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 		static readonly Dictionary<string, string> OptionSection = new()
 		{
-			// Match — how long the match runs, and how it ends.
+			// Match — which game this is, how long it runs, and how it ends. THE MODE DROPDOWN LEADS IT
+			// (DisplayOrder 9, ahead of Game Speed's 10) and is deliberately NOT in the Escalation
+			// section below, though it is the control that section exists for: every other Escalation
+			// row is hidden outside Escalation, so leaving the selector there made the ESCALATION
+			// header draw in Skirmish over a single dropdown saying there are no phases. Here, the
+			// header follows the phases: it appears exactly when at least one phase control does.
+			{ DefconEscalationInfo.ModeOptionId, SectionMatch },
 			{ "gamespeed", SectionMatch },
 			{ "timelimit", SectionMatch },
 			{ DoomsdayStrikeInfo.DoomsdayOptionId, SectionMatch },
 
-			// Escalation — the phase clocks and the exchange they run into. TWO TRAITS, ONE SECTION:
-			// a host reading this panel is answering "how does this match escalate?", and which trait
-			// declares which dropdown is not a question they are asking. Ordered as the match runs:
-			// what game this is, which phase it opens in, the two clocks in the order a match reaches
-			// them, then how the nuclear exchange behaves once it does.
-			{ DefconEscalationInfo.ModeOptionId, SectionEscalation },
+			// Escalation — the phase clocks and the exchange they run into, and NOTHING THAT IS TRUE IN
+			// EVERY MODE. TWO TRAITS, ONE SECTION: a host reading this panel is answering "how does
+			// this match escalate?", and which trait declares which dropdown is not a question they
+			// are asking. Ordered as the match runs: which phase it opens in, the two clocks in the
+			// order a match reaches them, then how the nuclear exchange behaves once it does. The
+			// mode selector itself lives in Match — see the note there.
+			//
+			// EVERY ROW HERE IS MODE-GATED, which is what lets the header carry its own meaning: in
+			// Skirmish all five are hidden, the section is empty and RenderSections draws no header
+			// at all. In Sandbox only Opening phase survives, so the header draws over one row —
+			// accepted, because that row is genuinely live there (Sandbox pins the match at it).
 			{ DefconEscalationInfo.StartOptionId, SectionEscalation },
 			{ DefconEscalationInfo.NoRushOptionId, SectionEscalation },
 			{ DefconEscalationInfo.FirstWarheadsOptionId, SectionEscalation },
@@ -408,6 +419,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		static string GetCategory(LobbyOption option)
 		{
 			return CommonOptionIds.Contains(option.Id) ? CategoryCommon : CategoryAdvanced;
+		}
+
+		/// <summary>How many options this file maps to <paramref name="section"/>.</summary>
+		/// <remarks>
+		/// <para>Exists for LobbyTimelineChromeTest's above-the-fold budget, which hand-counted the
+		/// Escalation section at four and then did not notice becoming six -- so it budgeted one
+		/// dropdown row for two and would have passed while a host really did have to scroll. A
+		/// layout budget has to read the same table the renderer reads, or it is a stale comment
+		/// with an Assert attached.</para>
+		/// <para>THIS COUNTS THE MAP, NOT WHAT DRAWS, and the two agree only for Match and
+		/// Escalation: every option in both is trait-visible, and the mode filter empties Escalation
+		/// wholesale rather than partly. Arsenal's count includes rows hidden at the trait
+		/// (`nuclear-arsenal`) and by id (`powers-enabled`), so it is NOT a row count for that
+		/// section.</para>
+		/// </remarks>
+		public static int SectionOptionCount(string section)
+		{
+			return OptionSection.Count(kv => kv.Value == section);
 		}
 
 		static string GetSection(LobbyOption option)

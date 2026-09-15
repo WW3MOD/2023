@@ -5270,3 +5270,42 @@ above and re-lint each. Budget a GREEN+RED run of `test-tacnuke-delivers` and `d
 because the sandbox reachability of both weapons is the property being changed.
 
 (found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)
+
+## 2026-09-15 — The lobby's 1440x900 fold has been broken since the exchange added two dropdowns, and the test that guards it passed the whole time because its row count was a literal
+
+**THE OPTION GRID DOES NOT FIT AT 1440x900 AND HAS NOT FOR SOME TIME.** Measured, not derived: the
+grid starts at Y 336 (`Container@LOBBY_OPTIONS`, `Y: (WINDOW_HEIGHT - 196) / 4 + 160`) inside a
+580px viewport (`ScrollPanel@COMMON_OPTIONS_PANEL`, `Height: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25
+- 12`). Match needs 128 (header 36 + dropdown row 54 + checkbox row 38) and Escalation needs 144
+(header 36 + **two** dropdown rows) — 608 against 580, **over by 28px**. 1080 (653/731) and 1200
+(683/832) fit.
+
+**THE GUARD FAILED OPEN, WHICH IS THE ONLY DIRECTION THAT MATTERS HERE.**
+`LobbyTimelineChromeTest.TheMatchAndEscalationRowsFitAboveTheFold` budgeted
+`escalation = header + dropdownRow` — ONE row — from a comment reading "four, which is exactly the
+grid's column count". Its next sentence promised that "if a fifth Escalation option is ever added it
+becomes two rows and this test is what says the budget no longer holds", and then `nuclear-posture`
+(DisplayOrder 24) and `nuclear-retaliation-window` (25) were added and **nothing fired**, because
+the four was a literal in the test file rather than a reading of `LobbyOptionsLogic.OptionSection`.
+An understated layout budget passes while the host really does have to scroll — so the fixture
+reported success for exactly the regression it was written to catch.
+
+**NOT CAUSED BY `wt/lobby-cleanup`, AND THE MOVE IS ROW-NEUTRAL.** Before: Match 2 dropdowns +
+1 checkbox = 2 rows, Escalation 6 dropdowns = 2 rows. After moving Game mode into Match: Match 3
+dropdowns + 1 checkbox = 2 rows, Escalation 5 dropdowns = 2 rows. Both total 272px. Moving one
+dropdown from a six-run to a three-run changes neither ceiling.
+
+**FIXED: THE BUDGET, NOT THE FOLD.** The test now derives both counts from
+`LobbyOptionsLogic.SectionOptionCount`, so it cannot go stale again; the `[TestCase(900)]` is
+excluded behind a comment naming the two changes that close the overflow (Game mode into Match —
+done; `wt/exchange-v2` deleting the Retaliation window — in progress) and the exact one-line
+restoration. **Whoever merges second re-enables it.** At four Escalation dropdowns the section is
+one row again and 900 fits with 26px to spare.
+
+**WHAT IS NOT FIXED:** the fold itself, today. Until `wt/exchange-v2` lands, a host on a 1440x900
+window must scroll to reach the bottom of the Escalation section. Closing it any sooner means
+shrinking the map preview slot, which is a visible change at every window size including the
+2560x1440 the lobby was just captured and signed off at — user-ruled 2026-09-15 as not worth
+buying permanently for an overflow that self-closes.
+
+(found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)
