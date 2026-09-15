@@ -124,22 +124,34 @@ anything. **[V]**
 
 ---
 
-## 4. `Cargo.Neutral` is dead config that describes a real behaviour
+## 4. ~~`Cargo.Neutral` is dead config~~ — WRONG, corrected 2026-09-15
 
-`CargoInfo.Neutral` is declared at `Cargo.cs:29-30` and **read nowhere in the engine** — no reference
-in `Cargo.cs`, the `Garrison` traits, `Passenger`, or anywhere else. **[V]** Its `[Desc]` nonetheless
-promised *"Should this actor turn nutral when not loaded? For civilian buildings"* (sic), and all four
-garrisonable families set it: `civilian.yaml:59`, `structures-defenses.yaml:120`, `:224`, `:323`. **[V]**
+**This section originally claimed `CargoInfo.Neutral` is read nowhere in the engine. That is false,
+and commit `0139ae1b`, which rewrote its `[Desc]` to say "UNIMPLEMENTED", was wrong on the strength
+of it.** The error was a scoped grep: `Cargo.cs`, the `Garrison` folder and `Passenger.cs`, none of
+which is where the reader lives. A whole-engine grep finds it immediately.
 
-What makes it worth a commit rather than a shrug is that **the described behaviour genuinely exists**
-— delivered by `GarrisonManager.DynamicOwnership` through `CheckOwnershipAfterExit`
-(`GarrisonManager.cs:306-337`). A reader who wants a garrisoned building to stay owned when it empties
-will set `Neutral: false`, watch nothing happen, and have no way to discover why. The `[Desc]` now says
-it is unimplemented and names the trait that actually decides. Deleting the field and its four YAML
-setters is the better end state and is ranked at #9, not taken here — it is four YAML edits whose lint
-this branch is not permitted to run.
+**It is implemented at `UnloadCargo.cs:234-238`:** when the last passenger is unloaded through that
+activity and `Info.Neutral` is set, the actor is handed to the Neutral player via `ChangeOwnerSync`.
+**[V]** All four garrison families set it (`civilian.yaml:59`, `structures-defenses.yaml:119`, `:244`,
+`:364`), so it is live on every garrisonable building.
 
----
+The correction is worth more than the retraction, because it means **there are two independent
+revert-to-neutral implementations on the same actors**, and they do not agree:
+
+| | `UnloadCargo.cs:234-238` | `GarrisonManager.CheckOwnershipAfterExit` |
+|---|---|---|
+| Trigger | last **Cargo** passenger unloaded | any occupant exits or dies |
+| Counts port soldiers? | **No** — `PassengerCount` is the hold only, and a man at a firing port has left it | **Yes** — walks `PortStates` and `shelterPassengers` |
+| Ownership call | `ChangeOwnerSync(player, false)` | `ChangeOwnerInPlace(..., updateGeneration: false)` |
+| If no Neutral player exists | `players.First(...)` **throws** | guarded (`neutralPlayer == null` returns) |
+
+So emptying the shelter of a building whose firing ports are still manned can hand it to Neutral
+underneath the men still in it. Filed at `WORKSPACE/bugs/discovered.md`; not fixed here, because it
+lands on the same branch point as the ally-inheritance change in `c08b6d56` and wants one owner.
+
+**Deleting the field, which this audit ranked at #9, is withdrawn: it would be a behaviour change,
+not hygiene.**
 
 ## 5. The panel, audited against what `wt/garrison-panel` will make it show
 
@@ -279,7 +291,7 @@ Ordered by value-per-effort against release, per the user's standing instruction
 | 6 | **med** | **`V19.Husk` still carries a garrison stack it cannot support** (prior P1 #3, engine half fixed here) | Commit `5a9791bc` stops the throw, but a wreck should not be garrisonable at all. The YAML half is **not as cheap as it looks and that is the finding**: removing `Cargo` from the husk orphans every consumer of the `loaded` condition that `^CivBuilding` supplies — `Targetable@WhenGarrisoned` (`civilian.yaml:20-23`) and all seven `Vision@4`–`@10` bands from `^StandardVisionWhenLoaded` — each of which then becomes a condition consumed but never granted. Whoever takes it must remove those too and must run the YAML lint, which this branch may not. | S once lint is available |
 | 7 | **med** | **An empty `GTWR` or `HBOX` gives its owner no vision; an empty `PBOX` gives full vision** (§7) | `PBOX` never received `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded` when `GTWR` and `HBOX` did (`4eed77af`, 2023). Decide which is intended and make all three match. A guard tower that is blind until garrisoned is defensible as a design, but it should be a decision. | S |
 | 8 | **med** | **The panel shows at most 4 of up to 10 reserve occupants** (§5a) | Loop bound is 4 (`GarrisonPanelLogic.cs:78`) against `MaxWeight: 10`. The panel body already fills its 240-high container to y=216, so this needs the container resized as well as rows added — or, cheaper and arguably better, collapse the reserve list to one summary row (`[S] 7 in reserve, 2 pinned`) that cannot overflow at any capacity. | M for rows, S for the summary row |
-| 9 | **low** | **Delete `Cargo.Neutral` rather than documenting it** (§4) | Commit `0139ae1b` corrects the `[Desc]`; the field is still there to be set. Remove the field (`Cargo.cs:29-30`) and its four setters (`civilian.yaml:59`, `structures-defenses.yaml:120`, `:224`, `:323`). Provably inert — nothing reads it — but it is four YAML edits and wants one lint run. | S |
+| 9 | ~~low~~ | **WITHDRAWN — `Cargo.Neutral` is not dead.** It is read at `UnloadCargo.cs:234-238`. See §4 for what the mistake uncovered: two disagreeing revert-to-neutral paths on the same actors. The replacement item is reconciling those two, filed in `bugs/discovered.md`. | — |
 | 10 | **low** | **Port geometry is stated twice in YAML, one copy inert** (prior P3 #12) | `AttackGarrisoned.PortOffsets/PortYaws/PortCones` (`civilian.yaml:139-143` and the GTWR/PBOX/HBOX equivalents) is only a fallback for actors with no `GarrisonManager` (`AttackGarrisoned.cs:33-40`, `:180-181`), so it is dead on all 41. Two sources of truth for one geometry, in sync by luck. Delete the dead copy. | S |
 | 11 | **low** | **`^MT` / `^AT` `Targetable@HighPriority` also lacks `!parachute`** (§3) | The base `Targetable` is gated `!parachute && !garrisoned-at-port`; commit `22f409d6` added only the second conjunct, deliberately. A mortarman is still targetable through `Targetable@HighPriority` while parachuting, unlike every other infantry type. Same one-line shape, but it is an independent behavioural change and wants its own measurement. | S |
 | 12 | **low** | **`GarrisonPortOccupant.TargetableBy` omits the building facing that `IsTargetInPortArc` applies** (§8) | Inert today — no garrisonable actor has an `IFacing` trait — so this is a trap, not a bug. Extract one shared arc helper taking `(bodyYaw, portYaw, cone, targetYaw)` and call it from both sites. Cheap now, and the third instance of this exact duplication pattern in this subsystem. | S |

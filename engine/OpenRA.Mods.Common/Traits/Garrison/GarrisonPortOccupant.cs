@@ -110,17 +110,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true; // Attacker on top of building, allow targeting
 
-			var angleToViewer = delta.Yaw;
-
-			// Check if viewer is within port's Yaw ± Cone
-			var diff = (angleToViewer - port.Yaw).Angle;
-
-			// Normalize to [-512, 512) range (WAngle 1024 = full circle)
-			if (diff > 512)
-				diff -= 1024;
-
-			// Within cone = targetable, outside = hidden from this attacker
-			return diff >= -port.Cone.Angle && diff <= port.Cone.Angle;
+			// Shared with GarrisonManager.IsTargetInPortArc, which asks the mirrored question (who this
+			// port may shoot). This copy used to omit bodyYaw entirely, so a garrisonable actor with a
+			// facing would have been shootable from a different arc than it could fire into.
+			var bodyYaw = GarrisonBuilding.TraitOrDefault<IFacing>()?.Facing ?? WAngle.Zero;
+			return GarrisonArcMath.IsWithinArc(bodyYaw, port.Yaw, port.Cone, delta.Yaw);
 		}
 	}
 }

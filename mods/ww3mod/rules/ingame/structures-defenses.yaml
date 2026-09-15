@@ -75,7 +75,6 @@
 
 GTWR:
 	Inherits@Type: ^Defense
-	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGround
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	-CaptureManager:
@@ -123,6 +122,12 @@ GTWR:
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
+		# Re-stated here because Inherits@CargoPips used to supply it and no longer does. The inherit
+		# was deleted as a provable no-op -- WithCargoPipsDecoration early-outs on any actor that also
+		# has WithGarrisonDecoration (WithCargoPipsDecoration.cs:70, :97), which all four garrison
+		# families do -- but it also carried this key, which is NOT a no-op. LoadedCondition needed no
+		# rescue: every one of the four already declared its own.
+		NoUnloadNotification: BuildingCannotPlaceAudio
 		EjectOnDeath: True
 		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
 		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
@@ -182,14 +187,15 @@ GTWR:
 		# skips the relationship gate entirely and already saw these.
 		ValidRelationships: Ally, Enemy, Neutral
 	AttackGarrisoned:
-		PortOffsets: 0,-600,384, 600,0,384, 0,600,384, -600,0,384
-		PortYaws: 0, 768, 512, 256
-		PortCones: 200, 200, 200, 200
+		# PortOffsets / PortYaws / PortCones deleted: they are a FALLBACK for actors with no
+		# GarrisonManager (AttackGarrisoned.cs:33-40, and RulesetLoaded only validates them when
+		# !hasGarrisonManager, :53-60). All four garrison families have one, so this was a second,
+		# silently ignored statement of the same port geometry -- in sync with GarrisonManager.Ports
+		# by luck, and the copy a reader would edit expecting it to do something.
 		MuzzlePalette: effect
 
 PBOX:
 	Inherits@Type: ^Defense
-	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
 	-CaptureManager:
 	-Capturable@neutral:
@@ -241,6 +247,12 @@ PBOX:
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
+		# Re-stated here because Inherits@CargoPips used to supply it and no longer does. The inherit
+		# was deleted as a provable no-op -- WithCargoPipsDecoration early-outs on any actor that also
+		# has WithGarrisonDecoration (WithCargoPipsDecoration.cs:70, :97), which all four garrison
+		# families do -- but it also carried this key, which is NOT a no-op. LoadedCondition needed no
+		# rescue: every one of the four already declared its own.
+		NoUnloadNotification: BuildingCannotPlaceAudio
 		EjectOnDeath: True
 		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
 		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
@@ -290,14 +302,15 @@ PBOX:
 		# skips the relationship gate entirely and already saw these.
 		ValidRelationships: Ally, Enemy, Neutral
 	AttackGarrisoned:
-		PortOffsets: 300,0,256, -300,0,256
-		PortYaws: 768, 256
-		PortCones: 300, 300
+		# PortOffsets / PortYaws / PortCones deleted: they are a FALLBACK for actors with no
+		# GarrisonManager (AttackGarrisoned.cs:33-40, and RulesetLoaded only validates them when
+		# !hasGarrisonManager, :53-60). All four garrison families have one, so this was a second,
+		# silently ignored statement of the same port geometry -- in sync with GarrisonManager.Ports
+		# by luck, and the copy a reader would edit expecting it to do something.
 		MuzzlePalette: effect
 
 HBOX:
 	Inherits@Type: ^Defense
-	Inherits@CargoPips: ^CargoPips
 	Inherits@AutoTarget: ^AutoTargetGroundAntiInfDefense
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded
 	-CaptureManager:
@@ -354,6 +367,12 @@ HBOX:
 		BeforeUnloadDelay: 0
 		AfterUnloadDelay: 0
 		LoadedCondition: loaded
+		# Re-stated here because Inherits@CargoPips used to supply it and no longer does. The inherit
+		# was deleted as a provable no-op -- WithCargoPipsDecoration early-outs on any actor that also
+		# has WithGarrisonDecoration (WithCargoPipsDecoration.cs:70, :97), which all four garrison
+		# families do -- but it also carried this key, which is NOT a no-op. LoadedCondition needed no
+		# rescue: every one of the four already declared its own.
+		NoUnloadNotification: BuildingCannotPlaceAudio
 		EjectOnDeath: True
 		# Dead means OFF. See ^CivBuilding (civilian.yaml) for the reasoning and the user ruling of
 		# 2026-09-02. Stated here rather than inherited because this actor descends from ^Defense,
@@ -400,9 +419,11 @@ HBOX:
 		# skips the relationship gate entirely and already saw these.
 		ValidRelationships: Ally, Enemy, Neutral
 	AttackGarrisoned:
-		PortOffsets: 280,0,200, -280,0,200
-		PortYaws: 768, 256
-		PortCones: 300, 300
+		# PortOffsets / PortYaws / PortCones deleted: they are a FALLBACK for actors with no
+		# GarrisonManager (AttackGarrisoned.cs:33-40, and RulesetLoaded only validates them when
+		# !hasGarrisonManager, :53-60). All four garrison families have one, so this was a second,
+		# silently ignored statement of the same port geometry -- in sync with GarrisonManager.Ports
+		# by luck, and the copy a reader would edit expecting it to do something.
 		MuzzlePalette: effect
 
 SBAG:

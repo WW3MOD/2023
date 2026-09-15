@@ -5438,7 +5438,13 @@ never appears at all. Adding rows also needs the container resized: the body alr
 inside a 240-high container (`:1011-1014`). A single summary row (`[S] 7 in reserve, 2 pinned`) would
 be cheaper and cannot overflow at any capacity.
 
-## 2026-09-15: [low, FIXED] `CargoInfo.Neutral` is dead config whose `[Desc]` describes a behaviour that really exists elsewhere (found while: civ-garrison audit, `wt/civ-garrison`)
+## 2026-09-15: [RETRACTED — the claim below is FALSE] `CargoInfo.Neutral` is dead config (found while: civ-garrison audit, `wt/civ-garrison`)
+
+**RETRACTED THE SAME DAY.** `CargoInfo.Neutral` IS read, at `UnloadCargo.cs:234-238`. The grep behind
+this entry covered `Cargo.cs`, the `Garrison` folder and `Passenger.cs` and never looked at the
+activity that consumes it. The `[Desc]` rewritten by `0139ae1b` was corrected in the hygiene commit,
+and the real finding this exposed is filed as a separate entry below. Everything from here to the end
+of this entry is wrong and is kept only so the retraction has something to point at.
 
 `Cargo.cs:29-30` declares `public readonly bool Neutral` and **nothing in the engine reads it** — no
 reference in `Cargo.cs`, the `Garrison` traits, `Passenger`, or anywhere else. All four garrisonable
@@ -5453,3 +5459,31 @@ owned when it empties will set `Neutral: false`, see no change, and have no way 
 unimplemented and names the trait that actually decides. Deleting the field and its four YAML setters
 is the better end state and is ranked as item #9 in the audit — not taken there because it is four YAML
 edits and that branch was barred from running the YAML lint.
+
+## 2026-09-15: [med] Two independent revert-to-neutral paths on every garrison building, and they disagree about port soldiers (found while: civ-garrison hygiene, `wt/civ-garrison`)
+
+Found by being wrong about the entry above: chasing down what `CargoInfo.Neutral` actually does
+turned up a second implementation of the behaviour `GarrisonManager` already provides.
+
+| | `UnloadCargo.cs:234-238` (`Cargo.Neutral`) | `GarrisonManager.CheckOwnershipAfterExit` (`DynamicOwnership`) |
+|---|---|---|
+| Fires when | the last **Cargo** passenger is unloaded through that activity | any occupant exits or dies |
+| Counts port soldiers | **NO** — `cargo.PassengerCount == 0` is the hold only, and `DeployToPort` removes a man from it | **YES** — walks `PortStates` then `shelterPassengers` |
+| Call | `self.ChangeOwnerSync(player, false)` | `ChangeOwnerInPlace(neutralPlayer, updateGeneration: false)` |
+| Missing Neutral player | `players.First(pl => pl.PlayerName == "Neutral")` **throws** | guarded — returns early when `neutralPlayer == null` |
+
+All four garrison families set `Cargo: Neutral: true` (`civilian.yaml:59`,
+`structures-defenses.yaml:119`, `:244`, `:364`) **and** carry `GarrisonManager` with
+`DynamicOwnership` defaulting true, so both paths are live on all 41 garrisonable actors.
+
+**The consequence to test:** unload the shelter of a building whose firing ports are still manned by
+the owner or an ally. `PassengerCount` is then 0 while men are still deployed in-world, so the
+`UnloadCargo` path hands the building to Neutral underneath them — a state
+`CheckOwnershipAfterExit` is specifically written to avoid, and one that would then also strip the
+owner's vision (every `Vision@` band on these actors is gated on `loaded`).
+
+**NOT FIXED, deliberately.** It lands on the same lines as the ally-inheritance change in
+`c08b6d56` and on the `Cargo` path a second worker is currently in; reconciling the two reverts
+wants one owner and one decision about which is authoritative. The cheap shape is for the
+`UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
+hold itself.

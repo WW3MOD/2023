@@ -64,6 +64,12 @@
 		AfterUnloadDelay: 0
 		LoadingCondition: notmobile
 		LoadedCondition: loaded
+		# Re-stated here because Inherits@CargoPips used to supply it and no longer does. The inherit
+		# was deleted as a provable no-op -- WithCargoPipsDecoration early-outs on any actor that also
+		# has WithGarrisonDecoration (WithCargoPipsDecoration.cs:70, :97), which all four garrison
+		# families do -- but it also carried this key, which is NOT a no-op. LoadedCondition needed no
+		# rescue: every one of the four already declared its own.
+		NoUnloadNotification: BuildingCannotPlaceAudio
 		EjectOnDeath: True
 		# Dead means OFF (Cargo.cs ShouldEmergencyBail returns false at this threshold for every
 		# damage state). Men CAN keep sheltering in a wreck; it just gets progressively lethal, and
@@ -74,7 +80,6 @@
 		# buildings. Vehicles deliberately keep it. Repeated verbatim on GTWR/PBOX/HBOX
 		# (structures-defenses.yaml) because those inherit ^Defense, NOT this template.
 		EmergencyBailDamageState: Dead
-	Inherits@CargoPips: ^CargoPips
 	GarrisonManager:
 		Ports:
 			northeast1:
@@ -151,9 +156,11 @@
 		# skips the relationship gate entirely and already saw these.
 		ValidRelationships: Ally, Enemy, Neutral
 	AttackGarrisoned:
-		PortOffsets: 80,-280,200, 280,-80,200, 280,80,200, 80,280,200, -80,280,200, -280,80,200, -280,-80,200, -80,-280,200
-		PortYaws: 896, 896, 640, 640, 384, 384, 128, 128
-		PortCones: 140, 140, 140, 140, 140, 140, 140, 140
+		# PortOffsets / PortYaws / PortCones deleted: they are a FALLBACK for actors with no
+		# GarrisonManager (AttackGarrisoned.cs:33-40, and RulesetLoaded only validates them when
+		# !hasGarrisonManager, :53-60). All four garrison families have one, so this was a second,
+		# silently ignored statement of the same port geometry -- in sync with GarrisonManager.Ports
+		# by luck, and the copy a reader would edit expecting it to do something.
 		MuzzlePalette: effect
 ^DesertCivBuilding:
 	Inherits: ^CivBuilding
@@ -457,6 +464,33 @@ V19:
 		TargetTypes: NoAutoTarget, Ground, C4, DetonateAttack, Structure
 V19.Husk:
 	Inherits: ^CivBuilding
+	# A WRECK IS NOT A GARRISON. This husk inherits ^CivBuilding for its sprite and footprint and
+	# then strips Health (below), which used to make it UNCONSTRUCTIBLE: GarrisonProtection.Created
+	# called self.Trait<IHealth>() and threw. Commit 5a9791bc made that lookup null-safe, so the
+	# actor loads; this removes the stack that had no business being on it in the first place.
+	#
+	# THE `loaded` CONDITION IS WHY THIS BLOCK IS LONG. Cargo.LoadedCondition is what GRANTS it
+	# (civilian.yaml, ^CivBuilding), and removing Cargo therefore orphans every consumer on this
+	# actor. CheckConditions.cs:73-75 emits an ERROR -- not a warning -- for a condition consumed
+	# and not granted, so each one has to go with it: Targetable@WhenGarrisoned, and all ten Vision
+	# bands, which ^StandardVisionWhenLoaded gates on `loaded` (defaults.yaml:158-177). The base
+	# Targetable, which consumes `!loaded`, is already removed further down.
+	-Cargo:
+	-GarrisonManager:
+	-GarrisonProtection:
+	-WithGarrisonDecoration:
+	-AttackGarrisoned:
+	-Targetable@WhenGarrisoned:
+	-Vision@1:
+	-Vision@2:
+	-Vision@3:
+	-Vision@4:
+	-Vision@5:
+	-Vision@6:
+	-Vision@7:
+	-Vision@8:
+	-Vision@9:
+	-Vision@10:
 	-Selectable:
 	-Targetable:
 	-Demolishable:

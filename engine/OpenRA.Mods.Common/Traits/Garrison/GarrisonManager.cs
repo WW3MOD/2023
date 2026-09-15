@@ -1185,14 +1185,11 @@ namespace OpenRA.Mods.Common.Traits
 			if (delta.HorizontalLengthSquared == 0)
 				return true;
 
-			var targetYaw = delta.Yaw;
-
+			// Shared with GarrisonPortOccupant.TargetableBy, which asks the mirrored question (who may
+			// shoot the man at this port). The two used to be separate hand-written copies that
+			// disagreed about whether the building's facing counts -- see GarrisonArcMath's header.
 			var bodyYaw = self.TraitOrDefault<IFacing>()?.Facing ?? WAngle.Zero;
-			var portYaw = bodyYaw + port.Yaw;
-
-			var leftTurn = (portYaw - targetYaw).Angle;
-			var rightTurn = (targetYaw - portYaw).Angle;
-			return Math.Min(leftTurn, rightTurn) <= port.Cone.Angle;
+			return GarrisonArcMath.IsWithinArc(bodyYaw, port.Yaw, port.Cone, delta.Yaw);
 		}
 
 		// Called by AttackGarrisoned when player issues force-attack
