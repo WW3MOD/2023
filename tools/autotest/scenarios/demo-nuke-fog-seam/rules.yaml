@@ -10,11 +10,14 @@ World:
 	# ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`. Without this block the power
 	# is not Permitted, so it is absent from the buy tab and the purchase is refused.
 	#
-	# THE POWER'S OWN LOBBY GATE IS STILL UNTOUCHED, which is what the note here used to protect:
-	# HighYieldNukeCheckboxEnabled is left at its C# default of ON, so this still fires the power in
-	# its shipped configuration and only the FACTION lock is suspended. If that default is ever
-	# flipped off, add `HighYieldNukeCheckboxEnabled: true` to the block below; the symptom will be
-	# an empty support-power bin and a strike that never launches.
+	# THE POWER NO LONGER HAS A LOBBY GATE OF ITS OWN, which is what the note here used to protect.
+	# `high-yield-nuke` was RETIRED on 2026-09-15: it gated this one power and nothing else, and
+	# since the power is EVENT TIER (`Prerequisites: powers.event`, a tier no faction provides) the
+	# checkbox only ever decided anything inside the very sandbox this block turns on. What is left
+	# gating the strike is `RequiresCondition: nuclear-release-gameender` plus that tier -- and
+	# outside Escalation every band is granted on the first tick, so in this demo the sandbox
+	# switch below is the whole unlock. If the strike ever fails to launch here, the symptom is an
+	# empty support-power bin and the cause is the tier or the purse, not a gate to re-tick.
 	PowersLobbyOptions:
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true

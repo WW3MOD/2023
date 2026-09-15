@@ -3,9 +3,11 @@
 # than the opposite one; only the notes that DIFFER are restated here.
 #
 # THE BIG DIFFERENCE, AND IT IS AN ABSENCE: there is no lobby override in this file. The sibling
-# scenario has to force TacticalNukeCheckboxEnabled AND PowersSandboxCheckboxEnabled, because the
-# tac nuke is lobby-gated and sits on `powers.event`, a tier NO faction provides. The Kinzhal is
-# neither: it carries no RequiresCondition at all (player.yaml:239-260) and its tier `powers.russia`
+# scenario has to force PowersSandboxCheckboxEnabled, because the tac nuke sits on `powers.event`, a
+# tier NO faction provides. (It used to have to force TacticalNukeCheckboxEnabled as well; that
+# checkbox was retired on 2026-09-15, leaving the tier as the only thing the sibling must unlock.)
+# The Kinzhal needs neither: it carries no RequiresCondition at all (player.yaml:239-260) and its
+# tier `powers.russia`
 # is provided by FACTION (ProvidesPrerequisite@PowersRussia, player.yaml:160-162). The Russia player
 # is LockFaction russia in map.yaml, so the power is Permitted with nothing to unlock. If this run
 # ever reports the order 'refused', read that sentence again before adding checkboxes — the fault

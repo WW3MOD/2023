@@ -56,15 +56,34 @@ local RU_ENDER   = "SarmatStrike"       -- 750000 t  band 5  GameEnder, powers.e
 -- `powers.event` with NO `player.*` beside it (player.yaml:842), so it names no owner and neither
 -- arming path may hand it over. Asserted `hidden` in phases A, F and H.
 --
--- ITS LOBBY CHECKBOX IS ON AND LOCKED IN rules.yaml, WHICH IS WHAT MAKES THAT ASSERTION EVIDENCE.
--- With HighYieldNukeCheckboxEnabled false its RequiresCondition would be unsatisfied and `hidden`
--- would be true for a reason that has nothing to do with attribution. Do not "tidy" that pin away.
+-- IT USED TO NEED A LOBBY CHECKBOX PINNED ON AND LOCKED IN rules.yaml TO MAKE PHASES F AND H
+-- EVIDENCE: with `high-yield-nuke` off, this power's RequiresCondition was unsatisfied and `hidden`
+-- was true for a reason that had nothing to do with attribution. THAT CHECKBOX WAS RETIRED ON
+-- 2026-09-15 and the pin went with it, which STRENGTHENS those two rather than weakening them --
+-- the gate it used to hold open is now permanently open, so at an OPEN END LEVEL this power's
+-- RequiresCondition (`nuclear-release-gameender`, now its only one) is SATISFIED when the assertion
+-- is read, and `hidden` can only be attribution.
+--
+-- PHASE A IS AND ALWAYS WAS THE WEAKER OF THE THREE, and the checkbox never changed that. It reads
+-- at RELEASE, which is level 1 for everybody, so the game-ender band is not granted and `hidden` is
+-- true there for the band alone. That is deliberate -- phase A is the BASELINE the other two are
+-- measured against, not a second attribution reading.
 local UNOWNED_ENDER = "HighYieldNukeStrike" -- 6000000 t band 5 GameEnder, powers.event only
 
--- NEGATIVE CONTROL, and the only band-2 power in the mod on the event tier (player.yaml:711). The
--- host checkbox that gates it is OFF at shipped default and rules.yaml locks it there, so it must
--- stay dark at a level 2 that lights RuIskander beside it. A fix that forced readiness
--- without re-checking the power's own RequiresCondition would light this up.
+-- NEGATIVE CONTROL, and the only band-2 power in the mod on the event tier (player.yaml:711). It
+-- must stay dark at a level 2 that lights RuIskander beside it.
+--
+-- WHAT HOLDS IT DARK CHANGED ON 2026-09-15 AND THE CHANGE IS WORTH READING BEFORE TRUSTING THIS
+-- LINE. It used to be the `tactical-nuke` host checkbox, OFF at shipped default and locked there by
+-- rules.yaml, so the control caught "a fix that forced readiness without re-checking the power's
+-- own RequiresCondition". That checkbox is retired; this power's RequiresCondition is now
+-- `nuclear-release-20kt` alone and IS satisfied at level 2. What refuses it instead is the EVENT
+-- TIER: NuclearExchange arms a band on SupportPowerInstance.Permitted, which ANDs prereqsAvailable,
+-- and NuclearExchangeInfo.OverriddenPrerequisites is read ONLY on the GameEnder rung
+-- (NuclearExchange.ArmableAtTopRung) -- this is band 2, so `powers.event` is never waived for it and
+-- rules.yaml keeps sandbox off. THE CONTROL STILL BINDS, ON A DIFFERENT AND NARROWER CLAIM: it now
+-- catches a fix that widened the prerequisite override below the top rung, and no longer catches one
+-- that skipped the power's own condition. If you need the old claim back it needs a different power.
 local TACNUKE    = "TacNukeStrike"       -- 20000 t  band 2  TwentyKiloton, powers.event only
 
 -- Empty ground, far from both Supply Routes. See map.yaml.
@@ -218,9 +237,12 @@ WorldLoaded = function()
 			ok = expect(Russia, "Russia", RU_ENDER, "hidden",
 				"same rule, Russia's side of it") and ok
 			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
-				"the 6 Mt strategic strike is band 5 like the other two and must be dark at release"
-				.. " despite its lobby checkbox being ON (its shipped default, pinned in rules.yaml)."
-				.. " Phases F and H assert it is STILL dark at an open END level; this is the"
+				"the 6 Mt strategic strike is band 5 like the other two and must be dark at release."
+				.. " This reading is the BAND alone -- its `nuclear-release-gameender` condition is"
+				.. " unsatisfied at level 1, and since the `high-yield-nuke` checkbox was retired"
+				.. " (2026-09-15) that condition is the only gate it has besides attribution."
+				.. " Phases F and H assert it is STILL dark at an OPEN END level, where the"
+				.. " condition IS satisfied and only attribution can explain it; this is the"
 				.. " baseline those two are measured against") and ok
 
 			note(ok, "baseline ok at t%d", tick)
@@ -244,16 +266,18 @@ WorldLoaded = function()
 			local ok = expect(Russia, "Russia", RU_20KT, "ready",
 				"being hit by 1 kt must raise Russia one band up, ready immediately -- Russia did"
 				.. " not fire, so Russia is on no cooldown")
-			-- THE CONTROL. TacNuke is also band 2 and also `powers.event`, but its host checkbox is
-			-- OFF at shipped default -- so its RequiresCondition is unsatisfied and no grant path
-			-- may reach it. This is what a fix that forced readiness without re-checking the
-			-- power's own condition would break, and it is the reason the override below is scoped
-			-- to the top rung rather than applied to every band.
+			-- THE CONTROL. TacNuke is also band 2 and also `powers.event`. Its RequiresCondition IS
+			-- satisfied here -- see the long note at TACNUKE above, which this used to read the
+			-- other way round -- so what must refuse it is the EVENT TIER, and that is exactly the
+			-- reason the prerequisite override is scoped to the top rung rather than applied to
+			-- every band.
 			ok = expect(Russia, "Russia", TACNUKE, "hidden",
-				"THE 20 KT LEVEL LEAKED INTO A POWER THE HOST SWITCHED OFF. TacNukeStrike is gated"
-				.. " on `!tacnuke-disabled && nuclear-release-20kt` and the first conjunct is false"
-				.. " here (TacticalNukeCheckboxEnabled is false and locked in rules.yaml), so no"
-				.. " band grant may make it readable") and ok
+				"THE 20 KT LEVEL LEAKED INTO AN EVENT-TIER POWER NOBODY MAY BUY OR BE HANDED."
+				.. " TacNukeStrike is gated on `nuclear-release-20kt` (satisfied here) AND on"
+				.. " `Prerequisites: powers.event`, which no faction provides and which sandbox is"
+				.. " locked OFF for in rules.yaml. NuclearExchangeInfo.OverriddenPrerequisites"
+				.. " waives that tier on the GameEnder rung ONLY (ArmableAtTopRung); if this went"
+				.. " ready, the override reached a band below the top") and ok
 
 			note(ok, "level-2 ok at t%d", tick)
 			Trigger.AfterDelay(1, step)
@@ -337,9 +361,11 @@ WorldLoaded = function()
 				.. " this reading and undoes c8cadc8a") and ok
 
 			-- NATIONAL ENDER ONLY -- USER RULING, 2026-09-14. Exactly one END cameo per side. The
-			-- 6 Mt strategic strike is band 5 and inside the yield ceiling, its lobby checkbox is ON
-			-- and locked, and its RequiresCondition IS satisfied here -- every gate but one is open,
-			-- and the one that is shut is attribution: `powers.event` and no `player.*` beside it
+			-- 6 Mt strategic strike is band 5 and inside the yield ceiling, and its RequiresCondition
+			-- IS satisfied here -- every gate but one is open, and since `high-yield-nuke` was
+			-- retired (2026-09-15) that is now true unconditionally rather than because rules.yaml
+			-- pinned a checkbox ON. The one gate that is shut is attribution: `powers.event` and no
+			-- `player.*` beside it
 			-- (player.yaml:842), so it names no owner and NuclearGameEnders.ArmableBy refuses it.
 			--
 			-- THIS IS THE ASSERTION THAT WOULD CATCH THE RULING BEING UNDONE BY A TIDY-UP. The
@@ -352,8 +378,9 @@ WorldLoaded = function()
 				.. " (`Prerequisites: powers.event` alone, player.yaml:842) and the ruling is one"
 				.. " national ender per side -- B83 for USA, Sarmat for Russia. `ready` here means"
 				.. " NuclearGameEnders.ArmableBy treated an empty owner list as 'everybody owns it'"
-				.. " rather than 'nobody does'. Its lobby checkbox is ON and locked in rules.yaml,"
-				.. " so this reading is about attribution and not about the condition") and ok
+				.. " rather than 'nobody does'. Its RequiresCondition is satisfied at this level and"
+				.. " it has no lobby gate left (`high-yield-nuke` retired 2026-09-15), so this"
+				.. " reading is about attribution and not about the condition") and ok
 
 			-- Needed by L5 below, and worth its own message so a failure names the rung.
 			ok = expect(USA, "USA", USA_100KT, "ready",

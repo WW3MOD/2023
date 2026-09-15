@@ -62,12 +62,13 @@
  *
  * WHAT THE OLD PARAGRAPH WAS RIGHT ABOUT, AND WHAT KEEPS IT SATISFIED. Its warning was concrete: a
  * restrictive default here "would have switched off six weapons in demo-nuke-arsenal and reported it
- * as nothing more than a scenario that stopped firing." Nine scenarios under tools/autotest/scenarios
+ * as nothing more than a scenario that stopped firing." Eight scenarios under tools/autotest/scenarios
  * fire nuclear powers and all of them fire inside the first three minutes, so that hazard is real and
- * unchanged. It is answered rather than accepted: EIGHT of the nine set
- * PowersSandboxCheckboxEnabled: true, and Sandbox suspends the clock, so they are exempt with no edit
- * to any of them. The ninth (test-tacnuke-lobby-gated-off) never needed an exemption -- its positive
- * control is the Kinzhal, which is conventional and carries no NuclearYieldTons, so no band gates it.
+ * unchanged. It is answered rather than accepted: ALL EIGHT set PowersSandboxCheckboxEnabled: true,
+ * and Sandbox suspends the clock, so they are exempt with no edit to any of them. (This read NINE
+ * until 2026-09-15. The ninth, test-tacnuke-lobby-gated-off, was exempt for an unrelated reason --
+ * its positive control was the conventional Kinzhal -- and was deleted with the `tactical-nuke`
+ * lobby option it existed to measure.)
  * A future scenario that fires a nuke WITHOUT sandbox is the case to watch: it must set the interval
  * to 0 or it will go quiet exactly as that warning describes.
  *

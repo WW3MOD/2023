@@ -91,9 +91,10 @@ local function step()
 			-- 'not-ready:0' here would mean the purchase banked and something un-banked it;
 			-- EnsurePower above reports the ordinary empty-magazine case on its own.
 			--
-			-- The power's OWN lobby gate is untouched by this scenario: HighYieldNukeCheckboxEnabled
-			-- keeps its shipped default of ON, so a closed gate still means the shipped default
-			-- moved rather than that an override failed.
+			-- The power has NO lobby gate of its own any more -- `high-yield-nuke` was retired on
+			-- 2026-09-15 -- so a refusal here can no longer be a checkbox that moved. What is left
+			-- is the event tier (the sandbox switch in rules.yaml) and the release band, and
+			-- outside Escalation every band is granted on the first tick.
 			local result = Test.ActivateSupportPower(USA, PowerKey,
 				CPos.New(GroundZero.X, GroundZero.Y))
 			if result ~= "issued" then
