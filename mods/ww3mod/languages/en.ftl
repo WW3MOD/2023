@@ -764,11 +764,17 @@ notification-defcon-one = DEFCON 1. A life has been taken; your units will now e
 ## match stops being conventional.
 notification-nuclear-release = NUCLEAR RELEASE. 1 kt is available to both sides.
 
-## Shown on YOUR screen when YOUR launch armed the other side. Quiet on purpose -- no banner and no
-## sound: you chose to fire, so the event is not a surprise. What you do not know is the size of the
-## reply it just bought them.
-notification-nuclear-enemy-armed = Enemy armed: { $yield } for { $time }.
+## Shown on YOUR screen when the enemy's launch raised YOUR level. Doubles the four-second ESCALATED
+## banner, deliberately: the banner is gone before a player looking elsewhere on the map can read it,
+## and the transients panel keeps its lines.
+notification-nuclear-escalated = Escalated: { $yield } now available.
 
-## Shown when a retaliation grant you never used runs out. The ledger box going dark needs a reason
-## attached to it or it reads as a bug.
-notification-nuclear-grant-expired = { $yield } grant expired.
+## Shown on YOUR screen when YOUR launch raised the other side's level. Quiet on purpose -- no banner
+## and no sound: you chose to fire, so the event is not a surprise. What you do not know is the size
+## of the weapon it just handed them, and under the level ratchet they keep it for the rest of the
+## match rather than for a minute.
+notification-nuclear-enemy-armed = Enemy escalated: { $yield } now available to them.
+
+## Shown when your side's cooldown ends and your whole arsenal comes back. No $yield: a cooldown is
+## side-wide, so what returned is every band your level allows rather than any one of them.
+notification-nuclear-cooldown-ended = Nuclear cooldown ended.
