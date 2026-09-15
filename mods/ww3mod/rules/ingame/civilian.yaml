@@ -136,6 +136,20 @@
 	WithGarrisonDecoration:
 		RequiresSelection: false
 		Position: Bottom
+		# THE ENEMY MUST SEE THIS. WithDecorationBaseInfo.ValidRelationships defaults to Ally
+		# (WithDecorationBase.cs:107-108), and garrisoning TRANSFERS ownership to the entering
+		# player (GarrisonManager.cs:263-267) -- so the opponent always evaluated to Enemy and
+		# ShouldRender suppressed every pip (:165-170). The occupancy readout was built, correct,
+		# and shown only to the player who already knew how many men were in his own building.
+		#
+		# Fog is untouched and still decides this: ShouldRender tests World.FogObscures(self)
+		# BEFORE the relationship gate (:138-140), and WithGarrisonDecoration overrides only
+		# Created and RenderDecoration -- never ShouldRender -- so an enemy sees occupancy exactly
+		# when he can see the building, and a remembered building under fog shows nothing.
+		#
+		# Neutral is included for the third-party observer case; a spectator with no RenderPlayer
+		# skips the relationship gate entirely and already saw these.
+		ValidRelationships: Ally, Enemy, Neutral
 	AttackGarrisoned:
 		PortOffsets: 80,-280,200, 280,-80,200, 280,80,200, 80,280,200, -80,280,200, -280,80,200, -280,-80,200, -80,-280,200
 		PortYaws: 896, 896, 640, 640, 384, 384, 128, 128

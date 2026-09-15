@@ -11,7 +11,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
@@ -38,54 +37,11 @@ namespace OpenRA.Test
 	{
 		const string Off = "Dead";
 
-		static DirectoryInfo RulesDir()
-		{
-			var dir = new DirectoryInfo(AppContext.BaseDirectory);
-			for (var i = 0; i < 10 && dir != null; i++, dir = dir.Parent)
-			{
-				var candidate = new DirectoryInfo(Path.Combine(dir.FullName, "mods", "ww3mod", "rules"));
-				if (candidate.Exists)
-					return candidate;
-			}
-
-			throw new DirectoryNotFoundException("could not locate mods/ww3mod/rules");
-		}
-
-		/// <summary>Every top-level node across every rules file, as (file, node) pairs. Deliberately a
-		/// flat list rather than a name-keyed dictionary: a later file redefining an actor must stay
-		/// visible here, because that redefinition is exactly the kind of override this fixture exists
-		/// to catch.</summary>
-		static List<(string File, MiniYamlNode Node)> AllRuleNodes()
-		{
-			var nodes = new List<(string, MiniYamlNode)>();
-			foreach (var file in RulesDir().GetFiles("*.yaml", SearchOption.AllDirectories))
-				foreach (var node in MiniYaml.FromFile(file.FullName))
-					nodes.Add((file.Name, node));
-
-			Assert.That(nodes.Count, Is.GreaterThan(100),
-				$"only {nodes.Count} rule nodes parsed — this fixture is scanning nothing, not passing.");
-
-			return nodes;
-		}
-
-		static string Child(MiniYaml parent, string key)
-		{
-			return parent?.Nodes.FirstOrDefault(n => n.Key == key)?.Value.Value?.Trim();
-		}
-
-		static MiniYaml ChildNode(MiniYaml parent, string key)
-		{
-			return parent?.Nodes.FirstOrDefault(n => n.Key == key)?.Value;
-		}
-
-		/// <summary>The names a node inherits from, across the Inherits / Inherits@Suffix spellings.</summary>
-		static IEnumerable<string> Parents(MiniYamlNode node)
-		{
-			return node.Value.Nodes
-				.Where(n => n.Key == "Inherits" || n.Key.StartsWith("Inherits@", StringComparison.Ordinal))
-				.Select(n => n.Value.Value?.Trim())
-				.Where(v => !string.IsNullOrEmpty(v));
-		}
+		// Directory discovery, the flat node list, Child/ChildNode and the inheritance closure now
+		// live in ModRulesYaml so this fixture and GarrisonOccupancyVisibilityTest share one copy.
+		static List<(string File, MiniYamlNode Node)> AllRuleNodes() => ModRulesYaml.AllRuleNodes();
+		static string Child(MiniYaml parent, string key) => ModRulesYaml.Child(parent, key);
+		static MiniYaml ChildNode(MiniYaml parent, string key) => ModRulesYaml.ChildNode(parent, key);
 
 		[Test]
 		public void DeadIsATotalOffSwitchForEveryDamageState()
@@ -158,14 +114,7 @@ namespace OpenRA.Test
 			// wins over the template and silently re-arms the bail for that one actor.
 			var all = AllRuleNodes();
 
-			var roots = new HashSet<string> { "^CivBuilding" };
-			for (var grew = true; grew;)
-			{
-				grew = false;
-				foreach (var (_, node) in all)
-					if (!roots.Contains(node.Key) && Parents(node).Any(roots.Contains))
-						grew |= roots.Add(node.Key);
-			}
+			var roots = ModRulesYaml.DescendantsOf(all, "^CivBuilding");
 
 			// If inheritance ever stops reaching these actors, the count collapses and this fails
 			// LOUDLY, rather than the fixture below passing vacuously over an empty set.
