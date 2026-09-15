@@ -1198,7 +1198,21 @@ Player:
 		# drone can never actually reveal, and operators launch from the SR near a map edge, which is
 		# where that inflation is worst.
 		#
-		# ===== MEASURED ONCE, 2026-09-01 — AND THE SIZING QUESTION IS STILL OPEN =====
+		# ===== RE-MEASURED 2026-09-15 WITH A PAIRED CONTROL — THE SIZING QUESTION IS CLOSED =====
+		# The re-measurement this block asked for has happened, post-1e0226b9, with both arms run back
+		# to back and all four terms of the pre-registered formula captured:
+		#   treatment t200  cell=29,25 reveal=248 intel=0 bestintel=178 bestintelcell=39,51 bestintelreveal=14
+		#   control   t200  cell=29,25 reveal=248 bestintel=0 bestintelcell=none
+		# The control chose the SAME cell with no intel at all, which is what makes 29,25 provably the
+		# reveal argmax and so makes intel_at_reveal_argmax=0 a measurement rather than an assumption.
+		#   multiplier = (248 - 14) / (178 - 0) = 1.315x
+		# Pre-registered ruling at that value (CONTROL-ARM.md, written before the run): <=1.5x means the
+		# term is roughly right and the scenario is simply a hard case — CHANGE NOTHING. Do not raise
+		# this constant to make that scenario pass; >=326 is what would flip it, and CONTROL-ARM.md names
+		# that move tuning-to-pass. The paragraph below on this map being close to a worst case is why
+		# 1.315x is an UPPER bound on the general case and not a general shortfall.
+		#
+		# ===== SUPERSEDED: MEASURED ONCE, 2026-09-01 — THE SIZING QUESTION WAS OPEN =====
 		# LostTrackIntelSquares is no longer purely a reasoned estimate, but it is NOT calibrated,
 		# and the difference matters if you are here to change it.
 		# test-drone-lost-track, run 8, treatment arm:

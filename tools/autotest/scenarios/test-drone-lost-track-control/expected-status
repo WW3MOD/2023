@@ -33,6 +33,37 @@ for. It is NOT carried forward as a verdict: it predates 1e0226b9 (rectangular r
 query replaced by the vision disc, up to 228 squares of corner credit removed per candidate),
 so `reveal` moved under it and mindist=27 must be re-measured, not quoted.
 
+
+PAIRED LAUNCH LINES, BOTH ARMS, 2026-09-15 — THE FIRST TIME THE TWO ARMS HAVE BEEN RUN
+BACK TO BACK POST-1e0226b9 WITH ALL FOUR SIZING TERMS CAPTURED.
+
+  treatment  260915_152821_p59962_test-drone-lost-track          fail, both markers
+  control    260915_153322_p61098_test-drone-lost-track-control  fail, both markers,
+                                                                 records=0 intel=0 (override merged)
+
+  tick  TREATMENT                                                          CONTROL
+  200   cell=29,25 reveal=248 intel=0  bestintel=178 @39,51 bir=14         cell=29,25 reveal=248 bestintel=0 bestintelcell=none
+  1600  cell=37,57 reveal=180 intel=39 bestintel=43  @39,51 bir=158        cell=37,57 bestintel=0 bestintelcell=none
+  1800  cell=39,53 reveal=122 intel=43 bestintel=43  @39,51 bir=107        cell=39,53 bestintel=0 bestintelcell=none
+
+IDENTICAL CELLS AT ALL THREE LAUNCHES. The lost-track term changed NO launch decision on
+this geometry. The t1600/t1800 drift toward the contact is NOT the term working -- it is the
+revealed-area argmax moving as the nearer ground is consumed, and the control, which has no
+intel at all, moves to exactly the same cells. Two further tells inside the treatment alone,
+needing no control: at t1600 the chosen cell carried LESS intel than the cell it beat (39 vs
+43 at 39,51), and at both retasks the winner was not bestintelcell. A term that decided the
+target would have picked 39,51.
+
+WHAT THIS ARM CONTRIBUTED, AND IT IS THE LOAD-BEARING HALF. Without the control, the
+treatment's t1600/t1800 cells could be read as the term finally steering the drone toward the
+contact once exploration was consumed -- which is exactly how a manager read them before this
+arm ran. The control produces the SAME cells with no intel whatsoever, which settles it.
+It is also what makes the sizing arithmetic legitimate: the formula needs the intel value AT
+THE REVEAL ARGMAX, and this arm is what proves 29,25 is that argmax.
+
+records=0 and intel=0 on every launch line here, so the rules.yaml override merged and this
+directory is a real control rather than a second copy of the treatment.
+
 REMOVE THIS FILE only if the control legitimately starts passing — which would mean the map
 geometry can no longer separate the hypotheses, and the scenario needs new coordinates rather
 than a new declaration.
