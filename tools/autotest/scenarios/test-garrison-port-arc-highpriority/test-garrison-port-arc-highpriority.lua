@@ -58,6 +58,8 @@ local HitWithin = 20        -- s for an in-arc shooter to land its first round
 -- very little. This limb asserts a NEGATIVE, so it has to be the generous one.
 local QuietFor = 30         -- s a blocked shooter is given to prove it lands nothing
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
+local MoveWithin = 20       -- s for the two shooters to walk onto their derived bearings
+local HeldYaw = nil         -- the port yaw both shooters were positioned against
 
 local function OwnerOf(actor)
 	local o = actor.Owner
@@ -96,6 +98,54 @@ local function HealthOf(actor)
 	end
 
 	return actor.Health
+end
+
+-- THE PORT THE GUNNER ACTUALLY HOLDS DECIDES EVERYTHING, AND IT IS NOT PREDICTABLE FROM THE MAP.
+-- Three runs were spent assuming it. GarrisonManager deploys to the first port that confirms an
+-- IN-ARC, IN-RANGE target (ScanForTarget arc-filters at GarrisonManager.cs), so which port wins
+-- depends on every enemy on the map, the scanning weapon's range, and the port declaration order --
+-- run 260915_191454 put the Gunner on southwest2 (yaw 384) because BehindShooter sat due south at
+-- 512, which is inside the south-west cone [244,524] by 12 units. The "in-cone" shooter was then
+-- 512 units off the held port and correctly refused, and the "behind" shooter was inside it.
+--
+-- So the shooters are placed FROM the port, at runtime, instead of being guessed at map time. Both
+-- distances sit inside 60mm_Mortar's MinRange of 8c0, which is what stops the garrison acquiring
+-- either of them and being lured into swapping ports mid-measurement, and inside the shooters' own
+-- 10c0 rifle so they can both reach.
+local ConeDistance = 4      -- cells along the held port's yaw
+local BehindDistance = 6    -- cells along the opposite bearing
+
+-- WAngle is 1024 = 360 degrees and WVec.Yaw is ArcTan(-Y, X) - 256 (WVec.cs:66-76), so inverting
+-- it needs that 256 added back: dx = cos(yaw + 256), dy = -sin(yaw + 256). Checks out on the two
+-- bearings this file talks about -- 896 gives (+x, -y) north-east, 384 gives (-x, +y) south-west.
+local function YawToOffset(yaw, cells)
+	local radians = (yaw + 256) / 1024 * 2 * math.pi
+	return math.floor(cells * math.cos(radians) + 0.5), math.floor(cells * -math.sin(radians) + 0.5)
+end
+
+-- "index=5 name=southwest2 yaw=384 cone=140", or "none".
+local function PortYawOf(soldier, building)
+	local report = Test.GarrisonPortOf(soldier, building)
+	local yaw = string.match(report, "yaw=(%d+)")
+	if yaw == nil then
+		return nil
+	end
+
+	return tonumber(yaw)
+end
+
+-- Everything the next reader needs to name a refusal, printed at the instant an order goes in.
+-- TargetableReport walks Actor.IsTargetableBy trait by trait, so "which targetable said no" stops
+-- being a guess; GarrisonPortOf names the port actually held.
+local function ReportGeometry(label, shooter, building, occupant)
+	print(label ..
+		" | port " .. Test.GarrisonPortOf(occupant, building) ..
+		" | occupant cell " .. occupant.Location.X .. "," .. occupant.Location.Y ..
+		" inWorld=" .. tostring(occupant.IsInWorld) ..
+		" | building cell " .. building.Location.X .. "," .. building.Location.Y ..
+		" | shooter cell " .. shooter.Location.X .. "," .. shooter.Location.Y ..
+		" | canTarget=" .. tostring(shooter.CanTarget(occupant)) ..
+		" | " .. Test.TargetableReport(occupant, shooter))
 end
 
 local function State()
@@ -215,13 +265,21 @@ end
 -- PHASE 2 — THE ASSERTION. Due south of a north-east-facing port, at 384 WAngle units off a
 -- cone of 140, this shooter must land nothing at all.
 local function BehindShot()
-	ReportGeometry("BEHIND-SHOT", BehindShooter)
+	ReportGeometry("BEHIND-SHOT", BehindShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	BehindShooter.Attack(Gunner)
 
 	HoldAndCompare(QuietFor, Gunner, baseline, function(worst)
 		-- Order matters: the port check comes FIRST on the pass path but the damage check comes
 		-- first overall, because damage landing is a finding whatever else is true.
+		if PortYawOf(Gunner, HouseMT) ~= HeldYaw then
+			Test.Skip("the Gunner changed ports during the behind-shot window (was yaw " ..
+				tostring(HeldYaw) .. ", now " .. Test.GarrisonPortOf(Gunner, HouseMT) .. "), so both " ..
+				"shooters are now on bearings derived from a port he no longer holds and neither " ..
+				"result means anything. " .. State())
+			return
+		end
+
 		if worst < baseline then
 			Test.Fail("THE BEHIND SHOT CONNECTED. A rifleman due SOUTH of the building took the " ..
 				"garrisoned MT from " .. baseline .. " to " .. worst .. " hp, but the Gunner is at " ..
@@ -261,23 +319,8 @@ end
 -- PHASE 1a — the in-cone shot MUST land. This is the instrument check: it proves a rifleman can
 -- hurt this man at all, so that "no damage" in phase 2 means the arc refused him rather than
 -- the measurement never working.
--- Everything the next reader needs to name the refusal, printed at the instant the order goes in.
--- TargetableReport walks Actor.IsTargetableBy trait by trait, so "which targetable said no" stops
--- being a guess; GarrisonPortOf names the port actually held, which two runs have now shown is not
--- safe to assume.
-local function ReportGeometry(label, shooter)
-	print(label ..
-		" | port " .. Test.GarrisonPortOf(Gunner, HouseMT) ..
-		" | gunner cell " .. Gunner.Location.X .. "," .. Gunner.Location.Y ..
-		" inWorld=" .. tostring(Gunner.IsInWorld) ..
-		" | house cell " .. HouseMT.Location.X .. "," .. HouseMT.Location.Y ..
-		" | shooter cell " .. shooter.Location.X .. "," .. shooter.Location.Y ..
-		" | canTarget=" .. tostring(shooter.CanTarget(Gunner)) ..
-		" | " .. Test.TargetableReport(Gunner, shooter))
-end
-
 local function ConeShot()
-	ReportGeometry("CONE-SHOT", ConeShooter)
+	ReportGeometry("CONE-SHOT", ConeShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	-- Issued only after AwaitDeployment has seen the man in-world at a port, plus the settle below,
 	-- so Target.FromActor(Gunner) cannot still be Invalid. Attack() only LOGS an invalid target and
@@ -305,13 +348,49 @@ local function ConeShot()
 		end)
 end
 
+-- Move both shooters onto bearings derived from the port the Gunner is ACTUALLY holding, then hand
+-- off to the measurement. This is what makes the two limbs test what they claim no matter which
+-- port the deploy loop picked -- and it is the third attempt at that, the first two having tried to
+-- pin the port by map geometry and been wrong in different ways each time.
+local function PlaceShooters()
+	local yaw = PortYawOf(Gunner, HouseMT)
+	if yaw == nil then
+		Test.Skip("the Gunner reads as deployed but GarrisonPortOf could not name his port (" ..
+			Test.GarrisonPortOf(Gunner, HouseMT) .. "), so the shooters cannot be positioned " ..
+			"relative to it and nothing under test can be staged. " .. State())
+		return
+	end
+
+	HeldYaw = yaw
+
+	local cx, cy = YawToOffset(yaw, ConeDistance)
+	local bx, by = YawToOffset(yaw, -BehindDistance)
+
+	Test.IssueMoveOrder(ConeShooter, CPos.New(HouseMT.Location.X + cx, HouseMT.Location.Y + cy))
+	Test.IssueMoveOrder(BehindShooter, CPos.New(HouseMT.Location.X + bx, HouseMT.Location.Y + by))
+
+	print("PLACEMENT | held port " .. Test.GarrisonPortOf(Gunner, HouseMT) ..
+		" | cone shooter -> " .. (HouseMT.Location.X + cx) .. "," .. (HouseMT.Location.Y + cy) ..
+		" | behind shooter -> " .. (HouseMT.Location.X + bx) .. "," .. (HouseMT.Location.Y + by))
+
+	-- Both men have a couple of cells to walk. Wait for BOTH to stop moving rather than for a
+	-- fixed delay, so a slow path does not silently become a measurement of a man still walking.
+	WaitUntil(MoveWithin,
+		function() return ConeShooter.IsIdle and BehindShooter.IsIdle end,
+		ConeShot,
+		function()
+			Test.Skip("the shooters did not finish repositioning within " .. MoveWithin ..
+				"s, so neither limb could be measured from the held port's bearing. " .. State())
+		end)
+end
+
 local function AwaitDeployment()
 	WaitUntil(DeployWithin,
 		function() return AtPort(Gunner) end,
 		function()
 			-- One settle beat after the port reads manned AND in-world, so the deploy's frame-end
 			-- task (SetPosition, w.Add) is fully behind us before anything is aimed at him.
-			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), ConeShot)
+			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), PlaceShooters)
 		end,
 		function()
 			Test.Skip("the Gunner never deployed to a firing port within " .. DeployWithin ..
