@@ -41,13 +41,18 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new GarrisonProtection(init.Self, this); }
 	}
 
-	public class GarrisonProtection : INotifyDamage, INotifyCreated
+	public class GarrisonProtection : INotifyDamage, INotifyCreated, IDamageModifier
 	{
 		readonly GarrisonProtectionInfo info;
 		readonly Actor self;
 
 		GarrisonManager garrisonManager;
 		IHealth health;
+
+		/// <summary>The damage the attacker AIMED at the building, before any IDamageModifier ran.
+		/// Written by the observer below and consumed by Damaged on the same hit. See the rubble note
+		/// there for why it has to exist at all.</summary>
+		int aimedDamage;
 
 		public GarrisonProtection(Actor self, GarrisonProtectionInfo info)
 		{
@@ -80,16 +85,83 @@ namespace OpenRA.Mods.Common.Traits
 			if (health == null || health.IsDead)
 				return 0;
 
-			if (health.HP <= 1)
-				return info.RubbleProtection.Clamp(0, 100);
+			return ProtectionAt(health.HP, health.MaxHP, info.BaseProtection, info.CriticalProtection, info.RubbleProtection);
+		}
 
-			var hpPct = (float)health.HP / health.MaxHP;
-			var protection = (int)(info.CriticalProtection + (info.BaseProtection - info.CriticalProtection) * hpPct);
+		/// <summary>The curve itself, with no actor behind it, so a fixture can walk it from full health
+		/// to the rubble clamp and assert it never turns back up. Arithmetic is byte-for-byte what
+		/// GetCurrentProtection did before the extraction -- the float and its truncation included --
+		/// because this is a testability seam and not a retune.
+		/// <para>MONOTONICITY IS A YAML PROPERTY, NOT A CODE ONE: the value at the clamp is
+		/// <paramref name="rubbleProtection"/> outright, while the value just above it tends to
+		/// <paramref name="criticalProtection"/>, so the curve only descends all the way if
+		/// rubble &lt;= critical. Both are authored per actor; GarrisonRubbleProtectionTest checks
+		/// every actor in the mod that declares the trait.</para></summary>
+		public static int ProtectionAt(int hp, int maxHp, int baseProtection, int criticalProtection, int rubbleProtection)
+		{
+			if (hp <= 1)
+				return rubbleProtection.Clamp(0, 100);
+
+			var hpPct = (float)hp / maxHp;
+			var protection = (int)(criticalProtection + (baseProtection - criticalProtection) * hpPct);
 			return protection.Clamp(0, 100);
+		}
+
+		/// <summary>Damage forwarded to one shelter occupant for a hit of <paramref name="incomingDamage"/>
+		/// against a building at <paramref name="protection"/>. Zero when the share falls under
+		/// <paramref name="minPassThrough"/>, which is a floor on the HIT and not on the curve.</summary>
+		public static int PassThroughFor(int incomingDamage, int protection, int minPassThrough)
+		{
+			if (incomingDamage <= 0)
+				return 0;
+
+			var passThrough = incomingDamage * (100 - protection) / 100;
+			return passThrough < minPassThrough ? 0 : passThrough;
+		}
+
+		/// <summary>THE CLAMP RULE, as one expression so a fixture can state it. The damage a hit really
+		/// delivers to the men in the shelter is the post-modifier value while the building still has
+		/// hit points to lose, and the value the attacker AIMED once it does not -- which is the only
+		/// way the curve can stay monotone across the clamp. A genuine zero stays zero: Health skips
+		/// the modifier pass entirely unless damage.Value > 0, so a heal or a zero-damage warhead
+		/// leaves `aimed` at zero and this returns zero rather than inventing a hit.</summary>
+		public static int EffectiveIncomingDamage(int postModifierDamage, int aimedDamage)
+		{
+			return postModifierDamage > 0 ? postModifierDamage : aimedDamage;
+		}
+
+		/// <summary>OBSERVER ONLY -- always returns 100 and modifies nothing.
+		/// <para>WHY A DAMAGE MODIFIER IS THE PLACE TO READ THIS. GarrisonManager.Indestructible clamps
+		/// the building at 1 HP by returning a modifier of 0 for every hit once it is there
+		/// (GarrisonManager.cs:1451-1468). Health applies the modifiers and only then notifies
+		/// INotifyDamage (Health.cs:177-215), so at the clamp Damaged used to see a damage of ZERO and
+		/// return without forwarding anything -- and a rubbled garrison became immune again, having
+		/// been at its most exposed one hit point earlier. That is the non-monotone step this fixes:
+		/// pass-through now stays at the curve's maximum at the clamp instead of dropping to nothing.
+		/// IDamageModifier.GetDamageModifier is the one hook that sees the damage the attacker aimed,
+		/// before the clamp erases it.</para>
+		/// <para>Safe to stash across the two calls: Health calls every modifier exactly once and then
+		/// notifies, in that order, on the same hit; Damaged clears the field unconditionally so a hit
+		/// that was NOT clamped cannot leave a value behind for the next one; and the only other
+		/// callers of GetDamageModifier in the engine (Demolishable, BridgeHut) pass a null damage,
+		/// which the guard below ignores. The occupant damage is still inflicted from Damaged, not from
+		/// here -- killing an actor while Health is mid-way through enumerating its modifiers is not a
+		/// thing to start doing.</para></summary>
+		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
+		{
+			if (damage != null && damage.Value > 0)
+				aimedDamage = damage.Value;
+
+			return 100;
 		}
 
 		void INotifyDamage.Damaged(Actor self, AttackInfo e)
 		{
+			// Consume-and-clear FIRST and unconditionally, ahead of every early return below, so no
+			// path can leave a stale aim behind to be spent on a later hit.
+			var aimed = aimedDamage;
+			aimedDamage = 0;
+
 			if (garrisonManager == null || health == null || health.IsDead)
 				return;
 
@@ -109,12 +181,15 @@ namespace OpenRA.Mods.Common.Traits
 			// so the value is identical on every path that reaches here.
 			var protection = GetCurrentProtection();
 
-			var incomingDamage = e.Damage.Value;
-			if (incomingDamage <= 0)
-				return;
+			// e.Damage is POST-modifier, so at the rubble clamp it is zero however hard the building
+			// was hit. Fall back to what the attacker aimed: the shot happened, the building simply
+			// had no hit points left to lose, and the men inside are the only thing left to absorb it.
+			// A genuine zero (a heal, a zero-damage warhead) leaves `aimed` at zero too -- Health
+			// skips the modifiers entirely unless damage.Value > 0 -- so this cannot invent damage.
+			var incomingDamage = EffectiveIncomingDamage(e.Damage.Value, aimed);
 
-			var passThrough = incomingDamage * (100 - protection) / 100;
-			if (passThrough < info.MinPassThrough)
+			var passThrough = PassThroughFor(incomingDamage, protection, info.MinPassThrough);
+			if (passThrough <= 0)
 				return;
 
 			// Pick a random shelter soldier deterministically
