@@ -5301,3 +5301,105 @@ locked, so the reading is about attribution rather than about its condition;
 which is the single flip that would undo the ruling.
 
 (found while working on: the END-window game-ender grant, `wt/ender-grant`)
+
+## 2026-09-15 — Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it
+
+**THE BACKLOG ITEM'S PREMISE IS CORRECT.** Both options gate one `powers.event` power apiece
+(`MissileStrikePower@TacNuke`, `MissileStrikePower@HighYieldNuke`), and `powers.event` is provided
+by no faction ever (`mods/ww3mod/rules/player.yaml:144`) — only by the sandbox lobby option. So
+outside the sandbox neither checkbox decides anything, and next to the four tier checkboxes in the
+Arsenal section they are leftover controls. The audit also clears the obvious blocker: the runtime
+readers are a condition grant and nothing else. `PowersLobbyOptions.TacticalNukeEnabled` and
+`.HighYieldNukeEnabled` (`PowersLobbyOptions.cs:386-387`, assigned at `:402-405`) have **zero
+consumers anywhere in engine or mod** — they are dead properties.
+
+**WHAT STOPS IT BEING MECHANICAL IS THE FALLBACK POLARITY, AND `world.yaml:758-778` ALREADY SPELLS
+IT OUT AT LENGTH** under the heading "HIDING IS NOT DELETING, AND HERE THE DIFFERENCE IS THE WHOLE
+GAME". `GrantConditionOnLobbyOption` computes `optionEnabled = OptionOrDefault(Option,
+!GrantWhenOptionDisabled)` (`GrantConditionOnLobbyOption.cs:47-48`), so **the registered default and
+the unregistered fallback are different values.** Both gates use `GrantWhenOptionDisabled: true`:
+
+| option | registered default | on deletion falls back to | effect of deleting |
+|---|---|---|---|
+| `tactical-nuke` | **false** (`TacticalNukeCheckboxEnabled`) | false | none — already gated off |
+| `high-yield-nuke` | **true** (user's explicit temporary choice) | false | **`highyieldnuke-disabled` granted → `MissileStrikePower@HighYieldNuke` disappears, including in `powers-sandbox`** |
+
+That last row contradicts the retirement's own requirement to keep the weapons reachable in the
+sandbox. Honouring it means **also** deleting `GrantConditionOnLobbyOption@highyieldnuke`
+(`player.yaml:823`) and editing `!highyieldnuke-disabled` out of the power's `RequiresCondition` —
+i.e. removing the fail-safe, not just the checkbox.
+
+**AND THE FAIL-SAFE IS DEFENDED BY TWO THINGS WRITTEN TO DEFEND IT.**
+`MissilePowerAsymmetryTest` asserts both gate ids and their polarity (`:213`, `:297`), and the
+autotest scenario `test-tacnuke-lobby-gated-off` exists to answer "at the shipped default, is the
+tactical nuke really not there?". Its own header says the reading is now **over-determined** — the
+event tier alone would produce `hidden` — so the scenario cannot currently isolate the lobby gate,
+which makes it weak evidence *for* the gate and strong evidence that anyone deleting the gate must
+rewrite the scenario rather than delete it.
+
+**THE `~14 SCENARIOS` FIGURE IN THE BACKLOG ITEM IS WRONG IN BOTH DIRECTIONS.** Only **2** scenario
+files mention either option id (`test-tacnuke-delivers`, `test-tacnuke-lobby-gated-off`, both in
+Lua). **9** scenario directories instead override the *trait Info fields*
+`TacticalNukeCheckboxEnabled` / `HighYieldNukeCheckboxEnabled` in their `rules.yaml`
+(`demo-highyield-nuke`, `demo-nuke-edge-band`, `demo-nuke-fog-seam`, `demo-nuke-river-zeta`,
+`demo-nuke-shroud-still-hides`, `test-conventional-strike-leaves-wreck`,
+`test-heavy-strike-wrecks-economy`, `test-nuclear-ender-window`, `test-tacnuke-delivers`,
+plus `test-tacnuke-lobby-gated-off`). **A grep on the option ids misses every one of them**, which
+is how the estimate went wrong — and is the general trap: a lobby option is settable by id *and* by
+the Info field the option is built from, and only one of those spellings is greppable as the id.
+
+**DONE INSTEAD, ON `wt/lobby-cleanup`:** both ids are hidden in Escalation by
+`LobbyOptionsLogic.EscalationInertOptionIds`, which answers the user's actual complaint without
+touching a default, a condition or a scenario. They remain visible in Skirmish and Sandbox.
+
+**WHAT A FUTURE RETIREMENT NEEDS, IN ORDER:** delete the two `LobbyBooleanOption`s and their
+`*CheckboxLabel/Description/Enabled/Visible/Locked/DisplayOrder` fields; delete
+`GrantConditionOnLobbyOption@tacnuke` and `@highyieldnuke`; drop `!tacnuke-disabled &&` and
+`!highyieldnuke-disabled &&` from the two `RequiresCondition` lines, leaving the ladder band and the
+event tier as the only gates; delete the four dead `*Enabled` properties; rewrite
+`MissilePowerAsymmetryTest`'s two gate assertions to assert the tier instead; **delete
+`test-tacnuke-lobby-gated-off` with a note** (its subject ceases to exist, and its claim is already
+carried by the event tier); strip the Info-field overrides from the 10 scenario `rules.yaml` files
+above and re-lint each. Budget a GREEN+RED run of `test-tacnuke-delivers` and `demo-highyield-nuke`,
+because the sandbox reachability of both weapons is the property being changed.
+
+(found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)
+
+## 2026-09-15 — The lobby's 1440x900 fold has been broken since the exchange added two dropdowns, and the test that guards it passed the whole time because its row count was a literal
+
+**THE OPTION GRID DOES NOT FIT AT 1440x900 AND HAS NOT FOR SOME TIME.** Measured, not derived: the
+grid starts at Y 336 (`Container@LOBBY_OPTIONS`, `Y: (WINDOW_HEIGHT - 196) / 4 + 160`) inside a
+580px viewport (`ScrollPanel@COMMON_OPTIONS_PANEL`, `Height: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25
+- 12`). Match needs 128 (header 36 + dropdown row 54 + checkbox row 38) and Escalation needs 144
+(header 36 + **two** dropdown rows) — 608 against 580, **over by 28px**. 1080 (653/731) and 1200
+(683/832) fit.
+
+**THE GUARD FAILED OPEN, WHICH IS THE ONLY DIRECTION THAT MATTERS HERE.**
+`LobbyTimelineChromeTest.TheMatchAndEscalationRowsFitAboveTheFold` budgeted
+`escalation = header + dropdownRow` — ONE row — from a comment reading "four, which is exactly the
+grid's column count". Its next sentence promised that "if a fifth Escalation option is ever added it
+becomes two rows and this test is what says the budget no longer holds", and then `nuclear-posture`
+(DisplayOrder 24) and `nuclear-retaliation-window` (25) were added and **nothing fired**, because
+the four was a literal in the test file rather than a reading of `LobbyOptionsLogic.OptionSection`.
+An understated layout budget passes while the host really does have to scroll — so the fixture
+reported success for exactly the regression it was written to catch.
+
+**NOT CAUSED BY `wt/lobby-cleanup`, AND THE MOVE IS ROW-NEUTRAL.** Before: Match 2 dropdowns +
+1 checkbox = 2 rows, Escalation 6 dropdowns = 2 rows. After moving Game mode into Match: Match 3
+dropdowns + 1 checkbox = 2 rows, Escalation 5 dropdowns = 2 rows. Both total 272px. Moving one
+dropdown from a six-run to a three-run changes neither ceiling.
+
+**FIXED: THE BUDGET, NOT THE FOLD.** The test now derives both counts from
+`LobbyOptionsLogic.SectionOptionCount`, so it cannot go stale again; the `[TestCase(900)]` is
+excluded behind a comment naming the two changes that close the overflow (Game mode into Match —
+done; `wt/exchange-v2` deleting the Retaliation window — in progress) and the exact one-line
+restoration. **Whoever merges second re-enables it.** At four Escalation dropdowns the section is
+one row again and 900 fits with 26px to spare.
+
+**WHAT IS NOT FIXED:** the fold itself, today. Until `wt/exchange-v2` lands, a host on a 1440x900
+window must scroll to reach the bottom of the Escalation section. Closing it any sooner means
+shrinking the map preview slot, which is a visible change at every window size including the
+2560x1440 the lobby was just captured and signed off at — user-ruled 2026-09-15 as not worth
+buying permanently for an overflow that self-closes.
+
+(found while working on: Escalation lobby cleanup, `wt/lobby-cleanup`)

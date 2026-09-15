@@ -874,13 +874,21 @@ Container@LOBBY_PLAYER_BIN:
 					# fit inside it without scrolling is fixed-height and adds up:
 					# scenario 32 + OPTIONS header 56 + timeline 112 + the Match
 					# section 128 (header 36 + one dropdown row 54 + one checkbox
-					# row 38) + the Escalation section 90 (header 36 + one dropdown
-					# row 54, because four dropdowns fill the 4-column grid exactly)
-					# = 418. Whatever is left is the map preview's, which is why
-					# that slot is a SMALL fraction and not a large one. See
-					# MAP_PREVIEW_ROOT, and LobbyTimelineChromeTest, which evaluates
-					# these same expressions at 900 and fails if the sum stops
-					# fitting.
+					# row 38) + the Escalation section.
+					#
+					# CORRECTED 2026-09-15 -- THE ESCALATION TERM WAS 90 AND IS NOT.
+					# It read "90 (header 36 + one dropdown row 54, because four
+					# dropdowns fill the 4-column grid exactly)", which was true
+					# until `nuclear-posture` and `nuclear-retaliation-window` made
+					# it six. Six dropdowns is TWO rows, so the term is 144 and the
+					# sum is 472, not 418 -- and against a grid that starts at Y 336
+					# the real requirement is 336 + 272 = 608, which does NOT fit in
+					# 580. The 900 case in LobbyTimelineChromeTest is excluded until
+					# Escalation is back to four dropdowns; that test's own comment
+					# names the two changes that get it there and is what re-enables
+					# it. Whatever is left is the map preview's, which is why that
+					# slot is a SMALL fraction and not a large one. See
+					# MAP_PREVIEW_ROOT.
 					Height: PARENT_HEIGHT - PARENT_HEIGHT * 4 / 25 - 12
 					Background: ""
 					ScrollBar: Right

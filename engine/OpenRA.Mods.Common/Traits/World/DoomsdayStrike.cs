@@ -79,7 +79,10 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string DoomsdayLabel = "Nuclear ending";
 
 		[Desc("Tooltip for the lobby checkbox.")]
-		public readonly string DoomsdayDescription = "When the Time Limit expires, the map is destroyed by a nuclear salvo and the highest score at that moment wins. Turn it off to end on score alone, with no strike. It does nothing while the Time Limit reads No limit.";
+		public readonly string DoomsdayDescription =
+			"What happens when the Time Limit expires: a nuclear salvo levels the map and the highest " +
+			"score wins, or with this off the match simply ends on score. Inert while the Time Limit " +
+			"reads No limit";
 
 		[Desc("Default state of the lobby checkbox.")]
 		public readonly bool DoomsdayEnabled = true;
