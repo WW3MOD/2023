@@ -117,6 +117,46 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheShippedEndersOwnerRequirementIsTheFactionIdentityAlone()
+		{
+			// ==== THE VISIBILITY GATE OF THE 2026-09-16 ENDGAME DEFECT ====
+			// The user reached the final exchange as RUSSIA and reported that no cameo appeared at
+			// all. Read forward from here and that is exactly what a wrong answer on this line
+			// produces: ArmableBy ends in `techTree.HasPrerequisites(OwnerPrerequisites(...))`, and
+			// on false DoomsdayStrike.ArmGameEnders skips the power entirely -- no MakeReady, so
+			// prereqsAvailable stays false, so SupportPowerInstance.Permitted is false, so
+			// `Disabled => !bank.IconVisible(Permitted)` is TRUE and SupportPowersWidget.RefreshIcons
+			// (which filters on exactly that, every tick) draws NO ICON. A silent, total failure with
+			// nothing in the log.
+			//
+			// NamesAnOwner above already pins "non-empty". THIS pins WHICH, and the difference is the
+			// failure mode worth having a test for: an override list that grew `player.russia` -- the
+			// hazard both OverriddenPrerequisites fields warn about in capitals -- would empty this
+			// list and read as "unattributed", which fails CLOSED to no cameo rather than open to the
+			// wrong warhead. That is the safe direction and it is still the reported bug.
+			//
+			// THE OTHER HALF IS NOT REACHABLE FROM HERE and is verified by reading: `player.russia`
+			// and `player.america` are provided by ProvidesPrerequisite with a `Factions:` filter and
+			// by nothing else in the mod (player.yaml:1109-1124), so a Russia player holds
+			// `player.russia`. A fixture cannot build a TechTree to assert it.
+			Assert.That(NuclearGameEnders.OwnerPrerequisites(Power(750000, "powers.event, player.russia"), EventTier),
+				Is.EqualTo(new[] { "player.russia" }),
+				"the Sarmat's arming must turn on Russia's faction identity and nothing else");
+
+			Assert.That(NuclearGameEnders.OwnerPrerequisites(Power(1200000, "powers.event, player.america"), EventTier),
+				Is.EqualTo(new[] { "player.america" }),
+				"the B83's arming must turn on America's faction identity and nothing else");
+
+			// AND THE HAZARD ITSELF, stated as a test rather than only as a comment: licensing the
+			// faction name empties the list, and an ender nobody owns is armed by nobody.
+			Assert.That(NuclearGameEnders.OwnerPrerequisites(
+					Power(750000, "powers.event, player.russia"), new[] { "powers.event", "player.russia" }),
+				Is.Empty,
+				"licensing the faction name left an owner behind, so the override would hand the "
+				+ "Sarmat to an America player instead of failing closed");
+		}
+
+		[Test]
 		public void AnUnattributedEnderNamesNobody()
 		{
 			// "NATIONAL ENDER ONLY" (user ruling, 2026-09-14). The 6 Mt strategic strike declares

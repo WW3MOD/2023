@@ -1,11 +1,12 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * WW3MOD addition. Not upstream OpenRA.
  */
 #endregion
 
 /*
- * THE FINAL EXCHANGE COUNTDOWN -- fifteen seconds the player must not be able to miss.
+ * THE FINAL EXCHANGE COUNTDOWN -- the one window the player must not be able to miss. Its length
+ * is DoomsdayStrikeInfo.FinalExchangeWindowTicks (500 = 30 s since 2026-09-16, previously 250).
  *
  * Unlike DefconTransitionBannerWidget, which this is otherwise modelled on, it is NOT a four-second
  * announcement. It is on screen for the whole window and it carries a clock, because the thing it is

@@ -52,10 +52,15 @@ local NORUSH_TICKS  = 5000   -- DefconEscalationInfo.NoRushDefault = 5 min; 5*60
 local RELEASE_TICKS = 10000  -- DefconEscalationInfo.FirstWarheadsDefault = 10 min, after DEFCON 1
 local TIME_LIMIT    = 22000  -- rules.yaml TimeLimitManager.TimeLimitTicks
 
--- The poller's own deadline. 2000 ticks past the time limit: the final-exchange window is 250
--- (world.yaml:737) and the salvo adds an outlier wave, a 40-tick pause (OutlierToCityPauseTicks) and
--- a city wave on top, so ~2000 is several times the tail. Reaching this tick at all means the ending
--- never resolved, which is itself the finding.
+-- The poller's own deadline. 2000 ticks past the time limit: the final-exchange window is 500
+-- (world.yaml, raised from 250 on 2026-09-16 -- see DoomsdayStrikeInfo.FinalExchangeWindowTicks for
+-- why) and the salvo adds an outlier wave, a 40-tick pause (OutlierToCityPauseTicks) and a city wave
+-- on top, so ~2000 still leaves a comfortable margin past the close. Reaching this tick at all means
+-- the ending never resolved, which is itself the finding.
+--
+-- IF THE WINDOW IS EVER LENGTHENED AGAIN, RAISE THIS WITH IT. The 4b check below faults when the
+-- window has not CLOSED by the deadline, so a window longer than (DEADLINE - TIME_LIMIT) would make
+-- that check report a defect that is really a budget.
 local DEADLINE      = 24000
 
 -- ==== SLACK, AND WHY THE TWO EARLY BOUNDS DIFFER ====
@@ -135,6 +140,24 @@ WorldLoaded = function()
 	local endingState = "?"     -- last DoomsdayState reading
 	local endingSeenState = nil -- the reading at the tick the ending was first seen
 	local finalExchangeSeen = false
+
+	-- ==== THE WINDOW ITSELF, WHICH THIS SCENARIO USED TO NOT LOOK AT ========================
+	-- Before 2026-09-16 the only ending assertion was "phase left 0". That passes for a window
+	-- that opens and then does nothing whatever: every side vetoed, nobody able to place, Dead
+	-- Hand firing for everyone and the match ending anyway -- which is EXACTLY the defect the
+	-- user reported ("I could not place my strikes. The timer ran out and the dead hand
+	-- activated"). The reading was there all along in DoomsdayState(); nothing read it.
+	--
+	-- WHAT IS ASSERTABLE HERE AND WHAT IS NOT. This is bot-vs-bot on the TIME LIMIT path, so
+	-- placements=0 is a legitimate outcome -- no bot is obliged to fire inside the window --
+	-- and asserting placements>0 would be a flake. What IS obligatory is that the window RAN:
+	-- it must reach phase 2 (Closed) before the deadline, and its advertised closing tick must
+	-- be a real window's length away rather than the same tick it opened on. A window that
+	-- collapsed on open is indistinguishable from the reported bug at the log level, and is
+	-- what a mis-set FinalExchangeWindowTicks would produce.
+	local windowClosesTick = nil   -- `closes=` as read on the tick the ending was first seen
+	local placementsMax = 0        -- highest `placements=` seen at any point
+	local phaseMax = 0             -- highest `phase=` seen; 2 is Closed
 
 	-- Order tallies snapshotted at each phase boundary, per bot. Keyed by bot NAME, never by the
 	-- player wrapper: an actor/player wrapper carries no __tostring and cannot key a Lua table
@@ -395,6 +418,34 @@ WorldLoaded = function()
 			note("ending began at tick %d (time limit %d), state %s", endingAt, TIME_LIMIT, endingSeenState)
 		end
 
+		-- ---- 4b. THE FINAL EXCHANGE WINDOW ACTUALLY RAN ----
+		-- See the declarations of windowClosesTick/placementsMax/phaseMax for what is assertable
+		-- here and why placements is a READING rather than a fault.
+		if endingAt ~= nil then
+			note("final exchange: placements reached %d, highest phase %d, closes=%s",
+				placementsMax, phaseMax, tostring(windowClosesTick))
+
+			if windowClosesTick ~= nil and windowClosesTick <= 0 then
+				fault("the final exchange opened at tick %d with closes=%d: the window has no "
+					.. "duration at all, so every side was handed its game-enders and given zero "
+					.. "ticks to aim them. Check FinalExchangeWindowTicks in this scenario's "
+					.. "rules.yaml and in mods/ww3mod/rules/world.yaml -- 0 or less is the "
+					.. "documented escape hatch that skips the window entirely",
+					endingAt, windowClosesTick)
+			end
+
+			if phaseMax < 2 then
+				fault("the final exchange opened at tick %d but never CLOSED: the highest phase "
+					.. "seen was %d and FinalExchangePhase.Closed is 2, so Dead Hand never placed "
+					.. "and the staged salvo never ran. The window is only bookkeeping -- "
+					.. "FinalExchangeWindow.Tick reports the closing edge exactly once and "
+					.. "DoomsdayStrike.Tick hangs PlaceDeadHandSalvo off it -- so a window that "
+					.. "opens and does not close means DoomsdayStrike stopped ticking. READ "
+					.. "debug.log for `DEAD HAND placing at tick`; absent means exactly this. "
+					.. "Last reading %q", endingAt, phaseMax, endingState)
+			end
+		end
+
 		-- ---- 5. LAUNCHES ARE A READING, NOT AN ASSERTION ----
 		-- NuclearBotModule fires only when LOSING -- army value under 60 % of the strongest enemy's,
 		-- or its own SR control bar under 40 % -- and only after 3 consecutive agreeing evaluations.
@@ -476,11 +527,21 @@ WorldLoaded = function()
 		for _, b in ipairs(bots) do readNuclear(b) end
 
 		endingState = Test.DoomsdayState()
+
+		-- SAMPLED EVERY POLL, NOT ONLY AT THE EDGE. `phase` and `placements` both move AFTER the
+		-- tick the ending is first seen -- the window closes later and a side can place at any
+		-- point inside it -- so a reading taken only at the edge can never see either.
+		local phase = tonumber(endingState:match("phase=(%d+)") or "")
+		if phase ~= nil and phase > phaseMax then phaseMax = phase end
+
+		local placements = tonumber(endingState:match("placements=(%d+)") or "")
+		if placements ~= nil and placements > placementsMax then placementsMax = placements end
+
 		if endingAt == nil then
-			local phase = tonumber(endingState:match("phase=(%d+)") or "")
 			if phase ~= nil and phase > 0 then
 				endingAt = t
 				endingSeenState = endingState
+				windowClosesTick = tonumber(endingState:match("closes=(%-?%d+)") or "")
 			end
 		end
 

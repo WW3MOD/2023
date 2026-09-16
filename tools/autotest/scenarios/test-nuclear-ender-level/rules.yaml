@@ -1,4 +1,4 @@
-# The game-ender level autotest's overrides.
+﻿# The game-ender level autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -18,6 +18,26 @@ World:
 		NuclearReleaseDelayTicksOverride: 10
 
 	NuclearExchange:
+		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
+		# this scenario ALONE. Added 2026-09-16 with the user ruling that moved the level-up onto the
+		# explosion ("we see the correlation between the explosion, and after only a few seconds
+		# perhaps we get the message of escalation"): NuclearExchangeInfo.EscalationDelayTicks 50
+		# defers each escalation to the first warhead's IMPACT plus three seconds.
+		#
+		# WHY THIS SCENARIO OPTS OUT. Deferring to the impact drags the whole FLIGHT TIME into the
+		# escalation, and the phase schedule below fires and then asserts on the victim's level
+		# SEVENTY TO EIGHTY ticks later. The shipped B61Low carries MissileDelay: 200 before its arc
+		# is counted at all, and the arc is the map diagonal plus ApproachMargin divided by the
+		# missile's Speed -- a number that changes with map size and that no phase constant here
+		# could track. What this scenario measures is the LADDER and the COOLDOWN, neither of which
+		# the delay touches, so the honest move is to take the new variable back out rather than to
+		# retune every boundary against it.
+		#
+		# NEGATIVE IS THE DOCUMENTED MEANING, not a value sneaking past a bound: see
+		# NuclearExchangeInfo.EscalationDelayTicks. The DEFERRAL ITSELF is covered by
+		# NuclearExchangeStateTest (ReportLaunchAloneEscalatesNobody,
+		# SixReEntryVehiclesFromOneOrderEscalateOneRung), which needs no world and no flight.
+		EscalationDelayTicks: -1
 		# THE SIDE COOLDOWNS, COMPRESSED TO 60 TICKS FLAT against a shipped 5000/7000/9000/12000
 		# (5/7/9/12 minutes, the 2026-09-15 user ruling). This scenario measures WHAT reaching a
 		# level grants and to WHOM, never the cooldown -- so the cooldown is set as far out of the

@@ -1,4 +1,4 @@
-# The bot nuclear autotest's overrides. Deliberately a near-copy of test-nuclear-exchange's, because
+﻿# The bot nuclear autotest's overrides. Deliberately a near-copy of test-nuclear-exchange's, because
 # the two scenarios need the same match set up in the same way and a difference between them would
 # be a difference nobody chose. What is NOT copied is called out below.
 
@@ -51,6 +51,15 @@ World:
 		TwentyKilotonCooldownTicks: 300
 		FiftyKilotonCooldownTicks: 300
 		HundredKilotonCooldownTicks: 300
+
+		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
+		# this scenario ALONE, for the same reason test-nuclear-exchange/rules.yaml gives at length.
+		# In short: LEVEL_HOLD_CHECK_TICK is USA_FIRE_TICK + 80, and since the user ruling that moved
+		# the level-up onto the explosion the victim's rise lands a whole missile flight later --
+		# MissileDelay 200 on the shipped B61Low before its arc is even counted. What is under test
+		# here is a BOT'S POLICY at a level it has been handed, not how long the warhead took to get
+		# there. See NuclearExchangeInfo.EscalationDelayTicks; negative is a documented meaning.
+		EscalationDelayTicks: -1
 
 	# Both halves of the arsenal gate, LOCKED so no lobby default can move either out from under the
 	# run. `powers-sandbox` is what provides the `powers.event` prerequisite that no faction does; it

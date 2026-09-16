@@ -65,6 +65,13 @@ namespace OpenRA.Mods.Common.Traits
 				isActive |= !x.Trait.IsTraitPaused;
 			}
 
+			// THE FINAL EXCHANGE STOPS EVERYTHING. This override does not call base.Tick, so the same
+			// test has to be made here or the mod's Building/Defense/Vehicle queues -- all
+			// ClassicProductionQueue -- would keep producing through the ending. See
+			// ProductionQueue.FinalExchangeHalted.
+			if (FinalExchangeHalted)
+				Enabled = false;
+
 			if (!Enabled)
 				ClearQueue();
 

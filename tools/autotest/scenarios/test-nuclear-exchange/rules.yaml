@@ -1,4 +1,4 @@
-# The nuclear exchange autotest's overrides.
+﻿# The nuclear exchange autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -49,6 +49,27 @@ World:
 		TwentyKilotonCooldownTicks: 320
 		FiftyKilotonCooldownTicks: 340
 		HundredKilotonCooldownTicks: 360
+
+		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
+		# this scenario ALONE. Added 2026-09-16 with the user ruling that moved the level-up onto the
+		# explosion ("we see the correlation between the explosion, and after only a few seconds
+		# perhaps we get the message of escalation"): NuclearExchangeInfo.EscalationDelayTicks 50
+		# defers each escalation to the first warhead's IMPACT plus three seconds.
+		#
+		# WHY THIS SCENARIO OPTS OUT. Deferring to the impact drags the whole FLIGHT TIME into the
+		# escalation, and the phase schedule below fires and then asserts on the victim's level
+		# SEVENTY TO EIGHTY ticks later. The shipped B61Low carries MissileDelay: 200 before its arc
+		# is counted at all, and the arc is the map diagonal plus ApproachMargin divided by the
+		# missile's Speed -- a number that changes with map size and that no phase constant here
+		# could track. What this scenario measures is the LADDER and the COOLDOWN, neither of which
+		# the delay touches, so the honest move is to take the new variable back out rather than to
+		# retune every boundary against it.
+		#
+		# NEGATIVE IS THE DOCUMENTED MEANING, not a value sneaking past a bound: see
+		# NuclearExchangeInfo.EscalationDelayTicks. The DEFERRAL ITSELF is covered by
+		# NuclearExchangeStateTest (ReportLaunchAloneEscalatesNobody,
+		# SixReEntryVehiclesFromOneOrderEscalateOneRung), which needs no world and no flight.
+		EscalationDelayTicks: -1
 
 	# Both halves of the arsenal gate. `nuclear-arsenal` is the host's checkbox over all thirteen
 	# warheads; `powers-sandbox` is what provides the `powers.event` prerequisite that no faction

@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -227,13 +227,32 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly int LeadInTicks = 30;
 
 		[Desc("THE FINAL EXCHANGE WINDOW: how long every surviving side holds its game-enders and may",
-			"place them itself before Dead Hand places the rest. 250 ticks is 15.0 s at the mod's 60 ms",
-			"timestep — NOT 25 tps, which would read this as 10 s (see conventions.md).",
+			"place them itself before Dead Hand places the rest. 500 ticks is 30.0 s at the mod's 60 ms",
+			"timestep — NOT 25 tps, which would read this as 20 s (see conventions.md).",
+			"",
+			"RAISED FROM 250 (15.0 s) ON 2026-09-16, AND THE ARGUMENT IS ARITHMETIC RATHER THAN TASTE.",
+			"The window is not a reaction test, it is the time to do a fixed list of things, and the",
+			"list is longer for one faction than the other: Russia's game-ender is the RS-28 Sarmat at",
+			nameof(MissileStrikePowerInfo.AimPoints) + " 6, so its order is not issued until the SIXTH",
+			"aim point is placed (" + nameof(SelectMultiPowerTarget) + "; right-click or Escape abandons",
+			"with nothing fired). America's B83 leaves that field at its default 1 and is a single",
+			"click. So the Russian player must notice a banner, find a cameo that has just appeared in",
+			"a 16-slot bin, and land six clicks — call it ten seconds for a player who knew it was",
+			"coming and rather more for one who did not — against a budget of fifteen. The user played",
+			"Russia and fired nothing.",
+			"",
+			"WHY NOT THE OTHER THREE FIXES. Making the game-ender single-aim-point for the duration",
+			"would quietly turn a six-warhead weapon into a one-warhead one at the only moment it is",
+			"ever fired. Starting the countdown on first interaction, or holding it open while a",
+			"placement is in progress, both key SYNCED state (" + nameof(DoomsdayStrike.FinalExchangeClosesTick),
+			"is [Sync]) off a CLIENT-LOCAL order generator, which is a desync rather than a feature.",
+			"Lengthening it is the only one of the four that is symmetric between the factions, adds no",
+			"code path, and cannot disagree between clients.",
 			"",
 			"ZERO OR LESS SKIPS THE WINDOW ENTIRELY and fires the salvo on the trigger tick, which is",
 			"byte-for-byte the behaviour this mode had before the window existed. That is the escape",
 			"hatch for a scenario that wants the old shape back without stripping the trait.")]
-		public readonly int FinalExchangeWindowTicks = 250;
+		public readonly int FinalExchangeWindowTicks = 500;
 
 		// DELIBERATELY NOT [GrantedConditionReference]. That attribute states "this trait grants this
 		// condition ON ITS OWN ACTOR", and CheckConditions is a strictly per-actor pass
@@ -347,7 +366,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool resolved;
 		bool salvoBuilt;
 
-		/// <summary>The fifteen seconds, as bookkeeping. See <see cref="FinalExchangeWindow"/>.</summary>
+		/// <summary>The window, as bookkeeping. See <see cref="FinalExchangeWindow"/>.</summary>
 		readonly FinalExchangeWindow window = new();
 
 		// Sides already handed their game-enders, as "player|powerkey". MEMBERSHIP-TESTED ONLY, never
@@ -497,7 +516,28 @@ namespace OpenRA.Mods.Common.Traits
 			// Victory checks stand down from the START for the same reason. Without this a side that
 			// loses its last unit during the window would be awarded a loss by ConquestVictoryConditions
 			// before a single warhead had been placed.
+			//
+			// IT IS ALSO WHAT STOPS PRODUCTION, as of 2026-09-16. ProductionQueue reads this through
+			// DoomsdayStrike.VictoryChecksSuspended and clears itself for as long as it is set; see
+			// ProductionQueue.FinalExchangeHalted for the user ruling and for why it is the queue and
+			// not this trait that does the clearing.
 			SalvoInProgress = true;
+
+			// ==== THE WEAPON AND THE RULE THAT GOVERNS IT MUST AGREE. DEFECT (a), 2026-09-16 ====
+			// ArmGameEnders below grants the condition, overrides the tier and forces the cameo ready
+			// -- and before this line it touched NEITHER of the two numbers NuclearExchange holds. A
+			// side inside its cooldown was handed a weapon that NuclearExchange put straight back on a
+			// four-minute clock, inside a fifteen-second window; a side below the top rung on the time
+			// limit path was handed one whose order would be vetoed at resolution. Which side that was
+			// is pure timing luck. See NuclearExchangeState.OpenFinalExchange for the recorded match.
+			//
+			// BEFORE ArmGameEnders, NOT AFTER, and for the same reason the condition is granted on the
+			// line before MakeReady is called: everything downstream reads these numbers live, so
+			// clearing them afterwards would leave one tick in which the two layers still disagree.
+			//
+			// TraitOrDefault: a map or scenario that carries DoomsdayStrike without NuclearExchange --
+			// every Skirmish map -- must reach the ending unchanged. Same rule as DefconCasualtyObserver.
+			world.WorldActor.TraitOrDefault<NuclearExchange>()?.OpenFinalExchange();
 
 			// THE MAP COMES OUT OF THE FOG so the exchange can be aimed, and so it can be watched.
 			//
@@ -721,6 +761,24 @@ namespace OpenRA.Mods.Common.Traits
 			// applied while it is still in the air.
 			if (playerImpactTick > lastImpactTick)
 				ExtendScheduleForImpact(playerImpactTick);
+
+			// ==== THE ENDING IS NOW LEGIBLE FROM A LOG. ADDED 2026-09-16, AND IT IS NOT A NICETY ====
+			// Everything from here on went to TextNotificationsManager -- the SCREEN -- and nowhere
+			// else, so a debug.log covering a whole match showed the exchange OPENING and then nothing
+			// at all. Diagnosing the (a) defect from the user's log, a reviewer concluded from the
+			// absent "DEAD HAND ACTIVATED" line that the exchange had STALLED; it had not, the line
+			// simply is not written anywhere a log can see. Four lines is what that inference cost.
+			//
+			// WHAT EACH ONE HAS TO CARRY is the thing that cannot be inferred from the others: who
+			// placed and who did not (the question test-escalation-full-match could not ask), how many
+			// warheads are actually in the air, when the sweep runs, and when the verdict lands.
+			Log.Write("debug", $"DEAD HAND placing at tick {world.WorldTick}: " +
+				$"{window.PlacementCount} side(s) placed their own [{window.SidesThatPlaced().JoinWith(", ")}]; " +
+				$"Dead Hand places for [{window.SidesPlacedForByDeadHand().JoinWith(", ")}].");
+
+			Log.Write("debug", $"DEAD HAND salvo: {pending.Count} warhead(s) scheduled, " +
+				$"first spawn tick {(pending.Count > 0 ? pending[0].SpawnTick : -1)}, last impact tick {lastImpactTick}, " +
+				$"annihilation tick {annihilationTick}, resolution tick {resolutionTick}.");
 
 			AnnounceDeadHandPlacement();
 		}
@@ -1082,6 +1140,9 @@ namespace OpenRA.Mods.Common.Traits
 				if (a.IsInWorld && !a.Disposed)
 					a.Kill(a, info.AnnihilationDamageTypes);
 
+			Log.Write("debug", $"DEAD HAND annihilation at tick {world.WorldTick}: " +
+				$"{doomed.Count} actor(s) destroyed. Verdict due at tick {resolutionTick}.");
+
 			TextNotificationsManager.AddSystemLine("Total strategic annihilation.");
 		}
 
@@ -1105,6 +1166,16 @@ namespace OpenRA.Mods.Common.Traits
 		void Resolve()
 		{
 			SalvoInProgress = false;
+
+			// THE FROZEN SCORE, NAMED, ON THE TICK IT IS READ. ConquestVictoryConditions does the
+			// comparison and logs nothing about it, so a match that ended on the wrong winner had no
+			// evidence trail at all -- and "the score as it stood when the exchange opened" is exactly
+			// the claim a reader would want to check. Written BEFORE the verdict is raised, so the
+			// numbers are the ones the comparison is about to use rather than whatever it leaves behind.
+			Log.Write("debug", $"DEAD HAND resolution at tick {world.WorldTick}, from the score frozen at " +
+				"the trigger tick: " + string.Join(", ", world.Players
+					.Where(p => p.Playable && !p.NonCombatant)
+					.Select(p => $"{p.InternalName}={p.PlayerActor.TraitOrDefault<PlayerExperience>()?.Experience ?? 0}")));
 
 			foreach (var p in world.Players)
 				foreach (var ntl in p.PlayerActor.TraitsImplementing<INotifyTimeLimit>())
