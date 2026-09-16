@@ -13693,3 +13693,5 @@ Actors:
 	Actor5759: spawnarea
 		Owner: Neutral
 		Location: 96,34
+
+Rules: rules.yaml

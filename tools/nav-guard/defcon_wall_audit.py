@@ -322,6 +322,61 @@ def region_cells_for(game_map, tileset, terrain_types: list[str],
     return cells
 
 
+def engine_load_gate(game_map, blocked):
+    """DefconWallRegion's OWN labelling, which decides whether the wall is raised at all.
+
+    THIS IS NOT THE PER-LOCOMOTOR TEST AND IT IS STRICTLY STRONGER. DefconWall.BuildRegion
+    hands DefconWallRegion a passability predicate of `Map.Contains` and nothing else
+    (DefconWall.cs, "PASSABILITY HERE IS `Map.Contains` AND NOTHING ELSE") -- deliberately,
+    because passability is a property of a locomotor and a World-actor trait would have to
+    pick one arbitrarily. So the engine floods a grid in which EVERY in-Bounds cell that is
+    not a border cell is passable, and `IsDegenerate => ComponentCount < 2` then decides
+    whether the region survives. A degenerate region is DISCARDED and the wall stays down for
+    the whole match; it does not fall back to a line.
+
+    A path in a locomotor's graph is also a path in that fully-open graph, so open-graph
+    separation implies separation for every locomotor -- and the converse fails. A region can
+    therefore pass every locomotor line below, exit 0, and still never raise a wall in game.
+    That is not hypothetical: Water,River,Bridge on river-zeta-ww3 separates all six vehicle
+    locomotors while leaving the open graph in ONE 7060-cell piece.
+
+    Also mirrored: cells outside Bounds are DROPPED. DefconWallRegion.IndexOf returns -1 for
+    them, so an out-of-Bounds authored cell never enters BlockedCells, never reaches
+    CustomTerrain and is never drawn -- whatever BuildRegion's own comment about closing the
+    border ring says.
+    """
+    left, top, width, height = game_map.bounds
+    inside = {c for c in blocked
+              if left <= c[0] < left + width and top <= c[1] < top + height}
+    dropped = len(blocked) - len(inside)
+
+    seen = set()
+    components = 0
+    for y in range(top, top + height):
+        for x in range(left, left + width):
+            if (x, y) in inside or (x, y) in seen:
+                continue
+            components += 1
+            stack = [(x, y)]
+            seen.add((x, y))
+            while stack:
+                cx, cy = stack.pop()
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        n = (cx + dx, cy + dy)
+                        if not (left <= n[0] < left + width
+                                and top <= n[1] < top + height):
+                            continue
+                        if n in inside or n in seen:
+                            continue
+                        seen.add(n)
+                        stack.append(n)
+
+    return len(inside), dropped, components
+
+
 def audit_region(model, blocked: set[tuple[int, int]], variant: str, spawns):
     """Separation and pockets for a REGION border, reported per locomotor.
 
@@ -418,6 +473,20 @@ def run_region(args, rules, maps) -> int:
             print("    ! the region is empty -- nothing to audit\n")
             failed = True
             continue
+
+        # The engine's own load-time gate, consulted before any locomotor is. See
+        # engine_load_gate: a region that leaves this in one piece is discarded by
+        # DefconWall.BuildRegion and no wall is ever raised, however green the lines below.
+        in_bounds, dropped, open_components = engine_load_gate(game_map, blocked)
+        gate_ok = open_components >= 2
+        failed |= not gate_ok
+        print(f"    {'ok  ' if gate_ok else 'DEGENERATE'} engine load gate "
+              f"(DefconWallRegion, Map.Contains passability): {in_bounds} cell(s) in Bounds"
+              + (f", {dropped} dropped as out-of-Bounds" if dropped else "")
+              + f", {open_components} component(s)")
+        if not gate_ok:
+            print("         ! IsDegenerate -- BuildRegion logs and the wall stays DOWN. "
+                  "The per-locomotor results below are moot.")
 
         for loco in locos:
             model = nav_guard.build_cell_model(rules, game_map, tileset, loco, occupancy)

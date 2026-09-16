@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-16 - A DEFCON region has TWO separation tests, and the one that decides whether the wall exists at all was not being checked (`wt/river-zeta-region`, base `main @ ab2ac8b8`)
+
+**`defcon_wall_audit.py --region-*` reports separation PER LOCOMOTOR. The engine does not.**
+`DefconWall.BuildRegion` hands `DefconWallRegion` a passability predicate of `Map.Contains` and
+nothing else — deliberately, and the comment at the call site argues the case well: passability is a
+property of a locomotor, and a World-actor trait would have to pick one arbitrarily. So the engine
+floods a grid in which **every in-Bounds cell that is not a border cell is passable**, and
+`IsDegenerate => ComponentCount < 2` then decides whether the region is kept. A degenerate region is
+**discarded and the wall stays down for the whole match** — it does not fall back to a line.
+
+**THAT GRID IS STRICTLY MORE CONNECTED THAN ANY LOCOMOTOR'S, so the implication runs one way only.**
+A path in a locomotor's graph is also a path in the fully-open graph; the converse fails. Open-graph
+separation therefore implies separation for every locomotor, and a green per-locomotor audit implies
+*nothing* about the engine gate. A region could pass all fifteen locomotor lines, exit 0, and never
+raise a wall in game — silently, because the only trace is one `Log.Write("debug", ...)`.
+
+**river-zeta-ww3 is one terrain type away from being exactly that map.** `Water, River, Bridge`
+leaves the open graph in **one 7060-cell component** while separating all six vehicle locomotors
+2667/2622. It was caught only because `Rock` happens to be passable to `foot` as well, so the
+per-locomotor audit went red too. Make `Rock` impassable to infantry and the same authoring passes
+the audit and produces no border.
+
+**The 7060 figure has been quoted as a foot-class result and it is not one** — `foot` measures 6843.
+7060 is the open graph, i.e. the engine gate, which is why the two numbers were never going to
+reconcile.
+
+`defcon_wall_audit.py` now mirrors the gate directly (`engine_load_gate`) and prints it above the
+per-locomotor block, participating in the exit code.
+
+**A SECOND CLAIM IN THE SAME FILE IS FALSE.** `BuildRegion` says authored cells "are added
+unconditionally, INCLUDING cells outside Bounds... a border that stopped at Bounds would leave a
+one-cell seam." They are added to the list and then **dropped**: `DefconWallRegion.IndexOf` is
+Bounds-local and returns -1 outside it, so such a cell never enters `BlockedCells`, never reaches
+`CustomTerrain`, and is never drawn. On river-zeta-ww3 the terrain scan alone hands over 634 cells of
+which **14 are outside Bounds and silently discarded**. The border ring is not closed by this
+mechanism, and `RenderAnnotations`' own `Map.Contains` guard — written for the line path, where
+`overwritten` really does span `Map.AllCells` — is dead code on the region path for the same reason.
+
+**ALSO, FOR ANY STATIC TOOL READING A MAP:** `Rules: rules.yaml` is an inline **file-list value**,
+not a child block (`MiniYaml.cs:627-631` appends it to the mod's rule files). `modload.load_map`
+only walks `Rules:`' child nodes, so it returns no `rule_overrides` for that form — which is the form
+`arena-tank-duel`, `nuclear-winter-ww3`, `shellmap-open-field` and now `river-zeta-ww3` all use. A
+map that overrode a **locomotor** that way would be invisible to nav-guard. Not fixed here; changing
+it could move nav-guard baselines.
+
 ## 2026-09-16 - A terrain border that leaks for infantry and not vehicles is leaking through a terrain type INSIDE it, not round its ends (`wt/defcon-wall-region`, base `main @ 4df25ac4`)
 
 **THE DEFCON 3 BORDER CAN NOW BE AUTHORED AS A SET OF CELLS** (`DefconWallInfo.RegionTerrainTypes` /

@@ -1,0 +1,58 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON RIVER ZETA IS THE RIVER ITSELF --------------------------------
+	# The derived bisector in world.yaml is the right border on an open map and the wrong one
+	# here: it is the perpendicular bisector of the two sides' spawn centroids, so on a map whose
+	# natural division is a river it cuts across the water at whatever angle the spawns imply.
+	# Authoring either region field below switches this map to the region path and neither
+	# Start/End nor DeriveFromSpawns is consulted at all (DefconWallInfo.RegionTerrainTypes).
+	#
+	# POSITIONING-PHASE ONLY. DefconWall writes Map.CustomTerrain and restores it cell by cell
+	# when the level leaves ActiveLevels, which is 3 alone. No terrain is edited and nothing here
+	# survives DEFCON 2 -- the bridges reopen and the crossings decide the match.
+	DefconWall:
+		# The river, its two bridge decks and the standing water. 634 cells on this map
+		# (588 Water + 22 River + 24 Bridge), of which 620 are inside Bounds.
+		RegionTerrainTypes: Water, River, Bridge
+		# ---- WHY THERE ARE 210 HAND-AUTHORED CELLS, AND WHY THE BORDER DOES NOT EXIST WITHOUT
+		# THEM. Water + River + Bridge alone leaves the map in ONE piece, and that is not a
+		# tuning preference -- DefconWallRegion.IsDegenerate is `ComponentCount < 2`, and on a
+		# region that divides nothing DefconWall.BuildRegion logs and leaves the wall DOWN.
+		# Measured statically (tools/nav-guard/defcon_wall_audit.py, and the same flood by hand):
+		# blocking only those three types leaves one 7060-cell component holding all six spawns.
+		#
+		# THE REASON IS FOUR DRY CROSSINGS OF THE CHANNEL, not a gap round the ends of the river.
+		# Capping the end rows does nothing; the river runs to both map edges. What it has instead
+		# is two ROCK-AND-ROAD FORDS (y3-5 in the north, y77-79 in the south) where a dry bar
+		# spans the water, and two BRIDGES whose decks are flanked on both sides by Rock lying
+		# inside the channel -- so blocking the deck leaves a rock ramp beside it. `foot` lists
+		# Rock in its TerrainSpeeds and no wheeled or tracked locomotor does, which is the entire
+		# infantry-versus-vehicle split on this map: with only the three terrain types blocked
+		# every vehicle is already separated 2667/2622 and every foot class still walks across.
+		#
+		# ADDING `Rock` TO THE TYPE LIST ABOVE WOULD ALSO SEPARATE, AND IS NOT DONE ON PURPOSE.
+		# Measured: the map's 87 Rock cells form 24 8-connected clusters of which only 9 touch the
+		# water at all, so the type list drags in 15 rock islands with no connection to the river
+		# -- and the border then strands 64 cells for `foot` (bbox x42-56 / y33-47) against the 31
+		# the cells below strand. Blunter AND worse. The cells below are the same four crossings
+		# closed by hand.
+		#
+		# EACH CROSSING IS COVERED BANK TO BANK RATHER THAN PLUGGED. A 12-cell minimum vertex cut
+		# does separate the map -- (31,3-5), (39,35) (42,35) (43,35), (52,48) (55,48) (56,48),
+		# (59,77-79) -- and was measured pocket-free, but it leaves the dry bar in the middle of
+		# each ford open and attached to ONE bank, so the eastern player would own a beachhead
+		# sitting inside the river while the band drawn over it showed a hole. Covering the whole
+		# channel is also what was asked for: the whole river, not a line down the middle of it.
+		#
+		# NONE OF THESE IS A ONE-CELL DIAGONAL. The cell set was chosen and verified in the SAME
+		# 8-connected graph DefconWallRegion.Label floods, so a corner-touching staircase cannot
+		# read as sealed here the way HalfWidth 512 once did on 131 map/locomotor combinations.
+		#
+		# Verified statically at ab2ac8b8: exactly 2 components, 3 spawns each --
+		# (9,45) (16,6) (23,75) against (74,5) (81,76) (88,35) -- and `RESULT: the region
+		# separates the spawns on every locomotor that can reach them`, exit 0, all 15 locomotors.
+		#
+		#   north ford          53 cells   x31-40  y1-7
+		#   bridge A abutments  63 cells   x38-56  y27-41
+		#   bridge B abutments  40 cells   x49-59  y42-54
+		#   south ford          54 cells   x59-69  y74-80
+		RegionCells: 33,1, 34,1, 36,1, 37,1, 38,1, 39,1, 32,2, 33,2, 34,2, 35,2, 37,2, 38,2, 39,2, 31,3, 32,3, 33,3, 34,3, 35,3, 36,3, 37,3, 38,3, 39,3, 40,3, 31,4, 32,4, 33,4, 34,4, 35,4, 36,4, 37,4, 38,4, 39,4, 40,4, 31,5, 32,5, 33,5, 34,5, 35,5, 36,5, 37,5, 38,5, 39,5, 40,5, 33,6, 34,6, 36,6, 37,6, 38,6, 39,6, 34,7, 36,7, 37,7, 38,7, 40,27, 43,27, 40,28, 41,28, 42,28, 43,28, 40,29, 41,29, 42,29, 43,29, 44,29, 40,30, 41,30, 42,30, 43,30, 44,30, 41,31, 42,31, 43,31, 42,32, 45,32, 46,32, 47,32, 41,33, 44,33, 45,33, 40,34, 43,34, 44,34, 38,35, 39,35, 42,35, 43,35, 38,36, 41,36, 42,36, 43,36, 44,36, 41,37, 42,37, 43,37, 44,37, 45,37, 43,38, 44,38, 45,38, 53,38, 43,39, 44,39, 45,39, 46,39, 53,39, 54,39, 44,40, 45,40, 46,40, 53,40, 54,40, 55,40, 45,41, 54,41, 55,41, 56,41, 54,42, 55,42, 56,42, 57,42, 55,43, 56,43, 57,43, 55,44, 56,44, 59,44, 49,45, 55,45, 58,45, 59,45, 50,46, 54,46, 57,46, 58,46, 51,47, 53,47, 56,47, 57,47, 52,48, 55,48, 56,48, 54,49, 55,49, 56,49, 57,49, 57,50, 58,50, 57,51, 58,51, 57,52, 58,52, 59,52, 57,53, 58,53, 59,53, 58,54, 65,74, 66,74, 61,75, 62,75, 64,75, 65,75, 66,75, 67,75, 69,75, 60,76, 61,76, 62,76, 63,76, 65,76, 66,76, 67,76, 69,76, 59,77, 60,77, 61,77, 62,77, 63,77, 64,77, 65,77, 66,77, 67,77, 68,77, 69,77, 59,78, 60,78, 61,78, 62,78, 63,78, 64,78, 65,78, 66,78, 67,78, 68,78, 59,79, 60,79, 61,79, 62,79, 63,79, 64,79, 65,79, 66,79, 67,79, 68,79, 61,80, 62,80, 64,80, 65,80, 66,80, 67,80
