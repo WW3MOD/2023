@@ -262,6 +262,21 @@ Player:
 	# is meant to gate it is Phase 2 and is not wired yet.
 	MissileStrikePower@Kinzhal:
 		OrderName: KinzhalStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING (DEFCON 3). Firing was closed at the weapon, in
+		# Armament.CanFire -- but a support power never passes through an Armament, so this power,
+		# the Oreshnik and the GBU-57 were the one remaining way to put ordnance across a border the
+		# readout calls closed. Measured, not assumed: bought at tick 0 against 20000 starting cash,
+		# a Kinzhal lands its first impact roughly 39 s into a 300 s phase.
+		#
+		# PauseOnCondition, NOT RequiresCondition, and the difference is the whole point. Pausing
+		# clears SupportPowerInstance.Active (SupportPowerManager.cs:403) and therefore Ready (:226),
+		# so the power cannot be fired -- while leaving Disabled (:215) alone, so the cameo stays
+		# visible and the power stays PURCHASABLE. The rule is "no strikes during setup", not "no
+		# shopping during setup"; RequiresCondition would strip it from the buy tab altogether.
+		#
+		# Strict no-op outside Escalation: with no DEFCON level GrantConditionOnDefconLevel grants
+		# nothing, defcon-3 never exists, and Skirmish and Sandbox are untouched.
+		PauseOnCondition: defcon-3
 		# RUSSIA'S CONVENTIONAL RUNG. `powers.russia`, not `player.russia`, and the swap is what
 		# makes the sandbox toggle possible at all -- see THE THREE TIERS below. `player.russia` is
 		# provided by faction ALONE, so nothing could ever unlock this for an America player; the
@@ -370,6 +385,11 @@ Player:
 	# as the starting number, not a measured one.
 	MissileStrikePower@Oreshnik:
 		OrderName: OreshnikStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal for why this is
+		# PauseOnCondition rather than RequiresCondition, and why it is a no-op outside Escalation.
+		# This one matters most of the three: six independently-aimed warheads is the largest
+		# conventional payload that could have crossed a closed border.
+		PauseOnCondition: defcon-3
 		Prerequisites: powers.russia
 		# INTERIM ART. `artyicon` (artystrikicon) is the one cameo defined in sequences-misc.yaml that
 		# no power currently claims, so this costs no new drawing and creates no duplicate: the
@@ -552,6 +572,10 @@ Player:
 	# comments, understates every duration by 1.5x.
 	MissileStrikePower@GBU57:
 		OrderName: GBU57Strike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal. America's rung of
+		# the same ladder, gated the same way, so neither faction can open the match with ordnance
+		# the other cannot answer.
+		PauseOnCondition: defcon-3
 		# AMERICA'S CONVENTIONAL RUNG. See the note on @Kinzhal for why this is `powers.america`
 		# rather than `player.america`.
 		Prerequisites: powers.america
