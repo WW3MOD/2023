@@ -49,7 +49,13 @@ World:
 		TwentyKilotonCooldownTicks: 320
 		FiftyKilotonCooldownTicks: 340
 		HundredKilotonCooldownTicks: 360
-
+		# NO BLANK LINE ABOVE, DELIBERATELY. There was one here and it was removed 2026-09-16: a blank
+		# line between sibling keys INSIDE a nested node is the one shape whose failure mode is
+		# SILENT. If it split the node, the four cooldown overrides above would be dropped and this
+		# scenario would quietly run at the shipped 5/7/9/12-minute values -- still producing a
+		# verdict, just not the one it claims to measure, with nothing in lint to say so. The YAML
+		# gate cannot adjudicate that, so the hazard is removed rather than tested for.
+		#
 		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
 		# this scenario ALONE. Added 2026-09-16 with the user ruling that moved the level-up onto the
 		# explosion ("we see the correlation between the explosion, and after only a few seconds
