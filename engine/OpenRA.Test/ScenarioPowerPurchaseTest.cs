@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * WW3MOD autotest-scenario wiring tests — do the scenarios that FIRE a support power still have a
  * way to get one?
@@ -340,7 +340,7 @@ namespace OpenRA.Test
 			if (!string.Equals(Field(doomsday, "RunInTestMode"), "True", StringComparison.OrdinalIgnoreCase))
 				return false;
 
-			// Absent means the shipped 250. Zero is the documented escape hatch that skips the window
+			// Absent means the shipped default (500 since 2026-09-16). Zero is the documented escape hatch that skips the window
 			// entirely and fires the salvo on the trigger tick, arming nobody.
 			var ticks = Field(doomsday, "FinalExchangeWindowTicks");
 			return ticks == null || (int.TryParse(ticks, out var parsed) && parsed > 0);

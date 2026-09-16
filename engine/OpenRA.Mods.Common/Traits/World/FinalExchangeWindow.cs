@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * WW3MOD addition. Not upstream OpenRA.
  */
@@ -13,7 +13,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Nothing has happened. The match is ordinary.</summary>
 		Idle = 0,
 
-		/// <summary>The fifteen seconds. Every surviving side holds its game-enders and may place them.</summary>
+		/// <summary>THE WINDOW. Every surviving side holds its game-enders and may place them.</summary>
 		Open = 1,
 
 		/// <summary>The window has expired. Dead Hand has the remaining warheads and the salvo is running.</summary>

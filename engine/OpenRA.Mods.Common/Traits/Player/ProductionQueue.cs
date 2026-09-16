@@ -182,6 +182,54 @@ namespace OpenRA.Mods.Common.Traits
 			CacheProducibles();
 		}
 
+		// Resolved on first use rather than in Created: World.WorldActor is null while world traits are
+		// being created and a player actor can be built inside that window (the hazard NuclearExchange
+		// and DefconWall both record). By the first Tick the world exists, so a lazy read is the only
+		// one that is always safe -- and the flag makes it exactly one lookup per queue per match.
+		bool doomsdayResolved;
+		DoomsdayStrike doomsday;
+
+		/// <summary>
+		/// <para>IS THE WORLD ENDING? While it is, this queue holds nothing and accepts nothing.</para>
+		///
+		/// <para>USER RULING, 2026-09-16: "when the final exchange happens all production should be
+		/// cancelled and stopped". It was not — nothing in
+		/// <see cref="DoomsdayStrike.BeginFinalExchange"/> touched a queue, and the recorded match has
+		/// the AI's composition picker still choosing reinforcements at ticks 31020, 31080 and 31110
+		/// against an exchange that opened at 30957.</para>
+		///
+		/// <para>THE QUEUE IS WHERE IT GOES, not DoomsdayStrike, and the constraint is what decides that:
+		/// <see cref="Tick"/> recomputes <see cref="Enabled"/> from the production traits EVERY TICK,
+		/// so a one-shot write from outside is overwritten on the next one. Reading the condition here,
+		/// inside the recompute, is the only form that survives — and it covers the human and the bot
+		/// with one test, because both reach production through <see cref="ResolveOrder"/>, which
+		/// returns on <c>!Enabled</c>.</para>
+		///
+		/// <para>IT REFUNDS, because <see cref="ClearQueue"/> does and that is the shipped meaning of the
+		/// "CancelAllProduction" order this mirrors. The cash cannot reach the verdict: statistics and
+		/// experience are frozen on the trigger tick (<see cref="DoomsdayStrike.FreezeStatistics"/>)
+		/// and the winner comes from that frozen score, so a refund during the exchange is money nobody
+		/// can spend in a world that is about to be swept. "Cancelled" rather than "confiscated" is
+		/// also the kinder reading of the user's word.</para>
+		///
+		/// <para>IT SPANS THE WHOLE ENDING, window and salvo alike — <see cref="DoomsdayStrike.SalvoInProgress"/>
+		/// is set when the exchange opens and cleared when the verdict lands. Production during the
+		/// annihilation would be as wrong as production during the window.</para>
+		/// </summary>
+		protected bool FinalExchangeHalted
+		{
+			get
+			{
+				if (!doomsdayResolved)
+				{
+					doomsdayResolved = true;
+					doomsday = self.World.WorldActor?.TraitOrDefault<DoomsdayStrike>();
+				}
+
+				return doomsday != null && doomsday.SalvoInProgress;
+			}
+		}
+
 		protected void ClearQueue()
 		{
 			// Refund the current item
@@ -325,10 +373,15 @@ namespace OpenRA.Mods.Common.Traits
 				anyUnpausedProduction |= !p.IsTraitPaused;
 			}
 
-			if (!anyEnabledProduction)
+			// THE FINAL EXCHANGE STOPS EVERYTHING. See FinalExchangeHalted: cleared every tick so an
+			// order that slipped in on the trigger tick is taken back out, and Enabled false so
+			// ResolveOrder refuses the next one.
+			var halted = FinalExchangeHalted;
+
+			if (!anyEnabledProduction || halted)
 				ClearQueue();
 
-			Enabled = IsValidFaction && anyEnabledProduction;
+			Enabled = IsValidFaction && anyEnabledProduction && !halted;
 			TickInner(self, !anyUnpausedProduction);
 		}
 

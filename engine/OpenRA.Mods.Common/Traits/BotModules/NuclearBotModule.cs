@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * WW3MOD — the bot's nuclear decision-making for Escalation.
  *
@@ -279,7 +279,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// THE FINAL EXCHANGE IS CHECKED ON EVERY TICK, ahead of the evaluation beat. The window is
-			// DoomsdayStrikeInfo.FinalExchangeWindowTicks wide (250 shipped) and a bot that waited for
+			// DoomsdayStrikeInfo.FinalExchangeWindowTicks wide (500 shipped, raised from 250 on 2026-09-16)
+			// and a bot that waited for
 			// its 50-tick beat would still make it — but placing late is strictly worse than placing
 			// early and there is nothing to gain by the wait.
 			var strike = Doomsday();

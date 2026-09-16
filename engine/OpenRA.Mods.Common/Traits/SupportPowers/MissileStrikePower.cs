@@ -264,16 +264,22 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// It sits here rather than in a warhead deliberately, and the Sarmat is why: that power
 			// flies SIX independently-aimed 750 kt re-entry vehicles, each with its own Explodes
-			// payload. Counted at warhead impact, one click would arm the other side six times over
-			// and restart their retaliation window six times. One decision to release is one report.
+			// payload. Counted at warhead impact, one click would arm the other side six times over.
+			// One decision to release is one report.
 			//
-			// It also has to be here for the RETALIATION WINDOW to mean anything. Read at impact, the
-			// whole flight time would be a window in which the victim is not yet armed -- so a player
-			// could empty a magazine before the first warhead landed and the reply would open late by
-			// however long the missiles were in the air. Reporting on the order closes that:
-			// SupportPowerInstance.Permitted is recomputed every tick from instancesEnabled
-			// (SupportPowerManager.cs:246), so the new band reaches every cameo and every buy-tab
-			// entry on the tick after the click.
+			// WHAT THIS CALL STILL DECIDES, AND WHAT IT NO LONGER DOES (2026-09-16). It still charges
+			// the firing side's cooldown and still answers "may this side fire at all", because both
+			// have to be settled the instant the button is pressed. It no longer raises the VICTIM's
+			// level: the user ruled that the level-up must land with the explosion rather than with the
+			// click, so ReportNuclearRelease now records the escalation and the per-warhead call further
+			// down (NuclearExchange.NotifyNuclearImpact) tells it when the warhead arrives. The
+			// once-per-order property is unchanged and is still what keeps a Sarmat to one rung -- the
+			// RECORD is made here, the six impact reports only refine its timing.
+			//
+			// The second reason this comment used to give -- that reporting at impact would open the
+			// victim's RETALIATION WINDOW late -- is gone with the window itself, deleted in the
+			// nuclear exchange v2 rewrite (NuclearExchangeState's header). A LEVEL does not expire, so
+			// there is no deadline for a late grant to eat into.
 			//
 			// TraitOrDefault, not Trait: a scenario or map that strips NuclearExchange from the
 			// World actor must leave this inert rather than throw. Same rule as
@@ -623,6 +629,20 @@ namespace OpenRA.Mods.Common.Traits
 			// report unless a final exchange is in progress. Synced order-resolution path, so every
 			// client reports the same tick. See DoomsdayStrike.NotifyExchangeLaunch.
 			DoomsdayStrike.NotifyExchangeLaunch(world, self.Owner, world.WorldTick + impactDelay, info);
+
+			// AND THE ESCALATION WAITS FOR IT TOO (user ruling, 2026-09-16): "it should happen when the
+			// nuke explodes, so we see the correlation between the explosion, and after only a few
+			// seconds perhaps we get the message of escalation". Reported from HERE for the identical
+			// reason the line above is -- impactDelay is the flight the missile will actually fly, and
+			// recomputing it in the exchange would be a second copy of arithmetic that MissileDelay,
+			// the sandbox branch and ApproachDistance can all move.
+			//
+			// ONCE PER WARHEAD, AND THAT IS SAFE. The escalation RECORD was created once, by
+			// ReportNuclearRelease on the order above; these calls only refine its impact tick, and the
+			// earliest wins. A Sarmat's six RVs therefore still escalate the enemy exactly one rung --
+			// which is the property that made the original author put the report at launch time, and
+			// which NuclearExchange.NotifyNuclearImpact now keeps without needing to.
+			NuclearExchange.NotifyNuclearImpact(world, self.Owner, world.WorldTick + impactDelay, info);
 
 			if (info.CameraRange != WDist.Zero)
 			{

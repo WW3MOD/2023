@@ -1,7 +1,78 @@
-# Discoveries
+﻿# Discoveries
 
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
+
+## 2026-09-16 - The final exchange armed a weapon a second system still held locked, and neither layer was wrong on its own (`wt/escalation-endgame`, base `main @ ab2ac8b8`)
+
+**THE USER PLAYED ESCALATION AS RUSSIA, REACHED THE FINAL EXCHANGE, AND FIRED NOTHING.** Asked what
+they saw, they answered "I think no cameo appeared, I am not 100% sure I remember exactly" — so the
+symptom is a LEAD and the mechanisms below are settled from code, not from the recollection. Two
+independent gates sit between a surviving side and a usable game-ender, and **both were open
+questions**: VISIBILITY (does a cameo appear at all) and READINESS (is it firable). The second is a
+verified defect. The first is not — see the negative result at the end, which is worth as much.
+
+The verified one is an interaction between two rules that are each correct in isolation, and it is
+the shape worth remembering rather than the specific line:
+
+* `DoomsdayStrike.ArmGameEnders` hands every surviving side its game-ender by granting a condition,
+  overriding the tier and calling `SupportPowerInstance.MakeReady` — which zeroes the countdown. It
+  touched **neither** of the two numbers `NuclearExchangeState` holds (`Level`, `CooldownTicks`).
+* `NuclearExchange.MakeBandsReady` deliberately re-applies the side's *remaining* cooldown over
+  `MakeReady`'s zero (`NuclearExchange.cs`, "AND THEN THE SIDE'S REMAINING COOLDOWN, IF IT OWES ONE").
+  That is the right rule in open play: being escalated while reloading must not hand you a free shot.
+
+The victim's level rises on the trigger tick, so `ReconcileGrants` services that rise on the **next**
+one — and puts the just-armed game-ender straight back on a clock. From the user's own debug.log
+(river-zeta): side 2 fired a 100 kt at ~tick 23500 for a 12000-tick lockout, the exchange opened at
+30957, and the cameo was re-locked with ~4500 ticks left against a **250-tick window**.
+
+**THE DIAGNOSTIC LESSON IS THE ABSENCE OF EVIDENCE.** There is not one `NUCLEAR LAUNCH REFUSED` line
+in the log, and that is what identifies the layer: `SupportPowerInstance.Target()` returns early on
+`!Ready`, so no order is ever issued and the refusal path is never reached. **A veto at resolution
+leaves a line; a block at readiness leaves nothing.** An earlier hypothesis — that the shot was
+vetoed and the charge silently eaten — predicted a line that does not exist and was wrong.
+
+**WHICH SIDE IS ON COOLDOWN WHEN THE EXCHANGE OPENS IS PURE TIMING LUCK.** The AI came off its own
+cooldown at tick 30909 and fired 48 ticks later. Same weapon, same window, and one of the two was
+unwinnable. Anything that hands out a weapon under time pressure has to clear **every** gate that
+weapon sits behind, not the one the author was thinking about.
+
+**A SECOND, LATENT HALF ON THE OTHER PATH IN.** The time limit expiring opens the same window with no
+launch anywhere, so every side is still at whatever rung it climbed to — usually 1. `ReportLaunch`
+would then refuse the placed warhead with `AboveLevel` at resolution: armed, aimed, clicked, vetoed.
+Nobody had reached that case because the cooldown one bit first.
+
+**THE VISIBILITY LEAD DOES NOT REPRODUCE, AND THAT IS A RESULT RATHER THAN A DEAD END.** Traced
+forward from `SupportPowerManager.cs:215` (`Disabled => !bank.IconVisible(Permitted)`):
+
+* **The buy economy cannot hide it.** `var purchased = info.RequiresPurchase && escalationCooldown < 0`
+  (`SupportPowerManager.cs:367`) — in Escalation the cooldown is non-negative, so `purchased` is
+  **false** and the bank is built DISABLED. `HidesIcon => Enabled && Charges == 0` is then always
+  false, so `IconVisible(permitted)` reduces to `permitted`. **There is no purchase gate on
+  visibility in Escalation**; the final exchange never granting a purchase costs nothing.
+* **`ArmableBy` answers true for a Russia human.** `Is(750000)` is the top rung; the Sarmat declares
+  `Prerequisites: powers.event, player.russia` (`player.yaml:238-239`), so stripping the licensed
+  `powers.event` leaves `player.russia`; that name is provided by `ProvidesPrerequisite` with a
+  `Factions:` filter (`player.yaml:1121-1124`). So `MakeReady()` IS called, `prereqsAvailable`
+  becomes true, and `Permitted` becomes true.
+* **The bin is not stale.** `SupportPowersWidget.Tick` calls `RefreshIcons()` unconditionally every
+  tick, rebuilding from `!p.Disabled` — there is no cached icon list to go out of date.
+
+**So the cameo should have appeared — greyed, with a ~4500-tick clock on it.** That is what the
+verified cooldown re-pin produces, because `Disabled` depends on `Permitted` and NOT on the timer.
+A dark, unclickable cameo in a fifteen-second window is very plausibly what "no cameo appeared" was.
+**The lesson: `Permitted` governs whether an icon EXISTS, `Ready` governs whether it RESPONDS, and a
+player cannot tell the two apart.** Do not use "nothing appeared" to localise a support-power bug.
+
+**AND THE ENDING WAS NEARLY UNDIAGNOSABLE.** Only four lines in `DoomsdayStrike.cs` reached
+debug.log, all of them bails in `BeginFinalExchange`. `DEAD HAND ACTIVATED`, the salvo, the
+annihilation and the verdict all went to `TextNotificationsManager.AddSystemLine` — the SCREEN — so a
+whole-match log showed the exchange opening and then silence. A reviewer concluded from the missing
+Dead Hand line that the exchange had stalled. It had not; the line is simply not written anywhere a
+log can see. Four `Log.Write` calls were added for that reason.
+
+---
 
 ## 2026-09-16 - A terrain border that leaks for infantry and not vehicles is leaking through a terrain type INSIDE it, not round its ends (`wt/defcon-wall-region`, base `main @ 4df25ac4`)
 

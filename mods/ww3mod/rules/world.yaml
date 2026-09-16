@@ -1,4 +1,4 @@
-
+﻿
 ^BaseWorld:
 	Inherits: ^Palettes
 	AlwaysVisible:
@@ -655,14 +655,14 @@ World:
 	CellTriggerOverlay:
 	TimeLimitManager:
 		# "Time Limit" (user ruling, 2026-09-10). This is the THIRD name in a day -- Doomsday, then
-		# Dead Hand, now this. At zero every surviving side is handed its game-enders and fifteen
-		# seconds to pick targets (DoomsdayStrike.FinalExchangeWindowTicks), and only what nobody
-		# aimed in that window is aimed by the machine.
+		# Dead Hand, now this. At zero every surviving side is handed its game-enders and thirty
+		# seconds to pick targets (DoomsdayStrike.FinalExchangeWindowTicks, raised from fifteen on
+		# 2026-09-16), and only what nobody aimed in that window is aimed by the machine.
 		#
 		# CORRECTED 2026-09-13. This paragraph used to justify the rename with "THE AUTO-LAUNCH WAS
 		# REMOVED. Nothing here fires by itself any more", and that was PROSE ONLY -- there was no
 		# window in the code, and the time limit ran a fully automatic salvo. The window exists now,
-		# so the fifteen seconds are real for the first time. The conclusion drawn from them was
+		# so those seconds are real for the first time. The conclusion drawn from them was
 		# always too strong either way: Dead Hand still places every warhead nobody claimed, which
 		# is exactly the machine "dead hand" names.
 		#
@@ -729,12 +729,19 @@ World:
 		AnnihilationDelayTicks: 90
 		ResolutionDelayTicks: 30
 		LeadInTicks: 30
-		# THE FINAL EXCHANGE WINDOW. 250 ticks = 15.0 s at the mod's 60 ms timestep -- NOT 25 tps,
-		# which would read this as 10 s. Written out here rather than left to the C# default because
+		# THE FINAL EXCHANGE WINDOW. 500 ticks = 30.0 s at the mod's 60 ms timestep -- NOT 25 tps,
+		# which would read this as 20 s. Written out here rather than left to the C# default because
 		# it is the one number in this block a player experiences directly: it is how long they have
 		# to place their own warheads before Dead Hand places the rest. Set it to 0 to get the old
 		# fully automatic salvo back.
-		FinalExchangeWindowTicks: 250
+		#
+		# RAISED FROM 250 ON 2026-09-16 after the user played Escalation as Russia and fired nothing.
+		# Russia's game-ender is the RS-28 Sarmat with AimPoints: 6, so the order is not issued until
+		# the SIXTH aim point is placed; America's B83 is one click. Fifteen seconds did not cover
+		# notice-the-banner + find-the-cameo + six-clicks, and the whole match turns on that one
+		# moment. See DoomsdayStrikeInfo.FinalExchangeWindowTicks for the three alternatives and why
+		# none of them is this one.
+		FinalExchangeWindowTicks: 500
 
 	# THE TWO PER-POWER NUCLEAR GATES WERE RETIRED ON 2026-09-15 and this block used to describe
 	# them. `tactical-nuke` and `high-yield-nuke` each gated exactly one EVENT-TIER power -- a tier
