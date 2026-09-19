@@ -290,6 +290,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		bool active;
 
+		// The border is built ONCE, and no longer necessarily by our own WorldLoaded -- see
+		// ResolveBorder below for why another trait's WorldLoaded may get there first.
+		bool borderResolved;
+
 		[Sync]
 		int SyncActive => active ? 1 : 0;
 
@@ -343,6 +347,38 @@ namespace OpenRA.Mods.Common.Traits
 		// downstream is integer. No shared random is drawn, so every client derives the same line.
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
 		{
+			ResolveBorder();
+		}
+
+		/// <summary>
+		/// Build the border -- derived line or authored region -- once, on whichever comes first: our
+		/// own <see cref="IWorldLoaded"/> or the first caller that asks where the wall will be.
+		/// </summary>
+		// LAZY BECAUSE IWorldLoaded ORDER IS TRAIT ORDER, AND SOMETHING RUNS BEFORE US.
+		// SpawnStartingUnits is declared at world.yaml:638 and this trait at :925, so the starting
+		// units are placed while `geometry` is still the degenerate Info default and `region` is
+		// still null -- it asked where the border was and was told there wasn't one. Reordering the
+		// two yaml blocks would not have been enough either: the CustomTerrain write happens in the
+		// first Tick, which is after EVERY IWorldLoaded, so no trait order makes the band readable
+		// from the ground during world load. The answer is to make the question answerable early
+		// instead, which it always could be: every input here -- the map, its terrain, and the
+		// players' HomeLocations (fixed in the Player constructor, World.cs:63) -- exists before the
+		// first IWorldLoaded runs.
+		//
+		// IDEMPOTENT, AND THAT IS WHAT KEEPS BuildRegion's OWN PRECONDITION TRUE: it reads
+		// Map.GetTerrainIndex, which is CustomTerrain-aware, so re-running it once the wall stood
+		// would read the wall back in as border terrain and grow it. Running EARLIER than it used to
+		// is safe for the same reason running at WorldLoaded was -- the wall is still down either
+		// way -- and running a second time is now impossible rather than merely unlikely.
+		void ResolveBorder()
+		{
+			if (borderResolved)
+				return;
+
+			borderResolved = true;
+
+			var w = world;
+
 			// A REGION WINS OVER BOTH THE AUTHORED LINE AND THE DERIVATION, and returns either way:
 			// a region that divides nothing leaves the wall DOWN rather than falling through to a
 			// line. See the precedence note on DefconWallInfo.RegionTerrainTypes for why.
@@ -493,14 +529,23 @@ namespace OpenRA.Mods.Common.Traits
 			Apply();
 		}
 
+		/// <summary>
+		/// Does the wall stand at the level the match is at right now? Says nothing about WHERE it
+		/// stands -- <see cref="Apply"/> pairs this with a non-degenerate border, and
+		/// <see cref="ForbidsPlacement"/> pairs it with the lazily-built one.
+		/// </summary>
+		// SHARED SO THE TWO CANNOT DRIFT. A placement filter that answered for a wall the tick loop
+		// would not raise is a filter that moves units in Skirmish -- where this is false because
+		// DefconEscalation holds NoLevel -- and Skirmish has to stay bit-for-bit what it was.
+		bool StandsAtThisLevel => escalation != null
+			&& escalation.Level != DefconEscalationState.NoLevel
+			&& info.ActiveLevels.Contains(escalation.Level);
+
 		void Apply()
 		{
 			// Polling one int per tick on the World actor, for the same reason
 			// GrantConditionOnDefconLevel polls: no creation-order dependency, and no edge to miss.
-			var wanted = (IsRegion || !geometry.IsDegenerate)
-				&& escalation != null
-				&& escalation.Level != DefconEscalationState.NoLevel
-				&& info.ActiveLevels.Contains(escalation.Level);
+			var wanted = (IsRegion || !geometry.IsDegenerate) && StandsAtThisLevel;
 
 			if (wanted == active)
 				return;
@@ -710,6 +755,37 @@ namespace OpenRA.Mods.Common.Traits
 			if (!active)
 				return false;
 
+			if (IsRegion)
+				return region.IsBeyond(SideFor(player), cell);
+
+			var centre = world.Map.CenterOfCell(cell);
+			return geometry.IsBeyond(SideFor(player), centre.X, centre.Y);
+		}
+
+		/// <summary>
+		/// Will the wall forbid <paramref name="player"/> from standing on this cell? The same question
+		/// <see cref="IsBeyondWall(Player, CPos)"/> answers -- the band itself counts as beyond -- except
+		/// that it does not require the wall to have been RAISED yet, so it can be asked during world
+		/// load, before the first Tick has written a single cell of CustomTerrain.
+		/// </summary>
+		// FOR PLACING THINGS, NOT FOR ENFORCEMENT. The three enforcement layers all run long after the
+		// wall is up and must keep using IsBeyondWall: asking THIS on a hot path would resolve the
+		// border for a match that has not reached DEFCON 3 yet. What needs it is world load -- see
+		// SpawnStartingUnits, which chose a cell inside the band on arena-tank-duel because the ground
+		// it tested had not been written yet and this trait had no way to be asked.
+		//
+		// STILL FALSE FOR THE WHOLE OF SKIRMISH, and that is the byte-identity guarantee: the level
+		// test comes FIRST, so a Skirmish match never even builds a border to consult.
+		public bool ForbidsPlacement(Player player, CPos cell)
+		{
+			if (!StandsAtThisLevel)
+				return false;
+
+			ResolveBorder();
+
+			// No IsDegenerate test: a derivation that produced nothing leaves the geometry degenerate
+			// and IsBeyond already answers false for every point on it, which is the right answer --
+			// no border was drawn, so no cell is behind one.
 			if (IsRegion)
 				return region.IsBeyond(SideFor(player), cell);
 

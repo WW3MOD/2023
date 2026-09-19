@@ -1,0 +1,53 @@
+TEST: a forward-deployed package never lands in the DEFCON 3 band.
+
+arena-tank-duel's terrain, verbatim: 66x34 of flat open ground with two spawns facing
+each other down row 16 at x 6 and x 58. Fifty-two cells apart, and that number is the
+whole scenario.
+
+  THE BORDER    is DERIVED, not authored -- world.yaml sets DeriveFromSpawns and no map
+                draws a line. It is the perpendicular bisector of the two homes, so it
+                sits on column 32, and DefconWall's 1024 half-width reaches a whole cell
+                either side of a cell centre. The band is columns 31, 32 and 33.
+
+  THE PACKAGE   advances 35% of the way to the enemy: x 6 + (52 * 35 / 100) = x 24. The
+                motorized annulus has an outer radius of 7, so its outer ring reaches
+                x 31 -- the band's first column. The advance and the border are fifteen
+                percent of the separation apart, which on a 52-cell map is 7.8 cells, and
+                the package radius plus the half-width is 8. The clearance is negative.
+
+  THE BUG       SpawnStartingUnits places at IWorldLoaded; DefconWall writes its
+                CustomTerrain from its first Tick, which is after every IWorldLoaded. So
+                the placement search's CanEnterCell test read open grass where the band
+                was about to be, and a unit was put down inside it -- standing on ground
+                that turned impassable one tick later and stayed that way until DEFCON 2.
+                No trait order fixes this: the write is simply later than world load.
+
+Three legs, in order, each with its own named failure:
+
+  GUARDS        The Forward Deployment lobby option really opened on `motorized`, the
+                wall really stands, and columns 31-33 really read as Wall while 30 and 34
+                do not. These come first because each is a way for the run to look green
+                over an empty map or an absent border.
+
+  CENSUS        Every unit the trait placed, read twice: the terrain under its own cell,
+                and its column against the band. The second catches a unit placed clean
+                THROUGH the band as well as one standing in it -- half of an annulus
+                centred on x 24 is perfectly good ground on Russia's side of a closed
+                border, and that is no better a place to start a match.
+
+  PATHABILITY   Everything is ordered home to 12,16 and must end up strictly closer than
+                it started. This is not the census again: a unit inside the band can still
+                move (the crossing guard permits any step that reduces depth). It is the
+                pocket check -- a unit clear of the band whose only way out ran through
+                it.
+
+Only USA deploys. SpawnStartingUnits spawns for Playable players, and a Playable slot
+exists at runtime only when a client occupies it (CreateMapPlayers.cs:108-121 skips every
+empty slot); an autotest launch has one client. The geometry is symmetric, Russia's side
+of it is pinned without a game in OpenRA.Test/ForwardDeploymentBandOverlapTest, and
+Russia here is an ordinary map player whose job is to own the far Supply Route -- which
+is what fixes where the border lands.
+
+PASS: twenty forward units, none in the band, none at or past column 31, all able to path
+home, over a wall that is standing where the arithmetic says.
+FAIL: names which leg went wrong and lists the offending units with their cells.

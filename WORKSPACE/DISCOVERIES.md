@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - A trait that writes CustomTerrain in `Tick` cannot be reordered ahead of `IWorldLoaded`, and the fix is to make the QUESTION answerable early (`wt/fwd-deploy-band`, base `main @ c3825714`)
+
+`SpawnStartingUnits` placed a forward-deployed unit inside the DEFCON 3 band on `arena-tank-duel`. The
+obvious reading is a trait-order bug — `SpawnStartingUnits` is declared at `world.yaml:638` and
+`DefconWall` at `:925`, and `IWorldLoaded` order IS trait order — but **reordering the two yaml blocks
+would not have fixed it.** `DefconWall.WorldLoaded` only builds the geometry; the `Map.CustomTerrain`
+write that makes the band impassable happens in `Apply()`, reached from `ITick.Tick`, and **every**
+`IWorldLoaded` runs before the first tick (`World.cs:334`). So no ordering of world traits makes the
+band readable from the ground during world load, and any placement search that tests terrain reads
+open grass there.
+
+**The generalisable shape: when a consumer runs earlier than a producer's side effect, do not move the
+side effect — make the producer able to ANSWER without having performed it.** Every input
+`DefconWall` needs (the map, its terrain, the players' `HomeLocation`s, fixed in the `Player`
+constructor) exists before the first `IWorldLoaded`, so the border is computable on demand. Lazily
+resolving it behind an accessor removes the ordering dependency entirely rather than pinning it, and
+the accessor gates on the escalation level FIRST so a Skirmish match never builds a border at all.
+
+**The overlap is arithmetic and it is narrow.** Forward Deployment advances 35 % toward the enemy and
+the derived border is the bisector at 50 %, so the clearance in cells is
+`0.15 * separation - OuterSupportRadius - HalfWidth`. For the motorized package (outer radius 7) and
+the shipped 1024 half-width that goes negative below **54** cells of separation — not 53, which is
+what the continuous arithmetic gives: `PerpendicularBisector` takes an INTEGER midpoint, so an odd
+separation truncates the border half a cell back toward the near spawn and 53 still collides.
+`arena-tank-duel` is 52. Pinned in `OpenRA.Test/ForwardDeploymentBandOverlapTest`.
+
+**And one for scenario authors, which cost a scenario design here.** `SpawnStartingUnits` spawns for
+`p.Playable`, and a `Playable: True` slot produces a `Player` at runtime **only when a client occupies
+it** — `CreateMapPlayers.cs:108-121` iterates `LobbyInfo.Slots` and `continue`s on every empty one. An
+autotest launch has exactly ONE client (`Game.LoadMap` -> `CreateAndStartLocalServer`), so **at most
+one side in a scenario can carry starting units**, and a scenario that wants both sides deployed cannot
+have them. A `Bot:` on a map player does not help: that player is still `Playable: False`. This is also
+why every existing scenario carries `-SpawnStartingUnits:` — without it the harness's own Observer
+slot, being `Playable`, is handed a `supplyroute` from `StartingUnits@none`.
+
 ## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
 
 Tuning the DEFCON 3 "Positioning" clock looks like a per-map problem: the border is the perpendicular

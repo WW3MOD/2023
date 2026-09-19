@@ -111,6 +111,10 @@ namespace OpenRA.Mods.Common.Traits
 	{
 		readonly SpawnStartingUnitsInfo info;
 
+		// The DEFCON 3 border, or null on a world that has no wall trait at all. Resolved at world
+		// load and asked about every candidate cell -- see Forbidden.
+		DefconWall wall;
+
 		public SpawnStartingUnits(SpawnStartingUnitsInfo info)
 		{
 			this.info = info;
@@ -118,9 +122,43 @@ namespace OpenRA.Mods.Common.Traits
 
 		public void WorldLoaded(World world, WorldRenderer wr)
 		{
+			// ASK THE TRAIT, NOT THE GROUND. Every placement test below routes through CanEnterCell,
+			// which reads terrain -- and the wall's band is not IN the terrain yet: DefconWall writes
+			// CustomTerrain from its first Tick, which is after every IWorldLoaded, so at this moment
+			// the band reads as open grass however the yaml orders the two traits. On arena-tank-duel
+			// (spawns 52 cells apart) that put a forward-deployed package's outer ring at x 31, the
+			// first column of a band covering x 31..33, and the unit stood on impassable ground until
+			// DEFCON 2 lifted the wall. DefconWall.ForbidsPlacement answers from the border's geometry
+			// instead, which is computable the moment the players exist.
+			wall = world.WorldActor.TraitOrDefault<DefconWall>();
+
 			foreach (var p in world.Players)
 				if (p.Playable)
 					SpawnUnitsForPlayer(world, p);
+		}
+
+		/// <summary>
+		/// Will the DEFCON border forbid <paramref name="p"/> this cell once it stands? Covers the band
+		/// itself AND everything on the far side of it, because a package half-deployed past a closed
+		/// border is as wrong as one standing in it.
+		/// </summary>
+		// FALSE FOR EVERY MATCH WITHOUT A WALL, which is what keeps Skirmish bit-for-bit unchanged:
+		// there is no wall trait on a world that strips it, and on one that has it the level test in
+		// ForbidsPlacement is false at NoLevel. Nothing here draws from SharedRandom either -- the
+		// candidate list is shuffled before any of this is consulted, so the same draws happen in the
+		// same order whatever this answers.
+		bool Forbidden(Player p, CPos cell)
+		{
+			return wall != null && wall.ForbidsPlacement(p, cell);
+		}
+
+		/// <summary>Can this actor type stand here, optionally honouring the border as well?</summary>
+		bool CanHold(World w, Player p, IPositionableInfo posInfo, CPos cell, bool respectWall)
+		{
+			if (!posInfo.CanEnterCell(w, null, cell))
+				return false;
+
+			return !respectWall || !Forbidden(p, cell);
 		}
 
 		void SpawnUnitsForPlayer(World w, Player p)
@@ -198,7 +236,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (unitGroup.SupportActors.Length == 0)
 				return;
 
-			var center = SelectDeploymentCenter(w, p.HomeLocation, enemyHome, unitGroup);
+			var center = SelectDeploymentCenter(w, p, enemyHome, unitGroup);
 			var bearing = ForwardDeploymentGeometry.BearingToward(w.Map.CenterOfCell(center), w.Map.CenterOfCell(enemyHome));
 
 			SpawnSupportActors(w, p, unitGroup, center, bearing);
@@ -211,8 +249,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// Failing that it takes the best centre it saw. Step 0 is the home location itself, so the search has
 		/// a floor that is known to work rather than an error case.
 		/// </summary>
-		CPos SelectDeploymentCenter(World w, CPos home, CPos enemyHome, StartingUnitsInfo unitGroup)
+		// THE BORDER IS PART OF THE SCORE, NOT A SEPARATE CLAMP ON THE ADVANCE. A fraction clamped
+		// against the wall's nominal position would still be wrong wherever the real line is not where
+		// the fraction assumes -- an authored line, a region border, an odd alliance split -- whereas
+		// counting only cells the border leaves usable makes the existing retreat search do the
+		// clamping against the geometry that actually shipped. Step 0 is home, so the floor is still
+		// the ordinary home deployment rather than a failure.
+		CPos SelectDeploymentCenter(World w, Player p, CPos enemyHome, StartingUnitsInfo unitGroup)
 		{
+			var home = p.HomeLocation;
 			var positionables = unitGroup.SupportActors
 				.Select(s => s.ToLowerInvariant())
 				.Distinct()
@@ -234,7 +279,7 @@ namespace OpenRA.Mods.Common.Traits
 				var score = int.MaxValue;
 				foreach (var ip in positionables)
 				{
-					var usable = cells.Count(c => ip.CanEnterCell(w, null, c) && HasUsableEscapeRegion(w, ip, c));
+					var usable = cells.Count(c => CanHold(w, p, ip, c, true) && HasUsableEscapeRegion(w, p, ip, c, true));
 					if (usable < score)
 						score = usable;
 				}
@@ -252,13 +297,36 @@ namespace OpenRA.Mods.Common.Traits
 			return bestCenter;
 		}
 
+		/// <summary>
+		/// Index of the first candidate this actor type can be placed on, or -1. Prefers a cell with a
+		/// real escape region and falls back to any enterable one, which is the tight-map allowance
+		/// this search has always carried.
+		/// </summary>
+		// PITFALL: (0,0) is a legal cell -- most ww3mod maps set Bounds at the origin -- so
+		// FirstOrDefault's default(CPos) cannot be told apart from a real hit. Search by index.
+		int FindSpawnCell(World w, Player p, IPositionableInfo posInfo, List<CPos> candidates, bool respectWall)
+		{
+			var index = candidates.FindIndex(c =>
+				CanHold(w, p, posInfo, c, respectWall) && HasUsableEscapeRegion(w, p, posInfo, c, respectWall));
+
+			// Fallback for very tight maps: accept any enterable cell rather than dropping the unit.
+			if (index < 0)
+				index = candidates.FindIndex(c => CanHold(w, p, posInfo, c, respectWall));
+
+			return index;
+		}
+
 		// PITFALL (2026-05): a starting unit must spawn in a connected passable region big enough
 		// to maneuver, otherwise it can land in a small pocket inside impassable terrain (e.g. one
 		// or two open cells deep in a forest) and be stuck. Checking a single neighbor is not enough —
 		// the neighbor itself can be in the same tiny pocket. Bounded BFS gives a real escape guarantee.
 		const int MinReachableCells = 16;
 
-		static bool HasUsableEscapeRegion(World w, IPositionableInfo posInfo, CPos start)
+		// THE BORDER COUNTS AS IMPASSABLE HERE FOR THE SAME REASON THE POCKET DOES. Sixteen reachable
+		// cells that are only reachable THROUGH the band is not an escape region: the band closes the
+		// moment the wall goes up, and what is left can be the one or two cells the PITFALL above is
+		// about. Ignoring the border would let a cell pass this test on ground it is about to lose.
+		bool HasUsableEscapeRegion(World w, Player p, IPositionableInfo posInfo, CPos start, bool respectWall)
 		{
 			var visited = new HashSet<CPos> { start };
 			var queue = new Queue<CPos>();
@@ -275,7 +343,7 @@ namespace OpenRA.Mods.Common.Traits
 						var n = cell + new CVec(dx, dy);
 						if (!w.Map.Contains(n) || visited.Contains(n))
 							continue;
-						if (!posInfo.CanEnterCell(w, null, n))
+						if (!CanHold(w, p, posInfo, n, respectWall))
 							continue;
 						visited.Add(n);
 						if (visited.Count >= MinReachableCells)
@@ -306,13 +374,16 @@ namespace OpenRA.Mods.Common.Traits
 				var ip = actorRules.TraitInfo<IPositionableInfo>();
 				var candidates = supportSpawnCells.Shuffle(w.SharedRandom).ToList();
 
-				// PITFALL: (0,0) is a legal cell — most ww3mod maps set Bounds at the origin — so
-				// FirstOrDefault's default(CPos) cannot be told apart from a real hit. Search by index.
-				var validIndex = candidates.FindIndex(c => ip.CanEnterCell(w, null, c) && HasUsableEscapeRegion(w, ip, c));
+				var validIndex = FindSpawnCell(w, p, ip, candidates, true);
 
-				// Fallback for very tight maps: accept any enterable cell rather than dropping the unit.
+				// LAST RESORT: the same search with the border ignored, which is exactly the search
+				// this method ran before the border was consulted at all. A unit in the band is stuck
+				// until DEFCON 2 -- recoverably, since the crossing guard allows any move that reduces
+				// depth -- and a unit that was never created is not. So an annulus the border leaves
+				// nothing usable in loses none of the units it used to place; it only stops PREFERRING
+				// a banded cell while a clear one exists.
 				if (validIndex < 0)
-					validIndex = candidates.FindIndex(c => ip.CanEnterCell(w, null, c));
+					validIndex = FindSpawnCell(w, p, ip, candidates, false);
 
 				if (validIndex < 0)
 				{
