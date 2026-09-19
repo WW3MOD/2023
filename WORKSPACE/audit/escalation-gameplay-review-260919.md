@@ -8,10 +8,10 @@ number (DEFCON 2 lasts **98 ticks**, not the one tick predicted), showed that th
 front during Positioning at all, and turned up one finding nobody asked for: on the shipped settings
 an even bot-vs-bot match reaches its nuclear phase and then never uses it.
 
-**ONE THING IS DELIBERATELY LEFT OPEN.** §B1 — whether the border should stand at DEFCON 2 — is the
-largest design ruling here, and the evidence moved it twice in one day in opposite directions, each
-time on a single unseeded sample. It needs one more run (R2 repeated with R1's seed) before it is
-ruled, and §B1 says so at the point of decision. Everything else in §B is ready to rule on.
+**§B1 IS NOW RULED AND CLOSED**, on a fifth run: R2 repeated with R1's seed, which is the only
+controlled comparison in this document. It rejects b1a — holding the border at DEFCON 2 makes the
+cease-fire **shorter**, 38 ticks against 98 — and closes §B1 with "there is no geometric fix".
+**§B6 is the single top item in §B.** Everything in §B is ready to rule on.
 
 **Scope.** Started as the backlog item "tune the three DEFCON pace durations" and was widened by the
 user to a full stage-by-stage review of the mode as a human would experience it, plus an assessment of
@@ -483,12 +483,19 @@ rather than 5003 — so the standing wall DID delay contact, by 73 ticks, which 
 was supposed to have and which the paragraph above says it does not. **Both readings rest on single
 unseeded samples and they disagree.**
 
-**WHERE THAT LEAVES THE RULING, AND IT IS THE SAME PLACE EITHER WAY.** 98 ticks and 224 ticks are
-5.9 s and 13.4 s. A phase a player participates in is neither. **B6 is the fix under both readings**
-and b1a is worth one field only alongside it, never instead of it. What the disagreement does cost
-is the right to rule on b1a's value: **do not rule §B1 until R2 has been re-run with R1's seed**
-(`--seed -1662796604`, about six minutes), which makes the two matches identical up to tick 5000
-and divergent only in the rule. Full derivations in the R3 and R2 sections of "Simulation results".
+**RULED 2026-09-20 ON THE CONTROLLED PAIR. b1a IS REJECTED.** R2 was re-run with R1's seed, making
+the two matches identical up to tick 5000 and divergent only in the rule under test. Result: first
+fire at tick 5003 in BOTH arms — the standing wall delayed contact by zero ticks, so the unseeded
+run's 73-tick "delay" was noise of the same size as the effect — and the cease-fire came out
+**shorter** with the wall up, **38 ticks against 98**. The mechanism is in the volley: with the band
+impassable each unit's valid-target set narrows, so ten USA units including an Abrams all picked the
+SAME soft target, against three units over two targets with the band down. Concentrated fire kills
+faster and ends the phase sooner. b1a is counterproductive, not merely useless.
+
+**b1b is untested and must not be built on this evidence**; **b1c is rejected on a different
+objection from the one written above** (it falsifies `FIRST KILL ENDS THIS PHASE`, not the fire
+rule). **§B1 CLOSES: there is no geometric fix, and §B6 is the whole of it.** The full ruling, with
+the volley, is the "§B1, RULED" section at the end of "Simulation results".
 
 **B2. Escalation's `Starting Units` default.** §2.1. A default Escalation match opens with nothing to
 position. `Motorized` (3 vehicles + 15 infantry + support) is the package that matches the fiction. The
@@ -882,7 +889,7 @@ other.
   Nothing here separates "the wall made the shooting less effective" from "a different match had
   different units in contact".
 
-### The one run still worth taking
+### The one run still worth taking — REQUESTED, TAKEN, AND IT SETTLED IT (see below)
 
 **Re-run R2 with `--seed -1662796604`.** That makes it identical to R1 up to tick 5000 and divergent
 only in the rule under test, which turns the 3-vs-76 contact delay from a suggestion into a
@@ -890,6 +897,9 @@ measurement and settles the time-to-kill term. **§B1 is the largest design ruli
 have now had its recommendation wrong in one direction and overcorrected in the other, and both
 positions rested on single unseeded samples.** Six minutes is cheap against a ruling made on that
 basis. Until it exists, §B1 should not be ruled at all.
+
+**That run was taken. It is the next section, and it settled §B1 against b1a.**
+
 
 ### Checked and clean, so nobody else chases it
 
@@ -899,3 +909,88 @@ DEFCON 1 with no RNG and no wall-clock, so release is exactly `DEFCON 1 + 10000`
 observes it through `NuclearBotModule`'s own reason token leaving `NotReleased`, and that module
 evaluates every `EvaluationInterval = 50` ticks. Both 3 and 27 are inside one evaluation window. The
 gate is exact; the observation is coarse.
+
+### **R2 REPEATED WITH R1's SEED — the controlled pair. Run `260920_013650_p4329`, PASS.**
+
+`./tools/autotest/run-test.sh --hidden --speed 8 --seed -1662796604 --timeout 900 wip-escalation-r2`,
+from `main @ 91ebded4`. `result.json` seed `-1662796604`; check line `wall 2=8/8`. **Identical to R1
+up to tick 5000 and divergent only in the rule under test.** This supersedes the unseeded reading
+above wherever the two disagree.
+
+| | R1 — wall DOWN at 2 | R2 seeded — wall UP at 2 |
+|---|---|---|
+| 3→2 | tick 5000 | tick 5000 |
+| **first `[exp-defcon2-fire]`** | **tick 5003** | **tick 5003** |
+| 2→1 | tick 5098 | **tick 5038** |
+| **DEFCON 2 duration** | 98 ticks (5.9 s) | **38 ticks (2.3 s)** |
+| orders during DEFCON 2 | USA 118 / RUS 121 | USA 61 / RUS 54 |
+| first victim | `ar.russia` (automatic rifleman) | `tecn.russia` (technician) |
+
+**Two results, and the first one retracts a correction rather than making one.**
+
+**1. The 3-vs-76 contact delay was the seed, not the rule.** First fire lands at tick 5003 in *both*
+arms of the controlled pair. The standing wall delayed contact by **zero ticks**. So the unseeded
+R2's apparent 73-tick delay — which I used above to walk back R3's conclusion — was noise of the
+same magnitude as the effect being looked for. **R3's reading was right and the walk-back was wrong.**
+
+**2. The wall made the cease-fire SHORTER, 98 → 38 ticks, and there is a mechanism.** The full
+`[exp-defcon2-fire]` volley explains it:
+
+    wall UP    tick 5003   TEN USA units -> tecn.russia#370        (all ten, one target)
+               tick 5004   four Russian replies
+               tick 5038   tecn.russia destroyed
+    wall DOWN  tick 5003   THREE USA units -> ar.russia#391, #404  (three, two targets)
+               tick 5098   ar.russia destroyed
+
+With the band impassable, each unit's set of valid targets is smaller, so the per-unit target picks
+**converge**: ten guns including an Abrams onto one 250-credit technician, against three guns spread
+over two riflemen when the band is down. Concentrated fire on a soft target kills in 35 ticks; split
+fire on riflemen takes 95. **So b1a does not merely fail to lengthen the phase — it shortens it, by
+narrowing the target set and thereby concentrating the volley.** That is the opposite of its purpose.
+
+*(Confidence, stated because I have been wrong here twice. The 98→38 difference is controlled and
+is a fact about this pair. The mechanism — narrower valid-target set causes concentration — is read
+off one volley and is an inference, not a measurement. It is a good inference because it predicts the
+sign of the effect and the target counts, but a second seed would settle it.)*
+
+*(Worth recording for its own sake: the first life taken in an Escalation match was a **technician**,
+killed by ten units including a main battle tank. The casualty rule counts it — anything destroyed by
+enemy action — which is decision 06 working as written.)*
+
+---
+
+## §B1, RULED: there is no geometric fix. B6 is the fix, and B1 closes.
+
+**b1a — the border stands at DEFCON 2 — is REJECTED on measurement.** Controlled A/B: contact
+unchanged, phase shortened from 98 ticks to 38, with a mechanism that predicts the sign. One field
+of change for an actively counterproductive effect.
+
+**b1b — a demilitarised zone — is NOT REJECTED but must not be built on the present evidence.** It
+was never tested and its prior is now poor from two directions. Contact happened at tick 5003 in both
+arms along a 110-cell border, and R3 shows the armies *dispersed* rather than massed — so widening
+the band moves which handful of units is nearest rather than removing contact. And by b1a's own
+mechanism a wider band narrows valid-target sets further, which concentrates fire and shortens the
+phase again. If anyone wants it, it needs its own seeded pair before a line of code, and the cheaper
+question comes first: **is there any band width that stops first contact happening within a few ticks
+somewhere along 110 cells?** R3 suggests not.
+
+**b1c — a minimum dwell — is REJECTED, and my original objection to it was wrong.** I wrote that it
+would mean "autonomous fire stays held while units are dying, which is a rule the readout would be
+lying about". That is not so: autonomous fire *is* held for the whole of DEFCON 2 and a dwell does not
+change that, so the readout's rule line stays true. The real objection is the other line — a dwell
+falsifies **`FIRST KILL ENDS THIS PHASE`**, which the readout pulses in those words and which is the
+causal link the entire design rests on. Blurring "your decision ended it" is a worse cost than a short
+phase.
+
+**So the phase's length is not fixable by moving anybody or anything.** DEFCON 2 is a **trigger**, not
+a phase, and every attempt to make it a phase by geometry either does nothing (b1b, expected) or backfires
+(b1a, measured). **§B6 — draw one honest banner when the two edges land inside the hold window, and log
+who took the first life — is the whole of the fix**, and it is now the top item in §B without
+qualification.
+
+**One constructive note that costs nothing to act on.** The mode *already ships* a configuration in
+which the cease-fire is a real phase, and §2.4 found it before any of these runs: **`Opening phase =
+Weapons free`**. Starting at DEFCON 2 raises no wall at all, both sides begin 50–77 cells apart with
+nothing built, and the first contact is the two to three minutes it takes somebody to drive over and
+choose to shoot. A host who wants the cease-fire drama has it today. That is worth a sentence in the
+option's tooltip and no code at all.

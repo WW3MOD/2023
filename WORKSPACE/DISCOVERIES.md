@@ -295,6 +295,50 @@ that is true of the GAME and false of a test that enumerates the neighbourhood. 
 `ScarEdgeVariantTest.EveryTierIsReachableFromTheShoreFadeThisLayerConfigures` passed with a threshold
 of 0.75, which no cell that can actually draw ever reaches. Exclude the boundary cell.
 
+## 2026-09-20 - An A/B between two UNSEEDED autotest runs manufactured an effect the same size as the one being measured (`wt/escalation-review`, base `main @ 91ebded4`)
+
+A design question — should the DEFCON 3 border keep standing through DEFCON 2? — was put to the
+autotest harness as a before/after on `test-escalation-full-match`. Both runs passed, both produced
+clean numbers, and the comparison was wrong in **both magnitude and sign**.
+
+    unseeded pair   wall down: first fire tick 5003, kill 5098   (phase 98 ticks)
+                    wall up:   first fire tick 5076, kill 5224   (phase 224 ticks)
+                    read as: the wall delays contact by 73 ticks and more than doubles the phase
+
+    SAME SEED       wall down: first fire tick 5003, kill 5098   (phase 98 ticks)
+                    wall up:   first fire tick 5003, kill 5038   (phase 38 ticks)
+                    truth:     the wall delays contact by ZERO, and SHORTENS the phase
+
+`run-test.sh` defaults to a `DateTime.Now`-derived seed. It records it in `result.json`, so any run
+is reproducible after the fact — but two runs launched without `--seed` are **two different matches**,
+and in a 24000-tick bot-vs-bot game the between-match variance on a quantity like "how long until the
+first kill" is comfortably larger than the effect a one-field rule change produces. The 73-tick
+"delay" was a different opening, not a different rule.
+
+**The rule to take away: a before/after on this harness is not an experiment unless both arms carry
+the same explicit `--seed`.** The seed makes the two runs identical up to the tick the change first
+bites and divergent only after it, which is the whole of what a controlled comparison is. It costs
+one flag. Without it you are comparing two samples from a distribution whose spread you have not
+measured, and there is no way to tell that from the output — both runs look equally clean.
+
+**Two corollaries that are not obvious.**
+
+**Pick the seed from the FIRST run rather than inventing one.** The baseline usually already exists
+(here R1 had run days before the question arose); reading its recorded seed out of `result.json` and
+passing it to the second arm turns a finished run into a control for free. Inventing a fresh seed for
+both arms costs an extra run of the baseline.
+
+**A controlled pair still does not give you a mechanism, and the temptation to infer one is strongest
+when the result is surprising.** The seeded pair proved the phase got shorter; *why* came from reading
+the order log, where ten units were seen firing at one target with the wall up against three units over
+two targets with it down — the impassable band narrows each unit's valid-target set, so the volley
+concentrates and kills faster. That is an inference off one volley, and it is labelled as one in the
+report. **Controlling the seed buys you the sign and the size of an effect. It does not buy you the
+cause.**
+
+Worked example, five runs and the full argument:
+`WORKSPACE/audit/escalation-gameplay-review-260919.md`, the "Simulation results" section.
+
 ## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
 
 Tuning the DEFCON 3 "Positioning" clock looks like a per-map problem: the border is the perpendicular
