@@ -26,10 +26,16 @@ conclusion stops making sense:
   VISION_LAYERS         11               MapLayers.cs:75
   CONCEALMENT_CEILING   VISION_LAYERS-2  Detectable.cs:118-125  (ClampConcealment)
   MAX_PURCHASABLE_RANK  3                RankAccumulation.cs:59
+  TIMESTEP_MS           60               mod.yaml:404-406 (GameSpeeds DefaultSpeed
+                                         `default`) => 16.67 ticks/second. NOT 25 tps;
+                                         see CLAUDE.md on the 1.5x duration error.
+  RANK_CURVE            see below        RankAccumulation.cs:281-303, all defaults
+                                         because player.yaml:22 declares the trait bare
 """
 
 import argparse
 import csv
+import math
 import os
 import sys
 from collections import OrderedDict, defaultdict
@@ -43,6 +49,52 @@ DETECTABLE_DEFAULT_VISION = 2
 VISION_LAYERS = 11
 CONCEALMENT_CEILING = VISION_LAYERS - 2
 MAX_PURCHASABLE_RANK = 3
+TIMESTEP_MS = 60
+
+# RankAccumulationInfo defaults -- RankAccumulation.cs:281-303. player.yaml:22
+# declares `RankAccumulation:` with no fields, so every one of these is in force.
+RANK1_BASE_INTERVAL_TICKS = 2400
+COST_REFERENCE_BUILD_TICKS = 100
+RANK1_INTERVAL_MULTIPLIER = 2700
+RANK1_MAX_INTERVAL_TICKS = 9000
+HIGHER_TIER_INTERVAL_MULTIPLIER = 300
+
+# BuildableInfo defaults -- Buildable.cs:50, :53.
+BUILD_DURATION_DEFAULT = -1
+BUILD_DURATION_MODIFIER_DEFAULT = 100
+
+# The cheapest thing in the game worth XP, used to express a kill threshold as a
+# KILL COUNT rather than a value. E1 (Conscript) -- infantry.yaml, Valued.Cost.
+CHEAPEST_TARGET_COST = 50
+
+
+def base_build_time_ticks(cost, build_duration, build_duration_modifier):
+    """RankAccrual.BaseBuildTimeTicks -- RankAccumulation.cs:69-73."""
+    time = cost // 10 if build_duration == -1 else build_duration
+    return max(1, time * build_duration_modifier // 100)
+
+
+def rank1_interval_ticks(build_time_ticks):
+    """RankAccrual.Rank1IntervalTicks -- RankAccumulation.cs:90-103."""
+    build = max(1, build_time_ticks)
+    reference = max(1, COST_REFERENCE_BUILD_TICKS)
+    compressed = math.isqrt(build * reference)
+    interval = RANK1_BASE_INTERVAL_TICKS + compressed * RANK1_INTERVAL_MULTIPLIER // 100
+    if RANK1_MAX_INTERVAL_TICKS > 0:
+        interval = min(interval, RANK1_MAX_INTERVAL_TICKS)
+    return max(1, interval)
+
+
+def interval_ticks(build_time_ticks, tier):
+    """RankAccrual.IntervalTicks -- RankAccumulation.cs:111-121."""
+    interval = rank1_interval_ticks(build_time_ticks)
+    for _ in range(1, tier):
+        interval = interval * HIGHER_TIER_INTERVAL_MULTIPLIER // 100
+    return max(1, interval)
+
+
+def ticks_to_minutes(ticks):
+    return ticks * TIMESTEP_MS / 1000.0 / 60.0
 
 # The five bonus axes, and the trait each one needs the actor to carry in order
 # to do anything at all. `None` means the axis has no precondition beyond the
@@ -130,6 +182,12 @@ class UnitFacts:
         self.buildable = buildable is not None
         self.queue = buildable.child_value("Queue") if buildable else None
         self.disabled = "~disabled" in self.prerequisites
+        self.build_duration = int_or(
+            buildable.child_value("BuildDuration") if buildable else None,
+            BUILD_DURATION_DEFAULT)
+        self.build_duration_modifier = int_or(
+            buildable.child_value("BuildDurationModifier") if buildable else None,
+            BUILD_DURATION_MODIFIER_DEFAULT)
 
         if "~player.america" in self.prerequisites:
             self.faction = "America"
@@ -218,6 +276,40 @@ class UnitFacts:
                 self.lethal_armaments.append((key, weapon))
         self.can_kill = len(self.lethal_armaments) > 0
 
+    # ---------------------------------------------------------------- accrual
+
+    def accrual_minutes(self):
+        """
+        Wall-clock minutes between two grants of each purchasable tier for this
+        actor type, or None when the type does not accrue at all.
+
+        `Accrues` requires BuildableInfo AND GainsExperienceInfo
+        (RankAccumulation.cs:349-357), so a non-buildable actor banks nothing.
+        """
+        if not self.buildable or self.cost is None:
+            return None
+        build = base_build_time_ticks(self.cost, self.build_duration,
+                                      self.build_duration_modifier)
+        return [ticks_to_minutes(interval_ticks(build, tier))
+                for tier in range(1, MAX_PURCHASABLE_RANK + 1)]
+
+    def kills_for_rank1(self):
+        """
+        Rank 1 needs enemy value equal to this unit's own cost. Expressed as a
+        COUNT of the cheapest XP-bearing target, which is the number a player
+        actually experiences -- the value threshold is cost-normalised, the kill
+        count is not.
+        """
+        if self.cost is None:
+            return None
+        if self.experience_modifier is not None:
+            # ExperienceModifier REPLACES cost-scaling: thresholds are absolute
+            # XP, and a kill awards victim_cost * 100.
+            needed_xp = self.thresholds[0][0] * self.experience_modifier if self.thresholds else 0
+            per_kill_xp = CHEAPEST_TARGET_COST * (XP_ACTOR_MODIFIER // 100)
+            return needed_xp / per_kill_xp if per_kill_xp else None
+        return self.cost / float(CHEAPEST_TARGET_COST)
+
     @staticmethod
     def _rank_from_expression(expr):
         """'... rank-veteran == 3' -> 3; '>= 4' -> 4; bare '!rank-veteran' -> 0."""
@@ -262,6 +354,54 @@ class UnitFacts:
             if min(base + step, CONCEALMENT_CEILING) > min(base + step - 1, CONCEALMENT_CEILING):
                 surviving += 1
         return base, surviving
+
+    def concealment_best_case(self):
+        """
+        The concealment level this actor reaches with every POSITIVE non-rank
+        modifier active and no penalty active -- i.e. stationary, not firing, in
+        full cover, prone and dug in, for an actor that has those nodes.
+
+        Returns (base, stacked_before_rank, [level after each rank step], steps_that_land).
+
+        Mutually exclusive alternatives are collapsed by grouping the non-rank
+        DetectableAddativeModifier nodes on the condition VARIABLE they read and
+        taking the largest positive VisionModifier in each group: `InCover1/2/3`
+        all read `object-proximity` and cannot co-apply (infantry.yaml:780-788),
+        so they contribute +3 once rather than +6. Negative modifiers (firing,
+        moving) are excluded because they are the player's choice to avoid, and
+        the cap question is about the best case.
+        """
+        if not self.has_detectable or "DetectableAddativeModifier" not in self.rank_traits:
+            return None
+
+        groups = defaultdict(int)
+        for c in self.actor.children_prefixed("DetectableAddativeModifier"):
+            rc = c.child("RequiresCondition")
+            cond = rc.value if rc is not None and rc.value else ""
+            if RANK_CONDITION in cond:
+                continue
+            step = int_or(c.child_value("VisionModifier"), 0)
+            if step <= 0:
+                continue
+            # Group on the condition's first token, which is the variable name.
+            var = cond.split()[0].lstrip("!") if cond else c.key
+            groups[var] = max(groups[var], step)
+
+        base = self.detectable_vision
+        stacked = base + sum(groups.values())
+        levels = []
+        landed = 0
+        previous = min(stacked, CONCEALMENT_CEILING)
+        for rank in sorted(self.rank_traits["DetectableAddativeModifier"]):
+            step = self.rank_traits["DetectableAddativeModifier"][rank]
+            if not isinstance(step, int):
+                continue
+            level = min(stacked + step, CONCEALMENT_CEILING)
+            levels.append(level)
+            if level > previous:
+                landed += 1
+            previous = level
+        return base, stacked, levels, landed
 
     def earns_xp_how(self):
         """One short phrase for the CSV: how this unit can actually reach a rank."""
@@ -325,6 +465,9 @@ def write_csv(path, ranking):
             "unit", "display_name", "faction", "cost", "group",
             "thresholds_xp", "thresholds_in_own_cost", "bonuses",
             "earns_xp_how", "inert_bonuses", "buildable", "prerequisites_disabled",
+            "kills_for_rank1_vs_50cr_target",
+            "accrual_rank1_min", "accrual_rank2_min", "accrual_rank3_min",
+            "concealment_base", "concealment_rank_steps_under_cap",
         ])
         groups = group_units(ranking)
         label_of = {}
@@ -346,6 +489,9 @@ def write_csv(path, ranking):
             if extras:
                 bonuses += " | extras:" + ",".join(extras)
             inert = "; ".join("%s (%s)" % (a, why) for a, why in u.inert_axes())
+            accrual = u.accrual_minutes() or ["", "", ""]
+            kills = u.kills_for_rank1()
+            head = u.concealment_headroom()
             w.writerow([
                 u.name, u.display_name, u.faction,
                 u.cost if u.cost is not None else "",
@@ -354,6 +500,12 @@ def write_csv(path, ranking):
                 u.earns_xp_how(), inert,
                 "yes" if u.buildable else "no",
                 "yes" if u.disabled else "no",
+                ("%.1f" % kills) if kills is not None else "",
+                ("%.1f" % accrual[0]) if accrual[0] != "" else "",
+                ("%.1f" % accrual[1]) if accrual[1] != "" else "",
+                ("%.1f" % accrual[2]) if accrual[2] != "" else "",
+                head[0] if head else "",
+                head[1] if head else "",
             ])
 
 
@@ -420,6 +572,63 @@ def print_groups(ranking, non_ranking):
         print()
 
 
+def print_accrual(ranking):
+    """
+    The two earn paths side by side, cheapest unit first. This is the table §4 of
+    the audit is built on: the KILL path is cost-normalised in value but not in
+    kill count, while the PURCHASE path is compressed by an integer square root.
+    """
+    rows = [u for u in ranking
+            if u.buildable and not u.disabled and u.cost is not None]
+    rows.sort(key=lambda u: (u.cost, u.name))
+    print("%-22s %-9s %6s  %7s  %7s %7s %7s  %s"
+          % ("unit", "faction", "cost", "kills*", "R1 min", "R2 min", "R3 min", "note"))
+    print("-" * 104)
+    for u in rows:
+        acc = u.accrual_minutes()
+        kills = u.kills_for_rank1()
+        note = "" if u.can_kill else "CANNOT EARN BY KILLING"
+        print("%-22s %-9s %6d  %7s  %7.1f %7.1f %7.1f  %s"
+              % (u.name, u.faction, u.cost,
+                 ("%.0f" % kills) if kills is not None else "-",
+                 acc[0], acc[1], acc[2], note))
+    print()
+    print("* kills = number of %d-credit targets that must die to this unit for RANK 1"
+          % CHEAPEST_TARGET_COST)
+    print("  (rank 1 = 1x own cost in enemy value; rank 4 = 8x, so multiply by 8)")
+    print("  min = wall-clock minutes per free accrued rank of that tier, at Timestep %dms"
+          % TIMESTEP_MS)
+
+
+def print_concealment(ranking):
+    """
+    How many of the four concealment rank steps actually raise the level, once the
+    actor's own non-rank concealment sources are stacked. ClampConcealment's
+    ceiling is %d (Detectable.cs:118-125, MapLayers.VisionLayers = %d).
+    """ % (CONCEALMENT_CEILING, VISION_LAYERS)
+    rows = []
+    for u in ranking:
+        r = u.concealment_best_case()
+        if r is None:
+            continue
+        base, stacked, levels, landed = r
+        rows.append((landed, -stacked, u.name, u.faction, base, stacked, levels, landed))
+    rows.sort()
+    print("ceiling = %d  (MapLayers.VisionLayers %d - 2, Detectable.cs:118-125)"
+          % (CONCEALMENT_CEILING, VISION_LAYERS))
+    print("%-24s %-9s %5s %8s  %-18s %s"
+          % ("unit", "faction", "base", "stacked", "level after R1..R4", "rank steps that land"))
+    print("-" * 96)
+    seen = set()
+    for _, _, name, faction, base, stacked, levels, landed in rows:
+        key = (base, stacked, tuple(levels))
+        tag = "" if key not in seen else "  (same profile)"
+        seen.add(key)
+        print("%-24s %-9s %5d %8d  %-18s %d of %d%s"
+              % (name, faction, base, stacked,
+                 "/".join(str(x) for x in levels), landed, len(levels), tag))
+
+
 def print_unit(ranking, non_ranking, name):
     for u in ranking + non_ranking:
         if u.name.lower() == name.lower():
@@ -453,6 +662,10 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--csv", help="write the machine-readable companion to this path")
     ap.add_argument("--groups", action="store_true", help="print the grouped summary")
+    ap.add_argument("--accrual", action="store_true",
+                    help="print the kill-path vs purchase-path table per buildable unit")
+    ap.add_argument("--concealment", action="store_true",
+                    help="print how many concealment rank steps survive the cap per unit")
     ap.add_argument("--unit", help="dump one actor's resolved rank facts")
     ap.add_argument("--root", default=repo_root(), help="repository root")
     args = ap.parse_args()
@@ -465,6 +678,14 @@ def main():
     if args.csv:
         write_csv(args.csv, ranking)
         print("wrote %s (%d rows)" % (args.csv, len(ranking)))
+
+    if args.accrual:
+        print_accrual(ranking)
+        return 0
+
+    if args.concealment:
+        print_concealment(ranking)
+        return 0
 
     if args.groups or not args.csv:
         print("rules files merged: %d" % len(rule_files))
