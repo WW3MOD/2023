@@ -19,8 +19,12 @@
  * TimeLimitManager reads the lobby dropdown, that a warning notification is played, or that
  * DoomsdayStrike opens its window -- none of those are reachable without a World, which nothing in
  * OpenRA.Test can construct. What it proves is that every consumer converting through TickTime gets
- * the same exact answer, and the source tripwire at the bottom is what keeps them converting
- * through it.
+ * the same exact answer.
+ *
+ * The source tripwire at the bottom guards the FOUR converted files against the old spelling coming
+ * back, and no more than that -- it is a grep over four paths, not a property of the assembly. It is
+ * itself fired at known-bad input by TheTripwireMatchesTheTwoLinesItExistsToCatch, because the first
+ * version of that regex could not match either of the two real bugs and passed anyway.
  */
 #endregion
 
@@ -127,7 +131,7 @@ namespace OpenRA.Test
 		public void TheTournamentClockIsTheSecondsItIsConfiguredFor()
 		{
 			// TournamentConfig was `TimeLimitSeconds * 25` -- exact at 40 ms and wrong everywhere else.
-			// The 41 configs setting `GameSpeed: fastest` run at 40 ms and were RIGHT; the 11 plain
+			// The 42 configs setting `GameSpeed: fastest` run at 40 ms and were RIGHT; the 11 plain
 			// tournament.yaml files set no GameSpeed, ran at the 60 ms default, and turned 720 into
 			// 18000 ticks = 1080 real seconds. Those 11 were restated to 1080 in the same change so
 			// the real duration every baseline was measured over is preserved.
@@ -142,7 +146,7 @@ namespace OpenRA.Test
 			var oldNumber = new TournamentConfig { TimeLimitSeconds = 720 };
 			Assert.That(oldNumber.TimeLimitTicksAt(ModTimestep), Is.EqualTo(12000));
 
-			// THE HALF THAT WAS ALREADY CORRECT, and the reason 41 of the 52 shipped configs were left
+			// THE HALF THAT WAS ALREADY CORRECT, and the reason 42 of the 53 shipped configs were left
 			// alone: at `GameSpeed: fastest` the old hardcoded 25 was exact, and the new conversion
 			// returns the identical tick count. If this ever stops holding, the smoke, sanity, quick,
 			// eco-5min and combat-12min families have all silently changed length.
@@ -218,12 +222,70 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
+		/// The truncating idiom, as a regex. `[\w.]*` rather than `\w*` is the whole point: `\w` does not
+		/// cross a dot, and EVERY ONE of the four real bugs was written as a dotted member access.
+		/// </summary>
+		// THIS PATTERN SHIPPED BROKEN ONCE AND WENT GREEN, which is why the fixture below exists.
+		// The first version used `\w*`, so it matched `1000 / Timestep` and `1000 / timestepMilliseconds`
+		// -- spellings that appear nowhere in this repo -- while missing `1000 / self.World.Timestep`
+		// and `1000 / defaultGameSpeed.Timestep`, which are the two lines it was written to catch.
+		// Reverting either site would have left `dotnet test` green with every time limit 4 % short.
+		// A tripwire nobody has fired at a known-bad input is a tautology with a test name.
+		const string TruncatingIdiom = @"^(?![ \t]*(//|\*)).*\b1000\s*\)?\s*/\s*[\w.]*[Tt]imestep";
+
+		/// <summary>
+		/// Fires the tripwire at the ACTUAL historical spellings before trusting it against the tree.
+		/// </summary>
+		[Test]
+		public void TheTripwireMatchesTheTwoLinesItExistsToCatch()
+		{
+			var idiom = new Regex(TruncatingIdiom, RegexOptions.Multiline);
+
+			// The two shipped bugs, verbatim from TimeLimitManager.cs:118 and DateTimeGlobal.cs:31 as
+			// they stood at 64185a89, plus the nearby spellings a reintroduction would plausibly use.
+			var mustMatch = new[]
+			{
+				"\t\t\tticksPerSecond = 1000 / self.World.Timestep;",
+				"\t\t\tticksPerSecond = 1000 / defaultGameSpeed.Timestep;",
+				"\t\t\tvar tps = 1000 / world.Timestep;",
+				"\t\t\tvar tps = 1000 / w.GameSpeed.Timestep;",
+				"\t\t\tvar tps = (1000) / world.Timestep;",
+				"\t\t\tvar tps = 1000/Timestep;",
+				"\t\t\tvar tps = 1000 / timestepMilliseconds;",
+			};
+
+			foreach (var line in mustMatch)
+				Assert.That(idiom.IsMatch(line), Is.True,
+					$"the tripwire does not see `{line.Trim()}`. It is guarding four files against exactly " +
+					"this shape, so a pattern that misses a real spelling is worse than no pattern at all — " +
+					"it reports the defect as impossible");
+
+			// And must NOT fire on the honest conversion or on prose describing the defect, or the four
+			// files could not document their own history without going red.
+			var mustNotMatch = new[]
+			{
+				"\t\t\tTimeLimit = TickTime.TicksForMinutes(TimeLimit, timestepMilliseconds);",
+				"\t\t\ttimestepMilliseconds = self.World.Timestep;",
+				"\t\t\t// This line was `ticksPerSecond = 1000 / self.World.Timestep`, and it truncated.",
+				"\t\t * yields 16 ticks per second, not 16.67, because 1000 / world.Timestep truncates.",
+			};
+
+			foreach (var line in mustNotMatch)
+				Assert.That(idiom.IsMatch(line), Is.False,
+					$"the tripwire fires on `{line.Trim()}`, which is either the correct conversion or a " +
+					"comment describing the old one. Either false positive gets the test deleted rather " +
+					"than the code fixed");
+		}
+
+		/// <summary>
 		/// The class fix, not the instance fix. A local patch that still materialises an integer
 		/// ticks-per-second has lost the 4 % before it multiplies, so the idiom itself has to stay gone.
 		/// </summary>
 		[Test]
 		public void NoConverterMaterialisesATruncatedTicksPerSecond()
 		{
+			// TickTime.cs itself is DELIBERATELY not on this list: it is the one file that legitimately
+			// contains `* 1000 / timestepMilliseconds`, because multiplying first is the fix.
 			var converted = new[]
 			{
 				Path.Combine("engine", "OpenRA.Mods.Common", "Traits", "World", "TimeLimitManager.cs"),
@@ -232,10 +294,13 @@ namespace OpenRA.Test
 				Path.Combine("engine", "OpenRA.Mods.Common", "Scripting", "Global", "DateTimeGlobal.cs"),
 			};
 
-			// `1000 / <something>Timestep` in code. Comment lines are excluded because all four files
-			// DESCRIBE the old idiom on purpose, and a tripwire that forbade naming the defect would be
-			// deleted the first time somebody documented it.
-			var idiom = new Regex(@"^(?![ \t]*(//|\*)).*\b1000\s*/\s*\w*[Tt]imestep", RegexOptions.Multiline);
+			// Comment lines are excluded because all four files DESCRIBE the old idiom on purpose, and a
+			// tripwire that forbade naming the defect would be deleted the first time someone documented
+			// it. WHAT THIS STILL CANNOT SEE, stated so nobody reads a green run as more than it is: a
+			// rate built across two statements (`var ms = world.Timestep; var tps = 1000 / ms;`), one
+			// built from an aliased or differently-named field, or the idiom reintroduced in a file that
+			// is not on this list. It is a guard on the four known sites, not a proof about the assembly.
+			var idiom = new Regex(TruncatingIdiom, RegexOptions.Multiline);
 
 			foreach (var relative in converted)
 			{

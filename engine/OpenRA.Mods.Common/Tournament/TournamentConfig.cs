@@ -105,12 +105,17 @@ namespace OpenRA.Mods.Common.Tournament
 		// "standard 40 ms tick". That is an RA-era assumption, and whether it was WRONG depends
 		// entirely on a key most readers of that line never looked at.
 		//
-		// ==== IT SPLITS THE SHIPPED CONFIGS IN TWO, 11 AGAINST 41 (counted 2026-09-19) ====
+		// ==== IT SPLITS THE SHIPPED CONFIGS IN TWO, 11 AGAINST 42 OF 53 (counted 2026-09-19) ====
+		// The census is over the WHOLE REPOSITORY -- `grep -rl TimeLimitSeconds --include=*.yaml` -- and
+		// NOT over tools/autotest/scenarios/. A scenario-tree census returns 52 and is one file short:
+		// tools/autotest/tournament-combat-12min-combatweighted.yaml sits a level up, outside the
+		// scenario directories, and is in the immune set. This correction is the third instance of the
+		// same narrowing in one item -- see the entry it anchors in WORKSPACE/DISCOVERIES.md.
 		// run-tournament.sh:148 reads `GameSpeed:` out of the config and passes it as Test.GameSpeed;
 		// Game.LoadMap:1205 turns that into the lobby `option gamespeed` order, and World.cs:217-220
 		// resolves world.GameSpeed from it. So the config key really does decide the timestep.
 		//
-		//   * The 41 configs that set `GameSpeed: fastest` run at Timestep 40, where 1000/40 = 25
+		//   * The 42 configs that set `GameSpeed: fastest` run at Timestep 40, where 1000/40 = 25
 		//     exactly. `* 25` was CORRECT there and TicksForSeconds(n, 40) returns the identical
 		//     number. Nothing about smoke/sanity/quick/eco/combat-12min runs has moved.
 		//   * The 11 plain tournament.yaml files set no GameSpeed and run at the 60 ms default =
@@ -119,7 +124,7 @@ namespace OpenRA.Mods.Common.Tournament
 		//     a match that had never been played.
 		//
 		// A WW3MOD bug entry dated 2026-09-19 states "no shipped tournament*.yaml sets a GameSpeed
-		// key at all". That is true of the 11 and false of the other 41; it generalised from the
+		// key at all". That is true of the 11 and false of the other 42; it generalised from the
 		// files it happened to open. Check the key before reasoning about any tournament's duration.
 		//
 		// CONSEQUENCE, STATED PLAINLY: the 11 were restated 720 -> 1080 in the same change, so their

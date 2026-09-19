@@ -92,10 +92,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name of the SR actor used to detect SR-capture wins.")]
 		public readonly string SupplyRouteActorType = "supplyroute";
 
-		[Desc("Tick interval between win-rule evaluations. Default 25 = once per second.")]
+		[Desc("Tick interval between win-rule evaluations. Default 25 ticks = 1.5 s at the mod's",
+			"60 ms timestep (16.667 ticks/s). This string read \"once per second\" until 2026-09-19,",
+			"which is the RA-era 25 tps assumption; the INTERVAL is unchanged.")]
 		public readonly int EvaluationInterval = 25;
 
-		[Desc("Option 4.D: tick interval between POI income-timeseries samples. Default 25 = 1s.")]
+		[Desc("Option 4.D: tick interval between POI income-timeseries samples. Default 25 ticks",
+			"= 1.5 s at the mod's 60 ms timestep, not the 1 s this string used to claim.")]
 		public readonly int PoiSampleInterval = 25;
 
 		[Desc("Option 4.D: emit the per-player income_samples timeseries arrays into result.json.",

@@ -198,10 +198,18 @@ the last five recorded batches actually followed.
 
 ## 8. Expected wall-clock
 
-`GameSpeed: fastest` is Timestep **40 ms** in WW3MOD (`mods/ww3mod/mod.yaml:392-395`);
+`GameSpeed: fastest` is Timestep **40 ms** in WW3MOD (`mods/ww3mod/mod.yaml:416-418`);
 `SpeedMultiplier: 8` divides it to `max(1, 40/8)` = **5 ms/tick**
-(`BotVsBotMatchWatcher.cs:178-184`). Match length is `TimeLimitSeconds × 25` ticks
-(`TournamentConfig.cs:103`).
+(`BotVsBotMatchWatcher.cs:190-191`).
+
+**Match length is `TimeLimitSeconds × 1000 / GameSpeed.Timestep` ticks**
+(`TournamentConfig.TimeLimitTicksAt`, `:140`). ⚠️ This line read *"`TimeLimitSeconds × 25` ticks"*
+until 2026-09-19, quoting a property that no longer exists. **The ×25 is not a rule — it is what that
+expression happens to equal at `GameSpeed: fastest`**, because 1000/40 = 25 exactly. Every batch in
+the table below sets `fastest`, so the numbers in it are unchanged and remain correct. Carry the
+general form instead: a batch that omits `GameSpeed:` runs at the 60 ms default and gets
+**16.667 ticks per configured second**, not 25 — which is precisely the assumption that made the 11
+plain `tournament.yaml` files claim 12-minute matches they ran for 18.
 
 | Batch | Ticks | Sim wall | + load | Per match | ×10 |
 |---|---|---|---|---|---|
