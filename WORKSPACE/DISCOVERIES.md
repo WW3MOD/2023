@@ -3,6 +3,47 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
+
+Tuning the DEFCON 3 "Positioning" clock looks like a per-map problem: the border is the perpendicular
+bisector of the two sides' homes, and the distance to it ranges from **11 cells** (river-zeta's s0,
+which is on the authored river border) to **77** (x-lake s1-s3). A 7x spread in distance ought to mean
+a 7x spread in how long the phase needs to be.
+
+**It does not, and the reason is that two of the three latency terms are constants.** Reinforcement
+latency is queue time + the edge -> Supply Route walk + the drive. Nothing is built at the SR —
+`ProductionFromMapEdge` spawns on the closest map-edge cell and walks the unit in — and `BuildDuration`
+is unset on every unit in `vehicles*.yaml` and `infantry*.yaml`, so queue time is `cost / 10` ticks
+(`ProductionQueue.cs:607-609`). The `Vehicle` queue is **sequential**, `SpeedUp` defaults false, and a
+player has exactly **one** producer, so vehicle build times *add*: a 4 MBT + 2 IFV + 1 APC push is
+1370 ticks (82 s) before the last vehicle exists, on every map equally. Measured across all ten shipped
+maps and every lobby-reachable pairing, a wave is in position at the border in **1:42 - 2:56** — a 1:14
+spread. The map barely matters; the queue does.
+
+**Two consequences worth carrying.**
+
+**A phase length is bounded by the slowest thing in the group, and that is the queue and not the
+tank.** Effective speeds are `Mobile.Speed` times the locomotor's terrain percentage — 70 % on `Clear`
+for every wheeled and tracked class, 90 % for `foot` (`world.yaml:41-191`, `Mobile.cs:857-863`) — so an
+Abrams makes 1.03 cells/s and infantry **on foot** makes 0.358, which is 2.9x slower. Any timing
+argument about a "mixed group" is really an argument about whether the riflemen are carried. If they
+walk, no clock in the dropdown fits.
+
+**Money is not a constraint in an opening phase in this mod and reasoning as if it were will mislead
+you.** Starting cash is 20000 and passive income is 100 per 50 ticks = **2000/min**
+(`PlayerResources.cs:32`, `:63-66`, neither overridden). The opening balance buys far more than can be
+driven anywhere, so what gates an opening is travel and queue order, never affordability.
+
+**And the thing that broke the single-clock model was not the map at all.** `ForwardDeployment` lands a
+force at `ForwardDeploymentAdvancePercent = 35` of the way to the nearest enemy spawn, i.e. 0.15x the
+spawn separation short of a bisector at 50 % — which collapses every map's wave to **1:31 - 1:55**. So
+the clock has two regimes that differ by about a minute and a half, selected by a *different lobby
+option* with no coupling between them. **When deriving a duration from geometry, check which other
+lobby options move the geometry.**
+
+Full arithmetic, the per-map table and the stage-by-stage review:
+`WORKSPACE/audit/escalation-gameplay-review-260919.md`.
+
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 
 `WebServices.GameNews` looks like a pure address: a URL in `mod.yaml`, fetched and cached by
