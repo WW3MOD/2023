@@ -161,10 +161,29 @@ The last two rows are the ones to check by hand rather than trust: 5000 and 4500
 under the watchdog, so whether they clear it depends on map-load time, which this audit did not
 measure. Treat them as "raise the timeout" rather than as known-good.
 
-**The twelve `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
+**The `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
 `run-tournament.sh` computes its own budget (`:164`, `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`) and
-does not use `run-test.sh`'s 300 s. Their clock is separately mis-stated — see
-`WORKSPACE/bugs/discovered.md` 2026-09-19 on `TournamentConfig.cs:101`.
+does not use `run-test.sh`'s 300 s.
+
+**Their clock was mis-stated, and FIXED 2026-09-19 — but only for 11 of the 52 configs, and the split
+is the part worth carrying.** `TournamentConfig` converted with a hardcoded `* 25`, which is exact at
+a 40 ms timestep and wrong at 60 ms. `run-tournament.sh:148` reads `GameSpeed:` out of the config and
+passes it as `Test.GameSpeed`, so the key really does pick the timestep:
+
+- **41 configs set `GameSpeed: fastest`** (40 ms) — the `-smoke`, `-sanity`, `-quick`, `-eco-5min` and
+  `-combat-12min` variants plus `tournament-arena-composition-2p`. `* 25` was CORRECT for these and
+  **their durations have not moved at all.**
+- **11 plain `tournament.yaml` files set no GameSpeed** (60 ms default). For those, `720` was 18000
+  ticks = **1080 real seconds**, so the file's own "12 in-game minutes" described a match nobody ever
+  played. They were restated `720 -> 1080` alongside the arithmetic fix, which keeps the tick count
+  at 18000 — every recorded baseline still compares — while making the number mean what it says.
+
+A bug entry dated 2026-09-19 says "no shipped `tournament*.yaml` sets a `GameSpeed` key at all". That
+is true of the 11 and **false of the other 41**; it generalised from the files it opened. **Read the
+`GameSpeed:` key before reasoning about any tournament's duration** — and note the new failure mode
+the fix introduces: the deadline is now a function of `world.GameSpeed`, and `Game.cs:1200-1204` warns
+that an unknown speed key falls back to default *silently*. `BotVsBotMatchWatcher` logs the timestep it
+actually resolved at `WorldLoaded` for exactly this reason.
 
 ### An empty `lua.log` from a TIMEOUT-FAIL means nothing on its own
 

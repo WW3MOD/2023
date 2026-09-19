@@ -102,18 +102,37 @@ namespace OpenRA.Mods.Common.Tournament
 		/// is 12000 ticks, which is the identity to check any change here against.
 		/// </summary>
 		// WAS `public int TimeLimitTicks => TimeLimitSeconds * 25;`, with a doc comment asserting a
-		// "standard 40 ms tick". That is an RA-era assumption and it is wrong for every tournament
-		// this repo runs: no shipped tournament*.yaml sets a GameSpeed key and run-tournament.sh
-		// defaults GAME_SPEED="default", whose Timestep is 60 ms = 16.667 ticks/s. So
-		// `TimeLimitSeconds: 720` was 18000 ticks = 1080 real seconds, and every tournament.yaml's
-		// own comment ("720s = 12 in-game minutes at standard 1x speed") was wrong by that 1.5x.
+		// "standard 40 ms tick". That is an RA-era assumption, and whether it was WRONG depends
+		// entirely on a key most readers of that line never looked at.
 		//
-		// CONSEQUENCE OF THE FIX, STATED PLAINLY: tournament matches get ~33 % SHORTER in ticks
-		// (720 s: 18000 -> 12000) and now last exactly the seconds they are configured for. Any
-		// benchmark baseline taken before 2026-09-19 was taken over a longer match and does not
-		// compare. run-tournament.sh's wall-clock budget is 4x TimeLimitSeconds, which was absorbing
-		// the 1.5x; it is now 4x a match that really does take TimeLimitSeconds, so it gets more
-		// headroom rather than less and no run can start timing out because of this.
+		// ==== IT SPLITS THE SHIPPED CONFIGS IN TWO, 11 AGAINST 41 (counted 2026-09-19) ====
+		// run-tournament.sh:148 reads `GameSpeed:` out of the config and passes it as Test.GameSpeed;
+		// Game.LoadMap:1205 turns that into the lobby `option gamespeed` order, and World.cs:217-220
+		// resolves world.GameSpeed from it. So the config key really does decide the timestep.
+		//
+		//   * The 41 configs that set `GameSpeed: fastest` run at Timestep 40, where 1000/40 = 25
+		//     exactly. `* 25` was CORRECT there and TicksForSeconds(n, 40) returns the identical
+		//     number. Nothing about smoke/sanity/quick/eco/combat-12min runs has moved.
+		//   * The 11 plain tournament.yaml files set no GameSpeed and run at the 60 ms default =
+		//     16.667 ticks/s. There `* 25` was wrong: `TimeLimitSeconds: 720` was 18000 ticks =
+		//     1080 REAL seconds, and each file's own prose ("720s = 12 in-game minutes") described
+		//     a match that had never been played.
+		//
+		// A WW3MOD bug entry dated 2026-09-19 states "no shipped tournament*.yaml sets a GameSpeed
+		// key at all". That is true of the 11 and false of the other 41; it generalised from the
+		// files it happened to open. Check the key before reasoning about any tournament's duration.
+		//
+		// CONSEQUENCE, STATED PLAINLY: the 11 were restated 720 -> 1080 in the same change, so their
+		// tick count is unchanged at 18000 and every recorded baseline still compares. What changed
+		// is that the number now means what it says. run-tournament.sh's wall budget is 4x
+		// TimeLimitSeconds and therefore rose with it, so no run can start timing out because of this.
+		//
+		// THE NEW FAILURE MODE THIS INTRODUCES, because it did not exist while the 25 was hardcoded:
+		// the deadline is now a function of world.GameSpeed. If the `option gamespeed` order ever
+		// fails to apply -- Game.cs:1200-1204 warns that an unknown key falls back to default
+		// SILENTLY -- a `fastest` config would quietly run 33 % short instead of being immune. The
+		// timestep actually used is logged at WorldLoaded by BotVsBotMatchWatcher for exactly that
+		// reason; read it before trusting a tournament duration.
 		//
 		// PASS THE CONFIGURED TIMESTEP, NOT world.Timestep: BotVsBotMatchWatcher lowers the latter
 		// to apply SpeedMultiplier, and feeding that back in here would multiply the deadline by the

@@ -5734,3 +5734,12 @@ the civilian building as well as the tower. That is a change to a screenshot, no
   error "is still live at ten other sites"; this may be one of the ten already counted — not
   cross-checked against that list.
   (found while working on: autotest-hygiene item [31], auditing scenario durations)
+  **[2026-09-19, FIXED — and the premise above is WRONG for 41 of the 52 configs.]** "No shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all" is true of the 11 plain `tournament.yaml`
+  files and false of every `-smoke`, `-sanity`, `-quick`, `-eco-5min` and `-combat-12min` variant
+  plus `tournament-arena-composition-2p`: all 41 set `GameSpeed: fastest`, which
+  `run-tournament.sh:148/302` forwards as `Test.GameSpeed` and `World.cs:217-220` resolves to
+  `Timestep: 40`, where `1000 / 40 = 25` exactly. **`* 25` was CORRECT for those 41 and their
+  durations have never been wrong.** The 11 that run at the 60 ms default were the real casualties
+  and were restated `720 -> 1080` alongside the arithmetic fix, preserving their 18000 ticks.
+  Full write-up: `WORKSPACE/DISCOVERIES.md` 2026-09-19.
