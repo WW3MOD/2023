@@ -27,12 +27,16 @@
 # to check that scenario Lua only names real engine bindings (no build required), run:
 #   make lua-gate
 #
+# to check that every non-optional mod.yaml mount resolves inside a PACKAGED build
+# (no build required; add --zip/--tree to check a real artifact), run:
+#   make mount-gate
+#
 # the following are internal sdk helpers that are not intended to be run directly:
 #   make check-variables
 #   make check-sdk-scripts
 #   make check-packaging-scripts
 
-.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard lua-gate
+.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard lua-gate mount-gate
 .DEFAULT_GOAL := all
 
 PYTHON = $(shell command -v python3 2> /dev/null)
@@ -249,6 +253,17 @@ lua-gate:
 	@$(PYTHON) tools/lua-gate/lua_gate.py selftest
 	@$(PYTHON) tools/lua-gate/lua_gate.py check || [ $$? -eq 1 ]
 
-test: all nav-guard lua-gate
+# Static check that every non-optional mount in mod.yaml resolves inside a PACKAGED
+# output. v0.1.0 shipped a MapFolders entry pointing at tools/, which no installer ships,
+# and nothing caught it because every other gate resolves paths against the git checkout
+# -- where tools/ exists. With no --tree/--zip this models the packaged root from the
+# packaging scripts, so it needs no build; point it at a real artifact to settle an
+# argument. See tools/mount-gate/README.md.
+mount-gate:
+	@echo "Checking packaged mounts (mount-gate)..."
+	@$(PYTHON) tools/mount-gate/mount_gate.py selftest
+	@$(PYTHON) tools/mount-gate/mount_gate.py check
+
+test: all nav-guard lua-gate mount-gate
 	@echo "Testing $(MOD_ID) mod MiniYAML..."
 	@./utility.sh --check-yaml

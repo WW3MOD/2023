@@ -182,10 +182,13 @@ class ZipTree(Tree):
                 self.dirs.add("/".join(parts[:i]))
 
     def exists(self, rel):
-        return rel in self.files or rel in self.dirs
+        # "" is the packaged root itself -- what a bare `^EngineDir` mounts. A zip holds no
+        # entry for its own root, so it has to be answered here or every manifest that
+        # mounts the engine dir reads as broken.
+        return rel == "" or rel in self.files or rel in self.dirs
 
     def isdir(self, rel):
-        return rel in self.dirs
+        return rel == "" or rel in self.dirs
 
     def read(self, rel):
         try:
@@ -416,16 +419,25 @@ def check_manifest(text, source_label, tree, mod_id):
                         "machine that has not installed content yet. Prefix it with `~`.")
             elif kind == "unknown":
                 add("error", "unresolvable", section, raw, line, note)
-            elif kind == "via" and rel is None:
-                parent_optional = resolver.mounts.get(note, (None, False, None))[1]
-                if parent_optional:
+            elif kind == "via":
+                # Two ways a `name|sub` entry dies: the mount `name` is itself not in the
+                # package, or it is but `sub` under it is not. The first is the more
+                # interesting one -- an optional parent that no installer ships makes every
+                # non-optional child unreachable, and the child's own line says nothing
+                # about it.
+                parent_rel, parent_optional, _ = resolver.mounts.get(note, (None, False, None))
+                parent_present = parent_rel is not None and tree.exists(parent_rel)
+                if not parent_present and parent_optional:
                     add("error", "parent-optional", section, raw, line,
                         "non-optional, but its explicit mount '" + note + "' is declared "
-                        "optional and will be absent in a packaged install, so this cannot "
-                        "resolve")
-                else:
+                        "optional and is absent from the package, so this cannot resolve")
+                elif not parent_present:
                     add("warn", "parent-unresolvable", section, raw, line,
                         "explicit mount '" + note + "' could not be located in the tree")
+                elif not tree.exists(rel):
+                    add("error", "missing", section, raw, line,
+                        "resolves to '" + rel + "' through mount '" + note + "', which the "
+                        "package lacks")
             elif kind == "mod":
                 manifest = posixpath.join(rel, "mod.yaml")
                 if not tree.exists(manifest):

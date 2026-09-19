@@ -209,11 +209,48 @@ function SmudgeGate-Command
 	}
 }
 
+# Static check that every non-optional mount in mod.yaml resolves inside a PACKAGED output.
+# v0.1.0 shipped a MapFolders entry pointing at tools/ -- a dev-checkout directory no
+# installer ships -- and reached no main menu. Nothing caught it because every other gate
+# resolves paths against the git checkout, where tools/ exists. Buildless, ~0.1s, no launch.
+function MountGate-Command
+{
+	$python = (Get-Command 'python' -ErrorAction SilentlyContinue)
+	if ($python -eq $null)
+	{
+		$python = (Get-Command 'python3' -ErrorAction SilentlyContinue)
+	}
+
+	if ($python -eq $null)
+	{
+		Write-Host "mount-gate needs python on PATH; skipping." -ForegroundColor Yellow
+		return
+	}
+
+	Write-Host "Checking packaged mounts (mount-gate)..." -ForegroundColor Cyan
+	& $python.Source "tools/mount-gate/mount_gate.py" selftest
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+
+	# No warning band: a non-optional mount either resolves inside the packaged output or
+	# the release cannot start. Exit 2 is fatal. With no --tree/--zip this checks a tree
+	# MODELLED from the packaging scripts; tools/mount-gate/README.md says how to point it
+	# at a real artifact, which is what settles an argument.
+	& $python.Source "tools/mount-gate/mount_gate.py" check
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+}
+
 function Test-Command
 {
 	NavGuard-Command
 	LuaGate-Command
 	SmudgeGate-Command
+	MountGate-Command
 
 	if ((CheckForUtility) -eq 1)
 	{
@@ -444,6 +481,7 @@ if ($args.Length -eq 0)
 	Write-Host "  test (t)           - Tests the mod's MiniYAML for errors, and map connectivity."
 	Write-Host "  nav-guard (n)      - Checks no map lost reachable ground. No build required."
 	Write-Host "  lua-gate (l)       - Checks scenario Lua resolves and scenarios are wired to run. No build required."
+	Write-Host "  mount-gate (m)     - Checks every mod.yaml mount resolves inside a packaged build. No build required."
 	Write-Host "  check (e)          - Checks .cs files for StyleCop violations."
 	Write-Host "  check-scripts(s)   - Checks .lua files for syntax errors."
 	Write-Host ""
@@ -597,6 +635,8 @@ switch ($execute)
 	"n" { NavGuard-Command }
 	"lua-gate" { LuaGate-Command }
 	"l" { LuaGate-Command }
+	"mount-gate" { MountGate-Command }
+	"m" { MountGate-Command }
 	"check" { Check-Command }
 	"e" { Check-Command }
 	"check-scripts" { Check-Scripts-Command }
