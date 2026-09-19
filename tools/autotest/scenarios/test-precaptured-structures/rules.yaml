@@ -1,0 +1,23 @@
+Player:
+	# The two Supply Routes carry MustBeDestroyed: RequiredForShortGame, and nothing in this
+	# scenario shoots. Removing the victory conditions keeps the match from resolving under the
+	# harness before the assertion has had its thirty ticks.
+	-ConquestVictoryConditions:
+
+World:
+	-StartGameNotification:
+	# THE REASON THE SUPPLY ROUTES ARE HAND-PLACED. With this trait removed nothing creates a
+	# player's SR, so PreCapturedStructures.AnchorFor falls back to HomeLocation — and this
+	# scenario is the arm that proves the SR path, so the SRs are in map.yaml instead.
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# THE OPTION UNDER TEST. Setting the trait's own default is how the lobby default is set, so
+	# a launch that never opens a lobby (which is every autotest run) reads true here through
+	# LobbyInfo.GlobalSettings.OptionOrDefault. The sibling scenario
+	# test-precaptured-structures-off leaves this line out entirely and asserts the shipped
+	# default — do not "tidy" the two files into agreement.
+	PreCapturedStructures:
+		CheckboxEnabled: true
+	LuaScript:
+		Scripts: test-helpers.lua, test-precaptured-structures.lua

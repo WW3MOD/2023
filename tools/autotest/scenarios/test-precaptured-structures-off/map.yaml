@@ -1,0 +1,90 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: with Pre-captured Structures OFF every neutral derrick stays neutral
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY — every number here is chosen so the verdict can be checked by eye.
+#
+# THE ANCHOR IS THE SUPPLY ROUTE, NOT THE SPAWN POINT, and this scenario is the reason that
+# fallback exists. rules.yaml carries `-SpawnStartingUnits:`, so nothing creates an SR for a
+# player; these two are placed by hand. SUPPLYROUTE is 3x3, so an actor at Location L has its
+# CenterPosition at cell L + (1,1) (Building.cs:207-211). Placing them at 3,15 and 59,15 puts
+# the two anchors on the centres of cells 4,16 and 60,16 — 56 cells apart, on one row, so
+# every distance below is a right triangle with a half-cell rise.
+#
+# OILB is 2x2, so an actor at Location L has its centre at L + (0.5,0.5). The half-cell y
+# offset is DELIBERATE: it keeps Middle off an exact tie, so a green run proves the ratio band
+# is working and not merely that equal distances are handled. Distances, in cells:
+#
+#   NearUSA    at 11,15 -> centre 11.5,15.5   USA  7.52   Russia 48.50   margin  545%  -> USA
+#   Middle     at 31,15 -> centre 31.5,15.5   USA 27.50   Russia 28.50   margin  3.6%  -> Neutral
+#   NearRussia at 51,15 -> centre 51.5,15.5   USA 47.50   Russia  8.51   margin  458%  -> Russia
+#
+# 3.6% sits well inside the shipped MiddleBandPercent of 10 and well clear of both ends of the
+# empty 8.4%..15.2% calibration band, so this scenario does not go red on a retune within that
+# band — which is the point. If MiddleBandPercent is ever pushed BELOW 3.6, Middle flips to USA
+# and this goes red for a legitimate reason; fix the expectation, do not widen it.
+#
+# mpspawn actors are present so the map is a well-formed two-slot map, but nothing reads them:
+# with both SRs placed, AnchorFor never reaches its HomeLocation fallback. They sit on the SR
+# cells so that the two agree if it ever did.
+Actors:
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,16
+	UsaSR: supplyroute
+		Owner: USA
+		Location: 3,15
+	RussiaSR: supplyroute
+		Owner: Russia
+		Location: 59,15
+	NearUSA: oilb
+		Owner: Neutral
+		Location: 11,15
+	Middle: oilb
+		Owner: Neutral
+		Location: 31,15
+	NearRussia: oilb
+		Owner: Neutral
+		Location: 51,15
+
+Rules: rules.yaml
