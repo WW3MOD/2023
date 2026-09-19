@@ -30,6 +30,7 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 ./tools/autotest/run-test.sh L <test>                   # left half (also R, F, C)
 ./tools/autotest/run-test.sh --visible <test>           # foreground (alias: --no-minimize)
 ./tools/autotest/run-test.sh --audio <test>             # keep sound on
+./tools/autotest/run-test.sh --speed 8 --timeout 900 <test>   # long scenario: see below
 ./tools/autotest/run-test.sh --help                     # flag list
 ```
 
@@ -83,7 +84,7 @@ AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
 
 where OUTCOME is one of `PASS`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no).
 
-**`NO-RESULT` also covers "the game never launched", and a fresh worktree hits this on its first run.** `launch-game.sh:42` aborts with `Required engine files not found.` when `engine/bin/OpenRA.dll` is missing — and build output is neither shared between worktrees nor tracked in git, so a new `git worktree add` fails this and burns a granted run slot. **Run `make all` in a new worktree before the first `run-test.sh`, even when the diff contains no compiled code** — being built is a property of the worktree, not of the change. Tells: `lua.log` 0 bytes, run dir empty, `test -f engine/bin/OpenRA.dll` fails. (Related, and launch-free: `./utility.sh --check-yaml <MAPDIR>` lints a single map without starting the game, but `utility.sh:61` `cd`s into `engine/` first, so the path you pass is `../tools/autotest/scenarios/<name>`.)
+**`NO-RESULT` also covers "the game never launched", and a fresh worktree hits this on its first run.** `launch-game.sh:42` aborts with `Required engine files not found.` when `engine/bin/OpenRA.dll` is missing — and build output is neither shared between worktrees nor tracked in git, so a new `git worktree add` fails this and burns a granted run slot. **Run `make all` in a new worktree before the first `run-test.sh`, even when the diff contains no compiled code** — being built is a property of the worktree, not of the change. Tells: `lua.log` 0 bytes, run dir empty, `test -f engine/bin/OpenRA.dll` fails. (Related, and launch-free: `./utility.sh --check-yaml <MAPDIR>` lints a single map without starting the game, but `utility.sh:53` `cd`s into `engine/` first, so the path you pass is `../tools/autotest/scenarios/<name>`.)
 
 **PITFALL: `run-test.sh <test> | tail` reports `tail`'s exit status, so a FAIL arrives as exit 0.** This has inverted a result twice. The harness defends what it can — the verdict line is last, so a tail-truncating filter still shows it, and non-PASS is also written to stderr whenever stdout is redirected — but the exit code itself is the **caller's** to preserve:
 
@@ -94,6 +95,93 @@ where OUTCOME is one of `PASS`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RES
 **Results are per-run.** Each invocation writes to `~/.ww3mod-tests/screenshots/<timestamp>_p<pid>_<test>/result.json` — printed as `Run dir:` at the top of the run — alongside that run's screenshots and lifecycle log. Two runners cannot share a destination.
 
 `./tools/autotest/selftest.sh` proves all of the above without launching a game (~1 min). Run it after touching `run-test.sh`.
+
+## The 300-second watchdog, and the scenarios it cannot finish
+
+**Every run carries a wall-clock watchdog, and its default is 300 s.** `run-test.sh:176` sets
+`TIMEOUT_SECS=300`; `--timeout N` / `--timeout=N` overrides it (`:208-209`), validated as a positive
+integer at `:326-335`. The watchdog loop is `:771-798`: if the game is still alive and no verdict has
+been written after `TIMEOUT_SECS`, it kills the game and synthesises a FAIL, which the verdict line
+reports as `TIMEOUT-FAIL` (`:983-985`). **It is pure wall clock and is deliberately NOT scaled by
+`--speed`** (`:326-327`: *"a hung game never advances the sim, so speed is moot"*). Raising `--speed`
+without also raising `--timeout` therefore buys you nothing past the 300 s mark — the two flags are
+independent knobs and long scenarios need both.
+
+**`--speed N` (1–16) is free, and it is the flag to reach for.** `--speed` (`:204-205`, range-checked
+1–16 at `:291-300`) becomes `Test.SpeedMultiplier=N` (`:626-628`), which `TestModeSpeedMultiplier`
+applies at world load as `world.Timestep = max(1, oldTimestep / N)`
+(`engine/OpenRA.Mods.Common/Traits/World/TestModeSpeedMultiplier.cs:39-41`). A scenario that takes
+~24 minutes at 1× runs in ~3 at `--speed 8`; `--speed 8 --timeout 900` is the workhorse pair.
+
+**The simulation stays byte-identical, and that is VERIFIED here rather than taken from the comment
+that asserts it.** The trait's header claims it "never enters a synced path"
+(`TestModeSpeedMultiplier.cs:8-9`); the thing that could falsify that is a gameplay trait reading the
+*mutable* `world.Timestep` (`World.cs:43`) rather than the immutable `world.GameSpeed.Timestep`.
+Three do — `TimeLimitManager.cs:118`, `NuclearUnlockClock.cs:284`, `DefconEscalation.cs:415` — and all
+three read it **once, in their constructor**, to convert minutes into ticks. The ordering settles it:
+`World.cs:220` assigns `Timestep` from `GameSpeed`, `World.cs:252` then constructs the world actor and
+its traits (which latch 60), and only afterwards does `World.cs:320`/`:334` run `IWorldLoaded` — where
+the multiplier lands. So the converters have already captured the unmultiplied value, and the two
+comments at `NuclearUnlockClock.cs:281-283` and `DefconEscalation.cs:410-413` say so explicitly. Every
+other consumer is pacing (`Game.cs:1006`, `OrderManager`), rendering (`WeatherOverlay.cs:250`),
+logging (`UnitLifecycleLogger.cs:257`), or reads the immutable base (`DoomsdayStrike.cs:738`,
+`TimeLimitManager.cs:146`). **Use `--speed` without worrying about it changing a verdict.**
+
+**Tick rate is 16.67/s, so 5000 ticks ≈ 300 s — that is the arithmetic the default invocation can
+afford.** (`Timestep: 60` ms, `mod.yaml:381-382` + `:406`. **Never write 25 tps**; the 25 that
+`TestHarness.TicksPerSecond` carries is a conversion constant, not the tick rate — see §"The `seconds`
+argument is not seconds".) A Lua `AssertWithin(N, …)` budget is `N × 25` ticks, so its real ceiling is
+`N × 1.5` seconds, and `AssertWithin(200, …)` is exactly 5000 ticks = exactly 300 s.
+
+### Scenarios the default invocation cannot complete
+
+Audited at `e0674307` across all 343 directories under `tools/autotest/scenarios/`, over four
+duration sources: `TimeLimitTicks` in `rules.yaml`, `TimeLimitSeconds` in `tournament*.yaml`,
+`Trigger.AfterDelay(N)`, and Lua deadline constants. Everything over 5000 ticks:
+
+| Scenario | Configured budget | Wall-clock @ 1× | Run it as |
+|---|---|---|---|
+| `test-escalation-full-match` | `TimeLimitTicks: 22000` (`rules.yaml:72`), outer `DEADLINE = 24000` (`.lua:64`) | **1320–1440 s (22–24 min)** | `--speed 8 --timeout 900` |
+| `test-experimental-buys-special-forces` | `DEADLINE_TICKS = 9000` (`.lua:37`) | 540 s (9 min) | `--speed 4 --timeout 600` |
+| `test-experimental-msar-deploy` | `DEADLINE_TICKS = 6000` (`.lua:25`) | 360 s (6 min) | `--speed 4 --timeout 600` |
+| `test-combined-arms-rendezvous` | `DeadlineSeconds = 200` (`.lua:39`) = 5000 ticks | 300 s — **exactly the watchdog** | `--speed 4 --timeout 600` |
+| `wip-transport-delivers` | `DeadlineSeconds = 180` (`.lua:35`) = 4500 ticks | 270 s + load time | marginal; `--speed 4 --timeout 600` |
+
+**Read "cannot complete" precisely, because it is not the same claim for every row.**
+`test-escalation-full-match` is the strict case: its time limit is the *subject* of the test — the
+match must actually run to 22000 ticks — so at 1× it is structurally unable to reach a verdict inside
+300 s and **has effectively never been run to completion by the default invocation**. The others
+configure a *give-up cap*, so a passing run may well finish early and report `PASS` honestly. What is
+unreachable there is the **failing** path: the watchdog fires first and overwrites the scenario's own
+diagnostic — which names the unit and the tick, and is the whole point of the message — with a
+generic `TIMEOUT-FAIL`. So a `TIMEOUT-FAIL` on one of these rows at default settings says nothing
+about the code under test; rerun it with the flags above before drawing any conclusion.
+
+The last two rows are the ones to check by hand rather than trust: 5000 and 4500 ticks sit at or just
+under the watchdog, so whether they clear it depends on map-load time, which this audit did not
+measure. Treat them as "raise the timeout" rather than as known-good.
+
+**The twelve `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
+`run-tournament.sh` computes its own budget (`:164`, `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`) and
+does not use `run-test.sh`'s 300 s. Their clock is separately mis-stated — see
+`WORKSPACE/bugs/discovered.md` 2026-09-19 on `TournamentConfig.cs:101`.
+
+### An empty `lua.log` from a TIMEOUT-FAIL means nothing on its own
+
+The 0-byte `lua.log` tell — "the script was never wired in", from `map.yaml` rule 5 and §"A green run
+is not evidence…" — is **only diagnostic once you know the run got far enough for the script to have
+written anything.** A watchdog kill at 300 s produces the same empty file for a completely different
+reason: on a long scenario the run was simply cut off, and on any scenario a kill can land before the
+first `print` flushes. Both states present identically — `TIMEOUT-FAIL`, empty `lua.log`.
+
+**Check the last tick reached first** (`debug.log`, or any periodic trace the scenario prints). A run
+that reached a few thousand ticks was executing Lua; a run stuck near tick 0 was not.
+
+**And rule the unwired case out statically instead of spending a launch on it.** `make lua-gate` —
+2 s, no build, no launch, and part of `.\make.ps1 test` — names an unwired scenario for free, before
+any game starts. That is strictly better than inferring it from an empty log afterwards: lint proves
+a scenario is well-formed but cannot prove the engine will ever *read* it, which is the gap lua-gate
+covers (see §"Verify before you ask for a slot").
 
 ## The loop (what I run when you trigger AUTOTEST)
 
@@ -253,7 +341,7 @@ predicate measures the thing you care about, which is what the two sections belo
 | `Screenshot(label, note?)` | Capture a PNG now. Wrapper around `Test.Screenshot`. See [`SCREENSHOT.md`](SCREENSHOT.md). |
 | `ScreenshotAfter(seconds, label, note?)` | Schedule a screenshot N game-seconds from now |
 
-**The `seconds` argument is not seconds. `TestHarness.TicksPerSecond = 25` (`test-helpers.lua:26`, consumed at `:69`/`:99`/`:203`) while the mod runs at `Timestep: 60` (`mod.yaml:382`) = 16.67 ticks/second — so every window is `N × 1.5` real seconds.** `run-test.sh` sets neither `Test.GameSpeed` nor `Test.SpeedMultiplier`, and `Game.LoadMap` hardcodes the `"default"` speed unless `Test.GameSpeed` overrides it (`Game.cs:1184`), so this applies to every scenario in the suite: `AssertWithin(10, …)` waits 15 seconds, and every "within Ns" string in a failure message overstates the time actually allowed by half again.
+**The `seconds` argument is not seconds. `TestHarness.TicksPerSecond = 25` (`test-helpers.lua:36`, consumed at `:86`/`:149`/`:253`) while the mod runs at `Timestep: 60` (`mod.yaml:382` `DefaultSpeed: default` → `:406`) = 16.67 ticks/second — so every window is `N × 1.5` real seconds.** `run-test.sh` sets neither `Test.GameSpeed` nor `Test.SpeedMultiplier`, and `Game.LoadMap` hardcodes the `"default"` speed unless `Test.GameSpeed` overrides it (`Game.cs:1184`), so this applies to every scenario in the suite: `AssertWithin(10, …)` waits 15 seconds, and every "within Ns" string in a failure message overstates the time actually allowed by half again.
 
 **There are THREE tick bases in play, not two, and the third is the one that breaks scenarios.** `DateTime.Seconds(n)` — the engine's own Lua converter — computes `1000 / Timestep` in **integer** arithmetic (`DateTimeGlobal.cs:31`), so it yields **16**, not 16.67. Against wall clock the harness is 1.5× lenient; against `DateTime.Seconds` it is 25/16 = **1.5625×**. A scenario that mixes the two — an outer `AssertWithin` timeout sized to cover an inner `DateTime.Seconds` delay — has a margin that exists only because 25 > 16, and correcting the constant *inverts* it. `test-autotarget-preempt-air` is exactly that shape and is provably unpassable at either 16 or 16.67; see its comment at `:70-77`.
 
