@@ -2014,6 +2014,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();
 		}
 
+		[Desc("The value an ILobbyOptions dropdown or checkbox actually resolved to, as the string the " +
+			"trait itself reads. \"\" when no such option is registered.",
+			"",
+			"NOT Map.LobbyOption, AND THE DIFFERENCE IS NOT A DETAIL. That binding resolves " +
+			nameof(ScriptLobbyDropdown) + " traits ONLY (MapGlobal.cs:112-120) — a separate, " +
+			"script-facing mechanism with its own trait and its own ID namespace. An option declared " +
+			"through " + nameof(ILobbyOptions) + ", which is every option this mod ships (game mode, " +
+			"starting units, forward deployment, the phase clocks), is invisible to it: it logs " +
+			"\"A ScriptLobbyDropdown with ID `x` was not found\" to the lua log and returns NIL. A " +
+			"scenario guarding on `Map.LobbyOption(id) ~= expected` therefore faults every single " +
+			"run, and one guarding on Map.LobbyOptionOrDefault(id, expected) never faults at all — " +
+			"the fallback IS the expected value, so the guard is vacuous. Both were live in " +
+			"test-forward-deploy-clears-band before this binding existed.",
+			"",
+			"This reads Session.Global.OptionOrDefault, which is the same call the consuming traits " +
+			"make (e.g. SpawnStartingUnits' forward-deployment class), so it cannot disagree with " +
+			"what the match is actually running. Test mode only.")]
+		public string LobbyOption(string id)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return Context.World?.LobbyInfo.GlobalSettings.OptionOrDefault(id, "") ?? "";
+		}
+
 		[Desc("The match-wide DEFCON level: 3 positioning, 2 cease-fire, 1 open war. Returns " +
 			"DefconEscalationState.NoLevel (0) in Skirmish and on any world with no DefconEscalation, " +
 			"which is a REAL answer and not an error — a scenario asserting on a phase transition must " +

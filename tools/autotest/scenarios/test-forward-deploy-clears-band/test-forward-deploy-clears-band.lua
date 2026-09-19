@@ -8,27 +8,47 @@
 --      an empty map or an absent border, which is the failure mode that banks a fix that never
 --      executed -- so each is checked BEFORE the thing it would hide.
 --
---   2. THE BAND CENSUS. Every unit the trait placed, read two ways: the terrain under its cell
---      (the wall's own CustomTerrain write, which is what makes the ground impassable) and its
---      column against the band's known extent (which also catches a unit placed clean THROUGH
---      the band, on Russia's side of a closed border).
+--   2. THE GEOMETRY AND THE CENSUS. First the shape of the overlap the filter has to handle --
+--      how many cells the package's annulus has, how many of those the border forbids and which
+--      -- so that a change in the derivation or the package is named rather than silently
+--      absorbed. Then every unit the trait placed, read two ways: the terrain under its cell (the
+--      wall's own CustomTerrain write, which is what makes the ground impassable) and its column
+--      against the band's known extent (which also catches a unit placed clean THROUGH the band,
+--      on Russia's side of a closed border).
 --
 --   3. PATHABILITY. Everything is ordered home. A unit standing in the band would still move --
 --      the crossing guard allows any step that reduces depth -- so this is not a second way of
 --      asking (2); it is the pocket check, and it is what catches a unit whose escape route the
 --      border closed even though the unit itself is clear of it.
 --
--- WHAT WOULD MAKE THIS RED. Revert the ForbidsPlacement filter in SpawnStartingUnits and the
--- census fails: the motorized annulus around x 24 reaches x 31, the band's first column, and the
--- shuffle puts a unit there. The band-extent guard in (1) is what tells the two apart -- a red
--- census with a green band guard is the bug; a red band guard is the derivation moving, and the
--- census result means nothing until that is understood.
+-- WHAT WOULD MAKE THIS RED, STATED HONESTLY BECAUSE THE ANSWER IS "USUALLY, NOT ALWAYS".
+-- At this separation the annulus and the band overlap in exactly ONE cell of 68 -- (31,16), the
+-- only annulus cell at x >= 31, because the outer radius is 7 and the centre is at x 24. Twenty
+-- units drawing from 68 cells miss it about three runs in four, so REVERTING THE FILTER AND
+-- RERUNNING IS NOT A RELIABLE RED ARM and a green pre-fix run proves nothing. That is why the
+-- geometry leg below asserts the SHAPE of the overlap -- 68 annulus cells, exactly one of them
+-- forbidden, at exactly (31,16) -- rather than leaning on where the dice fell: those numbers are
+-- deterministic, and any change to the advance percentage, the package radius, the half-width or
+-- the derivation moves one of them and is named. The deterministic proof that the overlap exists
+-- at all is OpenRA.Test/ForwardDeploymentBandOverlapTest, which needs no game.
 
 -- The derived band, from the map's own spawn separation. Asserted at CENSUS_TICK rather than
 -- assumed -- see the band-extent guard.
 local BAND_MIN_X = 31
 local BAND_MAX_X = 33
 local BAND_ROW = 16
+
+-- The forward package's centre and annulus, from the map's own numbers rather than read back off
+-- the units: home x 6 + (52 * 35 / 100) = x 24, and FindTilesInAnnulus(centre, InnerSupportRadius
+-- + 1, OuterSupportRadius) = (6, 7) for the motorized package. The engine buckets a cell by
+-- ceil(sqrt(dx^2 + dy^2)) (MapGrid.CreateTilesByDistance), so buckets 6 and 7 are exactly
+-- 25 < d^2 <= 49. All 68 of them are inside Bounds 1,1,64,32, so none is dropped.
+local PACKAGE_X = 24
+local PACKAGE_Y = 16
+local ANNULUS_MIN = 6
+local ANNULUS_MAX = 7
+local EXPECT_ANNULUS_CELLS = 68
+local EXPECT_FORBIDDEN_CELLS = 1
 
 -- DefconWallInfo.TerrainType. The wall writes this into Map.CustomTerrain for every band cell,
 -- and Map.TerrainType reads back through CustomTerrain, so this is the wall's own record of what
@@ -53,12 +73,6 @@ local function fault(text)
 	faults[#faults + 1] = text
 end
 
-local function cellDistance(a, b)
-	local dx = a.X - b.X
-	local dy = a.Y - b.Y
-	return math.floor(math.sqrt((dx * dx) + (dy * dy)))
-end
-
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
 
@@ -75,13 +89,19 @@ WorldLoaded = function()
 	end
 
 	local units = {}
-	local startDistance = {}
+	local startCell = {}
 	local censusNote = ""
+	local geometryNote = ""
 	local tick = 0
 
 	-- ---- 1. GUARDS ---------------------------------------------------------------------------
 	local function guards()
-		local forward = Map.LobbyOption("forwarddeployment")
+		-- Test.LobbyOption AND NOT Map.LobbyOption. The latter resolves ScriptLobbyDropdown traits
+		-- only (MapGlobal.cs:112-120) and returns NIL for an ILobbyOptions id like this one, so a
+		-- guard written against it faults on EVERY run -- which is how this scenario was written
+		-- first, and it could never have passed. Map.LobbyOptionOrDefault(id, "motorized") is the
+		-- other trap: the fallback is the expected value, so the guard can never fire at all.
+		local forward = Test.LobbyOption("forwarddeployment")
 		if forward ~= "motorized" then
 			fault(string.format("THE FORWARD DEPLOYMENT OPTION IS %q, NOT \"motorized\": rules.yaml sets"
 				.. " SpawnStartingUnits.ForwardDeploymentClass and LobbyCommands.LoadMapSettings is"
@@ -118,7 +138,76 @@ WorldLoaded = function()
 		censusNote = "band " .. table.concat(sealed, " ")
 	end
 
-	-- ---- 2. THE BAND CENSUS ------------------------------------------------------------------
+	-- The package's annulus, enumerated the way Map.FindTilesInAnnulus does: a cell falls in bucket
+	-- ceil(sqrt(dx^2 + dy^2)), and the trait asks for buckets InnerSupportRadius + 1 .. Outer.
+	local function annulusCells()
+		local cells = {}
+		for dy = -ANNULUS_MAX, ANNULUS_MAX do
+			for dx = -ANNULUS_MAX, ANNULUS_MAX do
+				local d2 = (dx * dx) + (dy * dy)
+				if d2 > 0 then
+					local bucket = math.ceil(math.sqrt(d2))
+					if bucket >= ANNULUS_MIN and bucket <= ANNULUS_MAX then
+						cells[#cells + 1] = CPos.New(PACKAGE_X + dx, PACKAGE_Y + dy)
+					end
+				end
+			end
+		end
+		return cells
+	end
+
+	-- ---- 2a. THE SHAPE OF THE OVERLAP --------------------------------------------------------
+	-- DETERMINISTIC, UNLIKE THE CENSUS. Nothing here depends on the shuffle: it is the arithmetic
+	-- the filter exists to handle, asserted so that a change to the advance percentage, the package
+	-- radius, the band half-width or the derivation is NAMED instead of quietly making the census
+	-- vacuous. A census over an annulus with nothing forbidden in it passes for free.
+	local function geometry()
+		local cells = annulusCells()
+		local forbidden = {}
+
+		for _, c in ipairs(cells) do
+			if c.X >= BAND_MIN_X then
+				forbidden[#forbidden + 1] = c
+			end
+		end
+
+		if #cells ~= EXPECT_ANNULUS_CELLS then
+			fault(string.format("THE PACKAGE ANNULUS HAS %d CELLS, EXPECTED %d: the annulus is"
+				.. " InnerSupportRadius + 1 .. OuterSupportRadius = %d..%d around (%d,%d). Either the"
+				.. " motorized package's radii moved or some of the ring left Bounds",
+				#cells, EXPECT_ANNULUS_CELLS, ANNULUS_MIN, ANNULUS_MAX, PACKAGE_X, PACKAGE_Y))
+		end
+
+		if #forbidden ~= EXPECT_FORBIDDEN_CELLS then
+			fault(string.format("THE BORDER FORBIDS %d OF THE ANNULUS'S CELLS, EXPECTED %d. The whole"
+				.. " point of this scenario is that the package's outer ring and the band touch; with"
+				.. " none forbidden the census below cannot fail and proves nothing, and with many"
+				.. " more the advance or the half-width has changed",
+				#forbidden, EXPECT_FORBIDDEN_CELLS))
+		end
+
+		-- The overlap cell is the band's own terrain, not merely a column the arithmetic picked.
+		for _, c in ipairs(forbidden) do
+			if c.X <= BAND_MAX_X and Map.TerrainType(c) ~= WALL_TERRAIN then
+				fault(string.format("ANNULUS CELL %d,%d IS INSIDE THE BAND'S COLUMNS BUT READS %q,"
+					.. " NOT %q -- the wall did not seal a cell the filter is being asked to reject",
+					c.X, c.Y, Map.TerrainType(c), WALL_TERRAIN))
+			end
+		end
+
+		-- The retreat ladder must NOT have engaged: 67 legal cells is far above
+		-- ForwardDeploymentMinValidCells (12), so the package stays at its full advance and the
+		-- overlap is real rather than something the search already stepped away from.
+		local legal = #cells - #forbidden
+		if legal < 12 then
+			fault(string.format("ONLY %d LEGAL ANNULUS CELLS: below ForwardDeploymentMinValidCells the"
+				.. " search steps back toward home and this scenario stops testing the overlap", legal))
+		end
+
+		geometryNote = string.format("annulus=%d forbidden=%d legal=%d", #cells, #forbidden, legal)
+	end
+
+	-- ---- 2b. THE BAND CENSUS -----------------------------------------------------------------
 	local function census()
 		units = usaUnits()
 
@@ -132,10 +221,19 @@ WorldLoaded = function()
 			return
 		end
 
-		local inBand, beyond = {}, {}
+		local inBand, beyond, offAnnulus = {}, {}, {}
 		for _, a in ipairs(units) do
 			if not a.IsDead then
 				local cell = a.Location
+
+				-- EVERY UNIT MUST BE IN THE ANNULUS THE GEOMETRY LEG JUST MEASURED, or the two legs
+				-- are talking about different ground and the overlap count above says nothing about
+				-- where these units actually are.
+				local d2 = ((cell.X - PACKAGE_X) ^ 2) + ((cell.Y - PACKAGE_Y) ^ 2)
+				local bucket = math.ceil(math.sqrt(d2))
+				if bucket < ANNULUS_MIN or bucket > ANNULUS_MAX then
+					offAnnulus[#offAnnulus + 1] = string.format("%s at %d,%d", a.Type, cell.X, cell.Y)
+				end
 				if Map.TerrainType(cell) == WALL_TERRAIN then
 					inBand[#inBand + 1] = string.format("%s at %d,%d", a.Type, cell.X, cell.Y)
 				end
@@ -160,6 +258,14 @@ WorldLoaded = function()
 				.. " x 24 is legal ground on RUSSIA's side of a closed border",
 				#beyond, BAND_MIN_X, table.concat(beyond, ", ")))
 		end
+
+		if #offAnnulus > 0 then
+			fault(string.format("%d UNIT(S) ARE OUTSIDE THE PACKAGE ANNULUS (%d..%d around %d,%d): %s."
+				.. " The deployment centre moved, so the overlap this scenario measured is not the"
+				.. " overlap these units were placed against",
+				#offAnnulus, ANNULUS_MIN, ANNULUS_MAX, PACKAGE_X, PACKAGE_Y,
+				table.concat(offAnnulus, ", ")))
+		end
 	end
 
 	-- ---- 3. PATHABILITY ----------------------------------------------------------------------
@@ -169,7 +275,7 @@ WorldLoaded = function()
 		end
 
 		for _, a in ipairs(units) do
-			startDistance[a] = cellDistance(a.Location, RALLY)
+			startCell[a] = a.Location
 		end
 
 		Test.GroupMove(units, RALLY)
@@ -177,17 +283,17 @@ WorldLoaded = function()
 	end
 
 	local function verdict()
-		-- STRICTLY CLOSER, not arrived: twenty units converging on one cell jam, and a unit at the
-		-- back of the queue that has moved a single cell has proved the only thing this leg is
-		-- asking -- that it CAN move. A unit the border boxed in moves nowhere at all.
+		-- MOVED AT ALL, not moved CLOSER. Twenty units converging on one cell jam, and a unit shoved
+		-- sideways by the one in front is briefly further from the rally than it started while being
+		-- perfectly able to path -- so "closer than it started" is a plausible false red. What this
+		-- leg actually asks is whether the unit can leave the cell it was put down on, and a unit the
+		-- border sealed into a pocket leaves it never.
 		local stuck = {}
 		for _, a in ipairs(units) do
 			if not a.IsDead then
-				local now = cellDistance(a.Location, RALLY)
-				local was = startDistance[a] or 0
-				if now >= was and was > 2 then
-					stuck[#stuck + 1] = string.format("%s at %d,%d (%d -> %d cells from the rally)",
-						a.Type, a.Location.X, a.Location.Y, was, now)
+				local was = startCell[a]
+				if was ~= nil and a.Location.X == was.X and a.Location.Y == was.Y then
+					stuck[#stuck + 1] = string.format("%s still on %d,%d", a.Type, was.X, was.Y)
 				end
 			end
 		end
@@ -199,8 +305,9 @@ WorldLoaded = function()
 				#stuck, table.concat(stuck, ", ")))
 		end
 
-		local summary = string.format("%d forward units | %s | defconWall=%s level=%d",
-			#units, censusNote, tostring(Test.DefconWallActive()), Test.DefconLevel())
+		local summary = string.format("%d forward units | %s | %s | fwd=%q defconWall=%s level=%d",
+			#units, geometryNote, censusNote, tostring(Test.LobbyOption("forwarddeployment")),
+			tostring(Test.DefconWallActive()), Test.DefconLevel())
 
 		if #faults > 0 then
 			Test.Fail(table.concat(faults, " || ") .. " || " .. summary)
@@ -215,6 +322,7 @@ WorldLoaded = function()
 
 		if tick == CENSUS_TICK then
 			guards()
+			geometry()
 			census()
 
 			if #units > 0 then

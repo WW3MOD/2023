@@ -22,23 +22,41 @@ whole scenario.
                 that turned impassable one tick later and stayed that way until DEFCON 2.
                 No trait order fixes this: the write is simply later than world load.
 
-Three legs, in order, each with its own named failure:
+Four legs, in order, each with its own named failure:
 
   GUARDS        The Forward Deployment lobby option really opened on `motorized`, the
                 wall really stands, and columns 31-33 really read as Wall while 30 and 34
                 do not. These come first because each is a way for the run to look green
-                over an empty map or an absent border.
+                over an empty map or an absent border. The option is read through
+                Test.LobbyOption and NOT Map.LobbyOption -- the latter resolves
+                ScriptLobbyDropdown traits only and returns nil for an ILobbyOptions id,
+                so a guard written against it faults on every run.
 
-  CENSUS        Every unit the trait placed, read twice: the terrain under its own cell,
-                and its column against the band. The second catches a unit placed clean
+  GEOMETRY      The shape of the overlap, which is the deterministic part: the package's
+                annulus is 68 cells, exactly ONE of them (31,16) is behind the border,
+                and 67 remain -- far above ForwardDeploymentMinValidCells, so the retreat
+                ladder does not engage and the overlap is real rather than something the
+                search already stepped away from. Any change to the advance percentage,
+                the package radius, the band half-width or the derivation moves one of
+                those integers and is named here instead of quietly making the census
+                below vacuous.
+
+  CENSUS        Every unit the trait placed, read three ways: the terrain under its own
+                cell, its column against the band, and whether it is in the annulus the
+                geometry leg just measured. The second catches a unit placed clean
                 THROUGH the band as well as one standing in it -- half of an annulus
                 centred on x 24 is perfectly good ground on Russia's side of a closed
-                border, and that is no better a place to start a match.
+                border, and that is no better a place to start a match. The third catches
+                a deployment centre that moved, which would mean the two legs are talking
+                about different ground.
 
-  PATHABILITY   Everything is ordered home to 12,16 and must end up strictly closer than
-                it started. This is not the census again: a unit inside the band can still
-                move (the crossing guard permits any step that reduces depth). It is the
-                pocket check -- a unit clear of the band whose only way out ran through
+  PATHABILITY   Everything is ordered home to 12,16 and must have left the cell it was
+                put down on. MOVED AT ALL rather than moved CLOSER: twenty units
+                converging on one cell jam, and a unit shoved sideways by the one in
+                front is briefly further from the rally while being perfectly able to
+                path. This is not the census again -- a unit inside the band can still
+                move, since the crossing guard permits any step that reduces depth. It is
+                the pocket check: a unit clear of the band whose only way out ran through
                 it.
 
 Only USA deploys. SpawnStartingUnits spawns for Playable players, and a Playable slot
@@ -48,6 +66,14 @@ of it is pinned without a game in OpenRA.Test/ForwardDeploymentBandOverlapTest, 
 Russia here is an ordinary map player whose job is to own the far Supply Route -- which
 is what fixes where the border lands.
 
-PASS: twenty forward units, none in the band, none at or past column 31, all able to path
-home, over a wall that is standing where the arithmetic says.
+PASS: twenty forward units, none in the band, none at or past column 31, all able to
+leave their cell, over a wall standing where the arithmetic says and an overlap of the
+measured shape.
 FAIL: names which leg went wrong and lists the offending units with their cells.
+
+THIS IS A GREEN-SIDE REGRESSION GUARD AND NOT A RELIABLE RED ARM, which is worth saying
+because the obvious way to validate it is to revert the fix and rerun. The annulus and the
+band meet in ONE cell of 68, so twenty units drawing from 68 cells miss it roughly three
+runs in four: a green pre-fix run is the common case and proves nothing. What IS
+deterministic is the geometry leg, and the arithmetic behind it is pinned without a game
+in OpenRA.Test/ForwardDeploymentBandOverlapTest.

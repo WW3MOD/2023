@@ -27,13 +27,24 @@
  * to SpawnStartingUnits has something to filter, and stays pinned if the advance percentage, the
  * half-width or the package radius is ever retuned into or out of collision.
  *
+ * IT ALSO PINS THE TWO CASES SelectDeploymentCenter's UNFILTERED RESCAN TURNS ON: that a derived
+ * LINE border never leaves the retreat ladder with nothing (so the rescan is inert on all ten
+ * shipped maps), and that a REGION border can (so it is not dead code). The rescan's rationale was
+ * first written about the line and that was geometrically wrong -- a three-column band cannot cover
+ * a fifteen-column annulus at any separation. The swept test is what caught it.
+ *
  * WHAT IT CANNOT COVER, stated rather than hidden: the filter itself. SpawnStartingUnits needs a
  * World, a Map and a Locomotor, none of which OpenRA.Test can construct -- the same constraint
  * DefconWallTest's header records. The filter is verified by the scenario
  * tools/autotest/scenarios/test-forward-deploy-clears-band, which reads the terrain under every
- * unit the trait actually placed.
+ * unit the trait actually placed -- but only probabilistically: the annulus and the band overlap in
+ * ONE cell of 68 there, so a pre-fix run misses it about three times in four. The scenario asserts
+ * the SHAPE of the overlap for that reason, and TheOverlapIsExactlyOneCellOfSixtyEight is where
+ * those two integers are fixed.
  */
 
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -55,7 +66,9 @@ namespace OpenRA.Test
 		const int HalfWidth = 1024;
 		const int ExtendCells = 512;
 
-		// The motorized package, world.yaml StartingUnits@Motorized_america / _russia.
+		// The motorized package, world.yaml StartingUnits@Motorized_america / _russia. The trait asks
+		// FindTilesInAnnulus for InnerSupportRadius + 1 .. OuterSupportRadius.
+		const int InnerSupportRadius = 5;
 		const int OuterSupportRadius = 7;
 
 		static long CentreOf(int cell)
@@ -155,6 +168,150 @@ namespace OpenRA.Test
 
 			Assert.That(InBand(geometry, centre.X + OuterSupportRadius, 16), Is.False,
 				"At 54 cells of separation the outer ring stops short of the band.");
+		}
+
+		/// <summary>
+		/// The cells SpawnStartingUnits would score at one retreat step: the package's support annulus,
+		/// enumerated the way Map.FindTilesInAnnulus does. MapGrid.CreateTilesByDistance buckets a cell
+		/// by ceil(sqrt(dx^2 + dy^2)), so buckets lo..hi are exactly (lo-1)^2 &lt; d^2 &lt;= hi^2.
+		/// </summary>
+		static List<CPos> Annulus(CPos centre, int lo, int hi)
+		{
+			var cells = new List<CPos>();
+			for (var dy = -hi; dy <= hi; dy++)
+				for (var dx = -hi; dx <= hi; dx++)
+				{
+					var d2 = (dx * dx) + (dy * dy);
+					if (d2 == 0)
+						continue;
+
+					var bucket = Exts.ISqrt(d2, Exts.ISqrtRoundMode.Ceiling);
+					if (bucket >= lo && bucket <= hi)
+						cells.Add(centre + new CVec(dx, dy));
+				}
+
+			return cells;
+		}
+
+		/// <summary>
+		/// How many annulus cells the border leaves usable, at every step of the retreat ladder. This is
+		/// SelectDeploymentCenter's score with the terrain term removed -- so zero here means zero there
+		/// on open ground, which is the condition the unfiltered rescan exists for.
+		/// </summary>
+		static int[] LegalCellsPerStep(CPos home, CPos enemyHome, DefconWallGeometry geometry)
+		{
+			var side = geometry.SideOf(CentreOf(home.X), CentreOf(home.Y));
+			var steps = ForwardDeploymentGeometry.DefaultRetreatSteps;
+			var scores = new int[steps + 1];
+
+			for (var step = steps; step >= 0; step--)
+			{
+				var advance = ForwardDeploymentGeometry.AdvanceAtStep(
+					ForwardDeploymentGeometry.DefaultAdvancePercent, steps, step);
+				var centre = ForwardDeploymentGeometry.AdvancedCenter(home, enemyHome, advance);
+
+				scores[step] = Annulus(centre, InnerSupportRadius + 1, OuterSupportRadius)
+					.Count(c => !geometry.IsBeyond(side, CentreOf(c.X), CentreOf(c.Y)));
+			}
+
+			return scores;
+		}
+
+		[Test]
+		public void TheOverlapIsExactlyOneCellOfSixtyEight()
+		{
+			// THE SCENARIO'S FIXTURES, AND THE REASON IT IS NOT A RELIABLE RED ARM. The annulus and
+			// the band meet in ONE cell out of 68, so reverting the filter and rerunning
+			// test-forward-deploy-clears-band leaves twenty units drawing from 68 cells and missing
+			// that one about three runs in four. These two integers are what the scenario's geometry
+			// leg asserts instead, and they are deterministic.
+			var geometry = DerivedBorder(UsaHome, RussiaHome);
+			var side = geometry.SideOf(CentreOf(UsaHome.X), CentreOf(UsaHome.Y));
+			var centre = ForwardDeploymentGeometry.AdvancedCenter(
+				UsaHome, RussiaHome, ForwardDeploymentGeometry.DefaultAdvancePercent);
+
+			var cells = Annulus(centre, InnerSupportRadius + 1, OuterSupportRadius);
+			var forbidden = cells.Where(c => geometry.IsBeyond(side, CentreOf(c.X), CentreOf(c.Y))).ToList();
+
+			Assert.That(cells.Count, Is.EqualTo(68), "The motorized annulus at radius 6..7 is 68 cells.");
+			Assert.That(forbidden.Count, Is.EqualTo(1), "Exactly one annulus cell is behind the border.");
+			Assert.That(forbidden[0], Is.EqualTo(new CPos(31, 16)),
+				"The one overlapping cell is the band's first column on the package's own row.");
+		}
+
+		[Test]
+		public void ALineBorderNeverLeavesTheLadderWithNothing()
+		{
+			// THE RESCAN IN SelectDeploymentCenter CANNOT FIRE ON THE DERIVED LINE, and that is worth
+			// pinning because it is what makes the guard inert on all ten shipped maps rather than a
+			// second behaviour nobody sees. The reasoning is that the band is THREE columns wide while
+			// the annulus is fifteen: a vertical band can shave the forward edge off an annulus but
+			// never cover it, and the ladder's step 0 sits at home, where the whole rear half of the
+			// ring is on the player's own side by construction. Swept rather than argued.
+			for (var separation = 2; separation <= 60; separation += 2)
+			{
+				var enemy = new CPos(UsaHome.X + separation, UsaHome.Y);
+				var geometry = DerivedBorder(UsaHome, enemy);
+				if (geometry.IsDegenerate)
+					continue;
+
+				var scores = LegalCellsPerStep(UsaHome, enemy, geometry);
+				Assert.That(scores.Min(), Is.GreaterThan(0),
+					$"At {separation} cells of separation a step of the ladder scored zero against a " +
+					"LINE border, which the rescan's reasoning says cannot happen.");
+			}
+		}
+
+		[Test]
+		public void ARegionBorderCanForbidEveryCellOfTheAnnulus()
+		{
+			// THE CASE THE RESCAN ACTUALLY EXISTS FOR, and it is the REGION path rather than the line.
+			// A region border is an arbitrary cell set, so it can enclose a spawn in a component
+			// SMALLER THAN THE PACKAGE'S OWN ANNULUS -- and then every candidate cell at every step of
+			// the ladder is either border or another component, i.e. IsBeyond, and the score is zero
+			// all the way down. SelectDeploymentCenter's bestScore starts at -1 and the ladder walks
+			// from the FULL advance downward, so nothing ever displaces the deepest centre and without
+			// the rescan the whole package would be placed past a closed border.
+			//
+			// AND IT TAKES A ONE-CELL POCKET, WHICH IS WORTH STATING PLAINLY: the ladder's centres sit
+			// 0, 2, 5, 8, 11 and 14 cells out, and a ring of radius 6..7 around ANY of them sweeps back
+			// through a pocket of any appreciable size, leaving that step a non-zero score. So this
+			// guard covers a pathological authored region and nothing a shipped map can produce -- the
+			// swept line test above is the other half of that statement. It is four lines and it
+			// reproduces the pre-change answer exactly when it fires, which is the trade being made.
+			const int Size = 60;
+			var home = new CPos(10, 10);
+
+			var blocked = new List<CPos>();
+			for (var dx = -1; dx <= 1; dx++)
+				for (var dy = -1; dy <= 1; dy++)
+					if (dx != 0 || dy != 0)
+						blocked.Add(home + new CVec(dx, dy));
+
+			var region = new DefconWallRegion(0, 0, Size, Size, blocked, _ => true);
+			Assert.That(region.IsDegenerate, Is.False, "The ring must separate home from the rest.");
+
+			var side = region.SideOf(home);
+			Assert.That(side, Is.Not.EqualTo(DefconWallRegion.Unlabelled), "Home must be in a component.");
+			Assert.That(region.SideOf(new CPos(40, 40)), Is.Not.EqualTo(side),
+				"...and it must not be the same component as the open map.");
+
+			var steps = ForwardDeploymentGeometry.DefaultRetreatSteps;
+			var enemy = new CPos(50, 10);
+
+			for (var step = steps; step >= 0; step--)
+			{
+				var advance = ForwardDeploymentGeometry.AdvanceAtStep(
+					ForwardDeploymentGeometry.DefaultAdvancePercent, steps, step);
+				var centre = ForwardDeploymentGeometry.AdvancedCenter(home, enemy, advance);
+
+				var legal = Annulus(centre, InnerSupportRadius + 1, OuterSupportRadius)
+					.Count(c => !region.IsBeyond(side, c));
+
+				Assert.That(legal, Is.Zero,
+					$"Step {step} left {legal} legal cell(s); the all-zero case the rescan guards " +
+					"against is not being reproduced.");
+			}
 		}
 
 		[Test]

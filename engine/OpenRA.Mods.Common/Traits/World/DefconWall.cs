@@ -370,6 +370,18 @@ namespace OpenRA.Mods.Common.Traits
 		// would read the wall back in as border terrain and grow it. Running EARLIER than it used to
 		// is safe for the same reason running at WorldLoaded was -- the wall is still down either
 		// way -- and running a second time is now impossible rather than merely unlikely.
+		//
+		// AND THE PRECONDITION IS NOW LOAD-BEARING AT A NEW PLACE, which is worth stating because it
+		// is the one thing this change quietly moved. BuildRegion no longer runs at world.yaml:935;
+		// on a region map it runs at :638, when SpawnStartingUnits asks. It still reads the MAP's own
+		// terrain, and that was AUDITED rather than assumed: THIS TRAIT IS THE ONLY WRITER OF
+		// Map.CustomTerrain ANYWHERE IN world.yaml. The other writers in the engine are
+		// CliffBackImpassabilityLayer, ResourceLayer/EditorResourceLayer, Bridge, GroundLevelBridge
+		// and ChangesTerrain; none of the world-actor ones is declared by this mod, and the rest are
+		// building traits that cannot run before their actor exists. So the window between :638 and
+		// :935 is not merely empty today, there is nothing in the mod that could fill it. If a
+		// CustomTerrain-writing world trait is ever added there, BuildRegion must read Map.Tiles
+		// directly rather than through the CustomTerrain-aware GetTerrainIndex.
 		void ResolveBorder()
 		{
 			if (borderResolved)

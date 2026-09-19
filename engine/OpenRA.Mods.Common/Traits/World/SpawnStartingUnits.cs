@@ -257,15 +257,54 @@ namespace OpenRA.Mods.Common.Traits
 		// the ordinary home deployment rather than a failure.
 		CPos SelectDeploymentCenter(World w, Player p, CPos enemyHome, StartingUnitsInfo unitGroup)
 		{
-			var home = p.HomeLocation;
 			var positionables = unitGroup.SupportActors
 				.Select(s => s.ToLowerInvariant())
 				.Distinct()
 				.Select(s => w.Map.Rules.Actors[s].TraitInfo<IPositionableInfo>())
 				.ToArray();
 
+			var center = ScanForCenter(w, p, enemyHome, unitGroup, positionables, true, out var bestScore);
+
+			// EVERY STEP SCORED ZERO, so the border leaves this package nowhere along the whole ladder.
+			//
+			// THE FAILURE IF THIS IS NOT HANDLED IS THE OPPOSITE OF THE BUG THIS FILTER EXISTS TO FIX.
+			// `bestScore` starts at -1 and the loop walks step = steps DOWN to 0, so the FULL advance
+			// claims bestCenter first and only a strict improvement displaces it. With every score zero
+			// nothing ever improves, bestCenter is left holding the deepest point considered, and the
+			// unfiltered last tier in SpawnSupportActors would then plant the entire package past a
+			// closed border -- the whole force on the enemy's side, which is worse than the single
+			// banded cell this filter was written for.
+			//
+			// IT CANNOT HAPPEN ON A DERIVED LINE, AND THAT IS MEASURED RATHER THAN ASSUMED. A band is
+			// three columns wide and the annulus is fifteen, so a line can shave the forward edge off a
+			// ring but never cover it; step 0 sits at home with its whole rear half on the player's own
+			// side by construction. ForwardDeploymentBandOverlapTest sweeps every separation from 2 to
+			// 60 and no step ever reaches zero. What CAN produce it is a REGION border enclosing a
+			// spawn in a component smaller than the package's own annulus -- pathological authoring,
+			// not anything a shipped map does, and the same test pins that case too.
+			//
+			// So this is insurance with a proof of inertness, and when it does fire it reproduces the
+			// centre this method chose before the border was ever consulted. A package too far forward
+			// on a cramped map is a pre-existing wrong; a package beyond a border neither side may
+			// cross is a new one. Skirmish is untouched either way: with no wall the two scans are the
+			// same scan, so this either does not run or returns what the first one already did.
+			if (bestScore <= 0)
+				center = ScanForCenter(w, p, enemyHome, unitGroup, positionables, false, out _);
+
+			return center;
+		}
+
+		/// <summary>
+		/// One walk of the retreat ladder. Returns the first centre scoring at least
+		/// <see cref="SpawnStartingUnitsInfo.ForwardDeploymentMinValidCells"/>, else the best-scoring one
+		/// seen, and reports that score so the caller can tell "the best available" from "nothing at all".
+		/// </summary>
+		CPos ScanForCenter(World w, Player p, CPos enemyHome, StartingUnitsInfo unitGroup,
+			IPositionableInfo[] positionables, bool respectWall, out int bestScore)
+		{
+			var home = p.HomeLocation;
 			var steps = Math.Max(1, info.ForwardDeploymentRetreatSteps);
-			var bestScore = -1;
+			bestScore = -1;
 			var bestCenter = home;
 
 			for (var step = steps; step >= 0; step--)
@@ -279,7 +318,7 @@ namespace OpenRA.Mods.Common.Traits
 				var score = int.MaxValue;
 				foreach (var ip in positionables)
 				{
-					var usable = cells.Count(c => CanHold(w, p, ip, c, true) && HasUsableEscapeRegion(w, p, ip, c, true));
+					var usable = cells.Count(c => CanHold(w, p, ip, c, respectWall) && HasUsableEscapeRegion(w, p, ip, c, respectWall));
 					if (usable < score)
 						score = usable;
 				}
@@ -298,22 +337,27 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
-		/// Index of the first candidate this actor type can be placed on, or -1. Prefers a cell with a
-		/// real escape region and falls back to any enterable one, which is the tight-map allowance
-		/// this search has always carried.
+		/// Index of the first candidate this actor type can be placed on under ONE tier's rules, or -1.
+		/// The tier is the pair of flags: whether the border is honoured, and whether a real escape
+		/// region is demanded. Caller walks the tiers -- this deliberately has no fallback of its own.
 		/// </summary>
+		// NO INNER FALLBACK, AND THAT IS THE WHOLE REASON THIS TAKES TWO FLAGS RATHER THAN ONE. It used
+		// to drop to "any enterable cell" inside each call, which silently made the effective order
+		// border-clear-with-escape, border-clear-WITHOUT-escape, banded-with-escape, banded-without --
+		// i.e. it preferred a cell with no escape region over a cell inside the band. That is backwards:
+		// a cell in a pocket of fewer than MinReachableCells is stuck FOREVER (see the PITFALL below),
+		// while a cell in the band is stuck only until DEFCON 2 lifts the wall.
+		//
 		// PITFALL: (0,0) is a legal cell -- most ww3mod maps set Bounds at the origin -- so
 		// FirstOrDefault's default(CPos) cannot be told apart from a real hit. Search by index.
-		int FindSpawnCell(World w, Player p, IPositionableInfo posInfo, List<CPos> candidates, bool respectWall)
+		int FindSpawnCell(World w, Player p, IPositionableInfo posInfo, List<CPos> candidates,
+			bool respectWall, bool requireEscape)
 		{
-			var index = candidates.FindIndex(c =>
-				CanHold(w, p, posInfo, c, respectWall) && HasUsableEscapeRegion(w, p, posInfo, c, respectWall));
+			if (requireEscape)
+				return candidates.FindIndex(c =>
+					CanHold(w, p, posInfo, c, respectWall) && HasUsableEscapeRegion(w, p, posInfo, c, respectWall));
 
-			// Fallback for very tight maps: accept any enterable cell rather than dropping the unit.
-			if (index < 0)
-				index = candidates.FindIndex(c => CanHold(w, p, posInfo, c, respectWall));
-
-			return index;
+			return candidates.FindIndex(c => CanHold(w, p, posInfo, c, respectWall));
 		}
 
 		// PITFALL (2026-05): a starting unit must spawn in a connected passable region big enough
@@ -374,16 +418,36 @@ namespace OpenRA.Mods.Common.Traits
 				var ip = actorRules.TraitInfo<IPositionableInfo>();
 				var candidates = supportSpawnCells.Shuffle(w.SharedRandom).ToList();
 
-				var validIndex = FindSpawnCell(w, p, ip, candidates, true);
+				// FOUR TIERS, WORST-OUTCOME LAST, AND THE ORDER OF THE MIDDLE TWO IS THE POINT.
+				//
+				//   1. clear of the border, with an escape region      -- what every map gives today
+				//   2. INSIDE the border, with an escape region        -- stuck until DEFCON 2 lifts it
+				//   3. clear of the border, no escape region           -- stuck for the whole match
+				//   4. inside the border, no escape region             -- both, and still better than
+				//                                                         not existing
+				//
+				// 2 BEATS 3 BECAUSE A POCKET IS PERMANENT AND THE BAND IS NOT. A cell with fewer than
+				// MinReachableCells of room is the failure the PITFALL above describes and the unit
+				// never leaves it; a cell in the band is impassable ground the unit can still walk off
+				// (the crossing guard permits any move that reduces depth) and which stops being
+				// impassable the moment the level falls to 2.
+				//
+				// NOTHING IS EVER DROPPED: tier 4 is the unfiltered search this method ran before the
+				// border was consulted at all, so no map loses a unit it used to place.
+				//
+				// SKIRMISH IS BIT-FOR-BIT UNCHANGED. With no wall `respectWall` is inert, so tiers 1
+				// and 2 are the same query -- the old first FindIndex -- and tiers 3 and 4 are the old
+				// second one. Tier 2 runs only when tier 1 found nothing and returns the same nothing.
+				var validIndex = FindSpawnCell(w, p, ip, candidates, true, true);
 
-				// LAST RESORT: the same search with the border ignored, which is exactly the search
-				// this method ran before the border was consulted at all. A unit in the band is stuck
-				// until DEFCON 2 -- recoverably, since the crossing guard allows any move that reduces
-				// depth -- and a unit that was never created is not. So an annulus the border leaves
-				// nothing usable in loses none of the units it used to place; it only stops PREFERRING
-				// a banded cell while a clear one exists.
 				if (validIndex < 0)
-					validIndex = FindSpawnCell(w, p, ip, candidates, false);
+					validIndex = FindSpawnCell(w, p, ip, candidates, false, true);
+
+				if (validIndex < 0)
+					validIndex = FindSpawnCell(w, p, ip, candidates, true, false);
+
+				if (validIndex < 0)
+					validIndex = FindSpawnCell(w, p, ip, candidates, false, false);
 
 				if (validIndex < 0)
 				{

@@ -3,6 +3,71 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - `Map.LobbyOption` cannot see an `ILobbyOptions` option, and a scenario guard written against it can only ever fault (`wt/fwd-deploy-band`, base `main @ 201df112`)
+
+`Map.LobbyOption(id)` resolves **`ScriptLobbyDropdown` traits only** (`MapGlobal.cs:112-120`) — a
+separate, script-facing mechanism with its own trait and its own ID namespace. Every option this mod
+ships is declared through **`ILobbyOptions`** instead (game mode, starting units, forward deployment,
+the phase clocks), and those are invisible to it: it logs `A ScriptLobbyDropdown with ID `x` was not
+found` **to the lua log, not to the test verdict**, and returns **nil**.
+
+**Both obvious spellings of the guard are broken, in opposite directions.** `Map.LobbyOption(id) ~=
+expected` faults on EVERY run, so the scenario can never pass. `Map.LobbyOptionOrDefault(id,
+expected) ~= expected` can never fault, because the fallback IS the expected value — a guard that
+reads as careful and is structurally vacuous. Both were live in `test-forward-deploy-clears-band`
+before review caught it. Use `Test.LobbyOption(id)` (added here), which reads
+`Session.Global.OptionOrDefault` — the same call the consuming trait makes.
+
+**AND A SEPARATE LESSON ABOUT GUARD DESIGN.** The guard existed precisely so the scenario could not
+pass over an empty map, and it was itself the thing that made the scenario unrunnable. A guard is
+code and gets the same scrutiny as an assertion; "it only fires when something is wrong" is not a
+reason to skip verifying that it can fire at all, or that it can fail to.
+
+## 2026-09-19 - A ring cannot be covered by a band: the "every step scored zero" case is a REGION failure, not a cramped-map one (`wt/fwd-deploy-band`, base `main @ 201df112`)
+
+`SelectDeploymentCenter` walks the retreat ladder from the full advance down to home, keeps the best
+score, and starts `bestScore` at -1 — so the FULL advance claims `bestCenter` first and only a strict
+improvement displaces it. If every step scores zero, `bestCenter` is left holding the *deepest* point
+considered. The natural reading is that this happens on a **cramped map**, where the home annulus is
+itself inside the band — spawns closer than about `2 * (OuterSupportRadius + HalfWidth)`.
+
+**That reading is geometrically false and a swept unit test caught it.** The DEFCON band is **three
+columns** wide; the motorized annulus is **fifteen**. A line can shave the forward edge off a ring
+and never cover it, and step 0 sits at home with its entire rear half on the player's own side by
+construction. Sweeping every separation from 2 to 60 cells: **no step ever scores zero on a derived
+line.** The all-zero case needs a **region** border enclosing a spawn in a component smaller than the
+package's own annulus — and even that takes a ONE-CELL pocket, because the ladder's centres sit 0, 2,
+5, 8, 11 and 14 cells out and a radius-6..7 ring around any of them sweeps back through a pocket of
+any appreciable size.
+
+**Carry two things.** Writing the guard was still right — it is four lines, it reproduces the
+pre-change answer exactly when it fires, and now it ships with a proof of inertness rather than a
+plausible story. And **a "this can't happen on a real map" claim in a comment is worth ten minutes of
+sweep**: the sweep is what turned a wrong rationale into a correct one, and the wrong rationale had
+already been written down twice (once by review, once by me) before anyone measured it.
+
+## 2026-09-19 - Reverting a probabilistic fix is not a RED arm: measure the overlap before trusting the rerun (`wt/fwd-deploy-band`, base `main @ 201df112`)
+
+The standard way to validate a behavioural scenario is to revert the fix and confirm it goes red. For
+`test-forward-deploy-clears-band` that is **unreliable, and the arithmetic says so before the run
+does**. The motorized annulus around the package centre is **68 cells**; exactly **one** of them —
+(31,16) — is behind the DEFCON border, because the outer radius is 7 and the centre sits 7 columns
+short of the band. Twenty units drawing from 68 cells miss that one cell about **three runs in
+four**, so a green pre-fix run is the COMMON case and proves nothing at all.
+
+Two review estimates of this were both wrong in the same direction: the original brief implied the
+overlap was reliable, and the adversarial review computed it at five cells (P(red) ≈ 76 %). The true
+figure is one cell and ≈ 26 %.
+
+**So a scenario over a small overlap should assert the SHAPE of the overlap, not where the dice
+fell**: 68 annulus cells, one forbidden, at (31,16), 67 legal — all deterministic, all named if the
+advance percentage, the package radius, the half-width or the derivation moves. The probabilistic leg
+stays as a regression guard and the deterministic proof lives in NUnit.
+
+**And the corollary for reviewers: an overlap count is cheap to compute and expensive to guess.**
+Fifteen lines of Python over the same bucket rule the engine uses (`MapGrid.CreateTilesByDistance`
+buckets a cell by `ceil(sqrt(dx^2+dy^2))`) settles it in a second.
+
 ## 2026-09-19 - A trait that writes CustomTerrain in `Tick` cannot be reordered ahead of `IWorldLoaded`, and the fix is to make the QUESTION answerable early (`wt/fwd-deploy-band`, base `main @ c3825714`)
 
 `SpawnStartingUnits` placed a forward-deployed unit inside the DEFCON 3 band on `arena-tank-duel`. The
