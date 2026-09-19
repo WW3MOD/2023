@@ -3,6 +3,47 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - A player's Supply Route and their spawn cell are the SAME POINT, exactly (`wt/precaptured`, base `main @ 64185a89`)
+
+Any trait that needs "where is this player's base" faces an apparent choice between
+`p.HomeLocation` and the player's `SUPPLYROUTE` actor, and an apparent ordering hazard: at world
+load the SR only exists if `SpawnStartingUnits` has already run, and `IWorldLoaded` order is the
+world actor's trait-creation order (`World.cs:334`), i.e. YAML ordering. **The choice and the
+hazard are both illusory.** `SpawnStartingUnits` places the base actor at
+`p.HomeLocation + BaseActorOffset`, and `MapStartingUnitsInfo.BaseActorOffset` is `(-1,-1)`
+(`MapStartingUnits.cs:37`, not overridden anywhere in `world.yaml`); a 3x3 building's
+`CenterOffset` is `(+1,+1)` cells (`Building.cs:207-211`). The two cancel, so the SR's
+`CenterPosition` **is** `Map.CenterOfCell(p.HomeLocation)`, to the unit.
+
+So "SR if present, else HomeLocation" is not a fallback that degrades — the two arms answer the
+same question with the same number, which is the shape `conventions.md` §"`A() ?? B` in a decision
+path" asks you to check for. That matters for autotest scenarios specifically: they routinely carry
+`-SpawnStartingUnits:` and place `supplyroute` by hand, so the SR arm is the one they exercise,
+while a shipped skirmish may take either depending on trait order. **Verify the cancellation before
+relying on it** if a map ever overrides `BaseActorOffset` or the SR stops being 3x3 — nothing
+enforces the pairing and neither site mentions the other.
+
+**Two facts from the same census, both easy to get backwards:**
+
+* **Explosive barrels are capturable structures.** `BARL` and `BRL3` inherit `^TechBuilding`
+  (`civilian.yaml:772,793`), so they carry `CaptureManager` + `Capturable` like an oil derrick, and
+  fifteen of them sit Neutral across `siberian-pass-ww3` and `seventh-woods-ww3`. Anything that
+  enumerates "capturable structures" and acts on the result sweeps them up. They do carry
+  `-Selectable:`, which is the cheapest principled filter: if a player cannot select it, it is not a
+  structure they can own.
+* **`GUN` is the one neutral defense that stays capturable.** `GTWR`, `PBOX` and `HBOX` each strip
+  `CaptureManager`/`Capturable@neutral`/`Capturable@occupied` in their own blocks
+  (`structures-defenses.yaml:80-84, 207-211, 330-334`); `GUN` does not, and `^Defense` itself
+  reaches `^NeutralOrOccupiedCapturable` through `^Building`. `ai.yaml:336` already records the
+  three exclusions, which reads like the complete list and is not — it says nothing about `GUN`.
+
+**Method note worth reusing.** The capturable set here was resolved by walking the mod's own
+MiniYaml inheritance in a throwaway script (`Inherits@` splices, `-Key:` removals, `mod.yaml`'s
+Rules order) rather than by grepping for `Capturable`. A grep answers "who mentions the trait"; the
+question was "who ends up with it", and the three families above all differ from their parents.
+The resolver is kept at `tools/precaptured-calibration/precaptured_calibration.py` and is ~120
+lines; `--dump-balance-json` (conventions.md) answers the same question with a build.
+
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 
 `WebServices.GameNews` looks like a pure address: a URL in `mod.yaml`, fetched and cached by
