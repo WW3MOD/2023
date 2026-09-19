@@ -202,15 +202,28 @@ Side-by-side at 6× with the rows ruled: `WORKSPACE/mockups/caption-vs-baked.png
 So tracking, colour, weight and treatment need nothing. **The one real gap is
 antialiasing**, and it is the trap in this file:
 
-> The baked lettering is **1-bit**: every one of its 115 pixels is pure white.
-> FreeSansBold at 7px has **no fully opaque pixel at all** — max coverage 246,
-> median 124 — so generated text is a grey stipple where baked text is solid.
+> FreeSansBold at 7px has **no fully opaque pixel at all** — 3 of 1307 measured
+> through the engine's own freetype6 — so generated text is a grey stipple.
 >
 > **Over the solid black band you cannot see this.** Turn the band off and you
 > will, immediately, and the text will look weaker for no reason you can find in
-> the geometry. That is not a bug you have introduced; it is this, and the only
-> real fixes are a 1-bit bitmap font or disabling FreeType antialiasing engine-wide.
-> Neither is worth it while the band is on.
+> the geometry.
+>
+> **FIXED 2026-09-19, and the fix was neither of the two this paragraph offered.**
+> `CaptionFont` is now `CameoCaption` = `ww3mod|WW3Caption.ttf`, a generated 1-bit
+> pixel font (`tools/cameo/pixelfont.py`), and it needed **no engine change and no
+> engine-wide antialiasing switch**. FreeType antialiases EDGES: a pixel a contour
+> covers completely still returns 255. Set `unitsPerEm = ppem * 2^k` and every edge
+> lands on a pixel boundary at the shipped size, so the output is 1-bit for free.
+> 485 of 485 opaque. Run `python tools/cameo/pixelfont.py --verify`.
+>
+> **AND THE FIRST SENTENCE OF THIS PARAGRAPH USED TO BE WRONG.** It said the baked
+> lettering is 1-bit, "every one of its 115 pixels pure white". Measured over the
+> caption rows: `e4americaicon` is 125/130 pure white, but `e1americaicon` is 17/87,
+> `t90icon` 5/29 and `mediamericaicon` 11/63 — **most shipped baked lettering is
+> antialiased.** So "match the baked art" is not the argument for a 1-bit caption
+> font. The geometry claims above (5 ink rows, last ink row on slot row 45, 4px
+> pitch) all re-measured correct.
 
 **`CaptionBottomMargin` must be 0**, and that is derived rather than chosen: the
 generated text's last ink row is `IconSize.Y - margin - 1` (the cache puts the
@@ -236,8 +249,8 @@ source images. Do not go looking for a `--strip-captions`.
 
 ### How much art still has lettering — and why "clean" is the weaker verdict
 
-`tools/cameo/rollout_survey.py` counts it: **115 buildable actors have a cameo**
-across **87 art files**, and of the 76 it can decode, **74 (101 actors) carry
+`tools/cameo/rollout_survey.py` counts it: **116 buildable actors have a cameo**
+across **94 art files** (re-counted 2026-09-19; it was 115 across 87 and it grows), and of the 76 it can decode, **74 (101 actors) carry
 baked lettering**. Ten more are ShpTD, which its decoder cannot read at all, so
 their verdict is unknown rather than clean. `samicon` is in no repo file — it is
 base-game content loaded from the RA install, **not a missing sprite**.
@@ -363,4 +376,10 @@ Neither fit mode ever stretches non-uniformly.
 | `badge.py` | renders the nuclear trefoil badge; `--install` writes the shipped art |
 | `binmock.py` | draws the whole support power bin offline, cameos and captions and badges |
 | `rollout_survey.py` | counts cameos, baked lettering and caption candidates across the roster |
+| `pixelfont.py` | generates `mods/ww3mod/WW3Caption.ttf`; `--verify` measures the 1-bit rule |
+| `ftprobe.py` | rasterises through the ENGINE's freetype6 via ctypes — no build, no launch |
+| `captions_table.py` | the authored caption table; writes `rules/cameo-captions.yaml` |
+| `check_captions.py` | gates that table: coverage, width, glyphs, key case, still-inert |
+| `contact_sheet.py` | `--all` every cameo at 4x (read the baked words); `--powers` the bin |
+| `caption_proof.py` | the before/after font sheet in `WORKSPACE/mockups/caption-font-1bit.png` |
 | `work/` | staging scratch (git-ignored; safe to delete) — where the renders land |
