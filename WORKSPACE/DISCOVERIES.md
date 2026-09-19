@@ -23412,3 +23412,27 @@ Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-
 **A PACKAGED BUILD CANNOT REACH ITS MAIN MENU WITHOUT RED ALERT CONTENT, WHICH CONSTRAINS ANY LAUNCH SMOKE TEST.** `mods/ww3mod/cursors.yaml:1-2` declares `mouse.shp`; it is in **no** shipped tree (not in this repo, not in `engine/mods/*`, not in the v0.1.2 zip — it lives in RA's `local.mix`, which mounts optionally from `^SupportDir`). `CursorProvider`'s constructor builds every `CursorSequence` eagerly (`CursorProvider.cs:44-48` → `CursorSequence.cs:35`), so mod load throws `FileNotFoundException` on a machine with no content — before any menu. **Therefore a CI launch test must download the freeware content first**, which puts a third-party mirror (`openra.net`, via `mods/ww3mod/installer/downloads.yaml`'s `quickinstall`) in the release path. That is a real cost of Guard 1 and it should be a known cost rather than a surprise on the first tag push.
 
 **A DESIGN NOTE ON THE POSITIVE SIGNAL FOR A LAUNCH TEST.** There is no clean "boot and exit" flag: `Launch.Benchmark` only arms `Game.BenchmarkMode`, and `FinishBenchmark` exits on `GameOver` (`Game.cs:1222-1229`), which a skirmish does not reach quickly. The file-based signal already in the engine is better — `Test.OpenSkirmishLobby` fires from `MainMenuLogic.cs:598` (so the menu's logic has run) and `LobbyLogic.cs:999-1003` writes `Test.LobbyReadyFile` once the map is playable. Both are past the point v0.1.0 died, and polling for a file distinguishes a crash from a slow boot, which a timeout cannot.
+
+## 2026-09-19 — Two findings from teaching lua-gate to see an unstarted driver
+
+**A `Finding` is deduped on `(path, line, symbol, severity)`, so two different whole-file
+checks on one scenario silently cancel.** `lua_gate.py:run_check` dedupes findings on that
+four-tuple. Both `check_verdict_reachable` and the new `check_power_fired` report at line 0
+of `<scenario>/<name>.lua` at severity `warn`, and both originally used the scenario NAME as
+the symbol — so a `test-` scenario that charges a power, fires nothing and reaches no verdict
+produced two findings with identical keys and **the second was dropped without a word**. Not
+caught by review or by the unit fixtures; caught only by a fixture that ran the whole of
+`run_check` over a scenario on disk and looked for the message. Any future check that reports
+at line 0 on the scenario's own `.lua` must pick a symbol that names the thing at fault
+(`TestHarness.EnsurePower`), not the scenario. `tools/lua-gate/lua_gate.py:1438` (the dedupe),
+`:1076` (the symbol choice).
+
+**The `demo-nuke-river-zeta` kickoff trap catches tooling too, not just readers.** That
+scenario's own comment warns that the literal `Trigger.AfterDelay(1, step)` appears twice —
+as the kickoff at the end of `WorldLoaded` and, identically indented with one tab, as the
+reschedule inside `step`. Reconstructing the pre-fix file for an acceptance test with
+`grep -v` on that line removed **both**, which deleted the self-reschedule and made the new
+check correctly stay silent — a false "the check does not work" that cost a debugging pass.
+Anything reconstructing that failure must delete only the LAST occurrence.
+`tools/autotest/scenarios/demo-nuke-river-zeta/demo-nuke-river-zeta.lua:114` (reschedule) vs
+`:179` (kickoff).
