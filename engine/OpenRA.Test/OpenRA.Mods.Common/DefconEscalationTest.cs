@@ -81,6 +81,35 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheModeDropdownOffersTwoModesAndSandboxIsNotOneOfThem()
+		{
+			// SANDBOX IS A DEVELOPER OPT-IN, NOT A MODE A HOST PICKS (2026-09-19). Its whole content is
+			// "pin the level and never escalate", and it used to sit third in this list where the two
+			// levels worth pinning were the two the fire rules keyed on -- so the shipped Start At made
+			// it a match in which no weapon could fire, for its whole length.
+			var info = new DefconEscalationInfo();
+			var mode = ((ILobbyOptions)info).LobbyOptions(null).First(o => o.Id == DefconEscalationInfo.ModeOptionId);
+
+			Assert.That(mode.Values.Keys, Is.EquivalentTo(new[] { "escalation", "skirmish" }));
+
+			// AND IT IS STILL REACHABLE, by the one route it was ever right for: a map or scenario
+			// setting ModeDefault. The entry is admitted exactly when the default names it, because a
+			// DefaultValue that is not a key of its own Values throws on client join -- LobbyOption.Label
+			// indexes Values unchecked and LobbyCommands calls it on every option's default. Dropping the
+			// entry unconditionally would have turned a supported opt-in into a KeyNotFoundException that
+			// neither the build nor the YAML lint could see.
+			// Set through FieldLoader rather than by reflection, so this is the same path a map's
+			// `ModeDefault: Sandbox` line takes rather than a shortcut around it.
+			var sandboxInfo = new DefconEscalationInfo();
+			FieldLoader.LoadField(sandboxInfo, nameof(DefconEscalationInfo.ModeDefault), nameof(DefconGameMode.Sandbox));
+			var sandboxMode = ((ILobbyOptions)sandboxInfo).LobbyOptions(null).First(o => o.Id == DefconEscalationInfo.ModeOptionId);
+
+			Assert.That(sandboxMode.DefaultValue, Is.EqualTo("sandbox"));
+			Assert.That(sandboxMode.Values.ContainsKey(sandboxMode.DefaultValue), Is.True,
+				"A map opting into Sandbox would crash every joining client on LobbyOption.Label.");
+		}
+
+		[Test]
 		public void TheLobbyRegistersFourDropdowns()
 		{
 			var options = ((ILobbyOptions)new DefconEscalationInfo()).LobbyOptions(null).ToArray();

@@ -34,6 +34,16 @@ namespace OpenRA.Mods.Common.Traits
 		// reachable, but nothing escalates it. This is the one mode the brief did not specify;
 		// "a fixed posture you can build and test against" is the reading taken, and changing it
 		// means changing ClockFor and ReportCasualty below and nothing else.
+		//
+		// NOT OFFERED IN THE LOBBY SINCE 2026-09-19. It is a developer setting -- a map or scenario
+		// opts in with `DefconEscalation: ModeDefault: Sandbox` -- and it is deliberately NOT one of
+		// the modes a host picks between. See the comment on the mode dictionary in DefconEscalation
+		// for why it is admitted to that dictionary when, and only when, ModeDefault names it.
+		//
+		// It also no longer holds or ceases fire. Pinning a level used to mean pinning the fire rules
+		// that key on that level, which made the shipped default (Positioning) a match nothing could
+		// shoot in; DefconFireDiscipline is gated on the mode as well as the level now, so what this
+		// value pins is a level, the wall that stands at it, and the condition it grants.
 		Sandbox
 	}
 
