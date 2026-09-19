@@ -144,7 +144,7 @@ def slot(cameo, caption, ft, badge=None, band=True):
 # (art file, caption, badged, what this row is here to show)
 ROWS = [
     ("precicon", "PRECISION STR.", False,
-     "Untexted art + the longest shipped caption. 56px in both fonts, on the 60px budget."),
+     "Untexted art + the longest shipped caption: 56px in FreeSansBold, 54 in WW3Caption, on a 60px budget."),
     ("paranukeicon", "0.3 KT", True,
      "Baked PARANUKE lettering underneath -- the band is covering it, not decorating."),
     ("v2bdgricon", "6x750 KT", True,
@@ -215,7 +215,7 @@ def render(out=None):
            "at 7px (3 of 1307, measured through the engine's freetype6), so its",
            font=note, fill=(200, 202, 212, 255))
     d.text((gap, y + 38),
-           "caption is a grey stipple over the art. WW3Caption is 481 of 481 opaque. Turning the "
+           "caption is a grey stipple over the art. WW3Caption is 485 of 485 opaque. Turning the "
            "band off is NOT part of this change; it needs untexted art first.",
            font=note, fill=(200, 202, 212, 255))
 

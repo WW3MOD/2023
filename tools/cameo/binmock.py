@@ -217,7 +217,7 @@ def main():
         ("paranuke", "0.3 KT", True, "B61 0.3kt"),
         ("paranuke", "10 KT", True, "B61 10kt"),
         ("paranuke", "50 KT", True, "B61 50kt"),
-        ("cmissicon", "100 KT", True, "W76-1"),
+        ("cmissicon", "100 KT", True, "W76-1"),        # Trident II launch since 5b1773ef
         ("#", "RUSSIA  (powers.russia)", None, None),
         ("kinzhalicon", None, False, "Kinzhal conv"),
         ("ru9m729", "1 KT", True, "9M729"),
@@ -227,7 +227,7 @@ def main():
         ("#", "EVENT TIER  (powers.event -- sandbox only)", None, None),
         ("tacnuke", "20 KT", True, "Tactical"),
         ("v2bdgricon", "6x750 KT", True, "Sarmat"),
-        ("abombfake", "1.2 MT", True, "B83-1"),
+        ("abombfake", "1.2 MT", True, "B83-1"),        # B83 under an airframe since 5b1773ef
         ("highyieldnuke", "6 MT", True, "Strategic"),
         ("abomb", "50 MT", True, "TSAR 50MT"),
     ]
@@ -280,8 +280,8 @@ def main():
                 font=title, fill=(245, 245, 250, 255))
         combined.alpha_composite(big, (12, top))
         cd.text((12, top + big.height + 8),
-                "Actual size. * = cameo art that is wrong for its weapon and predates this branch "
-                "(W76-1 is a biohazard trefoil, B83-1 has a FAKE banner).",
+                "Actual size. Every power now draws its own picture; the roster below is a HAND "
+                "COPY and drifts -- prefer contact_sheet.py --powers, which reads powers.yaml.",
                 font=note, fill=(160, 162, 172, 255))
         combined.alpha_composite(sheet, (12, top + big.height + 24))
         combined.save(out)
