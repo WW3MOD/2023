@@ -1,0 +1,74 @@
+# Nuclear-scar-over-farmland rig. The layout is in map.yaml, the schedule and the setup controls in
+# test-field-swallows-nuke.lua, and the visual criteria in README.md.
+#
+# THE ONLY THING THIS FILE INVENTS IS THE DELIVERY, and one survivability override. `Atomic` is fired
+# whole and unmodified from a marker vehicle's Explodes so that the detonation lands on a tick this
+# scenario chooses rather than on one a ballistic flight happens to produce -- the mechanism
+# demo-nuke-yield uses, copied rather than reinvented. Nothing here overrides any part of the weapon,
+# of SmudgeLayer, or of ^CivField: the whole point is to look at what the SHIPPED configuration
+# draws.
+#
+# DELIBERATELY NOT COPIED FROM demo-nuke-yield: its `TerrainLighting: Intensity: 0.55`. That knob
+# exists to keep the fireball's cooling ramp readable while the light is still on screen, and every
+# capture here is taken 140+ ticks after detonation, long after the light envelope has ended -- so it
+# would change nothing in the frames that matter while adding a variable to a judgement that is
+# entirely about the relative darkness of two adjacent cells.
+
+Player:
+	-ConquestVictoryConditions:
+	# Fog off and the map pre-explored. The subject is a 25-cell-wide disc seen whole.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-field-swallows-nuke.lua
+
+# ===== THE PROBE =====
+# NOTE THE CASE. MiniYaml merges top-level keys CASE-SENSITIVELY and the lowercasing of actor names
+# happens after the merge, so `Bradley:` here would define a second, unrelated actor and override
+# nothing at all, silently. vehicles-america.yaml:298 spells it `bradley`; that spelling is copied.
+#
+# Added as a NEW Explodes@ key rather than overriding the inherited one: every ENABLED Explodes fires
+# on the same death (Explodes.cs:103), so the vehicle's own cookoff still happens underneath the
+# warhead. Weapon and EmptyWeapon are the same thing so the payload fires whether or not the engine
+# considers the vehicle empty. The condition gate is what keeps this to ONE detonation -- it is the
+# only bradley on the map, but the gate is the idiom and the idiom is what stops a future copy of
+# this rig turning one 20 kt burst into twenty.
+
+bradley:
+	ExternalCondition@NukeProbe:
+		Condition: nuke-probe-tactical
+	Explodes@TacticalNuke:
+		Weapon: Atomic
+		EmptyWeapon: Atomic
+		Chance: 100
+		RequiresCondition: nuke-probe-tactical
+
+# ===== THE TWO WITNESSES =====
+# THEY MUST SURVIVE, and that is the whole reason this stanza exists. One of the three PASS/FAIL
+# criteria is "no scar pixel on top of a vehicle or infantry sprite", and a dead humvee is a husk --
+# a husk is not `Passable.GroundCover`, so its cell is excluded from the overlay for a second,
+# unrelated reason and the criterion stops being testable. WitnessField stands four cells from a
+# 20 kt ground zero, which a stock 4000 HP humvee does not survive by any margin at all.
+#
+# A trait field rather than a weapon edit, deliberately: weakening `Atomic` would change the thing
+# being looked at, and a warhead override is constructed fresh rather than merged per field, so
+# restating one value silently resets its neighbours to engine defaults (conventions.md, "Weapons
+# live under Weapons:"). Raising HP touches nothing the eye can see.
+#
+# Not exposed to the Vaporize warhead: Warhead@VaporizeRemoval has Radius 0c711 (0.7 cells) and the
+# nearer witness is at 3.6.
+
+humvee:
+	Health:
+		HP: 100000000
