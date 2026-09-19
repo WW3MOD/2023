@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - Two traits answering "who are the sides" with different predicates: `Playable` is a lobby-slot fact, not a statement about the match (`wt/fwd-deploy-band`, base `main @ ee301478`)
+
+`test-forward-deploy-clears-band` failed its first ever run with **zero forward units** while every
+guard passed: the option resolved to `motorized`, the wall stood at level 3, the band was on columns
+31-33 and the geometry leg reproduced its measured shape (68 / 1 / 67). The run's `debug.log` carried
+the contradiction in one line —
+
+    DEFCON wall derived from 2 home(s) in 2 group(s): 32,528 .. 32,-496.
+    DEFCON wall raised over 102 cells.
+
+— **the border was derived from both homes on the same map in the same tick that the placement code
+saw no enemy at all.** `SpawnForwardDeployment` filtered enemies on `q.Playable`; `DefconWall` uses
+`CombatantSides.CountsAsASide`. The scenario's Russia is a MAP player (`Playable: False`), so it was
+a side to one and invisible to the other.
+
+**`Playable` cannot be used to mean "is a combatant".** It says a lobby SLOT exists, and
+`CreateMapPlayers.cs:108-121` walks `LobbyInfo.Slots` and creates a `Player` only for slots a CLIENT
+occupies — so in a single-client autotest a `Playable: True` reference with nobody in it produces no
+Player at all, and the only way a second side can exist is as a map player, which `Playable` then
+rejects. It is also wrong in the other direction: an Observer slot is authored `Playable: True,
+Spectating: True`, so it PASSED — the package could aim at a spectator's home, and
+`StartingUnits@none` was handing that slot a Supply Route, which is why every scenario in the tree
+carries `-SpawnStartingUnits:`.
+
+**And the closed door is worth recording too**, because it is the obvious escape and it does not
+exist: `Game.CreateAndStartLocalServer` calls `CreateLocalServer(mapUID)` with `isSkirmish`
+defaulting to **false**, so an autotest server is `ServerType.Local` and `SkirmishLogic.ClientJoined`
+early-returns. **No bot is ever auto-seated in an autotest launch.** You cannot fill a second
+Playable slot by leaving it empty and hoping.
+
+**The general rule: when two traits must agree about a population, they must share the predicate, not
+merely both look correct.** `CombatantSides` was created for exactly this after an Observer counted
+as a third alliance group across two runs; a third consumer had been written against `Playable` in
+the meantime and nobody noticed until the two disagreed in a way that produced nothing instead of
+something wrong.
+
+**Diagnostic that would have named it in one run, and now does.** The home package places its
+`BaseActor` — the Supply Route — BEFORE the forward leg is reached, so counting SRs separately splits
+"the trait never ran for this player" from "the forward leg returned early". Every early return in
+`SpawnForwardDeployment` is silent except the missing-unit-group one. A scenario that counts a
+population should count the witness that the producer ran at all.
+
 ## 2026-09-19 - `Map.LobbyOption` cannot see an `ILobbyOptions` option, and a scenario guard written against it can only ever fault (`wt/fwd-deploy-band`, base `main @ 201df112`)
 
 `Map.LobbyOption(id)` resolves **`ScriptLobbyDropdown` traits only** (`MapGlobal.cs:112-120`) — a

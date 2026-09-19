@@ -132,8 +132,20 @@ namespace OpenRA.Mods.Common.Traits
 			// instead, which is computable the moment the players exist.
 			wall = world.WorldActor.TraitOrDefault<DefconWall>();
 
+			// PLAYABLE *AND* A SIDE. `Playable` alone is a LOBBY-SLOT property -- it says a client is
+			// sitting here, not that the occupant is fighting -- and an autotest Observer slot is
+			// authored `Playable: True, Spectating: True, NonCombatant: True`, so it passes. That slot
+			// was being handed a Supply Route out of `StartingUnits@none`, which is why every scenario
+			// in the tree carries `-SpawnStartingUnits:`. CombatantSides is the mod's one answer to
+			// "is this player a side", and DefconWall and NuclearExchange already ask it; asking it
+			// here too is what stops the three drifting apart again.
+			//
+			// NO SHIPPED MAP CHANGES. Audited across all ten: every PlayerReference is either
+			// `Playable: True` with neither flag set (a real combatant) or `NonCombatant: True`
+			// (Neutral and Creeps, which were never Playable). The intersection is the same set it
+			// always was.
 			foreach (var p in world.Players)
-				if (p.Playable)
+				if (p.Playable && CombatantSides.CountsAsASide(p))
 					SpawnUnitsForPlayer(world, p);
 		}
 
@@ -211,8 +223,32 @@ namespace OpenRA.Mods.Common.Traits
 			if (forwardClass == SpawnStartingUnitsInfo.NoUnitsClass)
 				return;
 
+			// THE SAME PREDICATE THE BORDER IS DERIVED FROM, AND THEY MUST NOT DISAGREE.
+			//
+			// This read `q.Playable`, and that is a lobby-slot property rather than a statement about
+			// the match: CreateMapPlayers builds a Player for a Playable PlayerReference ONLY when a
+			// client occupies its slot (:108-121 walks LobbyInfo.Slots and skips every empty one), so
+			// a combatant authored as a MAP player -- `Playable: False`, which is the only way a
+			// second side can exist in a single-client autotest -- was invisible here. TryFindNearest
+			// then found no enemy at all and this method returned having created nothing, silently:
+			// there is no log on that path.
+			//
+			// MEASURED, run 260920_010430: DefconWall derived its line from BOTH homes ("DEFCON wall
+			// derived from 2 home(s) in 2 group(s)") and raised 102 cells, while this filter saw zero
+			// enemies and placed zero units on the same map in the same tick. Two traits answering
+			// "which sides is this match between" with different predicates, and the border the
+			// package has to respect was the one that got it right.
+			//
+			// IT ALSO EXCLUDES SOMEONE Playable WRONGLY INCLUDED: an Observer slot is authored
+			// `Playable: True, Spectating: True`, so the package could aim at a spectator's home.
+			// That is the phantom-third-player class CombatantSides' header records for DefconWall
+			// and NuclearExchange, and the fix is the same one.
+			//
+			// NO SHIPPED MAP CHANGES. Every non-Playable PlayerReference on all ten is
+			// `NonCombatant: True` (Neutral, Creeps), which CountsAsASide rejects, and every Playable
+			// one is a plain combatant, which it accepts. The enemy set is identical there.
 			var enemyHomes = w.Players
-				.Where(q => q.Playable && q != p && !p.IsAlliedWith(q))
+				.Where(q => CombatantSides.CountsAsASide(q) && q != p && !p.IsAlliedWith(q))
 				.Select(q => q.HomeLocation);
 
 			// Nearest enemy spawn is the front the commander would be facing. With several enemies this is the

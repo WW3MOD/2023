@@ -61,10 +61,20 @@ Four legs, in order, each with its own named failure:
 
 Only USA deploys. SpawnStartingUnits spawns for Playable players, and a Playable slot
 exists at runtime only when a client occupies it (CreateMapPlayers.cs:108-121 skips every
-empty slot); an autotest launch has one client. The geometry is symmetric, Russia's side
-of it is pinned without a game in OpenRA.Test/ForwardDeploymentBandOverlapTest, and
-Russia here is an ordinary map player whose job is to own the far Supply Route -- which
-is what fixes where the border lands.
+empty slot); an autotest launch has one client, and the local server is ServerType.Local
+so SkirmishLogic's auto-seated bot does not fire either. The geometry is symmetric,
+Russia's side of it is pinned without a game in
+OpenRA.Test/ForwardDeploymentBandOverlapTest, and Russia here is an ordinary map player
+whose job is to own the far Supply Route -- which is what fixes where the border lands.
+
+THE FIRST RUN OF THIS SCENARIO FAILED ON EXACTLY THAT, and the census now says so by
+name. SpawnForwardDeployment's enemy filter read `q.Playable`, which a map player is not,
+so it found no enemy, returned silently and created nothing -- while DefconWall, asking
+CombatantSides instead, had derived its border from both homes on the same map in the
+same tick. The filter now asks the same question the border does. The census counts USA's
+Supply Route separately for the same reason: the home package places it before the forward
+leg is reached, so its presence separates "the trait never ran" from "the forward leg
+returned early".
 
 PASS: twenty forward units, none in the band, none at or past column 31, all able to
 leave their cell, over a wall standing where the arithmetic says and an overlap of the
