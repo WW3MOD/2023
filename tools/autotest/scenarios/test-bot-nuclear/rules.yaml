@@ -29,9 +29,17 @@ World:
 	#
 	#   IT MUST OUTLAST THE HYSTERESIS. Russia's bot needs LosingStreakRequired (3) consecutive
 	#   evaluations at EvaluationInterval (50) = 150 ticks of continuously losing before it fires,
-	#   and the army is not cut until 100 ticks after USA's shot. USA's shot does not put RUSSIA on
-	#   cooldown -- a cooldown belongs to the firer -- so nothing here has to outlast anything on
+	#   and the army is not cut until 32 ticks after the level rise. USA's shot does not put RUSSIA
+	#   on cooldown -- a cooldown belongs to the firer -- so nothing here has to outlast anything on
 	#   that side; what matters is the phase F reading below.
+	#
+	#   AND IT IS THE UPPER BOUND ON RISE_SETTLE_TICKS IN THE .lua, which is the constraint that is
+	#   easy to lose. SupportPowerInstance.Tick pins a DISABLED power's countdown back to full every
+	#   tick (SupportPowerManager.cs:399-401), so a band whose grant reached the condition layer but
+	#   never reached MakeBandsReady starts THIS interval running at the rise. The .lua reads its
+	#   `ready` 12 ticks after the band appears, so an ungranted timer would read `charging:288`
+	#   there and the check fails. Raising this value is safe; lowering it below ~20 makes that
+	#   reading vacuous. Same trap, same shape, as the one recorded in test-nuclear-ender-level.
 	#
 	#   IT MUST BE SHORTER THAN THE RATE LIMIT, AND BY A LOT. MinTicksBetweenLaunches is 900, and the
 	#   scenario's last phase asserts the bot does NOT fire a second time. If the cooldown were still
@@ -40,9 +48,13 @@ World:
 	#   arsenal is demonstrably BACK (phase F) while the rate limit still has ~400 ticks to run, so
 	#   phase G is about the rate limit alone.
 	#
-	#   AND LONGER THAN THE GAP BETWEEN PHASES E AND F, which is what those two phases measure: the
-	#   bot fires somewhere in t550..t700, so 300 ticks puts its recovery in t850..t1000 -- after
-	#   phase E's check at t730 and before phase F's at t1060, whenever inside that range it fired.
+	#   AND LONGER THAN THE GAP BETWEEN PHASES E AND F, which is what those two phases measure.
+	#   Writing C for the army-cut tick (now derived from the observed level rise rather than fixed
+	#   at t400): the bot fires somewhere in C+150..C+300, so 300 ticks puts its recovery in
+	#   C+450..C+600 -- after phase E's check at C+330 and before phase F's at C+660, whenever
+	#   inside that range it fired. The three offsets are unchanged from when C was the constant
+	#   400; only the anchor moved, because the level now rises at the warhead's impact and this
+	#   file no longer pretends to know when that is.
 	#
 	# FLAT RATHER THAN DISTINCT, unlike test-nuclear-exchange: the bot fires exactly once here, so
 	# only one entry can ever be reached and four different numbers would be four fictions.
@@ -51,15 +63,20 @@ World:
 		TwentyKilotonCooldownTicks: 300
 		FiftyKilotonCooldownTicks: 300
 		HundredKilotonCooldownTicks: 300
-
-		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
-		# this scenario ALONE, for the same reason test-nuclear-exchange/rules.yaml gives at length.
-		# In short: LEVEL_HOLD_CHECK_TICK is USA_FIRE_TICK + 80, and since the user ruling that moved
-		# the level-up onto the explosion the victim's rise lands a whole missile flight later --
-		# MissileDelay 200 on the shipped B61Low before its arc is even counted. What is under test
-		# here is a BOT'S POLICY at a level it has been handed, not how long the warhead took to get
-		# there. See NuclearExchangeInfo.EscalationDelayTicks; negative is a documented meaning.
-		EscalationDelayTicks: -1
+		# NO EscalationDelayTicks OVERRIDE, AND THAT ABSENCE IS NOW AN ASSERTION. This scenario
+		# carried `EscalationDelayTicks: -1` from 2026-09-16 to 2026-09-19 -- the escape hatch that
+		# restores the pre-ruling timing, where a victim's level rose on the tick the enemy clicked.
+		# It was set because LEVEL_HOLD_CHECK_TICK was a fixed USA_FIRE_TICK + 80 and the shipped
+		# rise lands a whole missile flight later (MissileDelay 200 before the arc is even counted).
+		#
+		# THE .lua NO LONGER HAS AN OPINION ABOUT WHEN THE WARHEAD ARRIVES: it snapshots
+		# Test.GetImpactEffectCount at the launch, waits for the detonation, and hangs every later
+		# phase off the tick the victim's band actually appeared. So the shipped value applies here
+		# and the run covers the deferral end to end -- which nothing else in the tree did.
+		#
+		# DO NOT ADD IT BACK TO FIX A TIMING FAILURE. A phase that lands in the wrong place now has
+		# a wrong OFFSET from an observed event, and the override would hide the one assertion this
+		# file exists to make alongside the bot's policy.
 
 	# Both halves of the arsenal gate, LOCKED so no lobby default can move either out from under the
 	# run. `powers-sandbox` is what provides the `powers.event` prerequisite that no faction does; it

@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - A support power's `charging:` clock starts when its BAND CONDITION arrives, which is what lets an event-driven scenario read a grant tightly (`wt/escalation-optouts`, base `main @ c3825714`)
+
+Three Escalation scenarios opted out of the shipped impact-deferred level-up
+(`EscalationDelayTicks: -1`) because their phase schedules fired and then read the victim's level
+70-80 ticks later, and the shipped rise now lands a whole missile flight downstream of the click.
+Converting them to wait for the explosion (a delta on `Test.GetImpactEffectCount`) and then for the
+victim's band to leave `hidden` raised an obvious-looking objection that turns out to be wrong, and
+the reason is worth carrying.
+
+**THE OBJECTION.** `SupportPowerInstance`'s constructor sets `TotalTicks` to the band's Escalation
+cooldown and `remainingSubTicks` to `TotalTicks * 100` (`SupportPowerManager.cs:377`, `:384`). So a
+band that was never armed by `MakeBandsReady` appears to start counting its own interval **at match
+start** - and a check hundreds of ticks later would find it at zero, read `ready`, and pass over a
+completely broken grant path. That is the vacuity trap the 2026-09-15 review found in
+`test-nuclear-ender-level` and retimed its checks to avoid. Deferring the escalation pushes every
+check far past any compressed cooldown, so the trap looked unavoidable.
+
+**IT IS NOT, BECAUSE THE COUNTDOWN DOES NOT RUN WHILE THE POWER IS DISABLED.**
+`SupportPowerInstance.Tick` pins `remainingSubTicks` back to `TotalTicks * 100` on every tick where
+`instancesEnabled` is false, and returns early when `!Active` (`SupportPowerManager.cs:399-405`).
+`instancesEnabled` is false until the band condition granted by a **Player-actor** trait reaches the
+power. So an ungranted band's own interval starts **at the rise**, not at match start, and the
+non-vacuity bound is a gap measured from the rise - exactly what the existing comments assert.
+
+**AND THE LOWER BOUND MOVES WITH THE ANCHOR, WHICH IS THE USEFUL HALF.** Those scenarios had to
+leave more than `NuclearExchangeInfo.GrantRetryTicks` (30) between the rise and the check, because
+the anchor was the rise itself and the condition had not crossed from the World actor to the Player
+actor yet. An event-driven scenario anchors on the tick the band was **seen** to leave `hidden`,
+which IS that crossing - so all that remains is one `ServicePendingReady` pass, and a gap of ~12
+ticks is both safe and much tighter than 40 against a 60-tick cooldown. The check got stronger by
+being retimed, not weaker.
+
+**WHAT THIS MAKES POSSIBLE.** A scenario can assert "the level rose AFTER the explosion and within
+`EscalationDelayTicks` of it" without knowing any flight time, and still keep the grant-path
+assertions that the old fixed schedules bought with hand-chosen constants. `Test.GetImpactEffectCount`
+is the instrument: it counts `CreateEffectWarhead` impacts past the validity gates
+(`CreateEffectWarhead.cs:150`), every nuclear weapon carries exactly one such warhead
+(`Warhead@Fireball`), and it cannot say WHICH warhead moved it - so a scenario that fires an
+unwatched shot must wait for it to land before the next watch takes a baseline.
+
+## 2026-09-19 - The per-order escalation dedup cannot be covered by any in-world scenario on today's arsenal (`wt/escalation-optouts`, base `main @ c3825714`)
+
+`NuclearExchange.NotifyNuclearImpact` is called once per WARHEAD and must not escalate a second
+time - an RS-28 Sarmat flies six independently-aimed re-entry vehicles off one click. The record is
+made once by `ReportNuclearRelease` and the six impact reports only refine its tick (earliest wins).
+`NuclearExchangeStateTest.SixReEntryVehiclesFromOneOrderEscalateOneRung` pins it World-free. Asked
+whether a scenario could also pin it end to end, the answer is **no, and not for cost reasons**:
+
+* The only multi-warhead NUCLEAR power in the mod is the Sarmat (`AimPoints: 6`,
+  `nuclear-arsenal.yaml:267`), and it is a **GameEnder**. A game-ender escalates IMMEDIATELY and
+  that is deliberately not configurable (`NuclearExchange.ReportNuclearRelease`): the match is
+  ending, `OpenFinalExchange` takes every side to the top rung anyway, and `pendingEscalations` is
+  cleared. So the Sarmat never takes the deferred path at all.
+* The other `AimPoints: 6` power is the RS-26 Oreshnik (`player.yaml:422`), which is
+  **conventional**. `NotifyNuclearImpact` returns early on `NuclearYieldTons <= 0`, so it is not an
+  escalation at all.
+* Repeating `ApplyEscalation` for the SAME band is idempotent - the victim's level is
+  `max(level, band + 1)` - so even a scenario that gave a sub-ender power `AimPoints: 6` through a
+  rules override could not observe a double-escalation as a LEVEL. The observable claim it could
+  make is narrower: that the rise follows the **first** RV's impact rather than the last.
+
+Recorded so the next person does not spend the slot finding this out. If the mod ever ships a
+multi-RV warhead below the top rung, that scenario becomes worth writing.
+
 ## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
 
 Tuning the DEFCON 3 "Positioning" clock looks like a per-map problem: the border is the perpendicular
