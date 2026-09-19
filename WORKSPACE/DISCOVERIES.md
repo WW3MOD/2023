@@ -210,14 +210,26 @@ multi-RV warhead below the top rung, that scenario becomes worth writing.
 
 Small, load-bearing, and each one cost real time.
 
-**1. An autotest screenshot is 60 px per cell, not 48.** `Camera.Zoom = 2` and a 24 px cell says 48,
-and every number you measure off the frame will be wrong in a way that still looks plausible — you
-land on a neighbouring cell and read a neighbour's value. Windows on this machine runs at **125%
-display scaling**, so the real figure is `24 * zoom * 1.25`. Verified against
-`260919_173731_p8130_test-field-swallows-nuke/003`: the 11x11 crop patch at cells 28-38 predicts its
-left edge at screen x=390 with P=60, and the wheat starts at exactly 390. Any tool that maps cells to
-pixels in a capture needs the scale as a parameter AND a self-check against something of known cell
-extent; `tools/impact-scar/scar_density.py --patch` is the shape that works.
+**1. An autotest screenshot's px-per-cell is a property of the SESSION, and you cannot get it from
+the file.** `Camera.Zoom = 2` and a 24 px cell says 48, and every number you measure off the frame
+will be wrong in a way that still looks plausible — you land on a neighbouring cell and read a
+neighbour's value. The real figure is `24 * zoom * display_scale`, and `display_scale` is whatever
+Windows was set to when the capture ran.
+
+**Corrected same day, and the correction is the useful half.** This entry first said the figure was 60
+because Windows "runs at 125% on this machine", measured off one capture. Three hours later the same
+scenario captured at **48**: `260919_173731` rendered at 60 and `260919_210621` at 48, both at a
+2160x1147 window, same Lua, no camera or tick constant changed. Window size does not tell you the
+scale either — the 21:06 run rendered at 48 whether its window was 1728x918 or 2160x1147; the bigger
+window just shows more map. Hardcoding the constant cost the manager two rejected capture runs.
+
+**So measure it, do not assume it, and do not anchor the measurement on the thing under test.**
+`scar_density.py` now sweeps the plausible display scales, predicts where a known cell rectangle
+would land at each, and keeps the smallest that captures 90% of the frame's crop — which separates
+cleanly (0.997 against 0.598 for the next scale down) rather than marginally. Its first version
+located that rectangle by its first bright-crop PIXEL, which is a fragile anchor for a second reason:
+the effect being measured is how much a scar darkens the crop, so a dark enough scar defeats the
+check that exists to validate the measurement.
 
 **2. `--png` writes to the process's cwd, not beside its input.**
 `ConvertSpriteToPngCommand` (`engine/OpenRA.Mods.Common/UtilityCommands/`) builds `prefix + "-" + n +
