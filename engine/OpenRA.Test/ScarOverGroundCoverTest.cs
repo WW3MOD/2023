@@ -29,15 +29,16 @@
  * "simplification" back to that: "the fields are squares, so if we remove them it wont be perfectly
  * circular."
  *
- * WHAT THIS FIXTURE CANNOT SEE. It pins the rule, not the pixels. Two visual properties are asserted
- * nowhere and were verified by reading only:
- *   - that the field sprite is OPAQUE and covers its cell. If it is not, the terrain-pass copy of the
- *     decal shows through from under it and composites with the over-pass copy, leaving field cells
- *     darker than bare ground. ^CivField draws at RenderSprites.Scale 1.15 specifically to avoid gaps
- *     between neighbours, which is the reason to expect it holds.
- *   - that one 1x1 decal covers the field sprite it is drawn over. Same Scale 1.15 makes the sprite
- *     slightly LARGER than its cell, so a fringe may survive at the edges of a patch.
- * Both need a screenshot. Neither can fail a build.
+ * WHAT THIS FIXTURE CANNOT SEE. It pins the rule, not the pixels.
+ *   - Whether the field sprite is OPAQUE and covers its cell. If it is not, the terrain-pass copy of
+ *     the decal shows through from under it and composites with the over-pass copy, leaving field
+ *     cells darker than bare ground. MEASURED 2026-09-19 and it holds: the v14 frame these rigs use
+ *     is 100.0% opaque over its 24x24, of which 52.4% is bright wheat
+ *     (tools/impact-scar/field_overlay_preview.py decodes it through the engine's own SHP reader).
+ *     Still not asserted here -- nothing in OpenRA.Test can decode a sprite -- but no longer a guess.
+ *   - That one 1x1 decal covers the field sprite it is drawn over. Same RenderSprites.Scale 1.15
+ *     makes the sprite slightly LARGER than its cell, so a fringe may survive at the edges of a
+ *     patch. Still needs a screenshot.
  */
 
 using System;

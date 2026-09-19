@@ -116,6 +116,31 @@ namespace OpenRA.Mods.Common.Traits
 			"that arithmetic.")]
 		public readonly int GroundCoverOverlayZOffset = -7680;
 
+		[Desc("Sparser cuts of this layer's own art, drawn instead of `Sequence` on cells the shore fade",
+			"has marked as close to terrain that refuses this smudge. SPARSEST FIRST.",
+			"WHY SPARSER ART AND NOT LOWER ALPHA, given `ShoreFadeCells` already exists. A smudge is one",
+			"flat alpha over a whole cell, so at a boundary the CELL is the visible unit and a dimmer copy",
+			"of the same stipple is still a cell-shaped tone step with square, axis-aligned edges -- which",
+			"is the artefact reported at River Zeta's shoreline, bright sand hard against dark. Alpha",
+			"cannot reach below the cell; coverage can. And with `ShoreFadeMinAlpha` at 0.7 the whole ramp",
+			"only spans alpha 0.8 to 1.0, so there was very little dimming to see in the first place.",
+			"The fade is NOT replaced: a boundary cell gets the sparser sprite AND the ramped alpha, so",
+			"`ShoreFadeMinAlpha`'s semantics are exactly what they were.",
+			"Each group must hold the same number of variants as `Sequence`, because a cell keeps its",
+			"variant's ORDINAL when it switches tier -- the generated cuts are nested subsets of the same",
+			"noise field, so the pattern thins rather than reshuffling.",
+			"Empty (the default) disables edge selection entirely.")]
+		public readonly string[] EdgeSequences = Array.Empty<string>();
+
+		[Desc("One ShoreAlpha threshold per entry in `EdgeSequences`, ASCENDING. A cell uses the FIRST",
+			"tier whose threshold its shore alpha does not exceed, and `Sequence` if it exceeds them all.",
+			"With `ShoreFadeCells: 2` and `ShoreFadeMinAlpha: 0.7` the reachable alphas are 0.800 (a cell",
+			"edge-on to the boundary), 0.841 (diagonal), 0.900 (two cells), 0.924, 0.983 and 1.0, so",
+			"0.81, 0.91 puts the sparsest tier on the waterline cell, the middle tier on the diagonal and",
+			"two-cell ring, and full strength from three cells in.",
+			"Inert when `ShoreFadeCells` is 0: the alpha is then always 1.")]
+		public readonly float[] EdgeAlphaThresholds = Array.Empty<float>();
+
 		[FieldLoader.LoadUsing(nameof(LoadInitialSmudges))]
 		public readonly Dictionary<CPos, MapSmudge> InitialSmudges;
 
@@ -180,6 +205,23 @@ namespace OpenRA.Mods.Common.Traits
 		readonly World world;
 		readonly bool hasSmoke;
 
+		// ---- edge tiers, Info.EdgeSequences -------------------------------------------------------
+		// [tier][variant ordinal] -> the sparser cut of that variant, sparsest tier first.
+		//
+		// INDEXED BY ORDINAL, NOT BY NAME, and that is what makes a tier switch look like thinning
+		// rather than reshuffling: the generated cuts are nested subsets of one noise field per
+		// (band, variant, depth), so variant 3's 25% cut is literally a subset of variant 3's pixels.
+		// Both lists are sorted ordinally, and the counts are required to match at load, so ordinal N
+		// means the same variant in every tier.
+		//
+		// Null when the layer names no edge sequences, which is every layer that has not opted in.
+		readonly ISpriteSequence[][] edgeVariants;
+
+		// Base variant name -> its ordinal. Built from a SORTED copy of `smudges` keys and used for
+		// nothing else: AddSmudge still picks from `smudges` exactly as it did, so which variant a
+		// cell gets is unchanged.
+		readonly Dictionary<string, int> variantOrdinal = new();
+
 		TerrainSpriteLayer render;
 		PaletteReference paletteReference;
 		bool disposed;
@@ -231,11 +273,55 @@ namespace OpenRA.Mods.Common.Traits
 			var types = sequences.Sequences(Info.Sequence);
 			foreach (var t in types)
 				smudges.Add(t, sequences.GetSequence(Info.Sequence, t));
+
+			var ordered = smudges.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+			for (var i = 0; i < ordered.Length; i++)
+				variantOrdinal[ordered[i]] = i;
+
+			if (Info.EdgeSequences.Length == 0)
+				return;
+
+			// Thrown rather than clamped. A tier list one entry longer than its threshold list is a
+			// half-finished edit, and silently ignoring the extra tier would ship a boundary that is one
+			// step coarser than the author believes it is -- which is invisible outside a screenshot.
+			if (Info.EdgeAlphaThresholds.Length != Info.EdgeSequences.Length)
+				throw new YamlException($"SmudgeLayer {Info.Type}: EdgeSequences has {Info.EdgeSequences.Length} " +
+					$"entries and EdgeAlphaThresholds has {Info.EdgeAlphaThresholds.Length}. They are read in " +
+					"lockstep and must be the same length.");
+
+			for (var i = 1; i < Info.EdgeAlphaThresholds.Length; i++)
+				if (Info.EdgeAlphaThresholds[i] <= Info.EdgeAlphaThresholds[i - 1])
+					throw new YamlException($"SmudgeLayer {Info.Type}: EdgeAlphaThresholds must ascend, and " +
+						$"{Info.EdgeAlphaThresholds[i]} does not follow {Info.EdgeAlphaThresholds[i - 1]}. The " +
+						"first tier whose threshold a cell's alpha does not exceed wins, so out-of-order " +
+						"entries make later tiers unreachable rather than wrong.");
+
+			edgeVariants = new ISpriteSequence[Info.EdgeSequences.Length][];
+			for (var i = 0; i < Info.EdgeSequences.Length; i++)
+			{
+				var group = Info.EdgeSequences[i];
+				var names = sequences.Sequences(group).OrderBy(k => k, StringComparer.Ordinal).ToArray();
+				if (names.Length != ordered.Length)
+					throw new YamlException($"SmudgeLayer {Info.Type}: edge sequence '{group}' holds " +
+						$"{names.Length} variants but '{Info.Sequence}' holds {ordered.Length}. A cell keeps " +
+						"its variant's ordinal when it switches tier, so the two must line up.");
+
+				edgeVariants[i] = names.Select(n => sequences.GetSequence(group, n)).ToArray();
+			}
 		}
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
 			var sprites = smudges.Values.SelectMany(v => Exts.MakeArray(v.Length, x => v.GetSprite(x))).ToList();
+
+			// The edge cuts go through the SAME TerrainSpriteLayer as the art they replace, so they are
+			// bound by the same one-blend-mode rule and belong in this check. Left out, a mismatched edge
+			// sprite would not throw here -- it would be drawn through the layer's blend mode and come
+			// out wrong at the shoreline only, which is the least-looked-at place on the map.
+			if (edgeVariants != null)
+				foreach (var tier in edgeVariants)
+					sprites.AddRange(tier.SelectMany(v => Exts.MakeArray(v.Length, x => v.GetSprite(x))));
+
 			var sheet = sprites[0].Sheet;
 			var blendMode = sprites[0].BlendMode;
 			var emptySprite = new Sprite(sheet, Rectangle.Empty, TextureChannel.Alpha);
@@ -330,12 +416,52 @@ namespace OpenRA.Mods.Common.Traits
 		/// the layer made before.</para></summary>
 		void Draw(CPos cell, Smudge smudge)
 		{
-			var seq = smudge.Sequence;
-			var alpha = seq.GetAlpha(smudge.Depth) * ShoreAlpha(cell);
-			render.Update(cell, seq.GetSprite(smudge.Depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
+			var (seq, depth, alpha) = Resolve(cell, smudge);
+			render.Update(cell, seq.GetSprite(depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
 
 			if (Info.GroundCoverOverlay)
-				DrawOverGroundCover(cell, seq, smudge.Depth, alpha);
+				DrawOverGroundCover(cell, seq, depth, alpha);
+		}
+
+		/// <summary>Which sprite this cell actually draws, at which depth, at which alpha.
+		///
+		/// <para>THE ONE PLACE ANY OF THAT IS DECIDED. Three call sites draw the same cell -- the terrain
+		/// layer, the over-actors layer and the sorted renderables -- and they are the SAME decal drawn
+		/// more than once rather than three decals. Two of them computing an edge tier and one not would
+		/// show up as a field cell at the waterline being denser than the bare cell beside it, which is
+		/// the kind of difference nobody attributes to a missing function call.</para>
+		///
+		/// <para>The shore fade is not replaced by the edge tier, it is kept: a boundary cell gets the
+		/// sparser sprite AND the ramped alpha, so <see cref="SmudgeLayerInfo.ShoreFadeMinAlpha"/> still
+		/// means what it meant. Depth is clamped because a cut is only guaranteed to line up with its
+		/// band by VARIANT, not by frame count.</para></summary>
+		(ISpriteSequence Sequence, int Depth, float Alpha) Resolve(CPos cell, Smudge smudge)
+		{
+			var shore = ShoreAlpha(cell);
+			var seq = EdgeSequenceFor(smudge.Type, shore) ?? smudge.Sequence;
+			var depth = Math.Min(smudge.Depth, seq.Length - 1);
+			return (seq, depth, seq.GetAlpha(depth) * shore);
+		}
+
+		/// <summary>The sparser cut this cell's shore alpha selects, or null for the band's own art.
+		///
+		/// <para>Sparsest tier first and thresholds ascending, so the FIRST tier a cell does not exceed
+		/// wins: the cell hard against the water gets the thinnest art and the ring behind it the middle
+		/// one. Driven by the shore alpha alone, deliberately -- that value already answers exactly "how
+		/// close is this cell to ground this layer cannot draw on", which is the boundary the artefact is
+		/// at. Counting scarred neighbours would not work here and would be worse than nothing: the five
+		/// bands are ANNULI in five separate layers, so every band's outer ring has no neighbour in its
+		/// own layer and the whole disc would be classified as edge.</para></summary>
+		ISpriteSequence EdgeSequenceFor(string type, float shore)
+		{
+			if (edgeVariants == null || !variantOrdinal.TryGetValue(type, out var ordinal))
+				return null;
+
+			for (var i = 0; i < edgeVariants.Length; i++)
+				if (shore <= Info.EdgeAlphaThresholds[i])
+					return edgeVariants[i][ordinal];
+
+			return null;
 		}
 
 		// Writes this cell into the over-actors layer, or clears it out of it. Same sprite, same depth,
@@ -627,8 +753,7 @@ namespace OpenRA.Mods.Common.Traits
 				if (!tiles.TryGetValue(cell, out var smudge) || smudge.Sequence == null)
 					continue;
 
-				var seq = smudge.Sequence;
-				var alpha = seq.GetAlpha(smudge.Depth) * ShoreAlpha(cell);
+				var (seq, depth, alpha) = Resolve(cell, smudge);
 
 				// The same world position TerrainSpriteLayer.Update computes for this cell
 				// (TerrainSpriteLayer.cs:102), ramp offset included, so the decal lands on the same
@@ -636,7 +761,7 @@ namespace OpenRA.Mods.Common.Traits
 				// were a pixel out from its neighbours' would be a new artefact, not a fix.
 				var pos = map.CenterOfCell(cell) - new WVec(0, 0, map.Grid.Ramps[map.Ramp[cell]].CenterHeightOffset);
 
-				renderables.Add(new SpriteRenderable(seq.GetSprite(smudge.Depth), pos, WVec.Zero,
+				renderables.Add(new SpriteRenderable(seq.GetSprite(depth), pos, WVec.Zero,
 					Info.GroundCoverOverlayZOffset, paletteReference, seq.Scale, alpha, float3.Ones,
 					seq.IgnoreWorldTint ? TintModifiers.IgnoreWorldTint : TintModifiers.None, false));
 			}

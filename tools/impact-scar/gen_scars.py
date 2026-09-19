@@ -27,6 +27,11 @@ desert). Rather than guess which indices are safe, each tileset ramp is
 harvested from THAT tileset own stock cr*/sc* art -- indices already proven
 to render as smudge colours in that exact layer and palette.
 
+Each band also gets two SPARSER EDGE CUTS of itself (prefixes `by*` and `bx*`, at
+50% and 25% of the band's coverage) which SmudgeLayer selects for cells the shore
+fade has marked as close to terrain that refuses a scar. See EDGE_TIERS below for
+why fewer pixels and not lower alpha.
+
 Usage:  python gen_scars.py [--outdir DIR]
 """
 import argparse
@@ -85,6 +90,28 @@ BANDS = [
     ("ScarRim",    "bze", 0.14, 0.30, (0.35, 0.80)),
 ]
 BAND_BY_NAME = {b[0]: b for b in BANDS}
+
+# ---- edge tiers ------------------------------------------------------------
+# A smudge is ONE FLAT ALPHA OVER A WHOLE CELL, so at the outer boundary of a scar
+# the cell is the visible unit and the edge is a staircase of square cell edges --
+# bright sand hard against dark, axis-aligned, exactly as reported at River Zeta's
+# shoreline. Dimming cannot fix that: a dimmer copy of the same stipple is still a
+# cell-shaped tone step, and with ShoreFadeMinAlpha at 0.7 the whole ramp only spans
+# alpha 0.8 to 1.0 anyway. What dissolves an edge is FEWER PIXELS, not fainter ones.
+#
+# So each band gets two sparser cuts of itself, selected by SmudgeLayer for cells the
+# shore fade has marked as near a boundary. File prefixes step DOWN the alphabet as
+# the art thins: bz -> by -> bx.
+#
+# THE TIERS ARE NESTED SUBSETS, and that is the point rather than an implementation
+# detail. Coverage is a quantile of the noise field and the seed is unchanged, so the
+# 25% cut is exactly the 25% of pixels that survive furthest into the burnt region,
+# and the 50% cut contains it. Three cells running out to the waterline therefore
+# read as one stipple thinning out, not as three unrelated scatters of noise.
+EDGE_TIERS = [
+    ("by", "-e50", 0.50),
+    ("bx", "-e25", 0.25),
+]
 
 
 # ---------------------------------------------------------------- noise
@@ -188,7 +215,7 @@ def window(ramp, lo, hi):
 
 
 # ---------------------------------------------------------------- art
-def make_frame(band, variant, depth, ramp, seed_base):
+def make_frame(band, variant, depth, ramp, seed_base, coverage_scale=1.0):
     """One 24x24 indexed frame. Index 0 = transparent.
 
     Coverage is applied as a QUANTILE of the noise field, not as a threshold on
@@ -204,7 +231,7 @@ def make_frame(band, variant, depth, ramp, seed_base):
     _name, _prefix, cov0, cov1, win = BAND_BY_NAME[band]
     sub = window(ramp, *win)
     t = depth / (DEPTHS - 1)
-    coverage = cov0 + (cov1 - cov0) * t
+    coverage = (cov0 + (cov1 - cov0) * t) * coverage_scale
 
     seed = seed_base + variant * 104729 + depth * 15485863
 
@@ -249,18 +276,24 @@ def main():
         print("[" + ext + "] ramp of " + str(len(ramp)) + " indices: " + repr(ramp))
 
         for band, prefix, *_cfg in BANDS:
-            for v in range(1, VARIANTS + 1):
-                frames = [make_frame(band, v, d, ramp, sum(map(ord, band)) * 1013)
-                          for d in range(DEPTHS)]
-                name = prefix + str(v) + "." + ext
-                path = os.path.join(args.outdir, name)
-                size = rc.write_shp(path, CELL, CELL, frames)
+            # The band itself, then its two sparser edge cuts. Same seed throughout,
+            # so a tier is a strict subset of the one above it.
+            cuts = [(prefix, 1.0)] + [(tier + prefix[-1], scale)
+                                      for tier, _suffix, scale in EDGE_TIERS]
 
-                # Read it straight back through the ported decoder; a silent
-                # LCW bug would otherwise only surface in-game.
-                w, h, got = rc.read_shp(open(path, "rb").read())
-                assert (w, h) == (CELL, CELL) and got == frames, name
-                written.append((name, size))
+            for file_prefix, scale in cuts:
+                for v in range(1, VARIANTS + 1):
+                    frames = [make_frame(band, v, d, ramp, sum(map(ord, band)) * 1013, scale)
+                              for d in range(DEPTHS)]
+                    name = file_prefix + str(v) + "." + ext
+                    path = os.path.join(args.outdir, name)
+                    size = rc.write_shp(path, CELL, CELL, frames)
+
+                    # Read it straight back through the ported decoder; a silent
+                    # LCW bug would otherwise only surface in-game.
+                    w, h, got = rc.read_shp(open(path, "rb").read())
+                    assert (w, h) == (CELL, CELL) and got == frames, name
+                    written.append((name, size))
 
     print("")
     print(str(len(written)) + " SHPs written to " + args.outdir +

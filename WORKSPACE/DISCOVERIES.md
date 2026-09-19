@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - Four traps found while fixing the scar renderers (`wt/scar-render`, base `main @ c3825714`)
+
+Small, load-bearing, and each one cost real time.
+
+**1. An autotest screenshot is 60 px per cell, not 48.** `Camera.Zoom = 2` and a 24 px cell says 48,
+and every number you measure off the frame will be wrong in a way that still looks plausible — you
+land on a neighbouring cell and read a neighbour's value. Windows on this machine runs at **125%
+display scaling**, so the real figure is `24 * zoom * 1.25`. Verified against
+`260919_173731_p8130_test-field-swallows-nuke/003`: the 11x11 crop patch at cells 28-38 predicts its
+left edge at screen x=390 with P=60, and the wheat starts at exactly 390. Any tool that maps cells to
+pixels in a capture needs the scale as a parameter AND a self-check against something of known cell
+extent; `tools/impact-scar/scar_density.py --patch` is the shape that works.
+
+**2. `--png` writes to the process's cwd, not beside its input.**
+`ConvertSpriteToPngCommand` (`engine/OpenRA.Mods.Common/UtilityCommands/`) builds `prefix + "-" + n +
+".png"` from the source filename and hands that bare relative path to Save. You must run it from
+`engine/` for the relative `MOD_SEARCH_PATHS` to resolve, so the output lands in the engine tree —
+sixteen stray `clear1-*.png` in a tracked directory. Sweep them from cwd, not from the input's folder.
+
+**3. A gitignored asset cache with no regeneration script is a landmine, and the failure names
+neither the asset nor the cause.** `tools/impact-scar/contact_sheet.py` read its terrain tiles from a
+hardcoded path under the Windows TEMP tree. Windows cleans TEMP: the four directories were still
+present and all four were EMPTY, so every preview renderer in that folder died on
+`random.choice` of an empty sequence. Nothing in the repo could refill it. If a tool depends on
+extracted content, the extractor ships next to it — `extract-palettes.sh` had one and `pal/` was fine.
+
+**4. `SmudgeLayer.ShoreAlphaAt` returns `minAlpha` for a BOUNDARY cell itself, and that makes the
+obvious test of a threshold vacuous.** The function is asked "how close is this cell to ground the
+layer cannot draw on"; asked about such a cell it answers distance 0, hence `minAlpha` — 0.7 with the
+shipped settings, which is below every threshold any tier would use. Its own summary says the value
+"never matters in practice" because `LeaveSmudgeWarhead` already refused to place a smudge there, and
+that is true of the GAME and false of a test that enumerates the neighbourhood. A first cut of
+`ScarEdgeVariantTest.EveryTierIsReachableFromTheShoreFadeThisLayerConfigures` passed with a threshold
+of 0.75, which no cell that can actually draw ever reaches. Exclude the boundary cell.
+
 ## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
 
 Tuning the DEFCON 3 "Positioning" clock looks like a per-map problem: the border is the perpendicular
