@@ -240,6 +240,43 @@ lobby options move the geometry.**
 
 Full arithmetic, the per-map table and the stage-by-stage review:
 `WORKSPACE/audit/escalation-gameplay-review-260919.md`.
+## 2026-09-19 - A second `Playable: True` in a scenario map is a slot NOBODY FILLS, so that side has no Player object at all (`wt/precaptured`, base `main @ 64185a89`)
+
+`CreateMapPlayers` builds a `Player` for every **non-playable** map player, and then one per lobby
+slot — with `if (client == null) continue` (`CreateMapPlayers.cs:110-112`). `run-test.sh` launches a
+single local client (`Launch.Map=<scenario>`, `run-test.sh:745`), so it seats **one** slot. A
+scenario that authors two `Playable: True` sides therefore gets one Player and one empty slot, and
+`Player.GetPlayer("<the other one>")` returns **nil** — not a broken player, not a defaulted one,
+nothing. Both arms of a new scenario pair died on their own setup guard 15 s in, with a
+**zero-byte lua.log**, which is also the documented tell for "the game never launched"
+(CLAUDE.md, `engine/utility.sh`) — two very different findings that look identical from outside a
+run dir.
+
+**The shape every passing two-sided scenario in the tree already uses:** exactly ONE `Playable:
+True` seat, for the client, and the other side as a bare map player (`test-unit-indicators`,
+`test-frozen-owner-snapshot`) or a `Bot:` map player (`test-push-departs-together`,
+`test-combined-arms-rendezvous`). `Enemies:` on a map player still makes the relationship, so
+nothing about the match is weaker for it. **`test-crate-rearm` and friends are not
+counterexamples** despite carrying two `Playable: True` seats: nothing in them resolves the second
+player by name, so the missing Player never surfaces. *A scenario that passes is not evidence that
+its Players block is sound — only that nothing read the part that is broken.*
+
+**Print player resolution BEFORE the guard that tests it.** A `Test.Fail` on the first line of
+`WorldLoaded` produces an empty lua.log and strands the reader between "wrong YAML" and "no
+launch". One `print` above it costs nothing and separates them.
+
+**THE TRAP BEHIND THE TRAP, and it is the expensive half.** The obvious fix — drop `Playable: True`
+from the second side — silently changes what any consumer filtering on `Player.Playable` can see.
+`Playable` is a statement about **lobby slots**, not about who is in the match: a scripted or
+map-authored combatant that owns actors and fights is `Playable: false`. The trait under test here
+filtered contenders on `p.Playable && !p.NonCombatant`, so the YAML-only fix would have left it
+with ONE contender, made every structure an uncontested walkover, and turned the assertion
+**vacuously green** — the scenario would have passed while testing nothing. **When a scenario fix
+changes a player flag, grep the code under test for that flag before committing.** The honest
+filter for "who is in this match" is `!p.NonCombatant` (which also drops the synthetic `Everyone`
+player, `CreateMapPlayers.cs:124-132`); on all ten shipped maps it selects exactly the same set,
+because every non-playable player there is `Neutral` or `Creeps` and both are `NonCombatant`.
+
 ## 2026-09-19 - A player's Supply Route and their spawn cell are the SAME POINT, exactly (`wt/precaptured`, base `main @ 64185a89`)
 
 Any trait that needs "where is this player's base" faces an apparent choice between

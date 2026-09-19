@@ -161,11 +161,45 @@ namespace OpenRA.Mods.Common.Traits
 			if (!world.LobbyInfo.GlobalSettings.OptionOrDefault(PreCapturedStructuresInfo.OptionId, info.CheckboxEnabled))
 				return;
 
-			var contenders = world.Players.Where(p => p.Playable && !p.NonCombatant).ToArray();
-			if (contenders.Length == 0)
-				return;
+			// CONTENDERS ARE COMBATANTS WITH AN ANCHOR, AND DELIBERATELY NOT "PLAYABLE PLAYERS".
+			//
+			// `Playable` is a statement about LOBBY SLOTS, not about who is in the match.
+			// CreateMapPlayers builds a Player for every non-playable map player and then one per
+			// OCCUPIED slot, skipping empty ones outright (CreateMapPlayers.cs:93-121) -- so a
+			// scripted or map-authored side is a real combatant that owns actors and fights, and is
+			// `Playable: false`. Filtering on Playable dropped exactly those, which on a two-sided
+			// autotest scenario left ONE contender, made every structure a walkover, and would have
+			// made the "middle stays neutral" arm silently vacuous.
+			//
+			// NO EFFECT ON ANY SHIPPED MAP, checked rather than assumed: across all ten, every
+			// non-playable player is `Neutral` (OwnsWorld + NonCombatant) or `Creeps` (NonCombatant),
+			// so `!NonCombatant` selects exactly the set `Playable && !NonCombatant` used to. It also
+			// still cannot pick up an EMPTY slot, because an empty slot has no Player object at all.
+			// NonCombatant additionally excludes the synthetic all-seeing "Everyone" player that
+			// CreateMapPlayers.cs:124-132 appends.
+			var contenders = new List<Player>();
+			var anchors = new List<WPos>();
+			foreach (var p in world.Players)
+			{
+				if (p.NonCombatant)
+					continue;
 
-			var anchors = contenders.Select(p => AnchorFor(world, p)).ToArray();
+				var anchor = AnchorFor(world, p);
+				if (anchor == null)
+					continue;
+
+				contenders.Add(p);
+				anchors.Add(anchor.Value);
+			}
+
+			// One line per match, at world load, and only when the option is on. This is the only
+			// way to tell "the trait decided nobody was near enough" from "the trait never saw that
+			// player", which cost a scenario pair one run to establish.
+			Log.Write("debug", "PreCapturedStructures: contenders = " + (contenders.Count == 0 ? "(none)" :
+				string.Join(", ", contenders.Select((p, i) => $"{p.InternalName}@{world.Map.CellContaining(anchors[i])}"))));
+
+			if (contenders.Count == 0)
+				return;
 
 			// WHY THESE THREE FILTERS. `Capturable` is the engine's own answer to "can this be taken"
 			// -- most of the neutral scenery on a map inherits ^BasicBuilding and would be swept up by a
@@ -186,10 +220,10 @@ namespace OpenRA.Mods.Common.Traits
 				a.Info.HasTraitInfo<BuildingInfo>() &&
 				a.Info.HasTraitInfo<SelectableInfo>()).ToList();
 
-			var distances = new long[contenders.Length];
+			var distances = new long[contenders.Count];
 			foreach (var a in candidates)
 			{
-				for (var i = 0; i < contenders.Length; i++)
+				for (var i = 0; i < contenders.Count; i++)
 					distances[i] = (a.CenterPosition - anchors[i]).HorizontalLength;
 
 				var winner = PreCapturedOwnership.Resolve(distances, (x, y) => contenders[x].IsAlliedWith(contenders[y]), info.MiddleBandPercent);
@@ -205,18 +239,32 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		// The player's Supply Route if they have one, else their spawn cell. BaseBuilding is the marker
-		// because SUPPLYROUTE is the only actor in the shipped ruleset carrying it (structures.yaml:370).
-		// Ordered by ActorID so a player holding two would still resolve identically on every client;
-		// "one per player" is the shipped reality but the ordering costs nothing and does not assume it.
-		static WPos AnchorFor(World world, Player p)
+		// The player's Supply Route if they have one, else their spawn cell, else NOTHING -- they are
+		// not a contender at all. BaseBuilding is the marker because SUPPLYROUTE is the only actor in
+		// the shipped ruleset carrying it (structures.yaml:370). Ordered by ActorID so a player
+		// holding two would still resolve identically on every client; "one per player" is the shipped
+		// reality but the ordering costs nothing and does not assume it.
+		static WPos? AnchorFor(World world, Player p)
 		{
 			var supplyRoute = world.Actors
 				.Where(a => a.Owner == p && a.Info.HasTraitInfo<BaseBuildingInfo>())
 				.OrderBy(a => a.ActorID)
 				.FirstOrDefault();
 
-			return supplyRoute != null ? supplyRoute.CenterPosition : world.Map.CenterOfCell(p.HomeLocation);
+			if (supplyRoute != null)
+				return supplyRoute.CenterPosition;
+
+			// RETURNING null RATHER THAN THE MAP'S TOP-LEFT CORNER. CPos.Zero is the FIELD DEFAULT of
+			// PlayerReference.HomeLocation (PlayerReference.cs:41), so a player who occupies no lobby
+			// slot and holds no Supply Route reads (0,0) -- a coordinate default masquerading as "their
+			// own side". Anchoring there would hand them every capturable structure in that corner, and
+			// on a map whose Bounds start at 1,1 it is not even a cell anyone can stand on. This is the
+			// same trap conventions.md records under "A() ?? B in a decision path": the fallback must
+			// answer the same question as the primary, and "where is nothing" is not an answer.
+			if (p.HomeLocation == CPos.Zero)
+				return null;
+
+			return world.Map.CenterOfCell(p.HomeLocation);
 		}
 	}
 }
