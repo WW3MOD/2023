@@ -1,0 +1,44 @@
+fail
+BY DESIGN, NOT BY MERIT. This directory is the CONTROL arm of test-defcon2-holdfire-ambush.
+Its rules.yaml differs from the treatment's by exactly one quantity --
+DefconEscalation.ModeDefault, Escalation -> Skirmish -- and DefconEscalationState's
+constructor answers that with `Level = NoLevel` (0), so AutoTarget.INotifyDamage.Damaged no
+longer returns at its first line.
+
+The chain then runs end to end: the ordered shot damages the bait, the handler proceeds, the
+bait is in Ambush so it sets its own latch AND calls TriggerNearbyAmbushAllies (read site 6),
+each ally inside the 10-cell AmbushCoordinationRadius has ambushTriggered written for it, and
+on its next idle tick AmbushTickIdle's `if (isSpotted || ambushTriggered)` is satisfied by the
+SECOND term alone. The allies fire and the shared body's ally-ammunition assertion fails.
+FAIL is the only outcome this arm can honestly produce.
+
+READ `seen=` ON THE ALLIES BEFORE READING ANYTHING ELSE. The whole value of this arm rests on
+the allies being UNDETECTABLE to USA, which is what makes `isSpotted` false and leaves the
+proxy as the only thing that can have sprung them. Every census line carries `seen=false` per
+ally. If any reads `seen=true`, the geometry has drifted, the allies could have sprung
+themselves through detection, and this run is evidence about detection rather than about read
+site 6 -- discard it and fix the vision arithmetic (rules.yaml raises the t90s'
+Detectable.Vision to 7 against a strength-6 reading at fourteen cells; ^Vehicle's
+DetectableAddativeModifier@Stationary adds one more).
+
+A PASS HERE IS LOUDLY RED AND FALSIFIES THE TREATMENT, NOT THIS FILE. It would mean an ambush
+lane did not light off when one of its members was shot, in an ordinary Skirmish -- so the
+stances, the coordination radius or the trigger is wrong in BOTH directories and the
+treatment's silence was measuring nothing. Report and stop.
+
+THE ONE FAILURE THIS DECLARATION MUST NOT ABSORB, because it produces the declared outcome for
+the wrong reason: a staging fault. Verdicts beginning `fail: SETUP` (an ally out of weapon
+range or outside the coordination radius, no ammunition, the match opened at DEFCON 3 or 1),
+`fail: ATTRIBUTION` (an ally visible to USA, or the bait invisible to it) and `fail: the
+ORDERED shot never hit the bait` are faults in BOTH directories. That last one is the most
+important to notice: it means the trigger was never delivered, so nothing was ever asked of
+the proxy and the run says nothing about either arm.
+
+A failure naming the BAIT rather than an ally is read site 2, not site 6. The shared body
+checks the bait ONCE, at the END of the observation window, precisely so this arm always runs
+long enough to reach the ally verdict first; a bait-only failure here means the allies held in
+Skirmish, which is the PASS case above wearing a different hat and should be treated as one.
+
+REMOVE THIS FILE only if the control legitimately starts passing, which would mean the map can
+no longer separate the two hypotheses and needs new geometry rather than a new declaration. A
+hang, a crash, or a run that never reaches a verdict still reds under it.
