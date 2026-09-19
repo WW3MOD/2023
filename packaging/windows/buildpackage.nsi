@@ -103,6 +103,10 @@ Var StartMenuFolder
 ;                                       into a subfolder of it when it already
 ;                                       holds other files.
 ;
+; None of this is exercised by compiling the script. The human procedure that
+; does exercise it -- including the destructive cases -- is
+; packaging/windows/INSTALLER-TEST-PLAN.md, which is release-gating.
+;
 ; The append has to live in the page's LEAVE callback, not in .onVerifyInstDir:
 ; that one is called on every keystroke in the directory field, so writing to
 ; $INSTDIR there appends once per character typed.
