@@ -38,9 +38,22 @@ Categories: Test
 #
 # WHY ONLY USA DEPLOYS. SpawnStartingUnits spawns for `p.Playable` only, and a Playable slot exists
 # at runtime only when a CLIENT occupies it (CreateMapPlayers.cs:108-121, which skips every empty
-# slot). An autotest launch has exactly one client, so exactly one side can carry starting units.
-# The geometry is symmetric and the USA side is the one under test; Russia is an ordinary map
-# player whose only job is to own the far Supply Route, which is what fixes the border's position.
+# slot). An autotest launch has exactly one client -- Game.CreateLocalServer defaults isSkirmish to
+# FALSE, so the server is ServerType.Local and SkirmishLogic's auto-seated bot never fires either.
+# Exactly one side can therefore carry starting units. The geometry is symmetric and the USA side
+# is the one under test; Russia is an ordinary map player whose job is to own the far Supply Route,
+# which is what fixes the border's position.
+#
+# AND THAT IS WHY RUSSIA MUST NOT BE `Playable: True` HERE, which is the opposite of what it looks
+# like. A second Playable reference with no client to fill it produces NO Player object at all --
+# no Supply Route, no home for the border to be derived from, one alliance group, and the wall
+# never stands. As a map player Russia is a real Player with a real HomeLocation, which is what
+# DefconWall's CombatantSides test wants.
+#
+# THIS COST THE SCENARIO'S FIRST RUN (260920_010430). SpawnForwardDeployment's ENEMY filter read
+# `q.Playable`, so a map-player Russia was invisible to it: TryFindNearest found no enemy, the
+# method returned silently, and the census saw zero units on a map where the wall had just been
+# derived from both homes. The filter now asks CombatantSides, the same question DefconWall asks.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral

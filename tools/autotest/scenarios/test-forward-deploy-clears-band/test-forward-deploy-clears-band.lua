@@ -88,6 +88,20 @@ WorldLoaded = function()
 		return found
 	end
 
+	-- THE SUPPLY ROUTE IS THE WITNESS THAT THE TRAIT RAN AT ALL, and counting it separately is what
+	-- turns "0 forward units" from a symptom into a diagnosis. SpawnUnitsForPlayer places the home
+	-- package's BaseActor -- `StartingUnits@none` names `supplyroute` -- BEFORE it ever reaches the
+	-- forward leg. So an SR present with no forward units means the forward leg returned early, and
+	-- NO SR means the trait never ran for this player at all. The first run of this scenario
+	-- (260920_010430) reported zero units with nothing to tell those apart, and the answer turned
+	-- out to be the first: the enemy filter could not see a map-player Russia.
+	local function usaSupplyRoutes()
+		return Map.ActorsInBox(
+			Map.CenterOfCell(CPos.New(0, 0)),
+			Map.CenterOfCell(CPos.New(65, 33)),
+			function(a) return a.Owner == USA and a.Type == "supplyroute" end)
+	end
+
 	local units = {}
 	local startCell = {}
 	local censusNote = ""
@@ -210,6 +224,30 @@ WorldLoaded = function()
 	-- ---- 2b. THE BAND CENSUS -----------------------------------------------------------------
 	local function census()
 		units = usaUnits()
+
+		local srs = usaSupplyRoutes()
+		censusNote = censusNote .. string.format(" | usaSRs=%d", #srs)
+
+		-- NOTHING AT ALL, AND THE SUPPLY ROUTE SAYS WHICH KIND OF NOTHING.
+		if #units == 0 then
+			if #srs == 0 then
+				fault("SpawnStartingUnits NEVER RAN FOR USA: not even the home package's Supply Route"
+					.. " exists, and StartingUnits@none places that before the forward leg is reached."
+					.. " Either no Player object was created for this slot (CreateMapPlayers.cs:108-121"
+					.. " skips a Playable PlayerReference with no client in its slot) or the player did"
+					.. " not pass the trait's own side test")
+			else
+				fault("THE FORWARD LEG RETURNED EARLY: USA's Supply Route is on the map, so"
+					.. " SpawnUnitsForPlayer ran, but not one forward unit was created. Every early"
+					.. " return in SpawnForwardDeployment is SILENT except the missing-unit-group one,"
+					.. " which logs to debug.log -- so check, in order: the lobby option (guarded"
+					.. " above), whether any player passes the ENEMY filter (a map-player enemy is"
+					.. " `Playable: False` and was invisible to it until 2026-09-20), and whether the"
+					.. " package declares any SupportActors")
+			end
+
+			return
+		end
 
 		-- The motorized package is twenty support actors (world.yaml StartingUnits@Motorized_america).
 		-- A short count means the placement search gave up rather than stepped aside, which the
