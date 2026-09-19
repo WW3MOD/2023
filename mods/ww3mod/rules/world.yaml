@@ -862,6 +862,17 @@ World:
 	# pieces without anything changing for someone testing from main. The default lives in
 	# DefconEscalationInfo.ModeDefault and DefconEscalationTest.SkirmishIsAStrictNoOp guards it.
 	#
+	# THE DROPDOWN OFFERS TWO MODES, NOT THREE, SINCE 2026-09-19. Sandbox was the third and is now a
+	# developer opt-in only, set with `ModeDefault: Sandbox` in a map or scenario's rules -- nothing
+	# in this mod sets it. It is not a mode a host picks between: its whole content is "pin the
+	# level and never escalate", and until the same day the fire rules keyed on the level alone, so
+	# a Sandbox match taken at the shipped Start At (3, Positioning) was a match in which no weapon
+	# could fire at all, for its whole length. DefconFireDiscipline is gated on the mode now as well
+	# as the level, so the mode is harmless as well as hidden. Do not re-add it to the list here
+	# without reading the comment on the mode dictionary in DefconEscalation.cs -- the entry is
+	# admitted when ModeDefault names it, and a hand-added one would make the default and the list
+	# two separate statements of the same thing.
+	#
 	# Only the 3 -> 2 transition is on a clock and the No-rush period sets it; 2 -> 1 fires the
 	# moment enemy action destroys anything, whatever that clock says. The second clock, First
 	# warheads, runs from DEFCON 1 to the nuclear release gate. Both are lobby dropdowns in MINUTES

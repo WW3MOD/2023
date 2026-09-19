@@ -42,6 +42,13 @@
  * SkirmishHoldsNoFire is the twin of DefconEscalationTest.SkirmishIsAStrictNoOp, and exists for the
  * same reason: Skirmish is the default game mode and the user tests from main, so nothing may change
  * for them while this feature lands in pieces.
+ *
+ * BOTH PREDICATES TAKE A MODE AS WELL AS A LEVEL, and OnlyEscalationEverHoldsFire /
+ * OnlyEscalationEverCeasesFire are the pair that pins it. They replace two tests that asserted the
+ * OPPOSITE -- that a Sandbox match pinned at a rung rehearsed that rung's fire rule -- which read as
+ * a feature and was a match nothing could shoot in, because a pinned level is not a phase and
+ * nothing in that mode can ever lift it. Do not restore them by reading the old names as a
+ * regression this file lost.
  */
 
 using System;
@@ -64,9 +71,9 @@ namespace OpenRA.Test
 			Assert.That(DefconFireDiscipline.HoldFireLevel, Is.GreaterThan(DefconEscalationState.Floor));
 			Assert.That(DefconFireDiscipline.HoldFireLevel, Is.LessThan(DefconEscalationState.Ceiling));
 
-			Assert.That(DefconFireDiscipline.HoldsFire(3), Is.False, "DEFCON 3 held fire; it is the positioning phase, not the hold.");
-			Assert.That(DefconFireDiscipline.HoldsFire(2), Is.True, "DEFCON 2 did not hold fire, which is the whole rule.");
-			Assert.That(DefconFireDiscipline.HoldsFire(1), Is.False, "DEFCON 1 held fire; open war is where autonomous fire returns.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, 3), Is.False, "DEFCON 3 held fire; it is the positioning phase, not the hold.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, 2), Is.True, "DEFCON 2 did not hold fire, which is the whole rule.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, 1), Is.False, "DEFCON 1 held fire; open war is where autonomous fire returns.");
 		}
 
 		[Test]
@@ -77,7 +84,7 @@ namespace OpenRA.Test
 			// the real state machine rather than asserted against a constant, so this fails if Skirmish
 			// ever starts moving the level.
 			var state = new DefconEscalationState(DefconGameMode.Skirmish, DefconEscalationState.Ceiling, 1);
-			Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.False);
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Skirmish, state.Level), Is.False);
 
 			for (var i = 0; i < 20000; i++)
 			{
@@ -85,10 +92,10 @@ namespace OpenRA.Test
 				if (i % 37 == 0)
 					state.ReportCasualty();
 
-				Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.False, $"Skirmish held fire on tick {i}.");
+				Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Skirmish, state.Level), Is.False, $"Skirmish held fire on tick {i}.");
 
 				foreach (var source in AllSources)
-					Assert.That(DefconFireDiscipline.Permits(state.Level, source, false), Is.True,
+					Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Skirmish, state.Level, source, false), Is.True,
 						$"Skirmish refused a {source} shot on tick {i}.");
 			}
 		}
@@ -103,36 +110,57 @@ namespace OpenRA.Test
 			for (var i = 0; i < ClockTicks - 1; i++)
 			{
 				state.Tick();
-				Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.False, $"Fire was held at DEFCON 3, on tick {i + 1}.");
+				Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, state.Level), Is.False, $"Fire was held at DEFCON 3, on tick {i + 1}.");
 			}
 
 			Assert.That(state.Tick(), Is.True);
-			Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.True, "The 3 -> 2 drop did not start the hold.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, state.Level), Is.True, "The 3 -> 2 drop did not start the hold.");
 
 			// Time alone never ends it; one casualty does, and that restores autonomous fire.
 			for (var i = 0; i < 5000; i++)
 			{
 				state.Tick();
-				Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.True, $"The hold lapsed on its own, on tick {i}.");
+				Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, state.Level), Is.True, $"The hold lapsed on its own, on tick {i}.");
 			}
 
 			Assert.That(state.ReportCasualty(), Is.True);
-			Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.False, "DEFCON 1 kept holding fire; open war means autonomous fire is back.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, state.Level), Is.False, "DEFCON 1 kept holding fire; open war means autonomous fire is back.");
 		}
 
 		[Test]
-		public void SandboxPinnedAtTwoHoldsFire()
+		public void OnlyEscalationEverHoldsFire()
 		{
-			// Sandbox pins the level so DEFCON-keyed content is reachable to build and test against. The
-			// rule is a pure function of the LEVEL, not of the mode, so it applies there unchanged --
-			// which is what makes a sandbox at 2 an actual rehearsal of the phase.
-			var state = new DefconEscalationState(DefconGameMode.Sandbox, 2, 1);
+			// THE SAME LEVEL, THREE MODES, AND THE LEVEL IS NOT THE ANSWER. This is the regression that
+			// went the other way until 2026-09-19: the rule keyed on the level alone, Sandbox PINS a
+			// level, and a Sandbox match pinned at 2 therefore had units that never fired of their own
+			// accord -- forever, because nothing in that mode ever moves the level off 2.
+			//
+			// Driven through the real state machine in each mode rather than asserted against a literal,
+			// so it fails if any of the three ever starts holding a different level.
+			var sandbox = new DefconEscalationState(DefconGameMode.Sandbox, DefconFireDiscipline.HoldFireLevel, 1);
+			var escalation = new DefconEscalationState(DefconGameMode.Escalation, DefconFireDiscipline.HoldFireLevel, 1);
+			var skirmish = new DefconEscalationState(DefconGameMode.Skirmish, DefconFireDiscipline.HoldFireLevel, 1);
 
 			for (var i = 0; i < 5000; i++)
-				state.Tick();
+			{
+				sandbox.Tick();
+				skirmish.Tick();
+			}
 
-			Assert.That(state.Level, Is.EqualTo(2));
-			Assert.That(DefconFireDiscipline.HoldsFire(state.Level), Is.True);
+			Assert.That(sandbox.Level, Is.EqualTo(DefconFireDiscipline.HoldFireLevel), "Sandbox did not pin the level.");
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Sandbox, sandbox.Level), Is.False,
+				"Sandbox held fire. A pinned level is not a phase -- nothing can lift it, so this is a match nobody can play.");
+
+			Assert.That(escalation.Level, Is.EqualTo(DefconFireDiscipline.HoldFireLevel));
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, escalation.Level), Is.True,
+				"Escalation stopped holding fire at its own hold rung, which is the whole feature.");
+
+			// Skirmish by BOTH routes: it forces NoLevel whatever was asked for, and it is not Escalation.
+			// The redundancy is deliberate -- see DefconFireDiscipline's header.
+			Assert.That(skirmish.Level, Is.EqualTo(DefconEscalationState.NoLevel));
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Skirmish, skirmish.Level), Is.False);
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Skirmish, DefconFireDiscipline.HoldFireLevel), Is.False,
+				"Skirmish held fire when handed the hold rung directly; the mode gate is the second lock and it did not hold.");
 		}
 
 		[Test]
@@ -147,7 +175,7 @@ namespace OpenRA.Test
 			{
 				var isAutonomous = AutoTarget.IsAutoAcquiredSource(source);
 
-				Assert.That(DefconFireDiscipline.Permits(DefconFireDiscipline.HoldFireLevel, source, false),
+				Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, DefconFireDiscipline.HoldFireLevel, source, false),
 					Is.EqualTo(!isAutonomous),
 					$"At DEFCON 2 the rule and IsAutoAcquiredSource disagree about {source}.");
 			}
@@ -160,17 +188,17 @@ namespace OpenRA.Test
 
 			// A player order, a Lua order and a bot's deliberate named-target Attack all arrive as
 			// Default and all still fire: that is the point of the phase, not an exception to it.
-			Assert.That(DefconFireDiscipline.Permits(Held, AttackSource.Default, false), Is.True,
+			Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, Held, AttackSource.Default, false), Is.True,
 				"DEFCON 2 refused an ordered shot; the phase is 'free to strike, but only by direct order'.");
 
 			// The unit picked this for itself -- idle rescan, ambush, retaliation, opportunity fire.
-			Assert.That(DefconFireDiscipline.Permits(Held, AttackSource.AutoTarget, false), Is.False);
+			Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, Held, AttackSource.AutoTarget, false), Is.False);
 
 			// AttackMove is the interesting one, and IsAutoAcquiredSource already settles it: the player
 			// ordered a MOVE, not that particular target, so a shot taken along the way is the unit's own
 			// decision. It is also the dominant bot engagement mode, so getting this wrong would leave
 			// bots fighting a phase in which nobody else may.
-			Assert.That(DefconFireDiscipline.Permits(Held, AttackSource.AttackMove, false), Is.False,
+			Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, Held, AttackSource.AttackMove, false), Is.False,
 				"An attack-move contact shot counted as ordered; the order was the move, not the target.");
 		}
 
@@ -181,7 +209,7 @@ namespace OpenRA.Test
 			// order. It arrives as Default today, so this is belt-and-braces -- but if a force-attack
 			// ever carried an auto-acquired source it must still fire.
 			foreach (var source in AllSources)
-				Assert.That(DefconFireDiscipline.Permits(DefconFireDiscipline.HoldFireLevel, source, true), Is.True,
+				Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, DefconFireDiscipline.HoldFireLevel, source, true), Is.True,
 					$"A force-attack with source {source} was refused at DEFCON 2.");
 		}
 
@@ -195,9 +223,9 @@ namespace OpenRA.Test
 			Assert.That(DefconFireDiscipline.CeaseFireLevel, Is.EqualTo(DefconEscalationState.Ceiling));
 			Assert.That(DefconFireDiscipline.CeaseFireLevel, Is.Not.EqualTo(DefconFireDiscipline.HoldFireLevel));
 
-			Assert.That(DefconFireDiscipline.CeasesFire(3), Is.True, "DEFCON 3 did not cease fire; it is the positioning phase.");
-			Assert.That(DefconFireDiscipline.CeasesFire(2), Is.False, "DEFCON 2 ceased fire outright; it is hold-fire, where ordered shots still land.");
-			Assert.That(DefconFireDiscipline.CeasesFire(1), Is.False, "DEFCON 1 ceased fire; open war is not a ceasefire.");
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, 3), Is.True, "DEFCON 3 did not cease fire; it is the positioning phase.");
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, 2), Is.False, "DEFCON 2 ceased fire outright; it is hold-fire, where ordered shots still land.");
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, 1), Is.False, "DEFCON 1 ceased fire; open war is not a ceasefire.");
 		}
 
 		[Test]
@@ -208,7 +236,7 @@ namespace OpenRA.Test
 			// every weapon in the ordinary game. Driven through the real state machine rather than
 			// asserted against a constant.
 			var state = new DefconEscalationState(DefconGameMode.Skirmish, DefconEscalationState.Ceiling, 1);
-			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False);
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Skirmish, state.Level), Is.False);
 
 			for (var i = 0; i < 20000; i++)
 			{
@@ -216,10 +244,10 @@ namespace OpenRA.Test
 				if (i % 37 == 0)
 					state.ReportCasualty();
 
-				Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False, $"Skirmish ceased fire on tick {i}.");
+				Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Skirmish, state.Level), Is.False, $"Skirmish ceased fire on tick {i}.");
 
 				foreach (var isInert in new[] { false, true })
-					Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, isInert), Is.True,
+					Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Skirmish, state.Level, isInert), Is.True,
 						$"Skirmish refused a weapon on tick {i} (isInert: {isInert}).");
 			}
 		}
@@ -234,10 +262,10 @@ namespace OpenRA.Test
 			// DEFCON 2 predicate deliberately exempts it.
 			const int Positioning = DefconFireDiscipline.CeaseFireLevel;
 
-			Assert.That(DefconFireDiscipline.PermitsWeapon(Positioning, false), Is.False,
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, Positioning, false), Is.False,
 				"A weapon fired during Positioning; no weapon may.");
 
-			Assert.That(DefconFireDiscipline.PermitsWeapon(Positioning, true), Is.True,
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, Positioning, true), Is.True,
 				"An inert armament was silenced during Positioning; the carve-out is what lets a medic heal and a drone launch.");
 		}
 
@@ -249,15 +277,15 @@ namespace OpenRA.Test
 			// evidence a human ordered the shot and it is exempt, while at DEFCON 3 it is the documented
 			// bypass -- force-fire at bare ground needs no target actor, so anything keyed on provenance
 			// waves it straight through. If a future edit ever unifies these predicates, this fails.
-			Assert.That(DefconFireDiscipline.Permits(DefconFireDiscipline.HoldFireLevel, AttackSource.Default, true), Is.True,
+			Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, DefconFireDiscipline.HoldFireLevel, AttackSource.Default, true), Is.True,
 				"DEFCON 2 refused a force-attack; that phase is 'free to strike, but only by direct order'.");
 
-			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconFireDiscipline.CeaseFireLevel, false), Is.False,
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, DefconFireDiscipline.CeaseFireLevel, false), Is.False,
 				"DEFCON 3 let a shot through; nothing fires during Positioning, however it was ordered.");
 
 			// And the rungs themselves must not collide, which is what keeps each rule confined to one phase.
-			Assert.That(DefconFireDiscipline.HoldsFire(DefconFireDiscipline.CeaseFireLevel), Is.False);
-			Assert.That(DefconFireDiscipline.CeasesFire(DefconFireDiscipline.HoldFireLevel), Is.False);
+			Assert.That(DefconFireDiscipline.HoldsFire(DefconGameMode.Escalation, DefconFireDiscipline.CeaseFireLevel), Is.False);
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, DefconFireDiscipline.HoldFireLevel), Is.False);
 		}
 
 		[Test]
@@ -271,7 +299,7 @@ namespace OpenRA.Test
 
 			foreach (var level in levels)
 				foreach (var isInert in new[] { false, true })
-					Assert.That(DefconFireDiscipline.PermitsWeapon(level, isInert), Is.True,
+					Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, level, isInert), Is.True,
 						$"Level {level} silenced a weapon (isInert: {isInert}).");
 		}
 
@@ -285,42 +313,53 @@ namespace OpenRA.Test
 			const int ClockTicks = 100;
 			var state = new DefconEscalationState(DefconGameMode.Escalation, DefconEscalationState.Ceiling, ClockTicks);
 
-			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.False, "The match opened with weapons live.");
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, state.Level, false), Is.False, "The match opened with weapons live.");
 
 			for (var i = 0; i < ClockTicks - 1; i++)
 			{
 				state.Tick();
-				Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.True, $"The cease-fire lapsed early, on tick {i + 1}.");
+				Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, state.Level), Is.True, $"The cease-fire lapsed early, on tick {i + 1}.");
 
 				// The carve-out holds for the whole phase, not just its first tick.
-				Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, true), Is.True, $"An inert armament was silenced on tick {i + 1}.");
+				Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, state.Level, true), Is.True, $"An inert armament was silenced on tick {i + 1}.");
 			}
 
 			Assert.That(state.Tick(), Is.True);
-			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.False, "The 3 -> 2 drop did not end the cease-fire.");
-			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.True, "Weapons stayed silent past the end of Positioning.");
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, state.Level), Is.False, "The 3 -> 2 drop did not end the cease-fire.");
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, state.Level, false), Is.True, "Weapons stayed silent past the end of Positioning.");
 
 			// ...and it never comes back, including across the 2 -> 1 casualty drop.
 			Assert.That(state.ReportCasualty(), Is.True);
-			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.True);
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Escalation, state.Level, false), Is.True);
 		}
 
 		[Test]
-		public void SandboxPinnedAtThreeCeasesFire()
+		public void OnlyEscalationEverCeasesFire()
 		{
-			// Sandbox pins the level so DEFCON-keyed content is reachable to build and test against. Both
-			// rules are pure functions of the LEVEL rather than of the mode, so a sandbox at 3 is an
-			// actual rehearsal of the positioning phase -- which is the cheapest way to test this feature
-			// by hand.
-			var state = new DefconEscalationState(DefconGameMode.Sandbox, DefconFireDiscipline.CeaseFireLevel, 1);
+			// THE WORSE HALF OF THE SAME BUG, and the one a host met by default: Start At ships at 3,
+			// Positioning, so a Sandbox match taken straight off the dropdown had EVERY weapon on the map
+			// refused -- autotargeted, ordered and force-fired alike -- from the first tick to the last,
+			// with no clock anywhere that could lift it. The level was pinned and the rule keyed on the
+			// level. Sandbox is off the dropdown now AND this rule is mode-gated; either alone would have
+			// fixed the symptom, and the pair is what makes it not come back through a scenario setting
+			// ModeDefault.
+			var sandbox = new DefconEscalationState(DefconGameMode.Sandbox, DefconFireDiscipline.CeaseFireLevel, 1);
 
 			for (var i = 0; i < 5000; i++)
-				state.Tick();
+				sandbox.Tick();
 
-			Assert.That(state.Level, Is.EqualTo(DefconFireDiscipline.CeaseFireLevel));
-			Assert.That(DefconFireDiscipline.CeasesFire(state.Level), Is.True);
-			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, false), Is.False);
-			Assert.That(DefconFireDiscipline.PermitsWeapon(state.Level, true), Is.True);
+			Assert.That(sandbox.Level, Is.EqualTo(DefconFireDiscipline.CeaseFireLevel), "Sandbox did not pin the level.");
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Sandbox, sandbox.Level), Is.False);
+
+			// The consequence, stated as the thing a player would notice rather than as the predicate:
+			// an ordinary weapon fires, at the level that used to silence it.
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Sandbox, sandbox.Level, false), Is.True,
+				"A Sandbox match pinned at Positioning still silences every weapon it has.");
+
+			Assert.That(DefconFireDiscipline.CeasesFire(DefconGameMode.Escalation, DefconFireDiscipline.CeaseFireLevel), Is.True,
+				"Escalation stopped ceasing fire during Positioning, which is the whole feature.");
+			Assert.That(DefconFireDiscipline.PermitsWeapon(DefconGameMode.Skirmish, DefconFireDiscipline.CeaseFireLevel, false), Is.True,
+				"Skirmish refused a weapon when handed the Positioning rung directly.");
 		}
 
 		[Test]
@@ -333,7 +372,7 @@ namespace OpenRA.Test
 			foreach (var level in levels)
 				foreach (var source in AllSources)
 					foreach (var forceAttack in new[] { false, true })
-						Assert.That(DefconFireDiscipline.Permits(level, source, forceAttack), Is.True,
+						Assert.That(DefconFireDiscipline.Permits(DefconGameMode.Escalation, level, source, forceAttack), Is.True,
 							$"Level {level} refused a {source} shot (forceAttack: {forceAttack}).");
 		}
 	}

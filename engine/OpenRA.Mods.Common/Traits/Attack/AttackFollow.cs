@@ -48,6 +48,11 @@ namespace OpenRA.Mods.Common.Traits
 		DefconEscalation defconEscalation;
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
 
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
 		bool requestedForceAttack;
 		Activity requestedTargetPresetForActivity;
 		bool opportunityForceAttack;
@@ -207,7 +212,7 @@ namespace OpenRA.Mods.Common.Traits
 				// hold is a pause, and at DEFCON 1 the same target resumes.
 				IsAiming = CanAimAtTarget(self, RequestedTarget, requestedForceAttack)
 					&& ReadyToEngage(self, RequestedTarget)
-					&& DefconFireDiscipline.Permits(DefconLevel, requestedTargetSource, requestedForceAttack);
+					&& DefconFireDiscipline.Permits(DefconMode, DefconLevel, requestedTargetSource, requestedForceAttack);
 				if (IsAiming)
 					DoAttack(self, RequestedTarget, isManualTarget: true);
 			}
@@ -231,7 +236,7 @@ namespace OpenRA.Mods.Common.Traits
 				// so the ordinary provenance test applies unchanged -- a player's persisted target still
 				// fires at DEFCON 2, an autotarget-acquired one does not.
 				if (OpportunityTarget.IsValidFor(self)
-					&& DefconFireDiscipline.Permits(DefconLevel, opportunityTargetSource, opportunityForceAttack))
+					&& DefconFireDiscipline.Permits(DefconMode, DefconLevel, opportunityTargetSource, opportunityForceAttack))
 					IsAiming = CanAimAtTarget(self, OpportunityTarget, opportunityForceAttack)
 						&& ReadyToEngage(self, OpportunityTarget);
 

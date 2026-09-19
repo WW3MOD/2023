@@ -50,6 +50,19 @@
  * every AttackSource value, so adding a fourth source fails the build's tests rather than silently
  * defaulting it to "autonomous".
  *
+ * BOTH RULES ARE GATED ON THE MODE AS WELL AS THE LEVEL, and that is a fix rather than a belt on a
+ * brace. They keyed on the level ALONE until 2026-09-19, and a level is not the property of
+ * Escalation it reads as: Sandbox PINS one for the whole match (DefconEscalationState). So a Sandbox
+ * match opened at the shipped default Start At -- 3, "Positioning" -- had every weapon on the map
+ * silenced from the first tick to the last, with no clock anywhere that could lift it, and a Sandbox
+ * match at 2 had units that never fired of their own accord for the same forever. Neither is a
+ * rehearsal of a phase; a phase is a thing you come out of.
+ *
+ * Skirmish is unaffected in either direction and stays a strict no-op by TWO independent routes now:
+ * it never leaves NoLevel, AND it is not Escalation. That redundancy is the point -- the level route
+ * is an emergent property of a state machine in another file, and this rule should not depend on
+ * reading it correctly.
+ *
  * WHAT IT DOES NOT COVER, AND THAT IS CORRECT. Explosions, mines, crushing, crash weapons and
  * vaporisation consult no stance and never reach a fire path at all. A unit dying to a mine at
  * DEFCON 2 is not somebody's shot; the rule is about fire, not about damage.
@@ -68,21 +81,20 @@ namespace OpenRA.Mods.Common.Traits
 		// the lobby labels "Positioning".
 		public const int CeaseFireLevel = DefconEscalationState.Ceiling;
 
-		/// <summary>Is the match at the rung where units may not fire of their own accord? False for
-		/// every other level INCLUDING <see cref="DefconEscalationState.NoLevel"/>, which is what makes
-		/// Skirmish a strict no-op without this class knowing what Skirmish is.</summary>
-		public static bool HoldsFire(int level)
+		/// <summary>Is the match at the rung where units may not fire of their own accord? False in
+		/// every mode but <see cref="DefconGameMode.Escalation"/>, and false at every other level
+		/// INCLUDING <see cref="DefconEscalationState.NoLevel"/>.</summary>
+		public static bool HoldsFire(DefconGameMode mode, int level)
 		{
-			return level == HoldFireLevel;
+			return mode == DefconGameMode.Escalation && level == HoldFireLevel;
 		}
 
-		/// <summary>Is the match at the rung where NOTHING fires, whoever ordered it? False for every
-		/// other level including <see cref="DefconEscalationState.NoLevel"/>, on the same argument as
-		/// <see cref="HoldsFire"/>: Skirmish never leaves NoLevel, so this is a single int compare that
-		/// is false forever and the whole cease-fire is a strict no-op outside the mode.</summary>
-		public static bool CeasesFire(int level)
+		/// <summary>Is the match at the rung where NOTHING fires, whoever ordered it? Mode-gated and
+		/// level-gated on exactly the same argument as <see cref="HoldsFire"/> -- see this file's
+		/// header for why the level alone was not enough.</summary>
+		public static bool CeasesFire(DefconGameMode mode, int level)
 		{
-			return level == CeaseFireLevel;
+			return mode == DefconGameMode.Escalation && level == CeaseFireLevel;
 		}
 
 		/// <summary><para>May this ARMAMENT fire at this level? The cease-fire's whole decision, and
@@ -104,9 +116,9 @@ namespace OpenRA.Mods.Common.Traits
 		/// Damage: 0 and are dummy triggers whose fire spawns a live ballistic missile through
 		/// MissileSpawnerMaster's INotifyAttack.Attacking hook. Zero damage is therefore not evidence of
 		/// an inert weapon, and negative damage is not evidence of a real one.</para></summary>
-		public static bool PermitsWeapon(int level, bool isInert)
+		public static bool PermitsWeapon(DefconGameMode mode, int level, bool isInert)
 		{
-			if (!CeasesFire(level))
+			if (!CeasesFire(mode, level))
 				return true;
 
 			return isInert;
@@ -114,9 +126,9 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>May a shot with this provenance happen at this level? Everything is permitted at
 		/// every level but <see cref="HoldFireLevel"/>; there, only what somebody ordered.</summary>
-		public static bool Permits(int level, AttackSource source, bool forceAttack)
+		public static bool Permits(DefconGameMode mode, int level, AttackSource source, bool forceAttack)
 		{
-			if (!HoldsFire(level))
+			if (!HoldsFire(mode, level))
 				return true;
 
 			// A force-attack is a direct order by construction -- it can only come from a player click,

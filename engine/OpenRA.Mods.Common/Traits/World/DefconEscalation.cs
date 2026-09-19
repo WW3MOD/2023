@@ -287,12 +287,34 @@ namespace OpenRA.Mods.Common.Traits
 			// the only thing that makes a checkbox. There is no integer option type in this engine, so
 			// even the two minute clocks are enumerated string dropdowns keyed on the stringified
 			// number of minutes, exactly as `timelimit` and `nuclear-unlock-interval` already are.
+			//
+			// SANDBOX IS NOT ON THE MENU (2026-09-19). It was a third entry here and it offered a host
+			// nothing a host wants: its whole content is "pin the level and never escalate", and the two
+			// levels it can be pinned at that mean anything are the two the fire rules key on -- so the
+			// shipped default, Start At = Positioning, was a match in which no weapon on the map could
+			// fire, from the first tick to the last, with no clock anywhere that could lift it. That
+			// half is fixed in DefconFireDiscipline; this half is that a developer setting does not
+			// belong in a player's Game mode list, next to the two modes that are the game.
+			//
+			// THE ENUM VALUE STAYS, and is not dead: DefconEscalationState still pins on it, the lobby
+			// still hides the phase rows for it, and NuclearExchange and the readout still test for it.
+			// It is reachable by SETTING ModeDefault in a map or scenario's rules -- which is the one
+			// caller it was ever right for -- and the line below is what keeps that reachable safely.
+			//
+			// A DEFAULT THAT IS NOT A KEY OF ITS OWN VALUES THROWS ON CLIENT JOIN: LobbyOption.Label
+			// indexes Values unchecked (TraitsInterfaces.cs:717) and LobbyCommands calls it on
+			// o.DefaultValue for every option when a client connects (LobbyCommands.cs:770). So the
+			// entry is admitted exactly when ModeDefault names it, rather than dropped unconditionally
+			// -- which would have turned `ModeDefault: Sandbox` from a supported opt-in into a
+			// KeyNotFoundException that no lint and no build could see.
 			var modes = new Dictionary<string, string>
 			{
 				{ nameof(DefconGameMode.Escalation).ToLowerInvariant(), "Escalation" },
 				{ nameof(DefconGameMode.Skirmish).ToLowerInvariant(), "Skirmish" },
-				{ nameof(DefconGameMode.Sandbox).ToLowerInvariant(), "Sandbox" },
 			};
+
+			if (ModeDefault == DefconGameMode.Sandbox)
+				modes[nameof(DefconGameMode.Sandbox).ToLowerInvariant()] = "Sandbox";
 
 			// The levels are LABELLED BY WHAT THEY DO and keyed by the number, which is the whole of
 			// decision 18 in one dictionary: the wire keeps "3" and the host reads "Positioning".
@@ -463,7 +485,7 @@ namespace OpenRA.Mods.Common.Traits
 			// ReportCasualty deliberately does NOT do this: it only ever moves 2 -> 1, the direction that
 			// RESTORES autonomous fire. Starting a match AT DEFCON 2 is not a transition either -- nothing
 			// is engaged on the opening tick.
-			if (DefconFireDiscipline.HoldsFire(Level))
+			if (DefconFireDiscipline.HoldsFire(Mode, Level))
 				CeaseAutonomousFireEverywhere(self);
 		}
 

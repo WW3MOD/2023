@@ -422,10 +422,15 @@ namespace OpenRA.Mods.Common.Traits
 		/// mode.</summary>
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
 
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
 		/// <summary>May this armament fire at all, at the current DEFCON level? See
 		/// <see cref="DefconFireDiscipline.PermitsWeapon"/>; false only during the DEFCON 3 Positioning
 		/// phase, and only for armaments that have not opted out as not-really-weapons.</summary>
-		public bool PermittedByDefcon => DefconFireDiscipline.PermitsWeapon(DefconLevel, Info.FiresDuringCeaseFire);
+		public bool PermittedByDefcon => DefconFireDiscipline.PermitsWeapon(DefconMode, DefconLevel, Info.FiresDuringCeaseFire);
 
 		protected virtual bool CanFire(Actor self, in Target target)
 		{
