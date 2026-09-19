@@ -3,7 +3,10 @@ TEST: firing raises the enemy's level and puts your whole side on cooldown.
 Two players on a 66x34 map, DEFCON Escalation, starting at DEFCON 1 with the
 first-warheads clock compressed to ten ticks and the four side cooldowns
 compressed to 300/320/340/360 ticks against a shipped 5000/7000/9000/12000
-(5/7/9/12 minutes, the 2026-09-15 user ruling). Nobody has any money.
+(5/7/9/12 minutes, the 2026-09-15 user ruling). The ESCALATION DELAY is NOT
+compressed and is not overridden: this run uses the shipped
+EscalationDelayTicks of 50 and the shipped missile flights. Nobody has any
+money.
 
 This is the nuclear exchange v2 model end to end: a side has a LEVEL (the
 highest band it may fire, which never falls) and a COOLDOWN (one clock, shared
@@ -14,6 +17,28 @@ firer's own level never moves.
 Every reading is taken off the support power bin -- the same predicate that
 decides whether a player sees a clickable cameo.
 
+RETIMED FOR THE IMPACT-DEFERRED ESCALATION (2026-09-19). This scenario used to
+set `EscalationDelayTicks: -1` in rules.yaml, which restored the pre-2026-09-16
+timing where a victim's level rose on the tick the enemy clicked; it did so
+because the phase schedule was a column of constants that fired and then read a
+level 65 ticks later. The override is gone. Every phase from the first launch on
+hangs off an event the run OBSERVES: the explosion (a delta on
+Test.GetImpactEffectCount, snapshotted at the order) and the escalation (the
+victim's new band leaving HIDDEN). Only t90 and t120 are still chosen. So the
+tick numbers below are gone with the constants -- each phase is named by what it
+waits for.
+
+Two assertions per launch come out of that, and they are the coverage this
+scenario adds; nothing in the tree ran the deferral end to end before.
+
+  (a) the victim's new band stays HIDDEN on every tick between the launch and
+      the explosion. RED the instant an escalation is applied at the click --
+      which is exactly what the deleted override restored.
+  (b) and is drawn within EscalationDelayTicks (50) plus a 40-tick grant
+      allowance of that explosion. RED if the deferral never fires at all: a
+      dropped pending record, an impact MissileStrikePower never reported. (a)
+      cannot see that -- a level that never rises never rises early either.
+
   PHASE A (t90)     Release has opened. BOTH sides' 1 kt power reads READY and
                     nothing above it is visible on either side, including the
                     game-enders. Release is parity, not a provocation.
@@ -22,54 +47,83 @@ decides whether a player sees a clickable cameo.
                     at anything: this model escalates the other side wherever the
                     warhead lands, with no damage attribution at all.
 
-  PHASE C (t185)    THE RATCHET. Russia's 20 kt reads READY -- one band above
-                    what it was hit with, loaded, with no purchase possible --
-                    and USA's own 20 kt is still HIDDEN. Under the shared
-                    pressure ladder this replaced, both would have opened
-                    together.
+  PHASE B2 (t160)   THE SIDE COOLDOWN, READ OFF THE LAUNCH. USA's own 1 kt reads
+                    CHARGING with about 260 ticks left -- 300 minus the 40 since
+                    the shot, which is the KilotonCooldownTicks entry and not one
+                    of the other three -- and Russia's 1 kt reads READY. The
+                    cooldown belongs to the side that fired and is charged the
+                    instant the button is pressed, minutes before anything lands.
 
-  PHASE C also      THE SIDE COOLDOWN. USA's own 1 kt reads CHARGING, and
-                    Russia's 1 kt reads READY. The cooldown belongs to the side
-                    that fired and to nobody else.
+  PHASE C           THE RATCHET, twelve ticks after Russia's 20 kt was drawn.
+  (rise 1 + 12)     It reads READY -- one band above what it was hit with, loaded,
+                    with no purchase possible -- and USA's own 20 kt is still
+                    HIDDEN. Under the shared pressure ladder this replaced, both
+                    would have opened together.
 
-  PHASE C2 (t200)   Russia answers at 20 kt. USA goes to level 3 -- while USA is
-                    still reloading from its own shot.
+  PHASE C2          Russia answers at 20 kt.
+  (phase C + 10)
 
-  PHASE D (t265)    THE SHARPEST ASSERTION IN THE FILE. USA's brand-new 50 kt
-                    and 20 kt are DRAWN and NOT FIREABLE: the level is real and
+  PHASE C3          AND RUSSIA'S WHOLE ARSENAL WENT DOWN WITH IT, on the 20 kt
+  (C2 + 40)         entry: ~280 ticks left of 320. Its 1 kt is CHARGING on the
+                    same clock -- which is v1's per-band regeneration failing:
+                    under v1 one shot muted one band and left the rest up.
+
+  PHASE D           THE SHARPEST ASSERTION IN THE FILE. USA's brand-new 50 kt
+  (rise 2 + 12)     and 20 kt are DRAWN and NOT FIREABLE: the level is real and
                     the cooldown is too, and they are separate gates. Being shot
                     at while reloading is the NORMAL case in this model, so a
                     build whose level rise zeroes the timer is broken in most
                     matches and passes every other test in the tree.
 
-                    Russia's 1 kt is CHARGING here as well, off a 20 kt shot --
-                    which is v1's per-band regeneration failing: under v1 one
-                    shot muted one band and left the rest of the arsenal up.
+                    HOW USA COMES TO BE RELOADING IS NOW BUILT RATHER THAN
+                    WAITED FOR. A flight is longer than every compressed cooldown
+                    here, so a victim can no longer still be reloading from its
+                    own earlier shot when an escalation arrives. Instead USA
+                    fires its own 1 kt ON THE TICK Russia's 20 kt detonates, so
+                    the escalation -- scheduled for that same explosion plus 50 --
+                    lands about fifty ticks into a 300-tick lockout. Deep inside
+                    it, not near an edge, and with no flight time anywhere in the
+                    arithmetic. That shot escalates Russia to a rung Russia
+                    already holds, so it cannot disturb the ladder.
 
-  PHASE E (t450)    USA's whole arsenal comes back at once, 330 ticks after its
-                    shot. Russia is STILL reloading, because a 20 kt costs 320
-                    ticks and it fired 80 ticks later -- which is what proves the
-                    table is indexed by the band that was FIRED.
+  PHASE E           USA's whole arsenal comes back at once, 340 ticks after that
+  (phase D shot     shot -- its 1 kt, and both bands it gained WHILE reloading.
+   + 340)
+                    THE SECOND CLAIM THIS PHASE USED TO MAKE HAS MOVED. It read
+                    at a tick where USA's 300 had expired and Russia's 320 had
+                    not, separating the two constants by inference; that needed
+                    two launches inside one cooldown of each other, which a
+                    deferred escalation makes impossible. The claim is now made
+                    directly and four times -- phases B2, C3, F2 and G3 each read
+                    the applied cooldown as a NUMBER and compare it against that
+                    band's entry, within six ticks against a 20-tick spacing.
 
-  PHASE F (t560)    USA fires 50 kt; Russia reaches level 4 (t625).
+  PHASE F (E+10)    USA fires 50 kt.
+  PHASE F2 (F+40)   The 50 kt entry, read as a number: ~300 of 340, with its 1 kt
+                    and 20 kt on the same clock.
+  PHASE F3          Russia reaches level 4 -- the band whose reply is the ender.
+  (rise 3 + 12)
 
-  PHASE G (t640)    Russia fires 100 kt; USA reaches level 5, END.
+  PHASE G (F3+10)   Russia fires 100 kt.
+  PHASE G3 (G+40)   The 100 kt entry, read as a number: ~320 of 360.
 
-  PHASE G2 (t705)   USA's game-ender is DRAWN and NOT FIREABLE, because USA is
-                    still reloading from its 50 kt. Same rule as phase D through
-                    a DIFFERENT code path: the top rung is armed by
-                    NuclearExchange.ArmableAtTopRung, which overrides the
-                    `powers.event` prerequisite no faction provides, and a fix
-                    there that reached for MakeReady without re-applying the
+  PHASE G2          USA's game-ender is DRAWN and NOT FIREABLE, because USA is
+  (rise 4 + 12)     still reloading from a 50 kt it fired on the tick Russia's
+                    100 kt detonated -- phase D's construction, at the top rung.
+                    Same rule through a DIFFERENT code path: the top rung is
+                    armed by NuclearExchange.ArmableAtTopRung, which overrides
+                    the `powers.event` prerequisite no faction provides, and a
+                    fix there that reached for MakeReady without re-applying the
                     cooldown would open the match-ender early.
 
                     NATIONAL ENDER ONLY: USA sees its B83 and never Russia's
                     Sarmat, and Russia -- which FIRED the 100 kt -- holds no
                     ender at all.
 
-  PHASE H (t970)    The game-ender comes up when the side cooldown ends.
+  PHASE H           The game-ender comes up when the side cooldown ends.
+  (G2 shot + 380)
 
-  PHASE I (t980)    And the order is ACCEPTED. A drawn cameo and a fireable
+  PHASE I (H+10)    And the order is ACCEPTED. A drawn cameo and a fireable
                     weapon are two claims; only the second one reaches
                     DoomsdayStrike.BeginFinalExchange. The ENDING itself is not
                     asserted -- BeginFinalExchange returns immediately without
@@ -77,5 +131,15 @@ decides whether a player sees a clickable cameo.
                     match while this poller is still writing.
                     demo-doomsday-deadhand is where the ending is the subject.
 
+                    A GAME-ENDER ESCALATES IMMEDIATELY and that is not
+                    configurable (NuclearExchange.ReportNuclearRelease): the
+                    match is ending and there is no correlation left to see. So
+                    the shot in phase I is outside everything above and nothing
+                    reads it.
+
+The run is about 2550 ticks (~2.5 min at 1x), against ~1000 before, and the
+difference is entirely flight time: four warheads at 260-610 ticks each.
+
 GREEN means the ladder climbed one step per exchange, the firer never climbed
-itself, and no band was ever fireable inside its side's cooldown.
+itself, no band was ever fireable inside its side's cooldown, and every level
+rise landed AFTER the explosion that caused it and within a few seconds of it.
