@@ -45,8 +45,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SettingsUtils.BindCheckboxPref(panel, "SENDSYSINFO_CHECKBOX", ds, "SendSystemInformation");
 			SettingsUtils.BindCheckboxPref(panel, "CHECK_VERSION_CHECKBOX", ds, "CheckVersion");
 
+			// WW3MOD: the same condition that suppresses the first-launch consent prompt also
+			// applies here -- a mod serving its news from a static file never builds the payload,
+			// so this checkbox would toggle a setting with no consumer. Disabled rather than
+			// hidden, to match how the FetchNews dependency beside it already reads.
+			var sendsClientInfo = Game.ModData.Manifest.Get<WebServices>().GameNewsSendClientInfo;
 			var ssi = panel.Get<CheckboxWidget>("SENDSYSINFO_CHECKBOX");
-			ssi.IsDisabled = () => !gs.FetchNews;
+			ssi.IsDisabled = () => !gs.FetchNews || !sendsClientInfo;
 
 			// Developer
 			SettingsUtils.BindCheckboxPref(panel, "BOTDEBUG_CHECKBOX", ds, "BotDebug");

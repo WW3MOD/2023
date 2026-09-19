@@ -561,7 +561,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						OpenHowToPlayBriefing();
 				}
 
-				if (SystemInfoPromptLogic.ShouldShowPrompt())
+				// WW3MOD: the prompt asks permission to send a payload that only the OpenRA master
+				// server can consume, and MainMenuLogic builds it in exactly one place -- the news
+				// request below. A mod whose news is a static file switches that off, at which
+				// point the dialog is asking about something that is never built, and both answers
+				// do the same nothing. Do not "fix" the dangling
+				// Settings.Debug.SystemInformationVersionPrompt by bumping it here: leaving it
+				// unanswered is what makes the prompt appear at the moment consent starts to mean
+				// something again, if this mod ever sends, or if another mod runs on this engine.
+				if (webServices.GameNewsSendClientInfo && SystemInfoPromptLogic.ShouldShowPrompt())
 				{
 					Ui.OpenWindow("MAINMENU_SYSTEM_INFO_PROMPT", new WidgetArgs
 					{
