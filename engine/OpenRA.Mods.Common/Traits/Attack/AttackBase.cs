@@ -164,6 +164,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Current match DEFCON level, or NoLevel outside the mode.</summary>
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
 
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
 		/// <summary><para>Would EVERY armament that could serve this order be silenced by the DEFCON 3
 		/// cease-fire? Used by the order targeter to refuse the order outright, so the cursor does not
 		/// promise a shot that <see cref="Armament.CanFire"/> will decline every tick.</para>
@@ -175,7 +180,7 @@ namespace OpenRA.Mods.Common.Traits
 		/// pause-refusal note above describes.</para></summary>
 		bool RefusedByDefconCeaseFire(IEnumerable<Armament> armaments)
 		{
-			if (!DefconFireDiscipline.CeasesFire(DefconLevel))
+			if (!DefconFireDiscipline.CeasesFire(DefconMode, DefconLevel))
 				return false;
 
 			// PERF: avoid LINQ .All on a hot cursor path.

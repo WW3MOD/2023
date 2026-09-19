@@ -151,9 +151,14 @@ namespace OpenRA.Mods.Common.Widgets
 		// casualty moves nothing (DefconEscalationState.ReportCasualty returns false for every mode but
 		// Escalation), so a Sandbox match pinned at DEFCON 2 would be promising the player a transition
 		// that cannot happen.
+		//
+		// The qualifier now lives INSIDE HoldsFire (2026-09-19) rather than beside it, so this reads as
+		// one call instead of restating the mode rule next to it. Stating it twice was harmless while
+		// the two agreed and is exactly the shape that drifts: the readout would have been the only
+		// site still correct if the predicate had been fixed and this had not.
 		public static bool ShowsTrigger(DefconGameMode mode, int level)
 		{
-			return mode == DefconGameMode.Escalation && DefconFireDiscipline.HoldsFire(level);
+			return DefconFireDiscipline.HoldsFire(mode, level);
 		}
 
 		/// <summary>The compact label for a rung. Reached through <see cref="LedgerRungLabel"/>.</summary>

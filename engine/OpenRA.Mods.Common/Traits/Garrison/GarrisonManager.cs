@@ -192,6 +192,11 @@ namespace OpenRA.Mods.Common.Traits
 		DefconEscalation defconEscalation;
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
 
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
 		BodyOrientation cachedBodyOrientation;
 		int tickOffset;
 
@@ -1025,7 +1030,7 @@ namespace OpenRA.Mods.Common.Traits
 			// CurrentTarget keeps it while TargetLockTicks runs -- which is the same division of labour
 			// as everywhere else in this feature: the flag stops acquisition, the one-shot at the
 			// transition stops what was already running, and a held target lapses within a scan interval.
-			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+			if (DefconFireDiscipline.HoldsFire(DefconMode, DefconLevel))
 				return Target.Invalid;
 
 			// Determine max range from the deployed soldier or from shelter soldiers
@@ -1374,7 +1379,7 @@ namespace OpenRA.Mods.Common.Traits
 			// already refuses to call this while the hold is on, so this is belt-and-braces -- but it is
 			// cheap, and without it a future second caller would latch ambushTriggered open at DEFCON 2
 			// even though the deploy that follows can find no target.
-			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+			if (DefconFireDiscipline.HoldsFire(DefconMode, DefconLevel))
 				return;
 
 			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
