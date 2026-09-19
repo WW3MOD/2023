@@ -89,6 +89,12 @@ namespace OpenRA.Test
 		// The sysinfo payload MainMenuLogic appends to the news URL is only meaningful to the OpenRA
 		// master server. Sending it to a static file host would put an opted-in player's system
 		// profile in a third party's request logs for no purpose whatsoever.
+		//
+		// This value now carries a SECOND consequence, which is why it is worth pinning rather than
+		// just setting: MainMenuLogic suppresses the first-launch consent prompt when it is false,
+		// and AdvancedSettingsLogic disables the matching checkbox. Flip it back to true without
+		// moving GameNews off the static host and the prompt returns, asking for consent to send a
+		// payload to a CDN that discards it -- which is worse than either end state.
 		[Test]
 		public void StaticNewsHostingDoesNotCarryTheSystemInfoPayload()
 		{
@@ -97,6 +103,17 @@ namespace OpenRA.Test
 			Assert.That(fields.ContainsKey("GameNewsSendClientInfo"), Is.True,
 				"news moved off master.openra.net, so the payload must be explicitly switched off");
 			Assert.That(fields["GameNewsSendClientInfo"].Value, Is.EqualTo("false"));
+		}
+
+		// A hosted news channel nobody has enabled is not delivered. Upstream OpenRA defaults
+		// FetchNews off; this engine ships one product and flips it on, and the flip lives in
+		// engine code an upstream merge could silently revert -- at which point the panel would
+		// vanish with every other gate still green and nothing pointing at the cause.
+		[Test]
+		public void FetchNewsIsOnByDefault()
+		{
+			Assert.That(new GameSettings().FetchNews, Is.True,
+				"MainMenuLogic hides NEWS_BG entirely when this is false, so the whole panel goes with it");
 		}
 
 		// Default-path guard: the engine change must be invisible to any mod that does not opt in,
