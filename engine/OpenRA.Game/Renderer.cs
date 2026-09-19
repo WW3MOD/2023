@@ -590,6 +590,11 @@ namespace OpenRA
 			return Window.SetClipboardText(text);
 		}
 
+		public void OpenUrl(string url)
+		{
+			Window.OpenUrl(url);
+		}
+
 		public string GLVersion => Context.GLVersion;
 
 		public int DisplayCount => Window.DisplayCount;

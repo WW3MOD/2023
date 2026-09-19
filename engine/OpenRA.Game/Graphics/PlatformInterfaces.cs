@@ -68,6 +68,10 @@ namespace OpenRA
 		string GetClipboardText();
 		bool SetClipboardText(string text);
 
+		// WW3MOD: hand a URL to the desktop's browser. The engine had no way to do this outside
+		// OpenRA.WindowsLauncher, so every chrome link had to be text the player retyped.
+		void OpenUrl(string url);
+
 		void GrabWindowMouseFocus();
 		void ReleaseWindowMouseFocus();
 

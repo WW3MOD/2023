@@ -528,9 +528,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			var updateLabel = rootMenu.GetOrNull("UPDATE_NOTICE");
 			if (updateLabel != null)
+			{
 				updateLabel.IsVisible = () => !newsOpen && menuType != MenuType.None &&
 					menuType != MenuType.StartupPrompts &&
 					webServices.ModVersionStatus == ModVersionStatus.Outdated;
+
+				// WW3MOD: the notice was two labels telling the player to go and find the download
+				// themselves. The container's IsVisible above gates the whole subtree, so this
+				// button is unreachable -- not merely undrawn -- whenever the notice is hidden.
+				var downloadButton = updateLabel.GetOrNull<ButtonWidget>("DOWNLOAD_BUTTON");
+				if (downloadButton != null)
+				{
+					var downloadUrl = webServices.LatestVersionDownloadUrl;
+					downloadButton.IsVisible = () => !string.IsNullOrEmpty(downloadUrl);
+					downloadButton.OnClick = () => Game.Renderer.OpenUrl(downloadUrl);
+				}
+			}
 
 			menuType = MenuType.StartupPrompts;
 
@@ -548,7 +561,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 						OpenHowToPlayBriefing();
 				}
 
-				if (SystemInfoPromptLogic.ShouldShowPrompt())
+				// WW3MOD: the prompt asks permission to send a payload that only the OpenRA master
+				// server can consume, and MainMenuLogic builds it in exactly one place -- the news
+				// request below. A mod whose news is a static file switches that off, at which
+				// point the dialog is asking about something that is never built, and both answers
+				// do the same nothing. Do not "fix" the dangling
+				// Settings.Debug.SystemInformationVersionPrompt by bumping it here: leaving it
+				// unanswered is what makes the prompt appear at the moment consent starts to mean
+				// something again, if this mod ever sends, or if another mod runs on this engine.
+				if (webServices.GameNewsSendClientInfo && SystemInfoPromptLogic.ShouldShowPrompt())
 				{
 					Ui.OpenWindow("MAINMENU_SYSTEM_INFO_PROMPT", new WidgetArgs
 					{
@@ -608,8 +629,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 									{ "modversion", modData.Manifest.Metadata.Version }
 								}.ToString();
 
-								// Parameter string is blank if the player has opted out
-								url += SystemInfoPromptLogic.CreateParameterString();
+								// Parameter string is blank if the player has opted out.
+								// WW3MOD: a mod serving news from a static file also opts the whole
+								// payload out -- see WebServices.GameNewsSendClientInfo.
+								if (webServices.GameNewsSendClientInfo)
+									url += SystemInfoPromptLogic.CreateParameterString();
 
 								var response = await client.GetStringAsync(url);
 								await File.WriteAllTextAsync(cacheFile, response);

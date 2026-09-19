@@ -3,6 +3,41 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
+
+`WebServices.GameNews` looks like a pure address: a URL in `mod.yaml`, fetched and cached by
+`MainMenuLogic`. Moving it from `master.openra.net/gamenews` to a static file is a one-line config
+change and every gate stays green. **But the request is assembled 160 lines away from the field**,
+and `MainMenuLogic.LoadAndDisplayNews` appends `SystemInfoPromptLogic.CreateParameterString()` to
+it — the player's OS, GPU, locale and .NET version, gathered behind a first-launch consent dialog.
+So a URL edit silently re-addresses a consent payload to a new third party, and the dialog that
+obtained the consent names the old one. Nothing in the config, the field, or the field's own comment
+says a payload is attached.
+
+**The generalisation, which is not about news:** when you repoint an endpoint, grep for the
+endpoint's *consumers*, not just the field. `grep -n GameNews` finds the declaration and the fetch;
+what mattered was the line after the fetch. The tell that a URL is not merely an address is anything
+that builds a query from it — here `new HttpQueryBuilder(webServices.GameNews)`, three lines above
+the payload append. **A URL that is constructed rather than used is carrying something.**
+
+Handled by adding `WebServices.GameNewsSendClientInfo` (defaults true, so `ra`/`cnc`/`d2k` are
+byte-identical) and setting it false for ww3mod. The consequence — a consent dialog that now asks
+about nothing — is filed in `WORKSPACE/bugs/discovered.md`, because suppressing it is a product call.
+
+**Two smaller facts from the same branch, both cheap to re-derive and both wrong to assume:**
+
+* **The engine has no way to open a web page.** `SDL_OpenURL` exists in-tree but only in
+  `OpenRA.WindowsLauncher`; `OpenRA.Mods.Common` has no reference to SDL2 and `Renderer.Window` is
+  `internal`, so no chrome button anywhere in this codebase opens a link. Anything of the form
+  "add a button that opens X" therefore costs four files, not one:
+  `IPlatformWindow.OpenUrl` -> `Sdl2PlatformWindow` -> a public `Renderer` wrapper -> the caller.
+  The precedent to copy is `GetClipboardText`/`SetClipboardText`, which is plumbed exactly that way.
+* **Hiding a container really does disable its children.** `Widget.HandleMouseInputOuter` tests
+  `IsVisible()` before descending (`Widget.cs:428`), so a button inside a hidden `Container@` is
+  unreachable rather than merely undrawn. Worth knowing before inventing a second visibility flag.
+  The zero `Height:` on such a container is not a problem either: `EventBoundsContains` recurses
+  into children (`:335-337`), so the container's own bounds need not enclose them.
+
 ## 2026-09-16 - The final exchange armed a weapon a second system still held locked, and neither layer was wrong on its own (`wt/escalation-endgame`, base `main @ ab2ac8b8`)
 
 **THE USER PLAYED ESCALATION AS RUSSIA, REACHED THE FINAL EXCHANGE, AND FIRED NOTHING.** Asked what

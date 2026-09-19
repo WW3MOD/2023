@@ -5,6 +5,30 @@
 
 ---
 
+- [2026-09-19] [FIXED in `6a0a0554` on `wt/update-notice`] **The system-info consent prompt asked
+  permission to send data that went nowhere.** `SystemInfoPromptLogic.CreateParameterString()` has
+  exactly one consumer: `MainMenuLogic.LoadAndDisplayNews` appends it to the `WebServices.GameNews`
+  query. On `wt/update-notice` that URL moved to a static file on raw.githubusercontent.com, which
+  cannot consume the payload, so `mods/ww3mod/mod.yaml` sets `GameNewsSendClientInfo: false` and the
+  string is no longer built. Nothing is sent to anybody, which is the safe end state — the
+  alternative was putting an opted-in player's OS, GPU and locale in GitHub's request logs for no
+  purpose. But the first-launch dialog still says "We would like to collect some system details that
+  will help us optimize the OpenRA engine that WW3MOD runs on" and still offers Yes/No, and neither
+  answer now does anything. **The fix is to stop showing the prompt, not to reword it**: it is
+  reached from `MainMenuLogic`'s startup chain via `SystemInfoPromptLogic.ShouldShowPrompt()`, and
+  ww3mod would want that to return false rather than to ask a question with no consequence. The
+  stale-comment trail is recorded at `mods/ww3mod/languages/en.ftl` above
+  `label-mainmenu-system-info-prompt-text-a`, which is where the next person will look.
+  **FIXED 2026-09-19 in `6a0a0554`, by the manager's ruling.** `MainMenuLogic` now gates the prompt
+  on `webServices.GameNewsSendClientInfo`, and `AdvancedSettingsLogic` disables the matching Send
+  System Information checkbox on the same condition — it was the identical dangling control one
+  surface over. Mods that still send are untouched: the field defaults true, so `mods/ra` on this
+  engine gets the dialog exactly as before. **The one thing not to "tidy" later:**
+  `Settings.Debug.SystemInformationVersionPrompt` is deliberately left unbumped when the prompt is
+  skipped, so the dialog reappears if consent ever starts to mean something again. Bumping it would
+  silently spend the consent opportunity, and it is the obvious-looking wrong fix.
+  (found while working on: item [8], hosted news channel)
+
 - [2026-09-15] [FIXED on `wt/garrison-followups`] **`Indestructible` garrison buildings could not be
   reduced to their rubble state at all.** `GarrisonManager` clamped a building to 1 HP with an
   integer-percentage `IDamageModifier` (`maxAllowedDamage * 100 / damage.Value`), which truncates to

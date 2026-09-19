@@ -293,7 +293,14 @@ namespace OpenRA
 
 		public Modifiers ZoomModifier = Modifiers.None;
 
-		public bool FetchNews = false;
+		// WW3MOD: upstream OpenRA defaults this OFF, so the main menu news panel is hidden until
+		// a player finds the checkbox in Settings -> Advanced. That is a sensible default for an
+		// engine shipping four mods against a shared master server; it is the wrong one here,
+		// because this engine ships one product and its news channel is a release announcement
+		// feed nobody would think to go looking for a switch to enable. Flipped deliberately --
+		// if an engine merge ever puts it back to false, FetchNewsIsOnByDefaultTest fails rather
+		// than the news panel quietly disappearing again (WebServicesConfigTest).
+		public bool FetchNews = true;
 
 		[Desc("Version of introduction prompt that the player last viewed.")]
 		public int IntroductionPromptVersion = 0;
