@@ -274,8 +274,13 @@ Player:
 		# visible and the power stays PURCHASABLE. The rule is "no strikes during setup", not "no
 		# shopping during setup"; RequiresCondition would strip it from the buy tab altogether.
 		#
-		# Strict no-op outside Escalation: with no DEFCON level GrantConditionOnDefconLevel grants
-		# nothing, defcon-3 never exists, and Skirmish and Sandbox are untouched.
+		# Strict no-op in SKIRMISH, the default mode: it holds no DEFCON level at all, so
+		# GrantConditionOnDefconLevel grants nothing, defcon-3 never exists, and this line decides
+		# nothing. (This used to say "Skirmish and Sandbox", which was wrong about the second one and
+		# corrected 2026-09-19: Sandbox PINS a level, so a Sandbox match pinned at 3 does grant
+		# defcon-3 and does pause this power -- for the whole match, since nothing there moves the
+		# level. That is the mode behaving as documented rather than a defect, and Sandbox is a
+		# developer opt-in off the lobby dropdown since the same day.)
 		PauseOnCondition: defcon-3
 		# RUSSIA'S CONVENTIONAL RUNG. `powers.russia`, not `player.russia`, and the swap is what
 		# makes the sandbox toggle possible at all -- see THE THREE TIERS below. `player.russia` is
@@ -1508,9 +1513,23 @@ Player:
 	DefconCasualtyObserver:
 	# Grants exactly one of these at a time and REVOKES it when the level moves -- unlike
 	# GrantConditionOnLobbyOption, which grants once in Created and can never take it back.
-	# Nothing consumes these three yet; that is the next piece of the feature, and until it lands
-	# `--check-yaml` will report them as a granted-but-unconsumed WARNING on the Player actor
-	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate).
+	#
+	# `defcon-3` HAS THREE SHIPPED CONSUMERS, all in this file: the PauseOnCondition on
+	# MissileStrikePower@Kinzhal, @Oreshnik and @GBU57 -- "no conventional strike during Positioning".
+	# `defcon-1` and `defcon-2` have NONE as of 2026-09-19, verified with
+	# `grep -rn "defcon-1\|defcon-2\|defcon-3" mods/ tools/`, which returns those three
+	# PauseOnCondition lines and nothing else in either tree.
+	#
+	# THE TWO UNCONSUMED ONES ARE KEPT DELIBERATELY (manager's ruling, 2026-09-19) and are NOT dead
+	# code to re-file as such. They are the modder-facing hook for per-level actor rules: the levels
+	# are a first-class concept the mod already moves, and granting all three uniformly is what makes
+	# keying a rule on any rung a one-line YAML edit rather than an engine change. They cost a
+	# condition token each and nothing else.
+	#
+	# `--check-yaml` reports the two as a granted-but-unconsumed WARNING on the Player actor
+	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate). That
+	# warning is expected and is not a defect to fix by deleting them.
+	#
 	# Key a consumer on any one of them, or on `defcon-1 || defcon-2` for "2 or below".
 	GrantConditionOnDefconLevel:
 		Conditions:
@@ -1538,7 +1557,11 @@ Player:
 	# scenarios under tools/autotest/scenarios fire nuclear powers and every one fires inside the
 	# first three minutes, so a schedule that applied to them would show up as a demo that silently
 	# stops firing rather than as an error. ALL EIGHT set PowersSandboxCheckboxEnabled: true and
-	# Sandbox SUSPENDS the clock, which is why none of them needed an edit. (This read NINE until
+	# THE CHECKBOX suspends the clock, which is why none of them needed an edit. (Read "Sandbox"
+	# here as the "Sandbox: All Support Powers" LOBBY CHECKBOX -- PowersLobbyOptions -- and not as
+	# DefconGameMode.Sandbox, which is an unrelated feature that happens to share the word and has
+	# nothing to do with the unlock clock. Spelled out 2026-09-19 because the two were named alike
+	# and the collision has already misled a reader.) (This read NINE until
 	# 2026-09-15, the ninth being test-tacnuke-lobby-gated-off, which was exempt for a different
 	# reason -- a conventional control with no yield at all. It was deleted with the lobby option it
 	# measured, so the exemption is now uniform.) A NEW scenario that fires a nuke without sandbox
