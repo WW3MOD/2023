@@ -103,7 +103,10 @@ namespace OpenRA.Mods.Common.Traits
 	public class TimeLimitManager : INotifyTimeLimit, ITick, IWorldLoaded
 	{
 		readonly TimeLimitManagerInfo info;
-		readonly int ticksPerSecond;
+
+		// THE MATCH'S CONFIGURED MILLISECONDS PER TICK, not a ticks-per-second rate. See the block
+		// comment in the constructor for why there is no rate here any more.
+		readonly int timestepMilliseconds;
 		LabelWidget countdownLabel;
 		CachedTransform<int, string> countdown;
 		int ticksRemaining;
@@ -115,7 +118,23 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			this.info = info;
 			Notification = info.Notification;
-			ticksPerSecond = 1000 / self.World.Timestep;
+
+			// ==== THE CLOCK IS HONEST AS OF 2026-09-19, AND IT USED TO RUN 4 % FAST ====
+			// This line was `ticksPerSecond = 1000 / self.World.Timestep`, and every duration below
+			// was built by multiplying that. It is INTEGER division: at this mod's 60 ms timestep it
+			// gives 16, not 16.667, so a 90-minute Time Limit was 86400 ticks and expired at 86:24.
+			// The countdown label derives from the same tick count, so NOTHING ON SCREEN DISAGREED --
+			// the clock lied consistently, which is the whole reason this survived.
+			//
+			// There is no ticks-per-second number here now, deliberately: an int cannot hold 16.667,
+			// so any code that materialises one has already lost the 4 % before it multiplies.
+			// TickTime multiplies before dividing instead. Timed matches are now ~4 % LONGER.
+			//
+			// world.Timestep read ONCE in the constructor, the established idiom here
+			// (DefconEscalation.cs:432-437, NuclearUnlockClock.cs:281-284): it is the configured
+			// value at this moment on every client, and the debug speed button and the test-mode
+			// speed multipliers all mutate it later, at IWorldLoaded or after.
+			timestepMilliseconds = self.World.Timestep;
 
 			if (info.TimeLimitTicks > 0)
 			{
@@ -128,8 +147,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (!int.TryParse(tl, out TimeLimit))
 				TimeLimit = info.TimeLimitDefault;
 
-			// Convert from minutes to ticks
-			TimeLimit *= 60 * ticksPerSecond;
+			// Convert from minutes to ticks. Exact: 90 * 60 * 1000 / 60 = 90000 ticks = 90 real
+			// minutes. The old `*= 60 * (1000 / 60)` made that 86400.
+			TimeLimit = TickTime.TicksForMinutes(TimeLimit, timestepMilliseconds);
 		}
 
 		void IWorldLoaded.WorldLoaded(World w, OpenRA.Graphics.WorldRenderer wr)
@@ -179,7 +199,10 @@ namespace OpenRA.Mods.Common.Traits
 
 			foreach (var m in info.TimeLimitWarnings.Keys)
 			{
-				if (ticksRemaining == m * 60 * ticksPerSecond)
+				// MUST convert the same way TimeLimit did, or a warning fires on the old arithmetic
+				// against a deadline set by the new one and lands ~4 % off the minute it announces.
+				// Exact equality is safe only because both sides come from TickTime.TicksForMinutes.
+				if (ticksRemaining == TickTime.TicksForMinutes(m, timestepMilliseconds))
 				{
 					TextNotificationsManager.AddSystemLine(string.Format(Notification, m, m > 1 ? "s" : null));
 

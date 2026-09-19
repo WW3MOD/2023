@@ -41,9 +41,18 @@ World:
 	#
 	# THEY ARE KEPT DISTINCT RATHER THAN SET TO ONE NUMBER, and that is the point of the odd values:
 	# a build that applies the FIRED band's cooldown and a build that applies the firer's own band,
-	# or simply the first entry in the table, are indistinguishable at 300/300/300/300. Phase E
-	# separates them -- Russia's 20 kt shot must still be reloading at a tick where USA's 1 kt shot
-	# has recovered, and that only holds because 320 > 300.
+	# or simply the first entry in the table, are indistinguishable at 300/300/300/300.
+	#
+	# HOW THAT CLAIM IS MADE CHANGED ON 2026-09-19, AND THE 20-TICK SPACING IS WHAT IT NOW RESTS
+	# ON. Phase E used to separate them by inference -- Russia's 20 kt shot still reloading at a
+	# tick where USA's 1 kt shot had recovered, which only holds because 320 > 300 -- and that
+	# needed the two launches to sit inside one cooldown of each other. With the escalation
+	# deferred to the warhead's impact, the second launch waits a whole missile flight for the
+	# level that permits it, and no two launches are ever that close again. So the .lua reads the
+	# applied value as a NUMBER instead: forty ticks after each of the four shots, the firer's band
+	# must carry `<that band's entry> - 40`, within six ticks. That is strictly stronger and needs
+	# no interleaving -- but it does need these four to stay further apart than the tolerance, so
+	# do not narrow the 20-tick spacing without widening COOLDOWN_TOLERANCE in the .lua.
 	NuclearExchange:
 		KilotonCooldownTicks: 300
 		TwentyKilotonCooldownTicks: 320
@@ -56,26 +65,28 @@ World:
 		# verdict, just not the one it claims to measure, with nothing in lint to say so. The YAML
 		# gate cannot adjudicate that, so the hazard is removed rather than tested for.
 		#
-		# ESCALATE AT THE LAUNCH, NOT AT THE DETONATION -- the pre-2026-09-16 timing, restored for
-		# this scenario ALONE. Added 2026-09-16 with the user ruling that moved the level-up onto the
-		# explosion ("we see the correlation between the explosion, and after only a few seconds
-		# perhaps we get the message of escalation"): NuclearExchangeInfo.EscalationDelayTicks 50
-		# defers each escalation to the first warhead's IMPACT plus three seconds.
+		# NO EscalationDelayTicks OVERRIDE, AND THAT ABSENCE IS NOW AN ASSERTION. This scenario
+		# carried `EscalationDelayTicks: -1` from 2026-09-16 to 2026-09-19 -- the escape hatch that
+		# restores the pre-ruling timing, where a victim's level rose on the tick the enemy clicked.
+		# It was set because the .lua's phase schedule was a column of constants that fired and then
+		# read a level 65 ticks later, and the shipped rise lands a whole missile flight after the
+		# click (MissileDelay 200 on the B61 before its arc is even counted, and the arc is the map
+		# diagonal plus ApproachMargin over the missile's Speed -- a number that changes with map
+		# size and that no phase constant could track).
 		#
-		# WHY THIS SCENARIO OPTS OUT. Deferring to the impact drags the whole FLIGHT TIME into the
-		# escalation, and the phase schedule below fires and then asserts on the victim's level
-		# SEVENTY TO EIGHTY ticks later. The shipped B61Low carries MissileDelay: 200 before its arc
-		# is counted at all, and the arc is the map diagonal plus ApproachMargin divided by the
-		# missile's Speed -- a number that changes with map size and that no phase constant here
-		# could track. What this scenario measures is the LADDER and the COOLDOWN, neither of which
-		# the delay touches, so the honest move is to take the new variable back out rather than to
-		# retune every boundary against it.
+		# THE .lua NO LONGER TRACKS IT, IT WATCHES IT. Each launch snapshots
+		# Test.GetImpactEffectCount, waits for the detonation, and hangs its check off the tick the
+		# victim's band was seen to leave `hidden`. So the shipped value applies here and this run
+		# covers the deferral end to end, on all four launches -- which nothing else in the tree did.
 		#
-		# NEGATIVE IS THE DOCUMENTED MEANING, not a value sneaking past a bound: see
-		# NuclearExchangeInfo.EscalationDelayTicks. The DEFERRAL ITSELF is covered by
-		# NuclearExchangeStateTest (ReportLaunchAloneEscalatesNobody,
-		# SixReEntryVehiclesFromOneOrderEscalateOneRung), which needs no world and no flight.
-		EscalationDelayTicks: -1
+		# TWO PHASES NEEDED A VICTIM WHO IS RELOADING WHEN IT IS ESCALATED (D and G2), and a flight
+		# is longer than every cooldown below, so that can no longer happen by itself. It is now
+		# built rather than waited for: the victim fires its own warhead ON THE TICK THE INCOMING
+		# EXPLOSION IS SEEN, so the escalation lands ~50 ticks into a 300- or 340-tick lockout. The
+		# claim each phase makes is unchanged; see the .lua's refireOnImpact.
+		#
+		# DO NOT ADD THE OVERRIDE BACK TO FIX A TIMING FAILURE. Every phase now sits at a known
+		# OFFSET from an observed event; a phase in the wrong place is a wrong offset.
 
 	# Both halves of the arsenal gate. `nuclear-arsenal` is the host's checkbox over all thirteen
 	# warheads; `powers-sandbox` is what provides the `powers.event` prerequisite that no faction

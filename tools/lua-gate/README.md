@@ -223,6 +223,8 @@ that exists for scripting returns clean *precisely because* the scripting was ne
 | 5 | no reachable `Scripts:` names a `.lua` that exists | error | the file's `WorldLoaded` never runs |
 | 6 | a top-level rules key differing from the mod's only by case | error | `MiniYaml.Merge` is ordinal, `MiniYaml.cs:410`, `:550` |
 | 7 | a `test-` scenario reaching no terminal `Test` verdict | warn | no `result.json`; the run dies as a watchdog TIMEOUT-FAIL |
+| 8 | a self-rescheduling driver function nothing ever starts | error | its `WorldLoaded` never names it, so the loop never ticks |
+| 9 | `TestHarness.EnsurePower` with no `Test.ActivateSupportPower` | warn | the power is bought and charged; nothing fires it |
 
 Reachability is the load-bearing word in 3, 5 and 6. A `Scripts:` line inside a `rules.yaml`
 the map never declares does **not** count as declaring anything — which is the bug this gate
@@ -237,7 +239,68 @@ each say in their own header comment that they are manual, hold the window open 
 nothing. They are demos wearing a `test-` prefix. The check cannot tell that from an
 assertion that was lost, so it reports and lets a person decide.
 
-### Verdict names are re-derived, not listed
+### 8 and 9: the rig is wired, and the rig does nothing
+
+*(Added 2026-09-19.)*
+
+Modes 1–6 are about a scenario the engine never READ. These two are about one it read in
+full, loaded, and ran — whose content still never executed. Same end state, opposite cause,
+and the second is harder to see because every visible thing works.
+
+**`demo-nuke-river-zeta` fired nothing on two consecutive runs.** Its purchase loop was a
+textbook `local function step() … Trigger.AfterDelay(1, step) … end`, complete and correct,
+and the copy it was made from had lost the one line at the bottom of `WorldLoaded` that
+starts it. Cameras panned on schedule, five screenshots were taken, the scenario exited
+clean, lua-gate passed. The only symptom was cash sitting at its starting value.
+
+The trap that makes this a check rather than a grep is written into that scenario's own
+source: **the literal string `Trigger.AfterDelay(1, step)` appears twice** — once as the
+kickoff and once, identically indented, as the reschedule inside `step` itself. A person
+grepping for the kickoff finds the reschedule and concludes the loop is wired. *(Writing the
+acceptance test for this check, the author reconstructed the pre-fix file with
+`grep -v` on that line and deleted **both** occurrences, which removed the self-reschedule
+and made the check correctly stay silent. The trap is live and it is not hypothetical.)*
+
+So mode 8 is decided by a real reachability walk over function bodies, not by a spelling:
+
+* roots are file-scope code, plus every function bound to a **global** name — the engine
+  calls `WorldLoaded` and `Tick`, and a global is callable from any other script the map
+  loads, so nothing may declare one dead;
+* a function bound to a **local** name becomes reachable once its name is *read* from
+  somewhere already reachable — a direct call, a callback argument, a table field, a
+  `return` — anything that is not a write to it;
+* an **anonymous closure** is reachable when the code that creates it is reachable. It is a
+  value being handed somewhere at that moment, and assuming it gets called errs toward
+  silence.
+
+It runs to a fixpoint, so a driver started from a function that is itself started from a
+callback is reachable, and a **chain of two orphans** is not. A finding needs the function to
+reschedule *itself* as well as being unreachable: a local that is merely never used is dead
+weight rather than an inert scenario, and is a noisier finding that belongs to a different
+check.
+
+The span scanner underneath returns **`None` rather than a guess** whenever its block
+keywords fail to balance. This feeds a check that reports code as *unreachable*, and a
+scanner that had lost its place would report live code as dead — the one failure a gate must
+not have. Silence is the right answer to "I no longer know where I am".
+
+**Mode 9 is the same silence reached from the other end.** `TestHarness.EnsurePower` buys a
+power and waits for its charge; `Test.ActivateSupportPower` is the only binding that puts it
+on the map. A rig with the first and not the second builds its entire setup — cash, sandbox
+checkbox, proxy actor, charge poll — and then completes having launched nothing, which from
+the outside is indistinguishable from a strike that landed and did no damage.
+
+It is a **warning**, not an error, for one honest shape the check cannot tell from the
+mistake: a test asserting that a power *becomes available* — that the buy tab takes the
+order, or that a cooldown expires — legitimately ensures a power and never fires it. No
+scenario in the tree does that today; the severity is set for the one that eventually will.
+
+Mode 9 is fed the scenario's **own body only**, exactly as check 7 is, and for a sharper
+reason: `EnsurePower` is *defined* in `test-helpers.lua`, which every scenario in the tree
+declares. A version of this check that scanned helper text would fire on all 350 of them.
+That contract is pinned by a selftest case rather than left to this paragraph.
+
+
 
 `Test.Pass`, `Test.Fail`, `Test.Skip` and `Test.ForceDesyncAndCapture` all end the run, and
 all four funnel through `ExitWhenCapturesFlushed` in `TestGlobal.cs`. The gate looks for that
@@ -285,9 +348,32 @@ $ ./tools/lua-gate/lua_gate.py selftest
   ok    ...and the correctly-cased 1TNK.Husk does not fire
   ok    a test- scenario with no reachable verdict is reported
   ok    ...and one reaching Test.Skip does not fire
+  ok    a self-rescheduling driver nothing starts is reported
+  ok    ...and the same driver with its kickoff restored is not
+  ok    a driver started from a Trigger.OnKilled callback is not reported
+  ok    a driver stored in a table field is not reported
+  ok    a driver started indirectly through another function is not reported
+  ok    a forward-declared `local f` / `f = function` driver, kicked off, is not reported
+  ok    ...and the same one with its kickoff removed is reported
+  ok    a chain of two orphans (the starter is itself never called) is reported
+  ok    a scenario that charges a power and never fires it is reported
+  ok    ...and one that fires it is not
+  ok    helper text WOULD fire, so run_check must pass the scenario body only
+  ok    run_check reports an unstarted driver as an ERROR
+  ok    run_check reports a charged-but-unfired power
 
-lua-gate selftest: OK — 49 case(s).
+lua-gate selftest: OK — 72 case(s).
 ```
+
+The four negative driver cases are the ones that earn the check its keep. A guard that
+reports "nothing ever starts this" has to be trusted not to fire on the ways the tree
+actually DOES start one, or the first person it lies to turns it off for everybody. The last
+two run the whole of `run_check` over a synthetic scenario on disk rather than calling the
+analysis directly — a finding that never reaches a `Finding()` is a check nobody will see
+fire, and **that fixture immediately earned itself**: mode 9's finding was being dropped in
+silence by the dedupe, which keys on `(path, line, symbol, severity)` and collided with
+check 7 on the same file at the same line 0. Both are `warn`, both key off the scenario name.
+Fixed by keying mode 9 on `TestHarness.EnsurePower` instead.
 
 ### What this section does NOT check
 
@@ -307,6 +393,21 @@ The list at the top of this README still applies in full. In addition:
 4. **Case collisions below the top level.** Only top-level keys are compared. A mis-cased
    *trait* name fails loudly through `ObjectCreator`, so it is not in this class.
 5. **The mod's own maps**, same as before: `mods/ww3mod/maps/` is not covered.
+6. **Drivers reached through a computed name.** Mode 8 reads `f`, `t.f = f`, `{ f = f }`,
+   `g(f)` and `return f`. It does **not** model `_G["st" .. "ep"]`, a name assembled at
+   runtime, or a dispatch table indexed by a variable — limitation 5 at the top of this
+   README, applied to reachability. All three err toward **silence**: an indirection the
+   walk cannot see is a reference it does not count, which would make a live driver look
+   dead — so anything of that shape is filtered out by the self-reschedule requirement
+   before it can become a false positive. If a scenario ever does dispatch drivers through
+   a table indexed by a computed key, this check goes blind to it rather than wrong about
+   it.
+7. **A driver whose body is in another file.** Locals are file-scoped, so a local driver
+   cannot be started from elsewhere and the question does not arise; a *global* wrapper
+   around one is treated as reachable without asking whether anything calls the wrapper.
+   That is the deliberate root rule above, and it is where a determined orphan could hide.
+8. **Whether the driver does anything once started.** Same limit as (1) in this list: a
+   loop that ticks and asserts nothing passes mode 8 exactly like one that works.
 
 ## Findings on the clean tree
 
@@ -320,6 +421,17 @@ of a *tournament* rules.yaml, which has no scripting section, and the `LuaScript
 never added back. The four actor names the script uses (`NeutralBio`, `NeutralFcom`,
 `NeutralOilb1`, `NeutralOilb2`) were confirmed present in `map.yaml` before wiring it up —
 without that check, enabling the script would have framed nothing and looked identical.
+
+**Modes 8 and 9 find nothing** (2026-09-19, `wt/lua-gate-driver`, base `main @ 64185a89`).
+Scanned: 350 scenario directories, 315 declared scripts, 317 `.lua` files including the
+shared bodies under `mods/ww3mod/scripts`. Zero orphaned drivers, zero charged-but-unfired
+powers, and **zero span-scanner desyncs** — that last number is the one that makes the other
+two mean anything, since a desynced file is skipped in silence. 26 scenarios name
+`EnsurePower` or `ActivateSupportPower`; none has the first without the second.
+
+Both were verified against real code rather than only synthetic fixtures:
+`demo-nuke-river-zeta` with its kickoff line removed (and **only** that line — see above)
+reports `step` as an error at its definition line, and the shipped file reports nothing.
 
 **Four `test-` scenarios reach no verdict** (check 7 above). Three say so in their own
 comments and are demos wearing a `test-` prefix; `test-artillery-turret` calls only

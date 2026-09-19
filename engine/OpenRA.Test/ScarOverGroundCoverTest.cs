@@ -29,17 +29,19 @@
  * "simplification" back to that: "the fields are squares, so if we remove them it wont be perfectly
  * circular."
  *
- * WHAT THIS FIXTURE CANNOT SEE. It pins the rule, not the pixels. Two visual properties are asserted
- * nowhere and were verified by reading only:
- *   - that the field sprite is OPAQUE and covers its cell. If it is not, the terrain-pass copy of the
- *     decal shows through from under it and composites with the over-pass copy, leaving field cells
- *     darker than bare ground. ^CivField draws at RenderSprites.Scale 1.15 specifically to avoid gaps
- *     between neighbours, which is the reason to expect it holds.
- *   - that one 1x1 decal covers the field sprite it is drawn over. Same Scale 1.15 makes the sprite
- *     slightly LARGER than its cell, so a fringe may survive at the edges of a patch.
- * Both need a screenshot. Neither can fail a build.
+ * WHAT THIS FIXTURE CANNOT SEE. It pins the rule, not the pixels.
+ *   - Whether the field sprite is OPAQUE and covers its cell. If it is not, the terrain-pass copy of
+ *     the decal shows through from under it and composites with the over-pass copy, leaving field
+ *     cells darker than bare ground. MEASURED 2026-09-19 and it holds: the v14 frame these rigs use
+ *     is 100.0% opaque over its 24x24, of which 52.4% is bright wheat
+ *     (tools/impact-scar/field_overlay_preview.py decodes it through the engine's own SHP reader).
+ *     Still not asserted here -- nothing in OpenRA.Test can decode a sprite -- but no longer a guess.
+ *   - That one 1x1 decal covers the field sprite it is drawn over. Same RenderSprites.Scale 1.15
+ *     makes the sprite slightly LARGER than its cell, so a fringe may survive at the edges of a
+ *     patch. Still needs a screenshot.
  */
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -157,8 +159,150 @@ namespace OpenRA.Test
 			}
 		}
 
+		// ---- 3. the cell the restriction above could not take -------------------------------------
+		//
+		// The rule in section 1 is exact and it has a cost: a cell holding a field AND a vehicle is
+		// vetoed, so the crop sprite goes on hiding the terrain-pass decal and the cell reads as bright
+		// unburnt wheat inside a black disc. The user's eye found that on 2026-09-19; measured on
+		// test-field-swallows-nuke's witness cell 36,14 it was 51% bright wheat against 31.6% on its
+		// same-band neighbours (tools/impact-scar/scar_density.py).
+		//
+		// `GroundCoverOverlayUnderActors` sends those cells down a different path -- one sorted
+		// renderable each, into the actor pass, at a ZOffset between the field's and the unit's. The
+		// batched pass is untouched and so is its rule, which is why section 1 still passes verbatim.
+
+		[Test]
+		public void ACellSharedByGroundCoverAndAUnitIsClassifiedSeparately()
+		{
+			// THE POINT OF THE THREE-WAY SPLIT. Both of these are "not CoverOnly", which is all the
+			// boolean could say, and they want opposite treatment: the first has a hidden scar to
+			// rescue, the second has nothing under it to rescue.
+			Assert.That(Classify(Field, Unit), Is.EqualTo(SmudgeLayer.GroundCoverOccupancy.Mixed));
+			Assert.That(Classify(Unit), Is.EqualTo(SmudgeLayer.GroundCoverOccupancy.None));
+
+			// Order must not matter, for the same reason it must not in AScarIsNeverDrawnOverAUnit: a
+			// cell's occupant list is an InfluenceNode chain in arrival order.
+			Assert.That(Classify(Unit, Field), Is.EqualTo(SmudgeLayer.GroundCoverOccupancy.Mixed));
+		}
+
+		[Test]
+		public void TheThreeWaySplitAgreesWithTheBooleanItReplaced()
+		{
+			// IsGroundCoverOnly is now Classify narrowed, so this cannot drift -- but it is the
+			// assertion that says section 1's fixture is still testing the shipped rule and not a copy
+			// of it that was left behind.
+			foreach (var occupants in new[]
+			{
+				Array.Empty<bool>(),
+				new[] { Field },
+				new[] { Field, Field },
+				new[] { Unit },
+				new[] { Unit, Unit },
+				new[] { Field, Unit },
+				new[] { Unit, Field }
+			})
+			{
+				var expected = Classify(occupants) == SmudgeLayer.GroundCoverOccupancy.CoverOnly;
+				Assert.That(SmudgeLayer.IsGroundCoverOnly(occupants, o => o), Is.EqualTo(expected),
+					$"[{string.Join(", ", occupants)}]");
+			}
+		}
+
+		[Test]
+		public void TheUnderActorsPassDefaultsToTheBaselineLook()
+		{
+			// Same contract as GroundCoverOverlay, ShoreFadeCells and LeaveSmudgeWarhead.IgnoreActors:
+			// a behavioural field on a trait every mod shares defaults to the pre-feature behaviour.
+			Assert.That(new SmudgeLayerInfo().GroundCoverOverlayUnderActors, Is.False,
+				"GroundCoverOverlayUnderActors now defaults ON, so every smudge layer in every mod " +
+				"silently starts emitting renderables into the actor pass. It must be opted in per layer.");
+		}
+
+		[Test]
+		public void TheOverlayZOffsetSitsBetweenGroundCoverAndUnits()
+		{
+			// THE ACCEPTANCE BAR FOR THIS HALF, and the reason it reads ^CivField rather than restating
+			// -8192 here. The renderable is only above the crop and below the vehicle because its
+			// ZOffset is strictly between theirs; the primary sort key is Y + Z + ZOffset
+			// (WorldRenderer.RenderableZPositionComparisonKey) and nothing else orders them. So the
+			// value is DERIVED from the field's, and a future edit to civilian.yaml that this file did
+			// not know about has to fail here rather than in a screenshot.
+			var fieldZ = CivFieldZOffset();
+			var overlayZ = new SmudgeLayerInfo().GroundCoverOverlayZOffset;
+
+			Assert.That(overlayZ, Is.GreaterThan(fieldZ),
+				$"the overlay renderable ({overlayZ}) no longer sorts ABOVE ^CivField ({fieldZ}), so the " +
+				"crop sprite draws over the scar again and the cell reads as unburnt farmland -- the " +
+				"exact defect this pass exists to remove.");
+
+			Assert.That(overlayZ, Is.LessThan(0),
+				$"the overlay renderable ({overlayZ}) no longer sorts BELOW a unit, whose ZOffset is 0. " +
+				"A scar drawn over a vehicle hull is the one outcome this whole feature is forbidden to " +
+				"produce; see AScarIsNeverDrawnOverAUnit.");
+
+			// Half a cell of margin, not one unit. The field actor's render position is not guaranteed
+			// to be exactly its cell centre, and a one-unit gap would invert on any sub-cell offset.
+			Assert.That(overlayZ - fieldZ, Is.GreaterThanOrEqualTo(512),
+				$"the gap between the overlay ({overlayZ}) and ^CivField ({fieldZ}) is under half a cell. " +
+				"That is within the range a sprite offset can move a renderable's sort position, so the " +
+				"ordering stops being guaranteed and starts being a coincidence.");
+		}
+
+		[Test]
+		public void EveryScarBandOptsIntoTheUnderActorsPass()
+		{
+			var layers = SmudgeLayers("GroundCoverOverlayUnderActors");
+
+			foreach (var type in ScarTypes)
+			{
+				Assert.That(layers.ContainsKey(type), Is.True, $"world.yaml no longer declares a {type} smudge layer");
+				Assert.That(layers[type], Is.EqualTo("true"),
+					$"{type} lost GroundCoverOverlayUnderActors. Every cell of that band holding a vehicle " +
+					"on farmland goes back to showing bright unburnt crop, and nothing reports it.");
+			}
+
+			// The other half of the scope. Opting the stock layers in would put renderables in the actor
+			// pass for every ordinary crater in the mod, which is not what was asked for.
+			foreach (var type in new[] { "Scorch", "Crater" })
+				Assert.That(layers[type], Is.Null,
+					$"the stock {type} layer has been opted in to GroundCoverOverlayUnderActors. Deliberate? " +
+					"Say so in the commit message and move it into the scar list above.");
+		}
+
+		/// <summary>^CivField's WithSpriteBody.ZOffset, read from the mod rather than restated.</summary>
+		static int CivFieldZOffset()
+		{
+			var field = MiniYaml.FromFile(FindRules("ingame", "civilian.yaml"))
+				.FirstOrDefault(n => n.Key == "^CivField");
+
+			Assert.That(field, Is.Not.Null,
+				"^CivField is gone from ingame/civilian.yaml, so the ZOffset this overlay is derived " +
+				"from cannot be read. If crop fields were renamed, point this at the new template.");
+
+			var body = field.Value.Nodes.FirstOrDefault(n => n.Key == "WithSpriteBody");
+			Assert.That(body, Is.Not.Null, "^CivField no longer carries a WithSpriteBody to take a ZOffset from");
+
+			var z = NodeValue(body.Value, "ZOffset");
+			Assert.That(z, Is.Not.Null,
+				"^CivField's WithSpriteBody has lost its ZOffset, so fields now sort at 0 like units. " +
+				"That is a bigger problem than this overlay: read the PITFALL comment that used to be there.");
+
+			return int.Parse(z, System.Globalization.CultureInfo.InvariantCulture);
+		}
+
+		static SmudgeLayer.GroundCoverOccupancy Classify(params bool[] occupants)
+		{
+			return SmudgeLayer.Classify(occupants, o => o);
+		}
+
 		/// <summary>Every SmudgeLayer in world.yaml, as smudge Type -> its GroundCoverOverlay value or null.</summary>
 		static Dictionary<string, string> SmudgeLayers()
+		{
+			return SmudgeLayers("GroundCoverOverlay");
+		}
+
+		/// <summary>Every SmudgeLayer in world.yaml, as smudge Type -> the named key's value or null.</summary>
+		static Dictionary<string, string> SmudgeLayers(string key)
 		{
 			var world = MiniYaml.FromFile(FindRules("world.yaml")).First(n => n.Key == "World");
 			var layers = new Dictionary<string, string>();
@@ -167,7 +311,7 @@ namespace OpenRA.Test
 			{
 				var type = NodeValue(node.Value, "Type");
 				if (type != null)
-					layers[type] = NodeValue(node.Value, "GroundCoverOverlay");
+					layers[type] = NodeValue(node.Value, key);
 			}
 
 			Assert.That(layers.Count, Is.GreaterThan(5),

@@ -7,6 +7,9 @@ Home of the WW3MOD automated-testing and demo harness.
 ```
 tools/autotest/
 ├── run-test.sh        Run one autotest scenario; exits 0/1/2/3 = pass/fail/skip/error
+│                      --map NAME loads a SHIPPED map instead of the scenario's own
+├── run-smoke.sh       World-construction smoke gate (`make.ps1 smoke`). The canary plus
+│                      every shipped map. exit 0 pass / 2 a map broke / 3 NOTHING RAN
 ├── run-batch.sh       Run several, or --all
 ├── run-demo.sh        Same plumbing as run-test, but interactive (no verdict)
 ├── list-tests.sh      Show every test-* scenario + first description.txt line

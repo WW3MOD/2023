@@ -38,6 +38,24 @@
   `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
   Escalation is not the default game mode.
   (found while working on: the whole-match Escalation gameplay review)
+- [2026-09-19] [LOW — not fixed] **The Windows installer ignores a `/D=` install path on the command
+  line.** `packaging/windows/buildpackage.nsi:41` opens `.onInit` with an unconditional
+  `ReadRegStr $INSTDIR HKLM "Software\OpenRAWW3MOD" "InstallDir"`. NSIS applies `/D=` to `$INSTDIR`
+  *before* `.onInit` runs, so that read overwrites whatever the caller asked for — and when the
+  registry value is absent `ReadRegStr` sets `$INSTDIR` to the empty string, which the following
+  `StrCmp` then replaces with the Program Files default. Either way the `/D=` path is discarded.
+  Consequence: `WW3MOD-<tag>-x64.exe /S /D=D:\Games\WW3MOD` silently installs to Program Files, and
+  a scripted or unattended deployment cannot choose its own directory. Inherited from the stock
+  OpenRA mod SDK, not introduced by the installer-safety work.
+  **Deliberately left alone**, and the reason matters: fixing it means honouring a path that no
+  interactive guard ever sees, because **silent mode calls neither `.onVerifyInstDir` nor the
+  directory page's leave callback**. As it stands the value `.onInit` settles on is the registry
+  value or the built-in default, and `:44-49` now validates the registry value, so the silent path
+  cannot reach the Desktop. Honouring `/D=` re-opens that door and has to come with its own
+  validation — `IsUnsafeInstDir` on the post-`/D` value, with a hard abort rather than a greyed
+  button, since there is no dialog to grey. Worth doing if unattended installs are ever wanted;
+  not worth doing blind.
+  (found while working on: installer safety, pipeline items [9] + [10])
 
 - [2026-09-19] [FIXED in `6a0a0554` on `wt/update-notice`] **The system-info consent prompt asked
   permission to send data that went nowhere.** `SystemInfoPromptLogic.CreateParameterString()` has
@@ -5734,9 +5752,44 @@ the civilian building as well as the tower. That is a change to a screenshot, no
   error "is still live at ten other sites"; this may be one of the ten already counted — not
   cross-checked against that list.
   (found while working on: autotest-hygiene item [31], auditing scenario durations)
+  **[2026-09-19, FIXED — and the premise above is WRONG for 42 of the 53 configs.]** "No shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all" is true of the 11 plain `tournament.yaml`
+  files and false of every `-smoke`, `-sanity`, `-quick`, `-eco-5min` and `-combat-12min` variant
+  plus `tournament-arena-composition-2p` and the repo-root
+  `tools/autotest/tournament-combat-12min-combatweighted.yaml`: all 42 set `GameSpeed: fastest`, which
+  `run-tournament.sh:148/302` forwards as `Test.GameSpeed` and `World.cs:217-220` resolves to
+  `Timestep: 40`, where `1000 / 40 = 25` exactly. **`* 25` was CORRECT for those 42 and their
+  durations have never been wrong.** The 11 that run at the 60 ms default were the real casualties
+  and were restated `720 -> 1080` alongside the arithmetic fix, preserving their 18000 ticks.
+  **The census is over the WHOLE REPOSITORY** (`grep -rl TimeLimitSeconds --include=*.yaml`), not over
+  `tools/autotest/scenarios/` — that narrower sweep returns 52 and drops the repo-root file above.
+  This correction was itself first written as "41 of 52" from the scenario-tree sweep; see the
+  DISCOVERIES entry, which is about exactly that. Full write-up: `WORKSPACE/DISCOVERIES.md` 2026-09-19.
 
 ## 2026-09-19 — WATCH, not a confirmed bug: cursor reverting to the plain arrow after the banner fix (moved here from the repo backlog)
 Conditional item, closed in the backlog on 2026-09-19 because it turns on an observation only the user can make ("Dont know, can check later"). **Re-open only if the user reports the cursor STILL reverts to the bare arrow in play after pulling main @ ab2ac8b8 or later** (that main carries the banner EventBounds fix, cf86ea79 — the Escalation banners used to eat the cursor while not drawing). Two VERIFIED mechanisms of UNPROVEN incidence remain; one question separates them: does the bare pointer appear only over own/allied units while Alt is held (candidate 2), or everywhere at once (candidate 4)?
 - **Candidate 2 — the strong one.** `a144e9c9` made `UnitOrderTargeter.CanTarget` return false early (`UnitOrderTargeter.cs:60-61`) whenever `MovementModifierMath.YieldsToMovementOrder(modifiers, relationship)` — Alt held and the target an Ally (self counts as Ally, `Player.cs:250-251`) — so the terrain-only `AttackMoveTargeter` wins on the second pass. But that suppression is unconditional while `AttackMoveTargeter.CanTarget` accepts only with the modifier AND `target.Type == Terrain` AND `IMove` on the actor (`AttackMove.cs:209-212`). An ally with no `IMove` in the selection, or a cell where `OrderFallbackMath.AllowsRetryResult` filters the retry (`UnitOrderGenerator.cs:380`), yields no order and therefore no cursor — `CursorForOrders` drops null cursors (`:303`) and `:220` paints default. Fits the original report (Alt held for attack-move, varies with what is under the pointer). Standing rule already recorded at `WORKSPACE/DISCOVERIES.md` ("any future change that suppresses an order suppresses its cursor too"). Fix shape: add the missing cursor path for the suppressed case + a unit test.
 - **Candidate 4 — narrower, half-fixed.** `ad64a317` fixed a stuck `AttackMoveOrderGenerator` (dropped Alt KeyUp → generator stays installed → `GetCursor` null → bare pointer everywhere) by re-deriving the mode's lifetime per tick from live modifier state — for that generator ONLY. `GuardOrderGenerator.GetCursor` (`:63-66`) still returns null when `subjects` is empty and `ForceModifiersOrderGenerator` (`:37-41`) delegates upward; neither has the per-tick lifetime guard. Fix shape: the same guard as ad64a317.
 - Not applicable: `WORKSPACE/cursor-honesty-audit.md` covers "cursor promises an order the game refuses" — a different problem from "cursor disappears".
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **`make.ps1 smudge-gate` printed "Invalid
+  command" — the function existed and was called, but had no switch entry.** `SmudgeGate-Command`
+  has been part of `Test-Command` since it was written, so the gate ran as part of `.\make.ps1 test`
+  — but the `switch ($execute)` block at the bottom of `make.ps1` listed `nav-guard`/`n` and
+  `lua-gate`/`l` and never `smudge-gate`, so the fast standalone form fell through to
+  `Default { Write-Host "Invalid command" }`. Consequence was not a missing check but a missing
+  *inner loop*: the only way to run a ~1s buildless gate was to run the whole contended YAML target
+  with it. One-line fix, so fixed rather than filed.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the same switch)
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **smudge-gate did not exist on Linux/macOS
+  at all: the Makefile had neither the target nor the dependency.** `make.ps1`'s `Test-Command`
+  calls `NavGuard-Command`, `LuaGate-Command` and `SmudgeGate-Command`; the Makefile's `test` target
+  read `test: all nav-guard lua-gate`. So the two platforms' nominally-equivalent `test` targets
+  differed by a whole gate, and a scar-coverage hole introduced on a Linux box would reach the
+  Windows merge gate to be found there — the same platform-drift shape the file's own `lua-gate`
+  comment records ("make.ps1 never did, so on Windows the gate had never run at all"), with the
+  platforms swapped. Fixed by adding a `smudge-gate` target and putting it in `test`'s prerequisites;
+  verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
+  `clean`), so this cannot newly redden anyone's `make test`.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)

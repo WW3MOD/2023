@@ -60,22 +60,28 @@ namespace OpenRA.Mods.Common.Traits
 		/// Minutes to ticks at a given millisecond timestep. 10 minutes at the mod's 60 ms timestep is
 		/// 10000 ticks, which is the identity to check any change here against.
 		/// </summary>
-		// DELIBERATELY NOT TimeLimitManager's `1000 / world.Timestep` IDIOM, and this is the one place
-		// in this file worth reading twice. That expression is INTEGER DIVISION: at a 60 ms timestep it
-		// yields 16 ticks per second, not 16.67, so `minutes * 60 * 16` makes ten minutes 9600 ticks --
-		// 576 seconds of real time, 4% short, and short by more the longer the interval. Multiplying
+		// DELIBERATELY NOT the `1000 / world.Timestep` IDIOM, and this is the one place in this file
+		// worth reading twice. That expression is INTEGER DIVISION: at a 60 ms timestep it yields 16
+		// ticks per second, not 16.67, so `minutes * 60 * 16` makes ten minutes 9600 ticks -- 576
+		// seconds of real time, 4% short, and short by more the longer the interval. Multiplying
 		// before dividing keeps it exact: 10 * 60 * 1000 / 60 = 10000 ticks = 600.0 s.
 		//
-		// The 4% is invisible in a time limit, which is why it has survived there; it is NOT invisible
-		// here, because this number is what the lobby timeline DRAWS as the band boundary. A bar
-		// claiming 10:00 over a clock that fires at 9:36 is the specific class of lie this whole
-		// branch exists to remove.
+		// The 4% is invisible in a time limit, which is why it survived in TimeLimitManager until
+		// 2026-09-19; it is NOT invisible here, because this number is what the lobby timeline DRAWS
+		// as the band boundary. A bar claiming 10:00 over a clock that fires at 9:36 is the specific
+		// class of lie this whole branch exists to remove.
+		//
+		// THE ARITHMETIC NOW LIVES IN TickTime, which is where TimeLimitManager, TournamentConfig and
+		// the Lua DateTime global all get it from too. This wrapper stays because it carries a
+		// SECOND contract the general helper does not: a non-positive minute count means "no clock"
+		// here, so it must floor at 0 rather than produce a negative interval that RungAt would then
+		// divide by. Keep that guard if you ever inline this.
 		public static int TicksForMinutes(int minutes, int timestepMilliseconds)
 		{
 			if (minutes <= 0 || timestepMilliseconds <= 0)
 				return 0;
 
-			return minutes * 60 * 1000 / timestepMilliseconds;
+			return TickTime.TicksForMinutes(minutes, timestepMilliseconds);
 		}
 
 		/// <summary>

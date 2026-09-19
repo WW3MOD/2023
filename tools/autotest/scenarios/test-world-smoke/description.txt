@@ -1,0 +1,1 @@
+Auto: a World must construct, reach WorldLoaded and tick 30 times without throwing.

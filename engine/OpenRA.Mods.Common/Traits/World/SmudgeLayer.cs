@@ -86,6 +86,61 @@ namespace OpenRA.Mods.Common.Traits
 			"Defaults to false, so every layer that does not opt in draws exactly as it did before.")]
 		public readonly bool GroundCoverOverlay = false;
 
+		[Desc("Extend `GroundCoverOverlay` to cells that hold ground cover AND something else -- a tank",
+			"parked on a crop field, or the husk of one.",
+			"WHY THIS IS A SEPARATE PASS AND NOT A RELAXED RULE. `GroundCoverOverlay` draws a whole",
+			"TerrainSpriteLayer after every actor, with no depth of any kind, so the only safe cells for it",
+			"are the ones where nothing but ground cover is standing. Widening its rule would paint scar",
+			"pixels across the tank. This instead emits ONE SORTED RENDERABLE per such cell into the actor",
+			"pass itself, at `GroundCoverOverlayZOffset` -- above the field, below the unit -- so the scar",
+			"lands between them and the absolute rule still holds.",
+			"Without this a cell holding a vehicle shows bright unburnt crop: the terrain-pass copy of the",
+			"decal is under the field sprite, and the cell is excluded from the over-actors pass by the",
+			"unit, so nothing redraws it. Measured on `test-field-swallows-nuke` at 2026-09-19, cell 36,14",
+			"read 51% bright wheat against 31.6% on its same-band neighbours.",
+			"Defaults to false. Has no effect unless `GroundCoverOverlay` is also set.")]
+		public readonly bool GroundCoverOverlayUnderActors = false;
+
+		[Desc("ZOffset of the renderables `GroundCoverOverlayUnderActors` emits. Must sit ABOVE the ground",
+			"cover's own ZOffset and BELOW a unit's.",
+			"THE DEFAULT IS DERIVED, NOT CHOSEN. `^CivField` carries `WithSpriteBody.ZOffset: -8192` and",
+			"units carry 0, so anything strictly between the two lands between them on the cell. -7680 is",
+			"the field's value plus half a cell: enough margin that a ground-cover sprite whose render",
+			"position is not exactly its cell centre cannot invert the order, and still 7.5 cells of",
+			"headroom below units.",
+			"WHAT THAT HEADROOM BUYS, since the primary sort key is Y + Z + ZOffset and a push-down is",
+			"therefore a distance rather than a layer: this decal draws over a unit only if that unit is 8+",
+			"cells NORTH of it, where the field sprite it is drawn on top of is already doing the same from",
+			"9. So it can only ever overlap a unit the field overlaps first, and ^CivField's own PITFALL",
+			"note puts realistic sprite overlap at 1-2 cells. Do not raise this towards 0 without redoing",
+			"that arithmetic.")]
+		public readonly int GroundCoverOverlayZOffset = -7680;
+
+		[Desc("Sparser cuts of this layer's own art, drawn instead of `Sequence` on cells the shore fade",
+			"has marked as close to terrain that refuses this smudge. SPARSEST FIRST.",
+			"WHY SPARSER ART AND NOT LOWER ALPHA, given `ShoreFadeCells` already exists. A smudge is one",
+			"flat alpha over a whole cell, so at a boundary the CELL is the visible unit and a dimmer copy",
+			"of the same stipple is still a cell-shaped tone step with square, axis-aligned edges -- which",
+			"is the artefact reported at River Zeta's shoreline, bright sand hard against dark. Alpha",
+			"cannot reach below the cell; coverage can. And with `ShoreFadeMinAlpha` at 0.7 the whole ramp",
+			"only spans alpha 0.8 to 1.0, so there was very little dimming to see in the first place.",
+			"The fade is NOT replaced: a boundary cell gets the sparser sprite AND the ramped alpha, so",
+			"`ShoreFadeMinAlpha`'s semantics are exactly what they were.",
+			"Each group must hold the same number of variants as `Sequence`, because a cell keeps its",
+			"variant's ORDINAL when it switches tier -- the generated cuts are nested subsets of the same",
+			"noise field, so the pattern thins rather than reshuffling.",
+			"Empty (the default) disables edge selection entirely.")]
+		public readonly string[] EdgeSequences = Array.Empty<string>();
+
+		[Desc("One ShoreAlpha threshold per entry in `EdgeSequences`, ASCENDING. A cell uses the FIRST",
+			"tier whose threshold its shore alpha does not exceed, and `Sequence` if it exceeds them all.",
+			"With `ShoreFadeCells: 2` and `ShoreFadeMinAlpha: 0.7` the reachable alphas are 0.800 (a cell",
+			"edge-on to the boundary), 0.841 (diagonal), 0.900 (two cells), 0.924, 0.983 and 1.0, so",
+			"0.81, 0.91 puts the sparsest tier on the waterline cell, the middle tier on the diagonal and",
+			"two-cell ring, and full strength from three cells in.",
+			"Inert when `ShoreFadeCells` is 0: the alpha is then always 1.")]
+		public readonly float[] EdgeAlphaThresholds = Array.Empty<float>();
+
 		[FieldLoader.LoadUsing(nameof(LoadInitialSmudges))]
 		public readonly Dictionary<CPos, MapSmudge> InitialSmudges;
 
@@ -115,8 +170,26 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new SmudgeLayer(init.Self, this); }
 	}
 
-	public class SmudgeLayer : IRenderOverlay, IRenderAboveWorld, IWorldLoaded, ITickRender, INotifyActorDisposing
+	public class SmudgeLayer : IRenderOverlay, IRenderAboveWorld, IRender, IWorldLoaded, ITickRender, INotifyActorDisposing
 	{
+		/// <summary>What a cell's occupants are, as far as drawing a decal over them is concerned.</summary>
+		public enum GroundCoverOccupancy
+		{
+			/// <summary>No ground cover in the cell: an empty cell, or one holding only real occupants.
+			/// Either way there is nothing for a decal to be drawn ON TOP OF that the terrain pass has not
+			/// already handled, so neither over-actors path touches it.</summary>
+			None,
+
+			/// <summary>At least one occupant, and every occupant is ground cover. The batched
+			/// over-actors layer redraws these -- nothing in the cell can be covered up by mistake.</summary>
+			CoverOnly,
+
+			/// <summary>Ground cover AND at least one occupant that is not. The field hides the
+			/// terrain-pass decal and the unit forbids the batched redraw, so this is the case that needs
+			/// a sorted renderable slotted between the two.</summary>
+			Mixed
+		}
+
 		struct Smudge
 		{
 			public string Type;
@@ -131,6 +204,23 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<CPos, float> shoreAlpha = new();
 		readonly World world;
 		readonly bool hasSmoke;
+
+		// ---- edge tiers, Info.EdgeSequences -------------------------------------------------------
+		// [tier][variant ordinal] -> the sparser cut of that variant, sparsest tier first.
+		//
+		// INDEXED BY ORDINAL, NOT BY NAME, and that is what makes a tier switch look like thinning
+		// rather than reshuffling: the generated cuts are nested subsets of one noise field per
+		// (band, variant, depth), so variant 3's 25% cut is literally a subset of variant 3's pixels.
+		// Both lists are sorted ordinally, and the counts are required to match at load, so ordinal N
+		// means the same variant in every tier.
+		//
+		// Null when the layer names no edge sequences, which is every layer that has not opted in.
+		readonly ISpriteSequence[][] edgeVariants;
+
+		// Base variant name -> its ordinal. Built from a SORTED copy of `smudges` keys and used for
+		// nothing else: AddSmudge still picks from `smudges` exactly as it did, so which variant a
+		// cell gets is unchanged.
+		readonly Dictionary<string, int> variantOrdinal = new();
 
 		TerrainSpriteLayer render;
 		PaletteReference paletteReference;
@@ -153,6 +243,23 @@ namespace OpenRA.Mods.Common.Traits
 		Sprite overlayEmptySprite;
 		BlendMode overlayBlendMode;
 
+		// ---- the sorted-renderable pass, Info.GroundCoverOverlayUnderActors ---------------------
+		// The cells the batched pass above CANNOT take: ground cover sharing its cell with a real
+		// occupant. There the field sprite hides the terrain-pass decal and the occupant vetoes the
+		// batched redraw, so the cell shows bright unburnt crop -- the artefact the user's eye found on
+		// 2026-09-19. These few cells are emitted as ordinary renderables into the ACTOR pass instead,
+		// where a ZOffset is meaningful and the scar can land above the field and below the unit.
+		//
+		// This is the exact inverse of the decoy 6e9484fd called out, and it is not a contradiction of
+		// it: that commit established that a ZOffset cannot reorder a TERRAIN-PASS decal against an
+		// actor, because the two are different passes. It can order two things INSIDE the actor pass,
+		// which is what this puts the decal into.
+		//
+		// Kept as a set rather than recomputed per frame: membership only changes when a smudge is
+		// drawn or when ActorMap.CellUpdated fires on a cell that has one, and both already route
+		// through `dirty`.
+		readonly HashSet<CPos> sharedCells = new();
+
 		// PERF: cached so the per-cell classification below does not allocate a delegate per call.
 		static readonly Func<Actor, bool> ActorIsGroundCover = a => a.IsGroundCover();
 
@@ -166,11 +273,55 @@ namespace OpenRA.Mods.Common.Traits
 			var types = sequences.Sequences(Info.Sequence);
 			foreach (var t in types)
 				smudges.Add(t, sequences.GetSequence(Info.Sequence, t));
+
+			var ordered = smudges.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+			for (var i = 0; i < ordered.Length; i++)
+				variantOrdinal[ordered[i]] = i;
+
+			if (Info.EdgeSequences.Length == 0)
+				return;
+
+			// Thrown rather than clamped. A tier list one entry longer than its threshold list is a
+			// half-finished edit, and silently ignoring the extra tier would ship a boundary that is one
+			// step coarser than the author believes it is -- which is invisible outside a screenshot.
+			if (Info.EdgeAlphaThresholds.Length != Info.EdgeSequences.Length)
+				throw new YamlException($"SmudgeLayer {Info.Type}: EdgeSequences has {Info.EdgeSequences.Length} " +
+					$"entries and EdgeAlphaThresholds has {Info.EdgeAlphaThresholds.Length}. They are read in " +
+					"lockstep and must be the same length.");
+
+			for (var i = 1; i < Info.EdgeAlphaThresholds.Length; i++)
+				if (Info.EdgeAlphaThresholds[i] <= Info.EdgeAlphaThresholds[i - 1])
+					throw new YamlException($"SmudgeLayer {Info.Type}: EdgeAlphaThresholds must ascend, and " +
+						$"{Info.EdgeAlphaThresholds[i]} does not follow {Info.EdgeAlphaThresholds[i - 1]}. The " +
+						"first tier whose threshold a cell's alpha does not exceed wins, so out-of-order " +
+						"entries make later tiers unreachable rather than wrong.");
+
+			edgeVariants = new ISpriteSequence[Info.EdgeSequences.Length][];
+			for (var i = 0; i < Info.EdgeSequences.Length; i++)
+			{
+				var group = Info.EdgeSequences[i];
+				var names = sequences.Sequences(group).OrderBy(k => k, StringComparer.Ordinal).ToArray();
+				if (names.Length != ordered.Length)
+					throw new YamlException($"SmudgeLayer {Info.Type}: edge sequence '{group}' holds " +
+						$"{names.Length} variants but '{Info.Sequence}' holds {ordered.Length}. A cell keeps " +
+						"its variant's ordinal when it switches tier, so the two must line up.");
+
+				edgeVariants[i] = names.Select(n => sequences.GetSequence(group, n)).ToArray();
+			}
 		}
 
 		public void WorldLoaded(World w, WorldRenderer wr)
 		{
 			var sprites = smudges.Values.SelectMany(v => Exts.MakeArray(v.Length, x => v.GetSprite(x))).ToList();
+
+			// The edge cuts go through the SAME TerrainSpriteLayer as the art they replace, so they are
+			// bound by the same one-blend-mode rule and belong in this check. Left out, a mismatched edge
+			// sprite would not throw here -- it would be drawn through the layer's blend mode and come
+			// out wrong at the shoreline only, which is the least-looked-at place on the map.
+			if (edgeVariants != null)
+				foreach (var tier in edgeVariants)
+					sprites.AddRange(tier.SelectMany(v => Exts.MakeArray(v.Length, x => v.GetSprite(x))));
+
 			var sheet = sprites[0].Sheet;
 			var blendMode = sprites[0].BlendMode;
 			var emptySprite = new Sprite(sheet, Rectangle.Empty, TextureChannel.Alpha);
@@ -265,12 +416,52 @@ namespace OpenRA.Mods.Common.Traits
 		/// the layer made before.</para></summary>
 		void Draw(CPos cell, Smudge smudge)
 		{
-			var seq = smudge.Sequence;
-			var alpha = seq.GetAlpha(smudge.Depth) * ShoreAlpha(cell);
-			render.Update(cell, seq.GetSprite(smudge.Depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
+			var (seq, depth, alpha) = Resolve(cell, smudge);
+			render.Update(cell, seq.GetSprite(depth), paletteReference, seq.Scale, alpha, seq.IgnoreWorldTint);
 
 			if (Info.GroundCoverOverlay)
-				DrawOverGroundCover(cell, seq, smudge.Depth, alpha);
+				DrawOverGroundCover(cell, seq, depth, alpha);
+		}
+
+		/// <summary>Which sprite this cell actually draws, at which depth, at which alpha.
+		///
+		/// <para>THE ONE PLACE ANY OF THAT IS DECIDED. Three call sites draw the same cell -- the terrain
+		/// layer, the over-actors layer and the sorted renderables -- and they are the SAME decal drawn
+		/// more than once rather than three decals. Two of them computing an edge tier and one not would
+		/// show up as a field cell at the waterline being denser than the bare cell beside it, which is
+		/// the kind of difference nobody attributes to a missing function call.</para>
+		///
+		/// <para>The shore fade is not replaced by the edge tier, it is kept: a boundary cell gets the
+		/// sparser sprite AND the ramped alpha, so <see cref="SmudgeLayerInfo.ShoreFadeMinAlpha"/> still
+		/// means what it meant. Depth is clamped because a cut is only guaranteed to line up with its
+		/// band by VARIANT, not by frame count.</para></summary>
+		(ISpriteSequence Sequence, int Depth, float Alpha) Resolve(CPos cell, Smudge smudge)
+		{
+			var shore = ShoreAlpha(cell);
+			var seq = EdgeSequenceFor(smudge.Type, shore) ?? smudge.Sequence;
+			var depth = Math.Min(smudge.Depth, seq.Length - 1);
+			return (seq, depth, seq.GetAlpha(depth) * shore);
+		}
+
+		/// <summary>The sparser cut this cell's shore alpha selects, or null for the band's own art.
+		///
+		/// <para>Sparsest tier first and thresholds ascending, so the FIRST tier a cell does not exceed
+		/// wins: the cell hard against the water gets the thinnest art and the ring behind it the middle
+		/// one. Driven by the shore alpha alone, deliberately -- that value already answers exactly "how
+		/// close is this cell to ground this layer cannot draw on", which is the boundary the artefact is
+		/// at. Counting scarred neighbours would not work here and would be worse than nothing: the five
+		/// bands are ANNULI in five separate layers, so every band's outer ring has no neighbour in its
+		/// own layer and the whole disc would be classified as edge.</para></summary>
+		ISpriteSequence EdgeSequenceFor(string type, float shore)
+		{
+			if (edgeVariants == null || !variantOrdinal.TryGetValue(type, out var ordinal))
+				return null;
+
+			for (var i = 0; i < edgeVariants.Length; i++)
+				if (shore <= Info.EdgeAlphaThresholds[i])
+					return edgeVariants[i][ordinal];
+
+			return null;
 		}
 
 		// Writes this cell into the over-actors layer, or clears it out of it. Same sprite, same depth,
@@ -284,7 +475,20 @@ namespace OpenRA.Mods.Common.Traits
 		// opaque and covering its cell; see the note in the test fixture.
 		void DrawOverGroundCover(CPos cell, ISpriteSequence seq, int depth, float alpha)
 		{
-			var over = IsGroundCoverOnly(world.ActorMap.GetActorsAt(cell), ActorIsGroundCover);
+			var occupancy = Classify(world.ActorMap.GetActorsAt(cell), ActorIsGroundCover);
+
+			// The sorted-renderable half. Membership is maintained here rather than in Render so the
+			// per-frame cost is a set walk and not a per-cell ActorMap query; the set is empty on every
+			// map where nothing has ever parked on scarred ground cover, which is the normal case.
+			if (Info.GroundCoverOverlayUnderActors)
+			{
+				if (occupancy == GroundCoverOccupancy.Mixed)
+					sharedCells.Add(cell);
+				else
+					sharedCells.Remove(cell);
+			}
+
+			var over = occupancy == GroundCoverOccupancy.CoverOnly;
 
 			if (overlayRender == null)
 			{
@@ -313,16 +517,40 @@ namespace OpenRA.Mods.Common.Traits
 		// occupant is ground cover" is the whole rule.
 		public static bool IsGroundCoverOnly<T>(IEnumerable<T> occupants, Func<T, bool> isGroundCover)
 		{
-			var any = false;
+			return Classify(occupants, isGroundCover) == GroundCoverOccupancy.CoverOnly;
+		}
+
+		/// <summary>The three-way version: which of the two over-actors paths, if either, this cell wants.
+		///
+		/// <para>Split out of <see cref="IsGroundCoverOnly"/> rather than bolted beside it because the two
+		/// answers are not independent -- a cell is CoverOnly or Mixed or neither, and computing them
+		/// separately is two ActorMap walks that can disagree. `IsGroundCoverOnly` is now this, narrowed;
+		/// its contract is unchanged and its fixture passes verbatim.</para>
+		///
+		/// <para>EMPTY IS None, and a cell of nothing but units is None TOO, both deliberately. An empty
+		/// cell was already drawn by the terrain pass, and drawing it again composites the sprite onto
+		/// itself. A cell holding only a tank was drawn by the terrain pass as well, and the tank is
+		/// SUPPOSED to cover part of it -- there is no hidden ground cover under there to compensate
+		/// for.</para></summary>
+		public static GroundCoverOccupancy Classify<T>(IEnumerable<T> occupants, Func<T, bool> isGroundCover)
+		{
+			var cover = false;
+			var other = false;
 			foreach (var occupant in occupants)
 			{
-				if (!isGroundCover(occupant))
-					return false;
+				if (isGroundCover(occupant))
+					cover = true;
+				else
+					other = true;
 
-				any = true;
+				if (cover && other)
+					return GroundCoverOccupancy.Mixed;
 			}
 
-			return any;
+			if (!cover)
+				return GroundCoverOccupancy.None;
+
+			return GroundCoverOccupancy.CoverOnly;
 		}
 
 		// An actor entered or left this cell, so its classification may have changed -- a tank driving
@@ -445,6 +673,7 @@ namespace OpenRA.Mods.Common.Traits
 						tiles.Remove(kv.Key);
 						render.Clear(kv.Key);
 						overlayRender?.Clear(kv.Key);
+						sharedCells.Remove(kv.Key);
 					}
 					else
 					{
@@ -478,6 +707,66 @@ namespace OpenRA.Mods.Common.Traits
 		void IRenderAboveWorld.RenderAboveWorld(Actor self, WorldRenderer wr)
 		{
 			overlayRender?.Draw(wr.Viewport);
+		}
+
+		// The sorted half, for cells the batched layer above must skip. Reached through
+		// WorldRenderer.GenerateRenderables' `World.WorldActor.Render(this)` (:164), so these land in the
+		// same buffer as every actor sprite and are sorted against them by Y + Z + ZOffset.
+		//
+		// Empty on every map where nothing has parked on scarred ground cover, which is the normal case:
+		// one count check per layer per frame there, and no allocation.
+		IEnumerable<IRenderable> IRender.Render(Actor self, WorldRenderer wr)
+		{
+			if (sharedCells.Count == 0)
+				return SpriteRenderable.None;
+
+			return SharedCellRenderables(wr);
+		}
+
+		// Nothing partitions the world actor into the ScreenMap, so this is never consulted; the world
+		// actor is rendered unconditionally. Empty rather than the decals' own bounds, deliberately --
+		// returning bounds here would offer them for mouse picking, and a scar is not an interactable.
+		IEnumerable<Rectangle> IRender.ScreenBounds(Actor self, WorldRenderer wr)
+		{
+			return Array.Empty<Rectangle>();
+		}
+
+		IEnumerable<IRenderable> SharedCellRenderables(WorldRenderer wr)
+		{
+			var map = world.Map;
+
+			// Cull to the viewport before building anything. The candidate region over-includes by
+			// design (it cannot know which cells project into view without checking heights), which is
+			// exactly what a cheap pre-filter wants: it never drops a visible cell.
+			var region = wr.Viewport.AllVisibleCells.CandidateMapCoords;
+			var renderables = new List<IRenderable>();
+
+			foreach (var cell in sharedCells)
+			{
+				var uv = cell.ToMPos(map);
+				if (uv.U < region.TopLeft.U || uv.U > region.BottomRight.U ||
+					uv.V < region.TopLeft.V || uv.V > region.BottomRight.V)
+					continue;
+
+				// A cell can sit in the set for one tick after its smudge is removed, since removal is
+				// committed by TickRender and the fog gate can hold that back.
+				if (!tiles.TryGetValue(cell, out var smudge) || smudge.Sequence == null)
+					continue;
+
+				var (seq, depth, alpha) = Resolve(cell, smudge);
+
+				// The same world position TerrainSpriteLayer.Update computes for this cell
+				// (TerrainSpriteLayer.cs:102), ramp offset included, so the decal lands on the same
+				// pixels as the copies of it in the two batched layers. A cell whose over-drawn sprite
+				// were a pixel out from its neighbours' would be a new artefact, not a fix.
+				var pos = map.CenterOfCell(cell) - new WVec(0, 0, map.Grid.Ramps[map.Ramp[cell]].CenterHeightOffset);
+
+				renderables.Add(new SpriteRenderable(seq.GetSprite(depth), pos, WVec.Zero,
+					Info.GroundCoverOverlayZOffset, paletteReference, seq.Scale, alpha, float3.Ones,
+					seq.IgnoreWorldTint ? TintModifiers.IgnoreWorldTint : TintModifiers.None, false));
+			}
+
+			return renderables;
 		}
 
 		void INotifyActorDisposing.Disposing(Actor self)

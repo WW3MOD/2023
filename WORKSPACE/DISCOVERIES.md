@@ -102,6 +102,103 @@ one side in a scenario can carry starting units**, and a scenario that wants bot
 have them. A `Bot:` on a map player does not help: that player is still `Playable: False`. This is also
 why every existing scenario carries `-SpawnStartingUnits:` — without it the harness's own Observer
 slot, being `Playable`, is handed a `supplyroute` from `StartingUnits@none`.
+## 2026-09-19 - A support power's `charging:` clock starts when its BAND CONDITION arrives, which is what lets an event-driven scenario read a grant tightly (`wt/escalation-optouts`, base `main @ c3825714`)
+
+Three Escalation scenarios opted out of the shipped impact-deferred level-up
+(`EscalationDelayTicks: -1`) because their phase schedules fired and then read the victim's level
+70-80 ticks later, and the shipped rise now lands a whole missile flight downstream of the click.
+Converting them to wait for the explosion (a delta on `Test.GetImpactEffectCount`) and then for the
+victim's band to leave `hidden` raised an obvious-looking objection that turns out to be wrong, and
+the reason is worth carrying.
+
+**THE OBJECTION.** `SupportPowerInstance`'s constructor sets `TotalTicks` to the band's Escalation
+cooldown and `remainingSubTicks` to `TotalTicks * 100` (`SupportPowerManager.cs:377`, `:384`). So a
+band that was never armed by `MakeBandsReady` appears to start counting its own interval **at match
+start** - and a check hundreds of ticks later would find it at zero, read `ready`, and pass over a
+completely broken grant path. That is the vacuity trap the 2026-09-15 review found in
+`test-nuclear-ender-level` and retimed its checks to avoid. Deferring the escalation pushes every
+check far past any compressed cooldown, so the trap looked unavoidable.
+
+**IT IS NOT, BECAUSE THE COUNTDOWN DOES NOT RUN WHILE THE POWER IS DISABLED.**
+`SupportPowerInstance.Tick` pins `remainingSubTicks` back to `TotalTicks * 100` on every tick where
+`instancesEnabled` is false, and returns early when `!Active` (`SupportPowerManager.cs:399-405`).
+`instancesEnabled` is false until the band condition granted by a **Player-actor** trait reaches the
+power. So an ungranted band's own interval starts **at the rise**, not at match start, and the
+non-vacuity bound is a gap measured from the rise - exactly what the existing comments assert.
+
+**AND THE LOWER BOUND MOVES WITH THE ANCHOR, WHICH IS THE USEFUL HALF.** Those scenarios had to
+leave more than `NuclearExchangeInfo.GrantRetryTicks` (30) between the rise and the check, because
+the anchor was the rise itself and the condition had not crossed from the World actor to the Player
+actor yet. An event-driven scenario anchors on the tick the band was **seen** to leave `hidden`,
+which IS that crossing - so all that remains is one `ServicePendingReady` pass, and a gap of ~12
+ticks is both safe and much tighter than 40 against a 60-tick cooldown. The check got stronger by
+being retimed, not weaker.
+
+**WHAT THIS MAKES POSSIBLE.** A scenario can assert "the level rose AFTER the explosion and within
+`EscalationDelayTicks` of it" without knowing any flight time, and still keep the grant-path
+assertions that the old fixed schedules bought with hand-chosen constants. `Test.GetImpactEffectCount`
+is the instrument: it counts `CreateEffectWarhead` impacts past the validity gates
+(`CreateEffectWarhead.cs:150`), every nuclear weapon carries exactly one such warhead
+(`Warhead@Fireball`), and it cannot say WHICH warhead moved it - so a scenario that fires an
+unwatched shot must wait for it to land before the next watch takes a baseline.
+
+## 2026-09-19 - The per-order escalation dedup cannot be covered by any in-world scenario on today's arsenal (`wt/escalation-optouts`, base `main @ c3825714`)
+
+`NuclearExchange.NotifyNuclearImpact` is called once per WARHEAD and must not escalate a second
+time - an RS-28 Sarmat flies six independently-aimed re-entry vehicles off one click. The record is
+made once by `ReportNuclearRelease` and the six impact reports only refine its tick (earliest wins).
+`NuclearExchangeStateTest.SixReEntryVehiclesFromOneOrderEscalateOneRung` pins it World-free. Asked
+whether a scenario could also pin it end to end, the answer is **no, and not for cost reasons**:
+
+* The only multi-warhead NUCLEAR power in the mod is the Sarmat (`AimPoints: 6`,
+  `nuclear-arsenal.yaml:267`), and it is a **GameEnder**. A game-ender escalates IMMEDIATELY and
+  that is deliberately not configurable (`NuclearExchange.ReportNuclearRelease`): the match is
+  ending, `OpenFinalExchange` takes every side to the top rung anyway, and `pendingEscalations` is
+  cleared. So the Sarmat never takes the deferred path at all.
+* The other `AimPoints: 6` power is the RS-26 Oreshnik (`player.yaml:422`), which is
+  **conventional**. `NotifyNuclearImpact` returns early on `NuclearYieldTons <= 0`, so it is not an
+  escalation at all.
+* Repeating `ApplyEscalation` for the SAME band is idempotent - the victim's level is
+  `max(level, band + 1)` - so even a scenario that gave a sub-ender power `AimPoints: 6` through a
+  rules override could not observe a double-escalation as a LEVEL. The observable claim it could
+  make is narrower: that the rise follows the **first** RV's impact rather than the last.
+
+Recorded so the next person does not spend the slot finding this out. If the mod ever ships a
+multi-RV warhead below the top rung, that scenario becomes worth writing.
+## 2026-09-19 - Four traps found while fixing the scar renderers (`wt/scar-render`, base `main @ c3825714`)
+
+Small, load-bearing, and each one cost real time.
+
+**1. An autotest screenshot is 60 px per cell, not 48.** `Camera.Zoom = 2` and a 24 px cell says 48,
+and every number you measure off the frame will be wrong in a way that still looks plausible — you
+land on a neighbouring cell and read a neighbour's value. Windows on this machine runs at **125%
+display scaling**, so the real figure is `24 * zoom * 1.25`. Verified against
+`260919_173731_p8130_test-field-swallows-nuke/003`: the 11x11 crop patch at cells 28-38 predicts its
+left edge at screen x=390 with P=60, and the wheat starts at exactly 390. Any tool that maps cells to
+pixels in a capture needs the scale as a parameter AND a self-check against something of known cell
+extent; `tools/impact-scar/scar_density.py --patch` is the shape that works.
+
+**2. `--png` writes to the process's cwd, not beside its input.**
+`ConvertSpriteToPngCommand` (`engine/OpenRA.Mods.Common/UtilityCommands/`) builds `prefix + "-" + n +
+".png"` from the source filename and hands that bare relative path to Save. You must run it from
+`engine/` for the relative `MOD_SEARCH_PATHS` to resolve, so the output lands in the engine tree —
+sixteen stray `clear1-*.png` in a tracked directory. Sweep them from cwd, not from the input's folder.
+
+**3. A gitignored asset cache with no regeneration script is a landmine, and the failure names
+neither the asset nor the cause.** `tools/impact-scar/contact_sheet.py` read its terrain tiles from a
+hardcoded path under the Windows TEMP tree. Windows cleans TEMP: the four directories were still
+present and all four were EMPTY, so every preview renderer in that folder died on
+`random.choice` of an empty sequence. Nothing in the repo could refill it. If a tool depends on
+extracted content, the extractor ships next to it — `extract-palettes.sh` had one and `pal/` was fine.
+
+**4. `SmudgeLayer.ShoreAlphaAt` returns `minAlpha` for a BOUNDARY cell itself, and that makes the
+obvious test of a threshold vacuous.** The function is asked "how close is this cell to ground the
+layer cannot draw on"; asked about such a cell it answers distance 0, hence `minAlpha` — 0.7 with the
+shipped settings, which is below every threshold any tier would use. Its own summary says the value
+"never matters in practice" because `LeaveSmudgeWarhead` already refused to place a smudge there, and
+that is true of the GAME and false of a test that enumerates the neighbourhood. A first cut of
+`ScarEdgeVariantTest.EveryTierIsReachableFromTheShoreFadeThisLayerConfigures` passed with a threshold
+of 0.75, which no cell that can actually draw ever reaches. Exclude the boundary cell.
 
 ## 2026-09-19 - A phase clock is a DEPLOYMENT clock, and the number that decides it is the production queue rather than the map (`wt/escalation-review`, base `main @ 442859aa`)
 
@@ -234,6 +331,155 @@ SR at `x=0` while `Bounds` start at `1,1`; `DefconWallRegion.IndexOf` returns -1
 across six shipped maps are in that state. Harmless -- each sits against its own spawn, which
 IS labelled -- but a check written as "every Supply Route is on its own side" reports ten false
 failures. Read the spawn.
+## 2026-09-19 - The installer's two "walk a directory" primitives differ by orders of magnitude, and the safe one is not the one already in the file; plus a manifest `!include` inside the `Clean` macro is inserted TWICE (`wt/installer-safety`, base `main @ 64185a89`, read-and-compiled, never run)
+
+**`${GetSize}` and `${DirState}` both live in `FileFunc.nsh` and both answer a question about a
+directory, and that is the whole of their similarity.** `${GetSize} "$INSTDIR" "/S=0K"` recurses:
+`buildpackage.nsi` used it to compute `EstimatedSize` at install time, and on 2026-09-08 — against a
+Desktop the user had accepted as `$INSTDIR`, holding a repo checkout — that was **275,720 files /
+71 GB, about 25 minutes, with no progress indication and no cancel.** `${DirState}` is the opposite
+shape: read it (`Include/FileFunc.nsh:1964-1990` in NSIS 3.09) and it is **`FindFirst`, then at most
+two `FindNext` to step past `.` and `..`, then `FindClose`** — returning -1 missing / 0 empty / 1 has
+contents. It never descends and never counts. Cost is one directory-handle open regardless of what
+is inside.
+
+**Why that distinction is load-bearing rather than trivia:** the "is this directory empty?" test had
+to run in `.onVerifyInstDir`-adjacent code, and **`.onVerifyInstDir` fires on every keystroke in the
+directory field.** `${GetSize}` there would hang the dialog per character typed; `${DirState}` is
+free. It also settles where the *other* half of the guard can live — writing `$INSTDIR` from
+`.onVerifyInstDir` appends a subfolder once per character, so the append has to sit in the page's
+`MUI_PAGE_CUSTOMFUNCTION_LEAVE` instead (`buildpackage.nsi:213-233`), even though the rejection
+check is fine in `.onVerifyInstDir` (`:201-211`). **One callback, two behaviours, and only one of
+them may be idempotent-by-luck.** Neither `FileFunc.nsh` nor the NSIS docs put these facts next to
+each other.
+
+Two smaller notes from the same reading, both cheap to get wrong:
+
+* **`${DirState}` needs no `!insertmacro DirState` to be usable.** It dispatches through
+  `${CallArtificialFunction} DirState_` (`FileFunc.nsh:1955-1972`), which materialises the function
+  on first use, and it clobbers `$0` and `$1` — push them if the caller cares. The same is true of
+  `${GetSize}`, which is why the original script could call it with no setup line and give the
+  impression that FileFunc macros are free-standing.
+* **`${DirState}` returning 1 does not mean "somebody else's files".** A reinstall over our own
+  install also reads 1, so the append has to be gated on a marker first —
+  `$INSTDIR\<launcher>.exe` or `$INSTDIR\uninstaller.exe` (`buildpackage.nsi:219-220`) — or every
+  upgrade buries itself one directory deeper.
+
+**SECOND FINDING, INDEPENDENT: a file `!include`d inside `!macro Clean UN` is pulled in TWICE, so it
+may contain instructions only.** `buildpackage.nsi` defines the cleanup once and inserts it twice —
+`!insertmacro Clean ""` for the installer's rollback path and `!insertmacro Clean "un."` for the
+uninstaller (`:384-385`), which is the standard NSIS answer to installer and uninstaller functions
+living in separate namespaces. The generated uninstall manifest is `!include`d from inside that
+macro body (`:356`), and therefore lands in the compiled script **twice**. Delete/RMDir instructions
+duplicate harmlessly; **a single `!define` in that file would fail the build on the second insertion
+with "already defined"**, and an `!ifndef` guard around it would be worse — it would silently make
+the define visible to only one of the two functions. This is why
+`packaging/windows/gen-uninstall-manifest.py` prints the install size **on stdout** for the build
+script to pass as `-DINSTALL_SIZE_KB` rather than emitting a `!define` into the manifest it is
+already writing, which was the obvious first design and is unbuildable.
+
+**Verification status, stated because it bounds all of the above:** every claim here is from reading
+the NSIS 3.09 sources and from `makensis` compiling the reworked script (exit 0, no warnings at
+`-V2`, and exit 1 at the intended `!error` when `-DUNINSTALL_MANIFEST` is withheld). **No installer
+was run and no runtime behaviour was observed** — the human procedure that would observe it is
+`packaging/windows/INSTALLER-TEST-PLAN.md`.
+## 2026-09-19 - A gate that starts the game has THREE outcomes, and the third is the one that gets banked as the second (`wt/smoke-gates`, base `main @ 64185a89`)
+
+Building `make.ps1 smoke` — the first gate in this repo that constructs a `World` — forced the
+question of what a non-zero exit from a launcher actually means. **A static gate has two outcomes,
+clean and finding. A gate that launches something has three: clean, finding, and NOTHING RAN.**
+Collapsing the third onto the second is not a cosmetic error: it converts "we learned nothing"
+into "the world is broken", and the false alarm is indistinguishable from the real thing at the
+exit code. CLAUDE.md already records this shape twice — a bare `./run-test.sh` exits 127 because
+the launchers live in `tools/autotest/`, and a zero-byte log plus a fast non-zero exit is a launch
+failure rather than a slow tool — which is two instances of one general rule nobody had written
+down. `run-smoke.sh` discriminates three ways and each catches a different miss:
+
+1. **Pre-flight the binaries.** `launch-game.sh:40-44` exits 1 with "Required engine files not
+   found" when `engine/bin/OpenRA.dll` is absent. Run eleven maps against an unbuilt tree and you
+   get **eleven identical NO-RESULTs** — which by outcome alone is exactly what eleven broken maps
+   look like. Mirroring the launcher's own guard in the driver turns the single real cause into a
+   single message before anything starts. *(This worktree's `engine/bin/` was empty, which is how
+   the case was noticed rather than reasoned about.)*
+2. **Require the outcome FILE, not the exit code.** `run-test.sh` writes `outcome=` to
+   `AUTOTEST_OUTCOME_FILE` from its `EXIT` trap, so every exit path writes it — crash, Ctrl-C,
+   internal `set -e` abort. **A missing or empty outcome file therefore means the runner never
+   reached its own trap**, which is a launch failure and can never be a test result. This is
+   strictly better than reading `$?`, which a pipe destroys, and better than grepping stdout,
+   which a truncating filter can hide.
+3. **Distrust a fast failure.** A real world-construction failure still costs a process start, a
+   mod load and a map load. Under ~8s the game cannot have got far enough to fail the way the gate
+   is asking about, so a fast non-PASS is reported as a launch failure *with its duration* rather
+   than banked as evidence about the `World`.
+
+**Generalise: for any gate that spawns a process, the question "did the thing under test fail?"
+is downstream of "did the thing under test run?", and only the second has a cheap certain answer.**
+Answer it explicitly, before the run and after it, or the gate will eventually report a broken
+toolchain as a broken product.
+
+## 2026-09-19 - `Launch.Map` resolves by map DIRECTORY NAME as well as UID, which is what makes a shipped map runnable by the autotest harness (`wt/smoke-gates`, base `main @ 64185a89`)
+
+`Game.LoadMap` (`engine/OpenRA.Game/Game.cs:1218`) is
+`MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap)`.
+The second disjunct is the useful one and is easy to miss: **`Launch.Map=nuclear-winter-ww3` works,
+with no UID lookup anywhere**. `run-test.sh` has always relied on it — it passes the scenario folder
+name straight through — but the harness also hard-requires `tools/autotest/scenarios/<name>` to
+exist (`run-test.sh:392`), so the two facts together mean the runner could reach every scenario and
+no shipped map. That is the whole reason nothing we ran had ever loaded `mods/ww3mod/maps/`.
+
+Resolved with a `--map NAME` flag that overrides only the `Launch.Map` value while the scenario
+directory keeps supplying the run rig (test name, description, result path, screenshot dir) — one
+flag instead of ten near-identical stub scenarios. **The flag validates the name against
+`mods/ww3mod/maps/` itself rather than letting the engine resolve it**, because `Game.LoadMap`
+*throws* `ArgumentException("Could not find map")` on a miss: a typo in the caller would surface as
+a process crash and be graded `CRASH`, i.e. **a caller's typo would be reported as the very bug the
+smoke gate exists to detect.**
+
+Second-order consequence worth carrying: a shipped map carries no Lua, so it can never reach
+`Test.Pass` and a `--map` run has no way to a verdict on its own. That gap is what
+`Test.SmokeTicks=<N>` + `SmokeTestExit` (a world trait, inert unless both `Test.Mode=true` and the
+arg are set) exists to close. **"Can the harness load it" and "can the harness reach a verdict on
+it" are separate questions, and the second is the one that decides whether a gate is possible.**
+
+## 2026-09-19 - The same line of C# is correct or fatal depending on WHICH ACTOR the trait sits on, at a signal ratio of 0 in 57 (`wt/smoke-gates`, base `main @ 64185a89`)
+
+`self.World.WorldActor.Trait<Foo>()` inside `INotifyCreated.Created` is **correct** on
+`DefconCasualtyObserver` (`[TraitLocation(SystemActors.Player)]`) and **crashed every match** on
+`DefconWall` (`[TraitLocation(SystemActors.World)]`). Character for character identical; player and
+unit actors are built after the world actor exists, world traits are built *during*
+`World.cs:252`'s `WorldActor = CreateActor(...)`, before the assignment. `DefconWall.cs:318-325`
+says so in a comment ending "copying an idiom is only safe once you have checked it was written for
+the same actor" — which is the lesson, and which no grep can enforce.
+
+The measurement is the part worth keeping. Sweeping all of `engine/` (not just
+`Mods.Common/Traits/`, and matching combined flag lists like `World | EditorWorld`, which the
+obvious `TraitLocation(SystemActors.World)` grep misses) finds **30 files declaring a world-located
+trait, containing 57 code-level `.WorldActor` dereferences, of which 0 are violations** — every one
+is in `IWorldLoaded.WorldLoaded`, `ITick` or a later member, where the field is assigned and the
+read is right. **A hazard whose correct form outnumbers its broken form ~57:0 cannot be policed by
+review or by grep**: the reviewer goes blind long before the one that matters, and the grep dump is
+57 lines of noise. It needs a checker that models the lifecycle, or it needs nothing at all.
+
+Three matcher details decide whether such a checker is usable rather than switched off.
+`.WorldActorInfo` is a **different member** (`Map`/`ActorInfo` metadata, safe throughout) and must
+not match — `\.WorldActor\b` separates them. Comments must be blanked before matching, because
+`DefconWall.cs` and `NuclearExchange.cs` both discuss the trap at length and a naive matcher
+reports **the fix as the bug**. And a null-conditional `WorldActor?.Trait<…>()` survives without
+throwing but resolves to `null` every time, trading a loud crash for a quiet wrong answer, so it is
+a finding and not an accepted form.
+
+## 2026-09-19 - `chmod +x` does not reach the git index when `core.filemode=false`, which is how a launcher gets committed at 100644 (`wt/smoke-gates`, base `main @ 64185a89`)
+
+This repo sets `core.filemode=false` (unavoidable on Windows). Under it, `chmod +x foo.sh` followed
+by `git add foo.sh` stages the file at **100644**, silently — `git ls-files -s` is the only place
+the mode is visible, and nothing warns. CLAUDE.md already records the consequence from the other
+end: `engine/utility.sh` is "tracked mode `100644` and therefore never executable", so running it
+dies with `permission denied` and **exit 126**, and redirected it produces a zero-byte log whose
+only diagnostic is on stderr. That is not a quirk of that one file; it is what happens to **any**
+script added from Windows. `git update-index --chmod=+x <path>` is the fix and `git ls-files -s` is
+the check. The Makefile's own `check-sdk-scripts` target already prints exactly this remedy for the
+four SDK launchers (`Makefile:105-124`) — evidence the trap has been hit before and was fixed
+per-file rather than as a rule.
 
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 
@@ -23495,3 +23741,66 @@ Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-
 **TWO SHIPPED CAMEOS BAKE THE WRONG WORD, because the art was reused from Red Alert.** `fixicon` reads **SERVICE DEPOT** and is the **Supply Route** — the structure the entire economy turns on. `facticon` reads **CONVARD** and is the **Logistics Center**; a construction yard is an actor this mod does not have. Neither is a caption bug today (nothing draws a runtime caption over them), but both are what a reader looking at the sidebar sees, and both are why a caption table copying baked words verbatim still needs a per-entry escape hatch.
 
 **`power.*` PROXIES ARE BUILDABLE ACTORS, so the PRODUCTION palette already draws runtime captions.** It is natural to read `CameoCaption` as a support-power-bin feature — the yields live on `SupportPower` traits in `player.yaml` and `ingame/nuclear-arsenal.yaml`. But `rules/powers.yaml` also sets `Buildable: CameoCaption:` on the sixteen `power.*` buy proxies, which appear in the Powers build tab. So a change to `ProductionPalette`'s `CaptionFont` is player-visible TODAY, before any unit gets a caption. The roster is **116** buildable actors with a cameo (not the 115 in the backlog) across **94** distinct art files.
+
+
+## 2026-09-19 — `^EngineDir` means two DIFFERENT directories in a dev checkout and in an installer, which is the whole of the v0.1.0 no-main-menu bug (`wt/packaged-mounts`, base `main @ 64185a89`)
+
+**THE FACT THE BUG RESTS ON.** `Platform.EngineDir` defaults to `Platform.BinDir` (`engine/OpenRA.Game/Platform.cs:247-260`) and is only something else when a launcher passes `Engine.EngineDir`. `launch-game.sh:46` passes `Engine.EngineDir=".."`, and `OverrideEngineDir` resolves a relative value against **BinDir, not the working directory** (`Platform.cs:270-272`), so in the dev checkout EngineDir is `engine/bin/../` = `engine/` and `^EngineDir|../tools/...` lands on the repo's `tools/`. No packaged launcher passes the arg — `engine/packaging/linux/openra.appimage.in:49` runs `./OpenRA Game.Mod=... "$@"` with no `Engine.EngineDir` — so in an installer EngineDir is the packaged root itself and the same string resolves **one level above everything that shipped**. Verified against the real artifact: `WW3MOD-v0.1.2-x64-winportable.zip` has 2895 entries, `mods/{common,modcontent,ra,ww3mod}` at its top level, and no `tools/` anywhere.
+
+**WHY NO GATE COULD SEE IT, AND THIS IS THE GENERAL SHAPE.** *Every check we run resolves paths against the git checkout, where the missing directory exists.* `--check-yaml`, `nav-guard`, `lua-gate` and `smudge-gate` all do. A path that is wrong **only in the packaged layout** is invisible to all of them, and no amount of adding checks of that kind would have caught it — the model of the filesystem was the thing that was wrong, not the coverage. `tools/mount-gate/mount_gate.py` exists to model the packaged root instead.
+
+**THE TAG STILL CARRIES THE EVIDENCE EVEN THOUGH THE RELEASE DOES NOT.** `gh release view v0.1.0` answers *release not found* — the binaries were unpublished — but `git show v0.1.0:mods/ww3mod/mod.yaml` is intact and line 106 is `^EngineDir|../tools/autotest/scenarios: Unknown` with no `~`. v0.1.1:111 and v0.1.2:111 carry the `~`. So a regression test for a shipped bug can be built from **a historical manifest against a current artifact** when the historical artifact is gone; that pair is what `tools/mount-gate/README.md` documents as the acceptance test.
+
+**`~` IS NOT DECORATION AND IT SWALLOWS EVERYTHING.** `FileSystem.Mount` wraps its whole body in `catch when (optional)` (`FileSystem.cs:112-114`) — not a targeted catch of "not found", *every* exception, including a malformed package. `MapCache` does the same with `continue` (`MapCache.cs:113-119`). Consequence worth carrying: **an optional mount cannot fail loudly**, so a typo in one is permanently silent, and the only way to learn an optional package never mounted is to notice the art missing.
+
+**AN ASYMMETRY BETWEEN THE TWO BLOCKS THAT LOOKS LIKE A BUG AND IS NOT.** A non-optional `^SupportDir|...` is fatal in `FileSystem: Packages:` and survivable in `MapFolders:`, because `MapCache` creates a missing support-dir path before opening it (`MapCache.cs:105-108`) and `FileSystem.Mount` has no equivalent hack. Any check over both blocks has to treat them differently or it is wrong in one direction or the other.
+
+**A PACKAGED BUILD CANNOT REACH ITS MAIN MENU WITHOUT RED ALERT CONTENT, WHICH CONSTRAINS ANY LAUNCH SMOKE TEST.** `mods/ww3mod/cursors.yaml:1-2` declares `mouse.shp`; it is in **no** shipped tree (not in this repo, not in `engine/mods/*`, not in the v0.1.2 zip — it lives in RA's `local.mix`, which mounts optionally from `^SupportDir`). `CursorProvider`'s constructor builds every `CursorSequence` eagerly (`CursorProvider.cs:44-48` → `CursorSequence.cs:35`), so mod load throws `FileNotFoundException` on a machine with no content — before any menu. **Therefore a CI launch test must download the freeware content first**, which puts a third-party mirror (`openra.net`, via `mods/ww3mod/installer/downloads.yaml`'s `quickinstall`) in the release path. That is a real cost of Guard 1 and it should be a known cost rather than a surprise on the first tag push.
+
+**A DESIGN NOTE ON THE POSITIVE SIGNAL FOR A LAUNCH TEST.** There is no clean "boot and exit" flag: `Launch.Benchmark` only arms `Game.BenchmarkMode`, and `FinishBenchmark` exits on `GameOver` (`Game.cs:1222-1229`), which a skirmish does not reach quickly. The file-based signal already in the engine is better — `Test.OpenSkirmishLobby` fires from `MainMenuLogic.cs:598` (so the menu's logic has run) and `LobbyLogic.cs:999-1003` writes `Test.LobbyReadyFile` once the map is playable. Both are past the point v0.1.0 died, and polling for a file distinguishes a crash from a slow boot, which a timeout cannot.
+
+## 2026-09-19 — Two findings from teaching lua-gate to see an unstarted driver
+
+**A `Finding` is deduped on `(path, line, symbol, severity)`, so two different whole-file
+checks on one scenario silently cancel.** `lua_gate.py:run_check` dedupes findings on that
+four-tuple. Both `check_verdict_reachable` and the new `check_power_fired` report at line 0
+of `<scenario>/<name>.lua` at severity `warn`, and both originally used the scenario NAME as
+the symbol — so a `test-` scenario that charges a power, fires nothing and reaches no verdict
+produced two findings with identical keys and **the second was dropped without a word**. Not
+caught by review or by the unit fixtures; caught only by a fixture that ran the whole of
+`run_check` over a scenario on disk and looked for the message. Any future check that reports
+at line 0 on the scenario's own `.lua` must pick a symbol that names the thing at fault
+(`TestHarness.EnsurePower`), not the scenario. `tools/lua-gate/lua_gate.py:1438` (the dedupe),
+`:1076` (the symbol choice).
+
+**The `demo-nuke-river-zeta` kickoff trap catches tooling too, not just readers.** That
+scenario's own comment warns that the literal `Trigger.AfterDelay(1, step)` appears twice —
+as the kickoff at the end of `WorldLoaded` and, identically indented with one tab, as the
+reschedule inside `step`. Reconstructing the pre-fix file for an acceptance test with
+`grep -v` on that line removed **both**, which deleted the self-reschedule and made the new
+check correctly stay silent — a false "the check does not work" that cost a debugging pass.
+Anything reconstructing that failure must delete only the LAST occurrence.
+`tools/autotest/scenarios/demo-nuke-river-zeta/demo-nuke-river-zeta.lua:114` (reschedule) vs
+`:179` (kickoff).
+
+
+## 2026-09-19 — `TimeLimitSeconds * 25` was right in 42 of the 53 tournament configs, and TWO successive censuses generalised from the subset they opened
+
+**THE NUMBERS ARE 11 AND 42 OF 53, AND THE SCOPE THEY ARE COUNTED OVER IS PART OF THE FINDING.** The census is `grep -rl TimeLimitSeconds --include=*.yaml` over the **whole repository**, re-measured at `a932ff91`. A census over `tools/autotest/scenarios/` instead returns **52** and is one file short: `tools/autotest/tournament-combat-12min-combatweighted.yaml` sits at `tools/autotest/`, a level above the scenario directories, and is in the immune set (`GameSpeed: fastest`, 720). It is cited by a recorded benchmark, `WORKSPACE/benchmarks/260802-exp-vs-stable0730-combatweighted.md`.
+
+Found while fixing pipeline item [27] (`1000 / Timestep` truncation) at `main @ c3825714`. `WORKSPACE/bugs/discovered.md` 2026-09-19 filed `TournamentConfig.cs:101` (`TimeLimitSeconds * 25`) as wrong for every tournament, on the stated ground that **"no shipped `tournament*.yaml` sets a `GameSpeed` key at all"**. Cross-tabbing every config that sets `TimeLimitSeconds` against its `GameSpeed:` key shows **42 of them do set one — `GameSpeed: fastest`, all 42 the same value** — and only the 11 plain `tournament.yaml` files do not. The entry was checked against the `tournament.yaml` family and generalised to the `-smoke`, `-sanity`, `-quick`, `-eco-5min` and `-combat-12min` variants without opening them.
+
+**The key is load-bearing, not decorative.** `run-tournament.sh:148` reads `GameSpeed:` out of the config; `:302` passes it as `Test.GameSpeed`; `Game.cs:1205` turns that into the lobby `option gamespeed` order; `World.cs:217-220` resolves `world.GameSpeed` and `world.Timestep` from it. `fastest` is `Timestep: 40` (`mods/ww3mod/mod.yaml:416-418`), where `1000 / 40 = 25` **exactly** — so `* 25` was arithmetically correct for those 42, and an honest conversion returns the identical tick count. Had the ruling to "restate every tournament config" been applied literally, those 42 would have been lengthened by 50 % against every baseline they were measured on: the correction would have caused the damage it was written to prevent.
+
+**THE CORRECTION ITSELF THEN REPEATED THE MISTAKE, ONE FILE SMALLER, AND THAT IS THE REAL ENTRY.** The first version of this write-up — and the five other sites it anchored — asserted **41 of 52**, because the sweep that produced it ran over `tools/autotest/scenarios/`. So an entry *about* a census that generalised from the subset it opened was itself written from a subset, inside the same change, by the person who had just diagnosed the failure mode. The narrowing was invisible both times for the same reason: the smaller scope is the one that feels like the population (`tournament-*` scenarios; the scenario tree), and nothing about a plausible-looking total prompts a re-count.
+
+**The general shape.** *A census is a claim about a SCOPE, and a census that does not state its scope is unfalsifiable and will be re-narrowed by the next reader.* Two sub-rules, both paid for here:
+- *A family named by a shared prefix invites the error* — `tournament-*` looks like one population and is two, split by a key most readers never open.
+- *A directory is not a population.* One file of 53 lived one level up, and every sweep rooted at the obvious directory silently dropped it.
+
+The tell was available for free at step one: the bug entry itself reasoned "`Timestep: 40` does exist in this mod and would make `*25` correct", checked that possibility against the **launcher default**, and stopped one step short of checking it against each config. **When an audit rules out a hypothesis by consulting a default, it has not ruled it out for the rows that override the default** — and when it reports a count, it has not stated a fact until it has stated what it counted over.
+
+**What the fix introduces, which the hardcoded 25 did not have.** `TimeLimitTicksAt(world.GameSpeed.Timestep)` makes the tournament deadline a *function of the resolved game speed*, where before it was a constant. `Game.cs:1200-1204` records that an unrecognised gamespeed key **falls back to default silently**, so a typo in a `GameSpeed:` line now shortens a match by 33 % instead of being harmless. `BotVsBotMatchWatcher`'s `WorldLoaded` diagnostic was extended to print the timestep it actually resolved (`... 720s at 40 ms/tick`) so the substitution is visible in `*.watcher.log`; **read that line before trusting any tournament duration.**
+
+## 2026-09-19 — "no C# changed, so skip NUnit" is a merge-gate hole: NUnit fixtures read shipped YAML
+Observed at main @ b0aa900c: `VaporizeScopeTest.TheSupplyRouteOptsOutOfVaporisation` went red on a tree whose C# was byte-identical to the last NUnit-green build. Cause: `rules/cameo-captions.yaml` (new at 201df112, deliberately NOT in mod.yaml's `Rules:`) declares `SUPPLYROUTE` a second time, the fixture walks `mods/ww3mod/rules` with `GetFiles(AllDirectories)` — root-level files before `ingame/` — and its first-match `Find` returned the caption node, which has no `-Vaporizable:`. The shipped line at `structures.yaml:183` was never touched. The fixture's own `FindAll` comment predicted exactly this ("safe only because their actors are declared once"); both first-match sites now use the union. Two rules for the gate: (1) a branch that changes anything under `mods/` or `tools/` still needs `dotnet test` — several fixtures (VaporizeScopeTest, DefconEscalationTest's clock pins, WebServicesConfigTest, ScarEdgeVariantTest, the caption checks) assert on files, not code; (2) a YAML file under `rules/` that mod.yaml does not load is still visible to every directory-walking fixture — the walk over-approximates the loaded rules, so a fixture asking a per-actor question must union the declarations.

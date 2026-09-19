@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using Eluant;
 using NUnit.Framework;
+using OpenRA.Mods.Common;
 
 namespace OpenRA.Test
 {
@@ -14,9 +15,16 @@ namespace OpenRA.Test
 	/// THE STANDING DEFECT. TestHarness.TicksPerSecond is 25. Single-test autotest runs are played at
 	/// the mod's "default" GameSpeed (Game.LoadMap hardcodes "default" unless Test.GameSpeed overrides
 	/// it, and tools/autotest/run-test.sh never passes that), whose Timestep is 60 ms. The engine's own
-	/// Lua converter derives 1000 / 60 = 16 ticks per second by INTEGER division
-	/// (DateTimeGlobal.cs:31), so DateTime.Seconds(n) and TestHarness.AssertWithin(n) disagree by
-	/// 25/16 — every harness "second" is worth about 1.56 engine seconds.
+	/// Lua converter runs at 16.667 ticks per second, so DateTime.Seconds(n) and
+	/// TestHarness.AssertWithin(n) disagree by exactly 25/16.667 = 1.5 — every harness "second" is
+	/// worth one and a half engine seconds.
+	///
+	/// CORRECTED 2026-09-19, AND THE GAP NARROWED SLIGHTLY. This paragraph used to say the engine
+	/// derived "1000 / 60 = 16 by INTEGER division (DateTimeGlobal.cs:31)" and put the disagreement at
+	/// 25/16 = 1.5625. That truncation was real and is now fixed: DateTimeGlobal converts through
+	/// TickTime, which multiplies before dividing, so DateTime.Seconds(n) yields 4.2 % MORE ticks than
+	/// it used to — in the LENIENT direction for every "did it happen by N" deadline in the suite.
+	/// The harness constant is untouched, so the two bases still disagree; they now disagree by 1.5.
 	///
 	/// WHY THIS FIXTURE EXISTS RATHER THAN A CORRECTED CONSTANT. The error runs in the LENIENT
 	/// direction, so 137 scenarios were authored, tuned and accepted against it, several of them
@@ -140,13 +148,20 @@ namespace OpenRA.Test
 		[Test]
 		public void TheHarnessConversionDisagreesWithTheEngineConversion()
 		{
-			// DateTimeGlobal.cs:31 — `1000 / Timestep` in INTEGER arithmetic, so 60 ms yields 16, not
-			// 16.67. Scenarios mixing DateTime.Seconds with AssertWithin are mixing these two bases,
-			// which is exactly the trap test-autotarget-preempt-air:70-77 documents.
-			var engineTicksPerSecond = 1000 / DefaultTimestepMs();
-			Assert.That(engineTicksPerSecond, Is.EqualTo(16),
-				"the engine's Lua seconds->ticks rate has moved; DateTime.Seconds(n) in every scenario "
-				+ "has changed meaning");
+			// Scenarios mixing DateTime.Seconds with AssertWithin are mixing two bases, which is
+			// exactly the trap test-autotarget-preempt-air:70-77 documents. Assert the ENGINE side by
+			// the arithmetic the engine now performs (DateTimeGlobal -> TickTime.TicksForSeconds),
+			// not by the `1000 / Timestep` it used to perform: that expression truncated to 16, and
+			// pinning 16 here would re-pin the defect rather than the behaviour.
+			var engineTicksForSixtySeconds = TickTime.TicksForSeconds(60, DefaultTimestepMs());
+			Assert.That(engineTicksForSixtySeconds, Is.EqualTo(1000),
+				"the engine's Lua seconds->ticks conversion has moved; DateTime.Seconds(n) in every "
+				+ "scenario has changed meaning. 960 means the truncated `1000 / Timestep` is back");
+
+			// The two bases, stated as the ratio scenario authors actually trip over.
+			Assert.That(HarnessTicksPerSecond() * 60, Is.EqualTo(1.5 * engineTicksForSixtySeconds),
+				"the harness and engine conversions no longer differ by exactly 1.5, so every scenario "
+				+ "that mixes AssertWithin with DateTime.Seconds has changed meaning");
 
 			Assert.That(HarnessTicksPerSecond(), Is.EqualTo(25.0),
 				"TestHarness.TicksPerSecond has been edited. The two scenarios that used to invert on "

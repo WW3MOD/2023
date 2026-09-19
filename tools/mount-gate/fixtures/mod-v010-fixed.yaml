@@ -1,0 +1,22 @@
+Metadata:
+	Title: mount-gate fixture (v0.1.0 shape -- the scenarios MapFolder is NOT optional)
+
+PackageFormats: Mix
+
+FileSystem: DefaultFileSystem
+	Packages:
+		~^SupportDir|Content/ra/v2/
+		^EngineDir
+		$ra: ra
+		$ww3mod: ww3mod
+		^EngineDir|mods/common: common
+		~lores.mix: lores
+		ra|bits
+		ra|uibits
+		ww3mod|bits
+		common|scripts
+
+MapFolders:
+	ww3mod|maps: System
+	~^SupportDir|maps/ww3mod: User
+	~^EngineDir|../tools/autotest/scenarios: Unknown

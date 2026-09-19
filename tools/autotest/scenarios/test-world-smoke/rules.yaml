@@ -1,0 +1,17 @@
+# THIS SCENARIO DELIBERATELY OVERRIDES ALMOST NOTHING.
+#
+# Every removal line here is a trait the engine does NOT construct, and a trait that is not
+# constructed is a trait this gate cannot prove still constructs. So the only removal is on
+# Player, which costs the gate nothing: the bug class it exists for lives on the WORLD actor
+# (World.cs:252 assigns WorldActor after CreateActor returns), and the World block below is
+# left otherwise stock on purpose. Resist the urge to tidy this scenario by copying the
+# removal list out of a neighbouring test -- each line added here is coverage taken away.
+
+Player:
+	# One human client and no bot means no enemy Player exists, so conquest resolves the
+	# instant the match starts. Every auto scenario in this tree strips it for that reason.
+	-ConquestVictoryConditions:
+
+World:
+	LuaScript:
+		Scripts: test-world-smoke.lua

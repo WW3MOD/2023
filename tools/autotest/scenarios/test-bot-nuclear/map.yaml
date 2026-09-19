@@ -26,9 +26,12 @@ Categories: Test
 #
 #   A. RELEASED, ARMED, WINNING NOTHING AND LOSING NOTHING -> no launch. The bot holds the 1 kt band
 #      permanently and it reads `ready`, so the zero here is a DECISION and not an empty bin.
-#   B. A RETALIATION WINDOW OPENS (USA fires 1 kt at empty ground) -> still no launch. Russia's 20 kt
-#      reads `ready`, which is what makes this assertion mean anything: the bot is holding the
-#      biggest thing it has ever been allowed to fire, and declining.
+#   B. USA FIRES 1 KT AT EMPTY GROUND -> still no launch. ("A retaliation window opens" is v1's
+#      wording and this line outlived it: under v2 Russia's LEVEL rises to 2 permanently, and since
+#      2026-09-16 it rises when the warhead DETONATES rather than when USA clicks -- about 305 ticks
+#      later, six of the bot's evaluations, every one of them declined.) Russia's 20 kt then reads
+#      `ready`, which is what makes this assertion mean anything: the bot is holding the biggest
+#      thing it has ever been allowed to fire, and declining.
 #   C. RUSSIA'S ARMY IS CUT TO A QUARTER -> exactly ONE launch, at the WINDOW's band and not at the
 #      permanent one. "The user's model expects the loser to escalate."
 #   D. AND THEN NOT AGAIN, because MinTicksBetweenLaunches is 900 and the window grant was one shot.
