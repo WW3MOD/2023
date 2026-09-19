@@ -36,6 +36,18 @@ THE TWO PANELS ARE THE ENGINE'S TWO PASS ORDERS
 which is precisely what the branch adds. The left panel should show the bright
 rectangular holes the user reported; the right panel is the question.
 
+THE THIRD PANEL, ADDED 2026-09-19
+---------------------------------
+The mechanism above shipped, and left a hole its own restriction created: the
+over-actors pass redraws a cell only when EVERY occupant is ground cover, so a
+vehicle parked on a scarred field vetoes its own cell and that cell keeps showing
+bright unburnt wheat inside a black disc. `GroundCoverOverlayUnderActors` emits
+one sorted renderable for such a cell instead, at a ZOffset between the field's
+-8192 and the unit's 0. The third row renders that case with a real RA vehicle
+sprite over the real crop art, and prints the same wheat% metric
+`tools/impact-scar/scar_density.py` measures off the autotest screenshots -- so
+the offline number and the in-game number are the same number.
+
 Usage:  python tools/impact-scar/field_overlay_preview.py [--out PATH] [--radius N]
 """
 import argparse
@@ -47,9 +59,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import contact_sheet as cs  # noqa: E402
-from PIL import Image  # noqa: E402
+import numpy as np  # noqa: E402
+import racontent as rc  # noqa: E402
+import scar_density as sd  # noqa: E402
+from PIL import Image, ImageFilter  # noqa: E402
 
 EXT = "tem"
+
+# A real RA vehicle, decoded by the same reader as everything else. It is not the
+# mod's humvee -- that art is not in the stock mixes -- but it is a genuine 24x24
+# vehicle sprite at the right scale, and what the third row is evidence ABOUT is
+# draw order, not which vehicle. Index 4 is RA's shadow colour.
+VEHICLE_MIX = "conquer.mix"
+VEHICLE_CANDIDATES = ["jeep.shp", "1tnk.shp", "apc.shp"]
+VEHICLE_FACING_FRAME = 8
+SHADOW_INDEX = 4
 
 # Candidates in preference order. `^CivField` members on river-zeta are v17 (1713
 # of them), v16 (864) and rice (610); v14 is the one the small autotest rigs use.
@@ -70,6 +94,52 @@ def pick_field_sprite():
         if frames:
             return name, frames[0]
     raise SystemExit("no crop-field sprite could be decoded from temperat.mix")
+
+
+def pick_vehicle_sprite():
+    """First stock vehicle that decodes, as an RGBA frame. Same palette as everything
+    else on this tileset -- RA's tileset .pal files are the whole 256-colour game
+    palette, units included, so this is the real colour and not an approximation."""
+    mix = rc.MixFile(os.path.join(cs.CONTENT, VEHICLE_MIX))
+    pal = rc.read_pal(open(os.path.join(HERE, "pal", "temperat.pal"), "rb").read())
+    for name in VEHICLE_CANDIDATES:
+        data = mix.get(name)
+        if data is None:
+            continue
+        w, h, frames = rc.read_shp(data)
+        f = frames[min(VEHICLE_FACING_FRAME, len(frames) - 1)]
+        im = Image.new("RGBA", (w, h))
+        px = []
+        for v in f:
+            if v == 0:
+                px.append((0, 0, 0, 0))
+            elif v == SHADOW_INDEX:
+                px.append((0, 0, 0, 110))
+            else:
+                px.append(pal[v] + (255,))
+        im.putdata(px)
+        return name, im
+    raise SystemExit("no stock vehicle sprite could be decoded from " + VEHICLE_MIX)
+
+
+def wheat_percent(img, cx, cy, actor=None):
+    """The metric scar_density.py measures off the autotest screenshots, evaluated on
+    one cell of an offline render, so an offline number and an in-game number mean the
+    same thing.
+
+    The wheat mask is scar_density's, verbatim. The ACTOR mask is not, and must not be:
+    scar_density identifies the vehicle by its blue hull because the witness humvee in
+    `test-field-swallows-nuke` is a blue player's. The stock RA jeep drawn here is olive,
+    so that test finds nothing and the jeep's own pixels are counted as unburnt ground --
+    which drove the occupied cell's wheat% BELOW its neighbours' rather than up to them.
+    Here the sprite's alpha is known exactly, so it is passed in."""
+    box = (cx * cs.CELL, cy * cs.CELL, (cx + 1) * cs.CELL, (cy + 1) * cs.CELL)
+    a = np.asarray(img.crop(box).convert("RGB")).astype(int)
+    wheat, auto = sd.masks(a)
+    hidden = auto if actor is None else (auto | actor[box[1]:box[3], box[0]:box[2]])
+    ground = ~hidden
+    n = ground.sum()
+    return (100.0 * (wheat & ground).sum() / n if n else 0.0), int(n)
 
 
 def build(outer_r, seed):
@@ -127,7 +197,77 @@ def build(outer_r, seed):
 
     today = paste_fields(scarred)
     change = paste_scar_over(today, field_cells)
-    return field_name, field_sp.size, today, change
+
+    # ---- the occupied cell -------------------------------------------------------
+    # Four cells west of ground zero, so it lands in ScarCrater -- the same band as
+    # witness cell 36,14 in test-field-swallows-nuke, which is what the in-game
+    # measurement is taken on.
+    veh_name, veh_sp = pick_vehicle_sprite()
+    veh_cell = (ox - 4, oy)
+    assert veh_cell in field_cells, veh_cell
+
+    veh_px = veh_cell[0] * cs.CELL + (cs.CELL - veh_sp.width) // 2
+    veh_py = veh_cell[1] * cs.CELL + (cs.CELL - veh_sp.height) // 2
+
+    def paste_vehicle(img):
+        out = img.copy()
+        out.alpha_composite(veh_sp, (veh_px, veh_py))
+        return out
+
+    # Where the vehicle's own pixels are, to the pixel.
+    #
+    # DILATED BY 1 PX, NOT THE 3 scar_density USES, and the difference is scale rather
+    # than taste. A dilation radius is only meaningful as a fraction of the cell: the
+    # screenshots are captured at 60 px per cell (Camera.Zoom 2 on a 125% display), so
+    # its 3 px is 5% of a cell edge, while a cell here is 24 px and the same 3 px would
+    # be 12.5%. Applied at that strength it swallowed most of the cell's ground and
+    # drove the occupied cell's wheat% to 3% against neighbours at 33% -- a number that
+    # measured the structuring element rather than the scar.
+    veh_mask = Image.new("L", (w * cs.CELL, h * cs.CELL), 0)
+    veh_mask.paste(veh_sp.getchannel("A").point(lambda v: 255 if v > 0 else 0),
+                   (veh_px, veh_py))
+    veh_mask = np.asarray(veh_mask.filter(ImageFilter.MaxFilter(3))) > 0
+
+    # SHIPPED: the over-actors pass takes every ground-cover-only cell and skips the
+    # one the vehicle is standing in, because that cell is not ground cover ONLY.
+    shipped = paste_vehicle(paste_scar_over(today, field_cells - {veh_cell}))
+
+    # FIXED: the vehicle's cell gets a sorted renderable at ZOffset -7680 instead,
+    # which lands after the field sprite (-8192) and before the vehicle (0). Drawing
+    # it here, between the two composites, IS that sort order.
+    fixed = paste_vehicle(paste_scar_over(today, field_cells))
+
+    # THE OFFLINE NUMBER IS A PAIRED BEFORE/AFTER, NOT A COMPARISON WITH NEIGHBOURS,
+    # and that limit is structural rather than fussiness. A cell here is 24 px against
+    # the 60 px the autotest captures at, and the vehicle plus its shadow hides about
+    # 70% of it -- so roughly 170 ground pixels survive, and WHICH 170 depends on where
+    # the sprite happens to sit. Measured against unoccupied neighbours that lands
+    # wherever the sprite's footprint lands: the first cut of this read 7.5% for the
+    # fixed cell against 33% for neighbours and looked like a regression, when the two
+    # numbers were simply not sampling the same thing.
+    #
+    # Both readings below are taken on the SAME cell through the SAME mask, so the only
+    # thing that differs between them is the pass order. The neighbour comparison is
+    # the in-game measurement's job -- scar_density.py, 3600 px a cell.
+    stats = {
+        "vehicle": veh_name,
+        "cell": veh_cell,
+        "cell_shipped": wheat_percent(shipped, *veh_cell, actor=veh_mask),
+        "cell_fixed": wheat_percent(fixed, *veh_cell, actor=veh_mask),
+        "band_typical": wheat_percent(change, veh_cell[0], veh_cell[1]),
+    }
+
+    # CROP LAST. The stats above are taken from the FULL canvases: a cropped image
+    # indexed with full-canvas cell coordinates reads off the end of it, and PIL
+    # obligingly returns black rather than raising -- which showed up as every cell
+    # measuring 0.0% wheat over a full 576 px of "ground".
+    def crop_around(img, half=2):
+        x0 = (veh_cell[0] - half) * cs.CELL
+        y0 = (veh_cell[1] - half) * cs.CELL
+        return img.crop((x0, y0, x0 + (2 * half + 1) * cs.CELL, y0 + (2 * half + 1) * cs.CELL))
+
+    return (field_name, field_sp.size, today, change,
+            crop_around(shipped), crop_around(fixed), stats)
 
 
 HTML = """<!doctype html><meta charset="utf-8">
@@ -164,6 +304,32 @@ cells away as a reference.</p>
     78&ndash;93% coverage and never reaches full opacity, by design.</div>
   </div>
 </div>
+
+<h1 style="margin-top:26px">A vehicle parked on a scarred field cell</h1>
+<p>The hole the restriction above leaves. A cell qualifies for that second pass only when
+<i>every</i> occupant is ground cover, so one vehicle vetoes its own cell and the crop
+sprite goes on hiding the decal underneath it. 5&times;5 cells of the same blast, centred
+on a <code>{veh}</code> standing in the <b>ScarCrater</b> band &mdash; the band witness cell
+36,14 sits in. <code>wheat%</code> is
+<code>tools/impact-scar/scar_density.py</code>'s metric, evaluated here on the offline
+render: bright wheat pixels over ground pixels, with the vehicle excluded.</p>
+<div class="row">
+  <div class="panel a">
+    <h2>Shipped &mdash; the vehicle's cell is skipped</h2>
+    <img src="{c}">
+    <div class="cap">wheat <b>{c_pct:.1f}%</b> on the visible ground of the occupied
+    cell. The crop sprite is fully opaque, so it hides the terrain-pass decal outright
+    and the cell reads as untouched farmland inside a black disc.</div>
+  </div>
+  <div class="panel b">
+    <h2>GroundCoverOverlayUnderActors &mdash; sorted renderable at ZOffset -7680</h2>
+    <img src="{d}">
+    <div class="cap">wheat <b>{d_pct:.1f}%</b> on the same pixels through the same mask.
+    The scar is above the crop and below the vehicle; no scar pixel is on the hull. An
+    unoccupied cell of this band reads {t_pct:.1f}% &mdash; not directly comparable,
+    since the vehicle hides about 70% of a 24&nbsp;px cell here.</div>
+  </div>
+</div>
 """
 
 
@@ -175,13 +341,32 @@ def main():
     ap.add_argument("--zoom", type=int, default=3)
     args = ap.parse_args()
 
-    field, (fw, fh), today, change = build(args.radius, args.seed)
+    field, (fw, fh), today, change, shipped, fixed, stats = build(args.radius, args.seed)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as fh_out:
-        fh_out.write(HTML.format(field=field, fw=fw, fh=fh,
-                                 a=cs.b64(today, args.zoom), b=cs.b64(change, args.zoom)))
+        fh_out.write(HTML.format(
+            field=field, fw=fw, fh=fh, veh=stats["vehicle"],
+            a=cs.b64(today, args.zoom), b=cs.b64(change, args.zoom),
+            c=cs.b64(shipped, args.zoom + 3), d=cs.b64(fixed, args.zoom + 3),
+            c_pct=stats["cell_shipped"][0], d_pct=stats["cell_fixed"][0],
+            t_pct=stats["band_typical"][0]))
     print("field sprite: {} ({}x{})".format(field, fw, fh))
+    print("vehicle sprite: {}".format(stats["vehicle"]))
+    print("occupied cell %s wheat%%: shipped %.1f -> fixed %.1f on the same %d ground "
+          "px; an unoccupied cell of this band reads %.1f"
+          % (stats["cell"], stats["cell_shipped"][0], stats["cell_fixed"][0],
+             stats["cell_fixed"][1], stats["band_typical"][0]))
     print("wrote " + args.out)
+
+    # PNGs too, so the two states can be looked at without a browser.
+    d = os.path.join(cs.REPO, "WORKSPACE/mockups")
+    os.makedirs(d, exist_ok=True)
+    for name, im in (("scar-field-vehicle-shipped", shipped),
+                     ("scar-field-vehicle-fixed", fixed)):
+        path = os.path.join(d, name + ".png")
+        z = args.zoom + 3
+        im.resize((im.width * z, im.height * z), Image.NEAREST).save(path)
+        print("wrote " + path)
 
 
 if __name__ == "__main__":

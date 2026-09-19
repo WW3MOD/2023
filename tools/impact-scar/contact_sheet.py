@@ -33,7 +33,11 @@ from PIL import Image   # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 SCARS = os.path.join(REPO, "mods/ww3mod/bits/misc/scars")
-TERRAIN = "C:/Users/fredr/AppData/Local/Temp/terrain"
+# Real clear-ground and water tiles, extracted by ./extract-terrain.sh. Gitignored for
+# the same licensing reason as pal/. This used to point at a hardcoded directory under
+# the Windows TEMP tree, which Windows empties: every tool in this folder then died on
+# `random.choice` of an empty list, an error that names neither the art nor the cause.
+TERRAIN = os.environ.get("WW3MOD_TERRAIN_CACHE", os.path.join(HERE, "terrain"))
 CONTENT = os.path.expanduser("~/AppData/Roaming/OpenRA/Content/ra/v2")
 CELL = 24
 
@@ -49,6 +53,18 @@ VARIANTS = {
     # stock, only used to draw the BEFORE panels
     "Crater":  ["cr1", "cr2", "cr3", "cr4", "cr5", "cr6"],
     "Scorch":  ["sc1", "sc2", "sc3", "sc4", "sc5", "sc6"],
+}
+
+# The two sparser cuts of each band, in the same variant ORDER as above -- index N is
+# the same variant at every density, because gen_scars.py generates them from one noise
+# field per (band, variant, depth) and SmudgeLayer selects by ordinal for that reason.
+# Sparsest tier first, matching world.yaml's EdgeSequences.
+EDGE_VARIANTS = {
+    "ScarCore":   [["bxa1", "bxa2", "bxa3", "bxa4"], ["bya1", "bya2", "bya3", "bya4"]],
+    "ScarCrater": [["bxb1", "bxb2", "bxb3", "bxb4"], ["byb1", "byb2", "byb3", "byb4"]],
+    "ScarChar":   [["bxc1", "bxc2", "bxc3", "bxc4"], ["byc1", "byc2", "byc3", "byc4"]],
+    "ScarBurn":   [["bxd1", "bxd2", "bxd3", "bxd4"], ["byd1", "byd2", "byd3", "byd4"]],
+    "ScarRim":    [["bxe1", "bxe2", "bxe3", "bxe4"], ["bye1", "bye2", "bye3", "bye4"]],
 }
 
 TILESETS = {
