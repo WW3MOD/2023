@@ -49,11 +49,12 @@ label-engine-credits = OpenRA
 # was sent to master.openra.net (WebServices.GameNews), so naming WW3MOD as the
 # recipient would be false on a consent dialog. Name the engine instead.
 #
-# STALE AS OF THE NEWS MOVE: mod.yaml now sets GameNewsSendClientInfo: false, because
-# news comes from a static file on raw.githubusercontent.com that cannot consume the
-# payload -- so this dialog now asks for consent to send nothing anywhere. The wording is
-# left alone rather than rewritten into nonsense; suppressing the prompt outright is the
-# real fix and is filed in WORKSPACE/bugs/discovered.md.
+# THIS STRING IS NO LONGER REACHED BY ww3mod, and is kept only so the key still resolves
+# for a mod that does send. mod.yaml sets GameNewsSendClientInfo: false, because news comes
+# from a static file on raw.githubusercontent.com that cannot consume the payload, and as of
+# 6a0a0554 MainMenuLogic skips the prompt entirely on that condition rather than showing a
+# dialog whose two answers do the same nothing. If the flag ever goes back to true, this
+# wording becomes live again and is correct as written -- which is why it was not rewritten.
 label-mainmenu-system-info-prompt-text-a = We would like to collect some system details that will help us optimize the OpenRA engine that WW3MOD runs on.
 
 ## MapOptions, MissionBrowserLogic
