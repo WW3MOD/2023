@@ -121,6 +121,20 @@ namespace OpenRA
 		// at 2× and applied via a lobby setup order that races state-Ready.
 		public static int SpeedMultiplier { get; private set; } = 1;
 
+		// World-construction smoke gate. When > 0, SmokeTestExit writes a PASS verdict and exits
+		// once the world has loaded and this many sim ticks have run. Set via Test.SmokeTicks=<N>.
+		//
+		// It exists because a shipped map under mods/ww3mod/maps/ carries no Lua and therefore
+		// can never reach Test.Pass, so there was no way to run one to a verdict -- and running
+		// one to a verdict is the entire content of the question "does a World still construct?".
+		// DefconWall threw in INotifyCreated.Created on 2026-09-10 and broke every match while
+		// six gates stayed green, because not one of them constructs a World.
+		//
+		// 0 (the default, and the value when the arg is absent) leaves SmokeTestExit inert: no
+		// tick cost beyond one bool test, no file write, no exit. See
+		// engine/OpenRA.Mods.Common/Traits/World/SmokeTestExit.cs.
+		public static int SmokeTicks { get; private set; }
+
 		// Arms sync reporting even with a single human client, and makes the GameSaved
 		// acknowledgement dump the recording side's sync state. Diagnostic scaffolding for
 		// saved-game restore desyncs, which are single-client by construction and therefore
@@ -198,6 +212,13 @@ namespace OpenRA
 			if (!string.IsNullOrEmpty(multArg) && int.TryParse(multArg, out var mult) && mult >= 1 && mult <= 16)
 				SpeedMultiplier = mult;
 
+			// Clamped, not merely parsed. A negative or absurd value would either disarm the gate
+			// silently or hold the process open past the harness watchdog, and both of those read
+			// to the caller as "the world failed to construct" when nothing of the sort happened.
+			var smokeArg = args.GetValue("Test.SmokeTicks", null);
+			if (!string.IsNullOrEmpty(smokeArg) && int.TryParse(smokeArg, out var smoke) && smoke > 0)
+				SmokeTicks = Math.Min(smoke, 10000);
+
 			ScreenshotDir = args.GetValue("Test.ScreenshotDir", null);
 			ScreenshotCmdFile = args.GetValue("Test.ScreenshotCmdFile", null);
 			OpenSkirmishLobby = string.Equals(args.GetValue("Test.OpenSkirmishLobby", ""), "true", StringComparison.OrdinalIgnoreCase);
@@ -262,6 +283,8 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] random seed override: {RandomSeedOverride.Value}");
 			if (SpeedMultiplier > 1)
 				Log.Write("debug", $"[TestMode] speed multiplier: {SpeedMultiplier}x");
+			if (SmokeTicks > 0)
+				Log.Write("debug", $"[TestMode] smoke gate: pass after {SmokeTicks} ticks");
 			if (!string.IsNullOrEmpty(UnitLifecycleLogPath))
 				Log.Write("debug", $"[TestMode] unit lifecycle log: {UnitLifecycleLogPath}");
 			if (!string.IsNullOrEmpty(MissileTraceLogPath))

@@ -5700,3 +5700,25 @@ the civilian building as well as the tower. That is a change to a screenshot, no
   error "is still live at ten other sites"; this may be one of the ten already counted — not
   cross-checked against that list.
   (found while working on: autotest-hygiene item [31], auditing scenario durations)
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **`make.ps1 smudge-gate` printed "Invalid
+  command" — the function existed and was called, but had no switch entry.** `SmudgeGate-Command`
+  has been part of `Test-Command` since it was written, so the gate ran as part of `.\make.ps1 test`
+  — but the `switch ($execute)` block at the bottom of `make.ps1` listed `nav-guard`/`n` and
+  `lua-gate`/`l` and never `smudge-gate`, so the fast standalone form fell through to
+  `Default { Write-Host "Invalid command" }`. Consequence was not a missing check but a missing
+  *inner loop*: the only way to run a ~1s buildless gate was to run the whole contended YAML target
+  with it. One-line fix, so fixed rather than filed.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the same switch)
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **smudge-gate did not exist on Linux/macOS
+  at all: the Makefile had neither the target nor the dependency.** `make.ps1`'s `Test-Command`
+  calls `NavGuard-Command`, `LuaGate-Command` and `SmudgeGate-Command`; the Makefile's `test` target
+  read `test: all nav-guard lua-gate`. So the two platforms' nominally-equivalent `test` targets
+  differed by a whole gate, and a scar-coverage hole introduced on a Linux box would reach the
+  Windows merge gate to be found there — the same platform-drift shape the file's own `lua-gate`
+  comment records ("make.ps1 never did, so on Windows the gate had never run at all"), with the
+  platforms swapped. Fixed by adding a `smudge-gate` target and putting it in `test`'s prerequisites;
+  verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
+  `clean`), so this cannot newly redden anyone's `make test`.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)

@@ -43,6 +43,33 @@ make test               # YAML validation (needs .NET 6 runtime specifically). F
                         # LINT_BASELINE_PRUNE=true ./utility.sh --check-yaml, then commit the file.
                         # Never hand-add a line to that file to make a red run green without saying why.
 dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release   # unit tests (NUnit 3)
+./make.ps1 smoke        # WORLD-CONSTRUCTION SMOKE GATE. THE ONLY COMMAND HERE THAT STARTS THE GAME,
+                        # and the only one that answers "does a World still construct?" -- every
+                        # other gate on this list reads files. On 2026-09-10 DefconWall threw in
+                        # INotifyCreated.Created, EVERY MATCH FAILED TO START, and `all`, `check`,
+                        # `dotnet test`, `test`, lua-gate and nav-guard were all green through it.
+                        # Runs the canary scenario, then each of the ten shipped maps, --hidden.
+                        # Needs an already-built tree: it does NOT build, and refuses to start
+                        # without engine/bin/OpenRA.dll rather than reporting ten broken maps.
+                        # READ THE EXIT CODE, NOT THE ABSENCE OF OUTPUT:
+                        #   0  every map constructed a World and ticked.
+                        #   2  a map STARTED and never reached a verdict. This is the bug class.
+                        #   3  LAUNCH FAILURE -- nothing ran and NOTHING WAS PROVEN. Not a result.
+                        # Exit 3 is the one that gets misread. Same family as the 127 and
+                        # zero-byte-log traps recorded below: the gate pre-flights the binaries,
+                        # requires run-test.sh's outcome file to exist, and treats a non-PASS that
+                        # arrives in under 8s as a launch failure, because a game cannot start,
+                        # load the mod and load a map that fast. Last line is machine-readable:
+                        # `SMOKE_VERDICT outcome=... exit=... passed=... failed=...`.
+                        # Detail: tools/autotest/run-smoke.sh header.
+./make.ps1 worldactor-gate   # ~5s, no build. The STATIC half of the same bug class: a trait marked
+                        # [TraitLocation(SystemActors.World)] must not read .WorldActor in its
+                        # constructor, in INotifyCreated.Created, or in its Info's Create() --
+                        # World.cs:252 assigns WorldActor AFTER CreateActor returns, so it is null
+                        # while those run. The correct receiver there is `self`. The same line is
+                        # CORRECT on a Player or per-actor trait, so grep cannot do this and the
+                        # gate keys on the TraitLocation. Already part of `.\make.ps1 check`, where
+                        # it runs FIRST, before the Debug rebuild. tools/worldactor-gate/README.md
 ./ww3-dev.ps1           # dev helper: build, run, test, pre-flight, log cleanup
 ```
 

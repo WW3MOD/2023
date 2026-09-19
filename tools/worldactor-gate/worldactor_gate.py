@@ -277,7 +277,7 @@ def world_infos_in(text):
 
 
 def scan():
-    """(findings, n_infos, n_members_in_scope, n_files)."""
+    """(findings, n_infos, in_scope_member_keys, n_files)."""
     cleaned = {}
     class_index = {}      # class name -> [(path, body_start, body_end)]
     infos = []            # (path, name, body_start, body_end)
@@ -334,7 +334,7 @@ def scan():
         seen.add((f[1], f[2]))
         unique.append(f)
 
-    return unique, len(infos), len(in_scope), len(cleaned)
+    return unique, len(infos), in_scope, len(cleaned)
 
 
 ANY_MEMBER = re.compile(r"(?<![\w.])((?:[\w.]+\.)?[A-Z]\w*)\s*(?:<[^<>()]*>)?\s*\(")
@@ -414,7 +414,8 @@ def report():
 
 
 def check():
-    findings, n_infos, n_members, n_files = scan()
+    findings, n_infos, in_scope, n_files = scan()
+    n_members = len(in_scope)
     live = [f for f in findings if f[0] not in ACCEPTED]
 
     print("worldactor-gate: {} source files, {} world-located TraitLocation attributes, "
@@ -631,13 +632,32 @@ def selftest():
         else:
             print("  green ok: " + name)
 
+    # Tripwire on the tree itself. The fixtures above prove the matcher can tell red from
+    # green on synthetic input; this proves it is still POINTED AT the real thing. A gate
+    # whose scope quietly collapses to nothing passes every fixture it has and reports a
+    # clean tree forever, which is the failure mode that would have let DefconWall through
+    # a second time. DefconWall.Created is the exact member the 2026-09-10 crash lived in,
+    # so it is the one member that must never fall out of scope.
+    canary = "engine/OpenRA.Mods.Common/Traits/World/DefconWall.cs:DefconWall.Created"
+    if (ROOT / "engine" / "OpenRA.Mods.Common" / "Traits" / "World" / "DefconWall.cs").exists():
+        in_scope = scan()[2]
+        if canary not in in_scope:
+            failures.append(
+                "TRIPWIRE: {} is not in scope. The gate is no longer looking at the member "
+                "the 2026-09-10 crash lived in, so a clean `check` proves nothing."
+                .format(canary))
+        else:
+            print("  tree  ok: {} is in scope ({} members total)".format(canary, len(in_scope)))
+    else:
+        failures.append("TRIPWIRE: DefconWall.cs not found; cannot confirm the gate has scope.")
+
     if failures:
         print("selftest: FAILED")
         for f in failures:
             print("  " + f)
         return 1
-    print("selftest: ok. {} planted violations caught, {} correct forms left alone."
-          .format(len(RED), len(GREEN)))
+    print("selftest: ok. {} planted violations caught, {} correct forms left alone, "
+          "tree tripwire in scope.".format(len(RED), len(GREEN)))
     return 0
 
 
