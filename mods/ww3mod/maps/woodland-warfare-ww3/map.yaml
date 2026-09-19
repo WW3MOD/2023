@@ -3710,3 +3710,5 @@ Actors:
 	Actor1372: t02
 		Owner: Neutral
 		Location: 74,62
+
+Rules: rules.yaml

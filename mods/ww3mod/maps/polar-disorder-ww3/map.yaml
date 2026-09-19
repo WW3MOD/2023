@@ -866,3 +866,5 @@ Actors:
 	Actor276: logisticscenter
 		Owner: Neutral
 		Location: 32,64
+
+Rules: rules.yaml

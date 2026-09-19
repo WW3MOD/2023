@@ -83,6 +83,57 @@ Rules order) rather than by grepping for `Capturable`. A grep answers "who menti
 question was "who ends up with it", and the three families above all differ from their parents.
 The resolver is kept at `tools/precaptured-calibration/precaptured_calibration.py` and is ~120
 lines; `--dump-balance-json` (conventions.md) answers the same question with a build.
+## 2026-09-19 - A DEFCON border is a SHORTEST PATH, not a min-cut, and one "locomotor" in the audit output is not a mover at all (`wt/map-borders`, base `main @ 442859aa`)
+
+**A SET OF BLOCKED CELLS SEPARATES THE MAP IN THE 8-CONNECTED GRAPH `DefconWallRegion.Label`
+FLOODS IF AND ONLY IF IT CONTAINS A 4-CONNECTED CHAIN OF THEM RUNNING FROM ONE BOUNDS EDGE TO
+ANOTHER.** That duality is the whole authoring method for the region form of `DefconWall`, and
+it is what makes the problem tractable by hand: the border is a shortest path across the map,
+not a minimum cut through it. Price terrain a player already reads as a barrier near zero and
+open ground high, run Dijkstra on the 4-connected grid over `Bounds`, and the route hugs
+whatever the map actually has and crosses open ground only where the map leaves no choice --
+measured across the eight maps authored here, between 0% (`arena-tank-duel`, which is 2244
+cells of `Clear`) and 83% (`polar-disorder-ww3`) of the route lands on real terrain. Dilating
+the chain by one cell then gives a three-cell band, which is exactly what the shipped
+`HalfWidth: 1024` produces and clears the sqrt(2)/2 floor below which a diagonal band leaks
+through its own corners. Implemented in `tools/nav-guard/defcon_border_designer.py`.
+
+**THE FAIRNESS NUMBER IS NOT AREA, IT IS CHEBYSHEV DISTANCE FROM EACH SPAWN TO THE BAND.** The
+derived bisector is equidistant from both sides by construction, so that is the property an
+authored border has to earn, and an even area split does not imply it. On `twin-rivers-ww3` a
+border laid along the eastern river is far prettier (53 of 148 route cells on open ground
+against 121 of 134 for the straight line) and was rejected on exactly this: the river is 40
+cells from the eastern spawns and 60 from the western ones.
+
+**`immobilepara` IS NOT A MOVER AND ITS CONNECTIVITY NUMBERS MEAN NOTHING.** It appears in
+every `defcon_wall_audit.py` and nav-guard per-locomotor listing next to `foot` and
+`heavytracked`, and on `polar-disorder-ww3` it was the ONLY locomotor reporting a sealed
+region -- 350 cells, against zero for all fourteen others, which reads like a serious defect.
+It is not one: the locomotor belongs to `^SummonBase` (`defaults.yaml:1227`), whose `Mobile`
+has `Speed: 0`, `TurnSpeed: 0` and `PauseOnCondition: !parachute`. It is the descending-summon
+placeholder and never walks anywhere. Its `TerrainSpeeds` are `Clear`, `Road`, `Beach` only
+(`world.yaml:242`), the narrowest list in the mod, which is why it fragments where nothing
+else does. **When one locomotor disagrees with all the others in a connectivity audit, read
+its `Mobile` before believing it.**
+
+**`arena-tank-duel` AND `shellmap-open-field` CANNOT RUN ESCALATION AT ALL**, so nothing
+DEFCON-gated is ever observable on either. Both are `Visibility: Shellmap` and not `Lobby`
+(`6b162ca2` took them out of the lobby list together), every lobby map chooser filters on
+`MapVisibility.Lobby` (`LobbyLogic.cs:1105`, `ServerCreationLogic.cs:105`, `MapCache.cs:416`),
+and the game mode is a lobby option whose `ModeDefault` is `Skirmish` (`DefconEscalation.cs:63`)
+-- which pins the level at `NoLevel` forever (`DefconEscalationState.cs:75-76`) so
+`DefconWall.Apply` never raises. The menu-background path is no escape: `Game.LoadShellMapInner`
+resets the session through `Disconnect()` then `JoinLocal()` and injects only the `scenario`
+option (`Game.cs:549-654`). Worth carrying beyond the wall: **any feature gated on the DEFCON
+level is unreachable on these two maps**, so neither is a valid fixture for testing one.
+
+**A SUPPLY ROUTE ON A BOUNDS-EDGE SPAWN IS OUTSIDE BOUNDS AND READS AS `Unlabelled`.**
+`SpawnStartingUnits` places the base actor at `HomeLocation + CVec(-1,-1)`
+(`MapStartingUnits.cs:37`), and after the 1-cell cordon (`097738f4`) a spawn at `x=1` puts its
+SR at `x=0` while `Bounds` start at `1,1`; `DefconWallRegion.IndexOf` returns -1 there. Ten SRs
+across six shipped maps are in that state. Harmless -- each sits against its own spawn, which
+IS labelled -- but a check written as "every Supply Route is on its own side" reports ten false
+failures. Read the spawn.
 
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 

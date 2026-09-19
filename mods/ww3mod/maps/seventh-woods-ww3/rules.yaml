@@ -1,0 +1,46 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON SEVENTH WOODS -- THE NORTH-EAST TO SOUTH-WEST DIAGONAL ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# RegionTerrainTypes IS DELIBERATELY EMPTY HERE, UNLIKE RIVER ZETA, and that is a judgement
+	# about this map rather than a default. On River Zeta the Water type IS the divide: 588 cells,
+	# one channel, nothing else on the map carries it. This map's 109 water cells are eight puddles in the
+	# corners and its 344 Cliffs cells are 17 small shelves; nothing here is continuous enough to be worth
+	# naming as a type. Naming a type would drag blobs nowhere
+	# near the border into the band and wash a large part of the map in the trait's amber fill,
+	# which is drawn over every border cell (DefconWall.RenderAnnotations). So the border is
+	# authored cell by cell below.
+	#
+	# HOW THESE CELLS WERE CHOSEN, and they are data rather than a derivation -- redraw any of them.
+	# A cell set separates the map in the 8-connected graph DefconWallRegion.Label floods if and
+	# only if it contains a 4-CONNECTED chain of blocked cells running from one Bounds edge to
+	# another. So the border is a shortest path: tools/nav-guard/defcon_border_designer.py runs
+	# Dijkstra over Bounds with terrain a player already reads as a barrier priced near zero and
+	# open ground priced ten times higher, which makes the route follow whatever the map actually
+	# has and cross open ground only where the map leaves no choice. The chain is then dilated by
+	# one cell, so the band is three cells thick everywhere except where Bounds clips it -- exactly
+	# the thickness the shipped HalfWidth of 1024 produces, and above the sqrt(2)/2 floor below
+	# which a diagonal band leaks through its own corners.
+	#
+	# THIS IS THE WEAKEST OF THE EIGHT AND THIS COMMENT SHOULD SAY SO. Only 67 of 202 route cells are
+	# Cliffs, Rock or Water -- the other 135 are open woodland floor, so two thirds of this border is
+	# invented rather than found. It is drawn on the north-east to south-west diagonal because that is
+	# what the map's own layout implies: the four spawns are 180-degree rotations of each other about the
+	# centre, (1,33) pairing with (121,81) and (30,1) with (92,112), so the anti-diagonal is the only
+	# division that treats the two pairs alike. It picks up the cliff shelves and rock belts it passes and
+	# crosses open ground between them.
+	#
+	# Verified statically, no launch: 606 band cells, all inside Bounds, engine load gate 2 components of
+	# 6569 and 6377. Spawns (1,33) and (30,1) north-west, (92,112) and (121,81) south-east; distance to
+	# the band 35 and 48 against 42 and 41, so the two sides average the same 41 cells. All 15 locomotors
+	# separate; 1 cell at (97,23) is sealed for the ground classes and 2 for `walker` and `template`,
+	# where this map already carries 3 pocketed cells in the nav-guard baseline. Capturables 6 north-west
+	# against 5 south-east, none inside the band.
+	DefconWall:
+		# 606 cells, the whole border. No RegionTerrainTypes on this map; see above.
+		RegionCells: 104,1, 105,1, 106,1, 104,2, 105,2, 106,2, 104,3, 105,3, 106,3, 104,4, 105,4, 106,4, 104,5, 105,5, 106,5, 104,6, 105,6, 106,6, 104,7, 105,7, 106,7, 104,8, 105,8, 106,8, 104,9, 105,9, 106,9, 104,10, 105,10, 106,10, 104,11, 105,11, 106,11, 104,12, 105,12, 106,12, 100,13, 101,13, 102,13, 103,13, 104,13, 105,13, 106,13, 100,14, 101,14, 102,14, 103,14, 104,14, 105,14, 106,14, 100,15, 101,15, 102,15, 103,15, 104,15, 105,15, 106,15, 100,16, 101,16, 102,16, 100,17, 101,17, 102,17, 96,18, 97,18, 98,18, 99,18, 100,18, 101,18, 102,18, 96,19, 97,19, 98,19, 99,19, 100,19, 101,19, 102,19, 94,20, 95,20, 96,20, 97,20, 98,20, 99,20, 100,20, 101,20, 102,20, 94,21, 95,21, 96,21, 97,21, 98,21, 94,22, 95,22, 96,22, 97,22, 98,22, 90,23, 91,23, 92,23, 93,23, 94,23, 95,23, 96,23, 90,24, 91,24, 92,24, 93,24, 94,24, 95,24, 96,24, 90,25, 91,25, 92,25, 93,25, 94,25, 95,25, 96,25, 90,26, 91,26, 92,26, 78,27, 79,27, 80,27, 81,27, 82,27, 83,27, 84,27, 85,27, 86,27, 87,27, 88,27, 89,27, 90,27, 91,27, 92,27, 78,28, 79,28, 80,28, 81,28, 82,28, 83,28, 84,28, 85,28, 86,28, 87,28, 88,28, 89,28, 90,28, 91,28, 92,28, 78,29, 79,29, 80,29, 81,29, 82,29, 83,29, 84,29, 85,29, 86,29, 87,29, 88,29, 89,29, 90,29, 91,29, 92,29, 78,30, 79,30, 80,30, 78,31, 79,31, 80,31, 78,32, 79,32, 80,32, 78,33, 79,33, 80,33, 78,34, 79,34, 80,34, 78,35, 79,35, 80,35, 78,36, 79,36, 80,36, 78,37, 79,37, 80,37, 78,38, 79,38, 80,38, 78,39, 79,39, 80,39, 78,40, 79,40, 80,40, 78,41, 79,41, 80,41, 78,42, 79,42, 80,42, 78,43, 79,43, 80,43, 78,44, 79,44, 80,44, 78,45, 79,45, 80,45, 78,46, 79,46, 80,46, 78,47, 79,47, 80,47, 78,48, 79,48, 80,48, 78,49, 79,49, 80,49, 78,50, 79,50, 80,50, 78,51, 79,51, 80,51, 78,52, 79,52, 80,52, 78,53, 79,53, 80,53, 78,54, 79,54, 80,54, 78,55, 79,55, 80,55, 78,56, 79,56, 80,56, 78,57, 79,57, 80,57, 77,58, 78,58, 79,58, 80,58, 77,59, 78,59, 79,59, 80,59, 77,60, 78,60, 79,60, 80,60, 68,61, 69,61, 70,61, 71,61, 72,61, 73,61, 74,61, 75,61, 76,61, 77,61, 78,61, 79,61, 68,62, 69,62, 70,62, 71,62, 72,62, 73,62, 74,62, 75,62, 76,62, 77,62, 78,62, 79,62, 68,63, 69,63, 70,63, 71,63, 72,63, 73,63, 74,63, 75,63, 76,63, 77,63, 78,63, 79,63, 64,64, 65,64, 66,64, 67,64, 68,64, 69,64, 70,64, 62,65, 63,65, 64,65, 65,65, 66,65, 67,65, 68,65, 69,65, 70,65, 62,66, 63,66, 64,66, 65,66, 66,66, 67,66, 68,66, 69,66, 70,66, 62,67, 63,67, 64,67, 65,67, 66,67, 30,68, 31,68, 32,68, 33,68, 34,68, 35,68, 36,68, 37,68, 38,68, 39,68, 40,68, 41,68, 42,68, 43,68, 44,68, 45,68, 46,68, 47,68, 48,68, 49,68, 50,68, 51,68, 52,68, 53,68, 54,68, 55,68, 56,68, 57,68, 58,68, 59,68, 60,68, 61,68, 62,68, 63,68, 64,68, 30,69, 31,69, 32,69, 33,69, 34,69, 35,69, 36,69, 37,69, 38,69, 39,69, 40,69, 41,69, 42,69, 43,69, 44,69, 45,69, 46,69, 47,69, 48,69, 49,69, 50,69, 51,69, 52,69, 53,69, 54,69, 55,69, 56,69, 57,69, 58,69, 59,69, 60,69, 61,69, 62,69, 63,69, 64,69, 30,70, 31,70, 32,70, 33,70, 34,70, 35,70, 36,70, 37,70, 38,70, 39,70, 40,70, 41,70, 42,70, 43,70, 44,70, 45,70, 46,70, 47,70, 48,70, 49,70, 50,70, 51,70, 52,70, 53,70, 54,70, 55,70, 56,70, 57,70, 58,70, 59,70, 60,70, 61,70, 62,70, 63,70, 64,70, 30,71, 31,71, 32,71, 30,72, 31,72, 32,72, 30,73, 31,73, 32,73, 30,74, 31,74, 32,74, 30,75, 31,75, 32,75, 30,76, 31,76, 32,76, 30,77, 31,77, 32,77, 30,78, 31,78, 32,78, 30,79, 31,79, 32,79, 30,80, 31,80, 32,80, 30,81, 31,81, 32,81, 30,82, 31,82, 32,82, 30,83, 31,83, 32,83, 30,84, 31,84, 32,84, 30,85, 31,85, 32,85, 26,86, 27,86, 28,86, 29,86, 30,86, 31,86, 32,86, 26,87, 27,87, 28,87, 29,87, 30,87, 31,87, 32,87, 26,88, 27,88, 28,88, 29,88, 30,88, 31,88, 32,88, 24,89, 25,89, 26,89, 27,89, 28,89, 24,90, 25,90, 26,90, 27,90, 28,90, 21,91, 22,91, 23,91, 24,91, 25,91, 26,91, 27,91, 28,91, 20,92, 21,92, 22,92, 23,92, 24,92, 25,92, 26,92, 18,93, 19,93, 20,93, 21,93, 22,93, 23,93, 24,93, 25,93, 26,93, 15,94, 16,94, 17,94, 18,94, 19,94, 20,94, 21,94, 22,94, 23,94, 15,95, 16,95, 17,95, 18,95, 19,95, 20,95, 21,95, 22,95, 15,96, 16,96, 17,96, 18,96, 19,96, 20,96, 15,97, 16,97, 17,97, 15,98, 16,98, 17,98, 14,99, 15,99, 16,99, 17,99, 14,100, 15,100, 16,100, 17,100, 14,101, 15,101, 16,101, 17,101, 14,102, 15,102, 16,102, 14,103, 15,103, 16,103, 14,104, 15,104, 16,104, 14,105, 15,105, 16,105, 14,106, 15,106, 16,106, 14,107, 15,107, 16,107, 14,108, 15,108, 16,108, 14,109, 15,109, 16,109, 14,110, 15,110, 16,110, 14,111, 15,111, 16,111, 14,112, 15,112, 16,112
