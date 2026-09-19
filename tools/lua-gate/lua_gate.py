@@ -451,6 +451,255 @@ def local_used_before_defined(text):
     return findings
 
 
+# --------------------------------------------------------------------------------------
+# Reachability: which function bodies can ever run
+# --------------------------------------------------------------------------------------
+#
+# `demo-nuke-river-zeta` fired nothing on two consecutive runs. Its purchase loop was a
+# textbook `local function step() ... Trigger.AfterDelay(1, step) ... end`, complete and
+# correct, and the copy it was made from had lost the ONE line at the bottom of WorldLoaded
+# that starts it. Cameras panned, five screenshots were taken, the scenario exited clean.
+# The only symptom was cash sitting at its starting value.
+#
+# The trap that makes this worth a static check rather than a grep: the literal string
+# `Trigger.AfterDelay(1, step)` IS present in the file -- inside step(), as its own
+# reschedule. A person grepping for the kickoff finds it and concludes the loop is wired.
+# Deciding this needs scope, so the analysis below is a real reachability walk over function
+# bodies rather than a search for a spelling.
+
+LUA_BLOCK_OPEN = ("function", "if", "do", "repeat")
+LUA_BLOCK_CLOSE = ("end", "until")
+WORD_RE = re.compile(r"[A-Za-z_]\w*")
+
+
+def lua_function_spans(text):
+    """[(start, end)] for every `function` keyword in the file, or None if the scan desyncs.
+
+    `for`/`while` are NOT counted: their `do` is the block opener and counting both would
+    double. `elseif`/`else` continue a block rather than opening one, and tokenising on word
+    characters means `elseif` is one word and `endTick` is not an `end`.
+
+    Returning None on any mismatch is deliberate. This feeds a check that reports code as
+    unreachable, and a scanner that has lost its place would report LIVE code as dead --
+    the one failure a gate must not have. Silence is the right answer to "I no longer know
+    where I am".
+    """
+    stack, spans = [], []
+    for m in WORD_RE.finditer(text):
+        w = m.group(0)
+        if w in LUA_BLOCK_OPEN:
+            stack.append((w, m.start()))
+        elif w in LUA_BLOCK_CLOSE:
+            if not stack:
+                return None
+            kind, pos = stack.pop()
+            if (w == "until") != (kind == "repeat"):
+                return None
+            if kind == "function":
+                spans.append((pos, m.end()))
+    if stack:
+        return None
+    return sorted(spans)
+
+
+def _innermost(spans, pos):
+    """The tightest span STRICTLY containing pos, or None for file-scope code.
+
+    Strict at both ends, so a span's own `function` keyword counts as OUTSIDE itself. That
+    is what lets an anonymous closure be judged by where it is created.
+    """
+    best = None
+    for s, e in spans:
+        if s < pos < e and (best is None or s > best[0]):
+            best = (s, e)
+    return best
+
+
+def _pos_reachable(spans, reachable, pos):
+    inner = _innermost(spans, pos)
+    return inner is None or inner in reachable
+
+
+LOCAL_FUNC_DEF_RE = re.compile(r"(?<![\w.:])local\s+function\s+([A-Za-z_]\w*)\s*\(")
+NAMED_FUNC_DEF_RE = re.compile(r"(?<![\w.:])function\s+([A-Za-z_][\w.:]*)\s*\(")
+ASSIGNED_FUNC_DEF_RE = re.compile(r"(?<![\w.:])([A-Za-z_]\w*)\s*=\s*function\s*\(")
+LOCAL_DECL_RE = re.compile(r"(?<![\w.:])local\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)")
+
+
+def lua_local_names(text):
+    """Names this file declares with an explicit `local`.
+
+    Narrower on purpose than lua_bindings(), which also collects parameters and loop
+    variables. A name counts as file-local here only when the file says `local` about it,
+    because being local is what makes "nothing references it" mean "nothing CAN call it".
+    A global may be called by the engine or by any other script the map loads.
+    """
+    out = set()
+    for m in LOCAL_DECL_RE.finditer(text):
+        out.update(x.strip() for x in m.group(1).split(","))
+    return out
+
+
+def lua_reachability(text):
+    """(spans, reachable) — which function bodies can be entered, transitively.
+
+    Roots are file-scope code plus every function bound to a GLOBAL name: the engine calls
+    WorldLoaded and Tick, and a global is callable from any other script the map loads, so
+    nothing here may declare one dead. From there:
+
+      * a function bound to a LOCAL name becomes reachable once its name is READ from
+        somewhere already reachable -- a direct call, a callback argument
+        (`Trigger.OnKilled(a, f)`), a table field (`{ drive = f }`), a `return f`: anything
+        that is not a write to it;
+      * an ANONYMOUS closure is reachable when the code that CREATES it is reachable. It is
+        a value being handed somewhere at that moment, and assuming it gets called is the
+        direction that errs toward silence.
+
+    Fixpoint, so a driver started from a function that is itself started from a callback is
+    reachable, and a chain of two orphans is not.
+
+    Returns (None, None) when the span scan desyncs — see lua_function_spans.
+    """
+    spans = lua_function_spans(text)
+    if spans is None:
+        return None, None
+
+    locals_ = lua_local_names(text)
+
+    # Which span is bound to which name, and the byte ranges that DEFINE a name rather
+    # than read it. `local f`, `function f(` and the `f` of `f = function(` are writes:
+    # counting any of them as a reference would make every function reachable from its own
+    # definition, which is precisely the bug being looked for.
+    named = {}
+    decl_ranges = []
+    for m in LOCAL_FUNC_DEF_RE.finditer(text):
+        kw = text.index("function", m.start())
+        named[kw] = (m.group(1), True)
+        decl_ranges.append((m.start(), m.end()))
+    for m in NAMED_FUNC_DEF_RE.finditer(text):
+        if m.start() in named:
+            continue
+        base = m.group(1).split(".")[0].split(":")[0]
+        named[m.start()] = (base, base in locals_)
+        decl_ranges.append((m.start(), m.end()))
+    for m in ASSIGNED_FUNC_DEF_RE.finditer(text):
+        kw = text.index("function", m.start())
+        if kw in named:
+            continue
+        named[kw] = (m.group(1), m.group(1) in locals_)
+        decl_ranges.append((m.start(), kw))
+    for m in LOCAL_DECL_RE.finditer(text):
+        decl_ranges.append((m.start(), m.end()))
+
+    by_start = {s: (s, e) for s, e in spans}
+    span_name = {}
+    for kw, entry in named.items():
+        if kw in by_start:
+            span_name[by_start[kw]] = entry
+
+    refs = {}
+    for name, is_local in span_name.values():
+        if not is_local or name in refs:
+            continue
+        found = []
+        for m in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"(?![\w])", text):
+            if any(a <= m.start() < b for a, b in decl_ranges):
+                continue
+            if re.match(r"\s*=(?!=)", text[m.end():]):
+                continue  # assignment target: rebinding a name does not call it
+            found.append(m.start())
+        refs[name] = found
+
+    reachable = set()
+    for _ in range(len(spans) + 1):
+        grew = False
+        for span in spans:
+            if span in reachable:
+                continue
+            entry = span_name.get(span)
+            if entry is None:
+                ok = _pos_reachable(spans, reachable, span[0])      # anonymous closure
+            elif not entry[1]:
+                ok = True                                           # global: exported
+            else:
+                ok = any(_pos_reachable(spans, reachable, p)
+                         for p in refs.get(entry[0], ()))
+            if ok:
+                reachable.add(span)
+                grew = True
+        if not grew:
+            break
+
+    return spans, reachable
+
+
+ORPHAN_ADVICE = (
+    "The scenario loads, its WorldLoaded runs, cameras and screenshots work, and this loop "
+    "never ticks once -- the only symptom is whatever it was supposed to change sitting at "
+    "its starting value. Beware the grep that says otherwise: the kickoff line "
+    "`Trigger.AfterDelay(1, {name})` is ALSO the reschedule INSIDE the body. Add the call at "
+    "the end of WorldLoaded, or hang it off the trigger that should start it."
+)
+
+
+def orphaned_drivers(text):
+    """A self-rescheduling local function that no reachable code ever starts.
+
+    Two conditions, both load-bearing:
+
+      1. it references ITSELF from inside its own body -- the self-rescheduling loop that
+         makes it a driver. A local that is merely never used is dead weight rather than an
+         inert scenario, and is a different and far noisier finding;
+      2. its body is unreachable by the walk above.
+
+    Condition 1 is also what settles the severity: a driver is what the rest of the scenario
+    hangs off, so one that cannot start means the run does nothing.
+    """
+    spans, reachable = lua_reachability(text)
+    if spans is None:
+        return []
+
+    by_start = {s: (s, e) for s, e in spans}
+    locals_ = lua_local_names(text)
+    out = []
+    seen = set()
+
+    def report(span, name, header_end):
+        body = text[span[0]:span[1]]
+        selfref = [x for x in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"(?![\w])", body)
+                   if x.start() >= header_end - span[0]]
+        if not selfref:
+            return
+        line = line_of(text, span[0])
+        if line in seen:
+            return
+        seen.add(line)
+        out.append((
+            line, name,
+            "`{n}` reschedules itself (line {r}) but NOTHING EVER STARTS IT: no reachable "
+            "code outside its own body names `{n}`. ".format(
+                n=name, r=line_of(text, span[0] + selfref[0].start()))
+            + ORPHAN_ADVICE.format(name=name)))
+
+    for m in LOCAL_FUNC_DEF_RE.finditer(text):
+        span = by_start.get(text.index("function", m.start()))
+        if span is not None and span not in reachable:
+            report(span, m.group(1), m.end())
+
+    # The forward-declaration idiom -- `local f` on its own, then `f = function() ... end`.
+    # Used in the tree for drivers that reschedule from inside a closure, so it is not a
+    # hypothetical spelling; it is how test-aa-autotarget-thru-trees writes its poll loop.
+    for m in ASSIGNED_FUNC_DEF_RE.finditer(text):
+        if m.group(1) not in locals_:
+            continue
+        kw = text.index("function", m.start())
+        span = by_start.get(kw)
+        if span is not None and span not in reachable:
+            report(span, m.group(1), kw)
+
+    return out
+
+
 def line_of(text, pos):
     return text.count("\n", 0, pos) + 1
 
@@ -1535,6 +1784,106 @@ def _shared_body_acceptance():
     return out
 
 
+# --------------------------------------------------------------------------------------
+# Acceptance test for the orphaned-driver check
+# --------------------------------------------------------------------------------------
+#
+# The negative cases are the point of this block. A check that reports "nothing ever starts
+# this" has to be trusted not to fire on the four ways the tree actually DOES start one, or
+# the first person it lies to turns it off.
+
+DRIVER_ORPHAN = """
+local tick = 0
+local fired = false
+
+local function step()
+\ttick = tick + 1
+\tif not fired then
+\t\tlocal ready = TestHarness.EnsurePower(USA, Proxy, PowerKey, tick)
+\t\tif ready then
+\t\t\tfired = true
+\t\t\tTest.ActivateSupportPower(USA, PowerKey, CPos.New(38, 20))
+\t\t\treturn
+\t\tend
+\tend
+\tTrigger.AfterDelay(1, step)
+end
+
+WorldLoaded = function()
+\tCamera.Position = WPos.New(1, 2, 0)
+end
+"""
+
+DRIVER_FORWARD = """
+local remaining = 5
+local function startPolling()
+\tlocal step
+\tstep = function()
+\t\tremaining = remaining - 1
+\t\tTrigger.AfterDelay(1, step)
+\tend
+\tTrigger.AfterDelay(1, step)
+end
+
+WorldLoaded = function() startPolling() end
+"""
+
+
+def _driver_variant(kickoff):
+    return DRIVER_ORPHAN.replace(
+        "\tCamera.Position = WPos.New(1, 2, 0)\n",
+        "\tCamera.Position = WPos.New(1, 2, 0)\n\t" + kickoff + "\n")
+
+
+def run_driver_acceptance():
+    """Every shape that starts a driver must stay silent; every shape that cannot must fire."""
+    with_start = DRIVER_ORPHAN.replace(
+        "local function step()",
+        "local function start()\n\tTrigger.AfterDelay(1, step)\nend\n\nlocal function step()")
+
+    cases = (
+        # -- positive: the live incident of 2026-09-10, verbatim in shape.
+        ("a self-rescheduling driver nothing starts is reported", DRIVER_ORPHAN, 1),
+        # -- negative: the four ways the corpus actually starts one.
+        ("...and the same driver with its kickoff restored is not",
+         _driver_variant("Trigger.AfterDelay(1, step)"), 0),
+        ("a driver started from a Trigger.OnKilled callback is not reported",
+         _driver_variant("Trigger.OnKilled(Victim, step)"), 0),
+        ("a driver stored in a table field is not reported",
+         _driver_variant("Drivers = { drive = step }"), 0),
+        ("a driver started indirectly through another function is not reported",
+         with_start.replace("\tCamera.Position = WPos.New(1, 2, 0)\n",
+                            "\tCamera.Position = WPos.New(1, 2, 0)\n\tstart()\n"), 0),
+        # -- the forward-declaration idiom, which the tree uses for poll loops.
+        ("a forward-declared `local f` / `f = function` driver, kicked off, is not reported",
+         DRIVER_FORWARD, 0),
+        ("...and the same one with its kickoff removed is reported",
+         DRIVER_FORWARD.replace("\tend\n\tTrigger.AfterDelay(1, step)\nend", "\tend\nend"), 1),
+        # -- transitivity: reachability is a walk, not one hop.
+        ("a chain of two orphans (the starter is itself never called) is reported",
+         with_start, 1),
+    )
+
+    out = [(desc, len(orphaned_drivers(strip_lua(text))) == want)
+           for desc, text, want in cases]
+
+    # The span scanner underpins all of the above, so pin the arithmetic it gets wrong when
+    # `for`/`while` are counted alongside their `do`, and the bail-out on a desync.
+    out.append(("function spans: `for ... do ... end` inside a body does not close it",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\tfor i = 1, 3 do\n\t\tx = i\n\tend\n\ty = 1\nend\n"))
+                == [(6, 59)]))
+    out.append(("function spans: `repeat ... until` is balanced",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\trepeat\n\t\tx = 1\n\tuntil x\nend\n")) is not None))
+    out.append(("function spans: an identifier merely STARTING with `end` is not an `end`",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\tendTick = 1\nend\n")) is not None))
+    out.append(("function spans: an unbalanced file returns None rather than guessing",
+                lua_function_spans(strip_lua("local function f()\n\tx = 1\n")) is None))
+    return out
+
+
 def _write(path, text):
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -1589,6 +1938,7 @@ def run_selftest(args):
     extra = [(f"miniyaml indent: {line!r} is level {want}",
               miniyaml_split(line)[0] == want) for line, want in MINIYAML_INDENT_CASES]
     extra += run_wiring_acceptance()
+    extra += run_driver_acceptance()
     for desc, ok in extra:
         print(f"  {'ok  ' if ok else 'FAIL'}  {desc}")
         if not ok:
