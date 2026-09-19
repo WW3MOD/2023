@@ -1,0 +1,108 @@
+WIP: DEFCON 3 staging captures -- what the bots do with the no-rush period.
+
+R3 of the 2026-09-19 Escalation review (WORKSPACE/audit/
+escalation-gameplay-review-260919.md, "Runs requested"). A SCRATCH CAPTURE RIG,
+not a gate scenario: it measures nothing and asserts nothing about the mode.
+Delete it once the frames have been read.
+
+WHY IT EXISTS. The review's §2.7 ends with three questions about the bots under
+Escalation that could be READ out of the configuration but not SEEN:
+
+  1. does the border staging produce a LINE or a CLUMP?
+  2. is artillery held BEHIND the staged line at standoff, or parked in it?
+  3. do the slack minutes of the clock go on DEFENSES, or on more armour at the
+     border?
+
+All three are visual. The manager's screenshot channel drives
+TestModeScreenshots through a cmd file whose vocabulary is `screenshot`,
+`click` and `hover` -- it cannot move the camera -- so a scenario that frames
+itself is the only way to answer them.
+
+IT IS test-escalation-full-match, UNCHANGED BUT FOR THE SCRIPT. map.bin is the
+same file (md5 90824f8f1840b1c7ce4fc628da067db5, identical to
+mods/ww3mod/maps/polar-disorder-ww3/map.bin), map.yaml differs only in its
+Title, and rules.yaml differs only in the LuaScript line -- including the
+TimeLimitTicks and RunInTestMode departures this rig never reaches, since it
+writes its verdict at tick 5200. That is deliberate rather than lazy: GIVEN
+THE SAME --seed, R1 AND R3 RUN THE SAME MATCH, so these frames are pictures of
+the match R1 puts tick stamps on. Both Lua scripts are read-only pollers that
+issue no orders, create no actors and draw no shared random; Camera.Position and
+Camera.Zoom are client-local view state that no ISync type reads
+(ViewportIsNotSimulationStateTest asserts that by IL scan).
+
+THE GEOMETRY IS DERIVED, NOT EYEBALLED. Decoded offline from this scenario's own
+map.bin via tools/nav-guard/modload.py. The homes are 93,16 and 4,81, 110.2
+cells apart, so the derived bisector runs north-west to south-east through
+48.5,48.5. Walking it cell by cell shows it is NOT one open line: the midpoint
+is a four-cell CLIFF plug, and there are Rock+Water belts further out. The two
+wide crossings near the direct axis are cells (35,30)..(47,46) and
+(50,50)..(62,67), 21 cells each, both carrying a Road. Their centres 41,38 and
+56,59 are where the close frames aim. The full belt table is in the Lua header.
+
+**A CLUMP AT A GAP IS THEREFORE CORRECT PLAY, NOT A DEFECT**, and that caveat is
+the single most important thing to carry into reading the images. A force
+massed on a road crossing is funnelling through the only ground the terrain
+offers. What would be wrong is a clump on open frontage with twenty empty cells
+beside it, or a force strung along a belt it can never cross.
+
+TWELVE FRAMES: THREE MOMENTS x FOUR SCALES/VIEWPOINTS, so any two frames sharing
+a letter are directly comparable.
+
+  01-t2500-*     half way through Positioning (tick 2500 of 5000)
+  02-t4800-*     twelve seconds before the border lifts (tick 4800)
+  03/04-t50xx-*  10 to 90 ticks after it lifts (5010, 5040, 5070, 5100)
+
+  -a-wide-whole-border  fully out. Camera.MinZoom is 0.25 here -- WW3MOD leaves
+                        Viewport.unlockMinZoom on and unlockedMinZoomScale is
+                        0.25 -- so this spans four times the linear extent of
+                        zoom 1 and shows the whole map. WHERE each side massed,
+                        and the insurance frame if they massed nowhere near the
+                        direct axis.
+  -b-mid-both-gaps      zoom 1, ordinary playing magnification, on 48,48. Both
+                        open crossings and the cliff plug in one frame. THE
+                        PRIMARY FRAME for line-vs-clump, and the fallback if the
+                        fully-out frame is too small to count and the close pair
+                        too tight to show frontage.
+  -c-nw-gap / -d-se-gap zoom 2, centred ON the border at 41,38 and 56,59, so
+                        both armies' near-border ground is in one frame. The
+                        artillery-standoff frames: a held battery reads as a
+                        second rank with a gap in front of it, and that gap is
+                        only measurable against the line it sits behind.
+
+THREE SCALES RATHER THAN ONE BECAUSE THE MANAGER RUNS THIS ONCE. Picking a single
+magnification would be a gamble on a viewport whose cell coverage depends on the
+window resolution; three means at least one frame per moment is legible.
+
+THE VERDICT ONLY GUARDS INTERPRETABILITY. At each Positioning capture tick it
+requires Test.DefconLevel() == 3 and Test.DefconWallActive() == true. If
+Escalation failed to apply, the level reads 0 and twelve photographs of an
+ordinary Skirmish would be indistinguishable from twelve photographs of the thing
+we wanted. There is no assertion at tick 5010 on purpose: the review predicts
+DEFCON 2 may already be over by then, and that is the finding rather than a
+fault. Calling Test.Pass is also what FLUSHES the PNGs --
+TestGlobal.ExitWhenCapturesFlushed polls AllCapturesFlushed() before exiting,
+and a run killed by --timeout can lose captures still mid-encode on the
+ThreadPool.
+
+EACH CENSUS LINE IN THE VERDICT CARRIES NUMBERS BESIDE THE SHAPES: ground
+attackers within 12 cells of each gap, per side, plus each side's total. "Line
+or clump" is a question about how N units are arranged, and a reviewer should
+not have to count N off a photograph.
+
+RUN LINE. --background is required (a --hidden run never maps the window and
+writes no PNGs), and --seed MUST be R1's OWN RECORDED SEED or the
+frames are of a different match. R1 ran with the harness's default
+DateTime.Now seed and result.json recorded it as -1662796604 (run
+260920_010605_p1901); run-test.sh accepts a negative integer:
+
+    ./tools/autotest/run-test.sh --background --speed 8 --seed -1662796604 \
+        --timeout 240 wip-escalation-r3
+
+The verdict lands at tick 5200, which at --speed 8 is about 40 s of wall clock
+plus startup -- so 240 is generous rather than tight, and a run that reaches the
+timeout instead of writing a verdict failed to reach tick 5200 for a reason worth
+reading.
+
+If the wide frames come back too small to pick out individual vehicles, re-run
+with --size 1920x1200; MinZoom is derived from the window resolution, so a
+bigger window fits the same map into more pixels rather than showing more map.
