@@ -502,11 +502,19 @@ World:
 	# farmland read as immune to a nuclear blast. This redraws the band over those cells only, after
 	# actors. Ground cover is the exact restriction (Passable.GroundCover): a cell qualifies only if
 	# EVERY actor in it is ground cover, so a scar can never land on top of a tank, soldier or building.
+	# UNDER-ACTORS HALF, 2026-09-19, and it is a FIX to the line above rather than a new feature. The rule above is
+	# exact and it has a cost the user's eye found: a cell holding a vehicle AND a field is excluded, so the field
+	# sprite keeps hiding the terrain-pass decal and the cell reads as bright unburnt wheat inside a black disc.
+	# Measured on test-field-swallows-nuke, cell 36,14 was 51% bright wheat against 31.6% on its same-band
+	# neighbours. GroundCoverOverlayUnderActors emits ONE SORTED RENDERABLE for those cells instead of adding them
+	# to the batched pass -- at ZOffset -7680, which is ^CivField's -8192 plus half a cell, so the scar lands above
+	# the field and below the unit. The absolute rule is unchanged: no scar pixel is ever drawn over a unit.
 	SmudgeLayer@SCARRIM:
 		Type: ScarRim
 		ShoreFadeCells: 2
 		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
+		GroundCoverOverlayUnderActors: true
 		Sequence: scarband-rim
 		SmokeChance: 0
 	SmudgeLayer@SCARBURN:
@@ -514,6 +522,7 @@ World:
 		ShoreFadeCells: 2
 		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
+		GroundCoverOverlayUnderActors: true
 		Sequence: scarband-burn
 		SmokeChance: 0
 	SmudgeLayer@SCARCHAR:
@@ -521,6 +530,7 @@ World:
 		ShoreFadeCells: 2
 		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
+		GroundCoverOverlayUnderActors: true
 		Sequence: scarband-char
 		SmokeChance: 0
 	SmudgeLayer@SCARCRATER:
@@ -528,6 +538,7 @@ World:
 		ShoreFadeCells: 2
 		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
+		GroundCoverOverlayUnderActors: true
 		Sequence: scarband-crater
 		SmokeChance: 20
 		SmokeImage: smoke_m
@@ -537,6 +548,7 @@ World:
 		ShoreFadeCells: 2
 		ShoreFadeMinAlpha: 0.7
 		GroundCoverOverlay: true
+		GroundCoverOverlayUnderActors: true
 		Sequence: scarband-core
 		SmokeChance: 40
 		SmokeImage: smoke_m
