@@ -482,3 +482,19 @@ DiscordService:
 ModCredits:
 	ModCreditsFile: ww3mod|credits.txt
 	ModTabTitle: WW3MOD
+
+WebServices:
+	# The OpenRA master server has never heard of mod id ww3mod: its versioncheck answers
+	# "unknown" for us forever, so the update notice could never appear. LatestVersionUrl
+	# switches WebServices.CheckModVersion to a client-side comparison against a static file,
+	# which needs no server at all -- this repo is public, so raw.githubusercontent serves it.
+	# Bump web/latest.txt when tagging a release; see web/README.md.
+	LatestVersionUrl: https://raw.githubusercontent.com/WW3MOD/2023/main/web/latest.txt
+	LatestVersionDownloadUrl: https://github.com/WW3MOD/2023/releases
+	# NO BLANK LINE ABOVE, DELIBERATELY -- see the note at test-nuclear-exchange/rules.yaml:52.
+	# A blank line between sibling keys inside a nested node can split the node, and here that
+	# would silently drop the news settings back to master.openra.net with nothing in lint to say so.
+	# Same reasoning for the main menu news panel. A static file cannot use the system-info
+	# payload MainMenuLogic would otherwise append to this URL, so it is not sent.
+	GameNews: https://raw.githubusercontent.com/WW3MOD/2023/main/web/news.yaml
+	GameNewsSendClientInfo: false

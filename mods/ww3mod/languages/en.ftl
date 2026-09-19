@@ -27,6 +27,15 @@ loadscreen-loading =
 # points that button at label-engine-credits below rather than reusing this key.
 label-openra = WW3MOD
 
+# The update notice, shown only when WebServices.LatestVersionUrl reports a newer tag than
+# the one this build was stamped with. Overrides common|fluent/chrome.ftl, whose wording
+# ("Download the latest version from www.openra.net") sends WW3MOD players to a site that
+# has never carried a WW3MOD build. button-update-notice-download is new here, not an
+# override: the notice was labels only until the button beside these was added.
+label-update-notice-a = A newer version of WW3MOD is available.
+label-update-notice-b = Your current version can still play offline, but may not join newer servers.
+button-update-notice-download = Get the Latest Release
+
 ## CreditsLogic
 label-engine-credits = OpenRA
 
@@ -34,8 +43,14 @@ label-engine-credits = OpenRA
 # Overrides common|fluent/chrome.ftl. Its sibling title was rethemed to
 # "Establishing Battlefield Control" while this line still read "help us
 # optimize OpenRA". Deliberately NOT reworded to "optimize WW3MOD": the payload
-# is sent to master.openra.net (WebServices.GameNews), so naming WW3MOD as the
+# was sent to master.openra.net (WebServices.GameNews), so naming WW3MOD as the
 # recipient would be false on a consent dialog. Name the engine instead.
+#
+# STALE AS OF THE NEWS MOVE: mod.yaml now sets GameNewsSendClientInfo: false, because
+# news comes from a static file on raw.githubusercontent.com that cannot consume the
+# payload -- so this dialog now asks for consent to send nothing anywhere. The wording is
+# left alone rather than rewritten into nonsense; suppressing the prompt outright is the
+# real fix and is filed in WORKSPACE/bugs/discovered.md.
 label-mainmenu-system-info-prompt-text-a = We would like to collect some system details that will help us optimize the OpenRA engine that WW3MOD runs on.
 
 ## MapOptions, MissionBrowserLogic

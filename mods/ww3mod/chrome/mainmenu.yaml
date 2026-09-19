@@ -387,6 +387,16 @@ Container@MAINMENU:
 					Align: Center
 					Shadow: true
 					Text: label-update-notice-b
+				# Wired by MainMenuLogic; opens WebServices.LatestVersionDownloadUrl. Wider than the
+				# 128px container on purpose -- the negative X keeps it centred on the same axis as
+				# the labels above, which is the window centre.
+				Button@DOWNLOAD_BUTTON:
+					X: (PARENT_WIDTH - WIDTH) / 2
+					Y: 45
+					Width: 200
+					Height: 25
+					Font: Bold
+					Text: button-update-notice-download
 		# Container@PLAYER_PROFILE_CONTAINER:
 		# 	Logic: LoadLocalPlayerProfileLogic
 		# 	X: 25
