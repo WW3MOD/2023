@@ -38,6 +38,24 @@
   `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
   Escalation is not the default game mode.
   (found while working on: the whole-match Escalation gameplay review)
+- [2026-09-19] [LOW — not fixed] **The Windows installer ignores a `/D=` install path on the command
+  line.** `packaging/windows/buildpackage.nsi:41` opens `.onInit` with an unconditional
+  `ReadRegStr $INSTDIR HKLM "Software\OpenRAWW3MOD" "InstallDir"`. NSIS applies `/D=` to `$INSTDIR`
+  *before* `.onInit` runs, so that read overwrites whatever the caller asked for — and when the
+  registry value is absent `ReadRegStr` sets `$INSTDIR` to the empty string, which the following
+  `StrCmp` then replaces with the Program Files default. Either way the `/D=` path is discarded.
+  Consequence: `WW3MOD-<tag>-x64.exe /S /D=D:\Games\WW3MOD` silently installs to Program Files, and
+  a scripted or unattended deployment cannot choose its own directory. Inherited from the stock
+  OpenRA mod SDK, not introduced by the installer-safety work.
+  **Deliberately left alone**, and the reason matters: fixing it means honouring a path that no
+  interactive guard ever sees, because **silent mode calls neither `.onVerifyInstDir` nor the
+  directory page's leave callback**. As it stands the value `.onInit` settles on is the registry
+  value or the built-in default, and `:44-49` now validates the registry value, so the silent path
+  cannot reach the Desktop. Honouring `/D=` re-opens that door and has to come with its own
+  validation — `IsUnsafeInstDir` on the post-`/D` value, with a hard abort rather than a greyed
+  button, since there is no dialog to grey. Worth doing if unattended installs are ever wanted;
+  not worth doing blind.
+  (found while working on: installer safety, pipeline items [9] + [10])
 
 - [2026-09-19] [FIXED in `6a0a0554` on `wt/update-notice`] **The system-info consent prompt asked
   permission to send data that went nowhere.** `SystemInfoPromptLogic.CreateParameterString()` has

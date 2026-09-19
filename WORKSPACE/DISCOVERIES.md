@@ -134,6 +134,58 @@ SR at `x=0` while `Bounds` start at `1,1`; `DefconWallRegion.IndexOf` returns -1
 across six shipped maps are in that state. Harmless -- each sits against its own spawn, which
 IS labelled -- but a check written as "every Supply Route is on its own side" reports ten false
 failures. Read the spawn.
+## 2026-09-19 - The installer's two "walk a directory" primitives differ by orders of magnitude, and the safe one is not the one already in the file; plus a manifest `!include` inside the `Clean` macro is inserted TWICE (`wt/installer-safety`, base `main @ 64185a89`, read-and-compiled, never run)
+
+**`${GetSize}` and `${DirState}` both live in `FileFunc.nsh` and both answer a question about a
+directory, and that is the whole of their similarity.** `${GetSize} "$INSTDIR" "/S=0K"` recurses:
+`buildpackage.nsi` used it to compute `EstimatedSize` at install time, and on 2026-09-08 — against a
+Desktop the user had accepted as `$INSTDIR`, holding a repo checkout — that was **275,720 files /
+71 GB, about 25 minutes, with no progress indication and no cancel.** `${DirState}` is the opposite
+shape: read it (`Include/FileFunc.nsh:1964-1990` in NSIS 3.09) and it is **`FindFirst`, then at most
+two `FindNext` to step past `.` and `..`, then `FindClose`** — returning -1 missing / 0 empty / 1 has
+contents. It never descends and never counts. Cost is one directory-handle open regardless of what
+is inside.
+
+**Why that distinction is load-bearing rather than trivia:** the "is this directory empty?" test had
+to run in `.onVerifyInstDir`-adjacent code, and **`.onVerifyInstDir` fires on every keystroke in the
+directory field.** `${GetSize}` there would hang the dialog per character typed; `${DirState}` is
+free. It also settles where the *other* half of the guard can live — writing `$INSTDIR` from
+`.onVerifyInstDir` appends a subfolder once per character, so the append has to sit in the page's
+`MUI_PAGE_CUSTOMFUNCTION_LEAVE` instead (`buildpackage.nsi:213-233`), even though the rejection
+check is fine in `.onVerifyInstDir` (`:201-211`). **One callback, two behaviours, and only one of
+them may be idempotent-by-luck.** Neither `FileFunc.nsh` nor the NSIS docs put these facts next to
+each other.
+
+Two smaller notes from the same reading, both cheap to get wrong:
+
+* **`${DirState}` needs no `!insertmacro DirState` to be usable.** It dispatches through
+  `${CallArtificialFunction} DirState_` (`FileFunc.nsh:1955-1972`), which materialises the function
+  on first use, and it clobbers `$0` and `$1` — push them if the caller cares. The same is true of
+  `${GetSize}`, which is why the original script could call it with no setup line and give the
+  impression that FileFunc macros are free-standing.
+* **`${DirState}` returning 1 does not mean "somebody else's files".** A reinstall over our own
+  install also reads 1, so the append has to be gated on a marker first —
+  `$INSTDIR\<launcher>.exe` or `$INSTDIR\uninstaller.exe` (`buildpackage.nsi:219-220`) — or every
+  upgrade buries itself one directory deeper.
+
+**SECOND FINDING, INDEPENDENT: a file `!include`d inside `!macro Clean UN` is pulled in TWICE, so it
+may contain instructions only.** `buildpackage.nsi` defines the cleanup once and inserts it twice —
+`!insertmacro Clean ""` for the installer's rollback path and `!insertmacro Clean "un."` for the
+uninstaller (`:384-385`), which is the standard NSIS answer to installer and uninstaller functions
+living in separate namespaces. The generated uninstall manifest is `!include`d from inside that
+macro body (`:356`), and therefore lands in the compiled script **twice**. Delete/RMDir instructions
+duplicate harmlessly; **a single `!define` in that file would fail the build on the second insertion
+with "already defined"**, and an `!ifndef` guard around it would be worse — it would silently make
+the define visible to only one of the two functions. This is why
+`packaging/windows/gen-uninstall-manifest.py` prints the install size **on stdout** for the build
+script to pass as `-DINSTALL_SIZE_KB` rather than emitting a `!define` into the manifest it is
+already writing, which was the obvious first design and is unbuildable.
+
+**Verification status, stated because it bounds all of the above:** every claim here is from reading
+the NSIS 3.09 sources and from `makensis` compiling the reworked script (exit 0, no warnings at
+`-V2`, and exit 1 at the intended `!error` when `-DUNINSTALL_MANIFEST` is withheld). **No installer
+was run and no runtime behaviour was observed** — the human procedure that would observe it is
+`packaging/windows/INSTALLER-TEST-PLAN.md`.
 
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 
