@@ -102,6 +102,47 @@ one side in a scenario can carry starting units**, and a scenario that wants bot
 have them. A `Bot:` on a map player does not help: that player is still `Playable: False`. This is also
 why every existing scenario carries `-SpawnStartingUnits:` — without it the harness's own Observer
 slot, being `Playable`, is handed a `supplyroute` from `StartingUnits@none`.
+## 2026-09-19 - The powers-sandbox lobby option makes every missile strike land in a THIRD of the time its MissileDelay implies, and TWELVE autotest scenarios set it (`wt/escalation-optouts`, base `main @ c3825714`)
+
+Sizing a scenario's timing against `MissileStrikePowerInfo.MissileDelay` is wrong wherever
+`PowersSandboxCheckboxEnabled: true`, and that is not a rare configuration: the option is what
+supplies the `powers.event` prerequisite no faction provides, so every scenario that needs a
+game-ender or an event-tier power turns it on. TWELVE scenario `rules.yaml` files do as of
+`c3825714` (`grep -rl "PowersSandboxCheckboxEnabled: true" tools/autotest/scenarios/*/rules.yaml`);
+`PowersLobbyOptions.cs:192` still says "seven autotest scenarios do" and is stale -- that is a count
+of a directory that grows, so recount rather than quoting either number. `PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay`
+**defaults to true**, and `MissileStrikePower.Activate` then takes `baseMissileDelay = 0`
+(`MissileStrikePower.cs:515`, field at `PowersLobbyOptions.cs:168`). The flight becomes the arc
+alone.
+
+On a 66x34 map (standoff = diagonal + `ApproachMargin` = 92406), order to detonation:
+
+| power | Speed | MissileDelay | sandbox ON | sandbox OFF |
+|---|---|---|---|---|
+| B61Low | 900 | 200 | **110 (measured)** | ~310 |
+| RuIskander | 1200 | 180 | **83 (measured)** | ~265 |
+| B61Max | 900 | 250 | ~110 | ~360 |
+| RuKalibr | 450 | 400 | ~213 | ~613 |
+
+The two measured figures are from `test-nuclear-exchange` run `260919_205330`; the rest are
+`floor(92406 / Speed)` plus the ~8 ticks between the activity completing and the payload firing.
+`test-nuclear-ender-level` is the counter-example that confirms the mechanism -- it pins the option
+**off** (it is the one scenario whose whole subject is the prerequisite gate), and its flights come
+out at the long column.
+
+**WHAT THIS COST.** A retiming of `test-nuclear-exchange` assumed the long column, concluded that a
+flight outlasts any compressed side cooldown, and built a phase around firing the victim's own
+warhead at the moment an incoming one detonated -- so the victim would be reloading when the
+escalation landed. With the real flights a 300-tick cooldown *outlasts* the flight, so the victim
+was still reloading from its previous shot and could not fire: `charging:43`, run dead at t382.
+Polling for readiness would not have saved it either -- the gap between the victim becoming ready
+(t425) and the escalation landing (t427) was two ticks.
+
+**THE LESSON IS NOT "LOOK UP THE FLIGHT TIME".** It is that a scenario should not encode one at all.
+The fix kept the event-driven watch, deleted the construction, and raised the side cooldowns so the
+natural situation holds -- with each phase checking its own precondition first and reporting
+`SCENARIO SETUP: ... must be raised` rather than looking like a defect in the build.
+
 ## 2026-09-19 - A support power's `charging:` clock starts when its BAND CONDITION arrives, which is what lets an event-driven scenario read a grant tightly (`wt/escalation-optouts`, base `main @ c3825714`)
 
 Three Escalation scenarios opted out of the shipped impact-deferred level-up

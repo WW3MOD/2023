@@ -2,7 +2,7 @@ TEST: firing raises the enemy's level and puts your whole side on cooldown.
 
 Two players on a 66x34 map, DEFCON Escalation, starting at DEFCON 1 with the
 first-warheads clock compressed to ten ticks and the four side cooldowns
-compressed to 300/320/340/360 ticks against a shipped 5000/7000/9000/12000
+compressed to 900/700/1400/1000 ticks against a shipped 5000/7000/9000/12000
 (5/7/9/12 minutes, the 2026-09-15 user ruling). The ESCALATION DELAY is NOT
 compressed and is not overridden: this run uses the shipped
 EscalationDelayTicks of 50 and the shipped missile flights. Nobody has any
@@ -48,7 +48,7 @@ scenario adds; nothing in the tree ran the deferral end to end before.
                     warhead lands, with no damage attribution at all.
 
   PHASE B2 (t160)   THE SIDE COOLDOWN, READ OFF THE LAUNCH. USA's own 1 kt reads
-                    CHARGING with about 260 ticks left -- 300 minus the 40 since
+                    CHARGING with about 860 ticks left -- 900 minus the 40 since
                     the shot, which is the KilotonCooldownTicks entry and not one
                     of the other three -- and Russia's 1 kt reads READY. The
                     cooldown belongs to the side that fired and is charged the
@@ -64,7 +64,7 @@ scenario adds; nothing in the tree ran the deferral end to end before.
   (phase C + 10)
 
   PHASE C3          AND RUSSIA'S WHOLE ARSENAL WENT DOWN WITH IT, on the 20 kt
-  (C2 + 40)         entry: ~280 ticks left of 320. Its 1 kt is CHARGING on the
+  (C2 + 40)         entry: ~660 ticks left of 700. Its 1 kt is CHARGING on the
                     same clock -- which is v1's per-band regeneration failing:
                     under v1 one shot muted one band and left the rest up.
 
@@ -75,41 +75,40 @@ scenario adds; nothing in the tree ran the deferral end to end before.
                     build whose level rise zeroes the timer is broken in most
                     matches and passes every other test in the tree.
 
-                    HOW USA COMES TO BE RELOADING IS NOW BUILT RATHER THAN
-                    WAITED FOR. A flight is longer than every compressed cooldown
-                    here, so a victim can no longer still be reloading from its
-                    own earlier shot when an escalation arrives. Instead USA
-                    fires its own 1 kt ON THE TICK Russia's 20 kt detonates, so
-                    the escalation -- scheduled for that same explosion plus 50 --
-                    lands about fifty ticks into a 300-tick lockout. Deep inside
-                    it, not near an edge, and with no flight time anywhere in the
-                    arithmetic. That shot escalates Russia to a rung Russia
-                    already holds, so it cannot disturb the ladder.
+                    USA IS RELOADING FROM ITS OWN t120 SHOT, the natural shape of
+                    this model, and KilotonCooldownTicks (900) is sized to
+                    outlast the whole flight-plus-delay that separates that shot
+                    from Russia's reply landing. The phase checks that setup
+                    FIRST and reports "SCENARIO SETUP" naming the constant if it
+                    no longer holds, because a victim that is off cooldown reads
+                    exactly like a build with a free-shot bug and is not one.
 
-  PHASE E           USA's whole arsenal comes back at once, 340 ticks after that
-  (phase D shot     shot -- its 1 kt, and both bands it gained WHILE reloading.
-   + 340)
+  PHASE E           USA's whole arsenal comes back at once, 940 ticks after its
+  (t120 + 940)      shot -- its 1 kt, and both bands it gained WHILE reloading.
+
                     THE SECOND CLAIM THIS PHASE USED TO MAKE HAS MOVED. It read
-                    at a tick where USA's 300 had expired and Russia's 320 had
-                    not, separating the two constants by inference; that needed
-                    two launches inside one cooldown of each other, which a
-                    deferred escalation makes impossible. The claim is now made
-                    directly and four times -- phases B2, C3, F2 and G3 each read
-                    the applied cooldown as a NUMBER and compare it against that
-                    band's entry, within six ticks against a 20-tick spacing.
+                    at a tick where USA's 1 kt cooldown had expired and Russia's
+                    20 kt one had not, separating two of the four constants by
+                    inference; that needed two launches inside one cooldown of
+                    each other, which a deferred escalation makes unreliable. The
+                    claim is now made directly and four times -- phases B2, C3,
+                    F2 and G3 each read the applied cooldown as a NUMBER and
+                    compare it against that band's entry, within six ticks. That
+                    is also why the four values are no longer in ascending order.
 
   PHASE F (E+10)    USA fires 50 kt.
-  PHASE F2 (F+40)   The 50 kt entry, read as a number: ~300 of 340, with its 1 kt
-                    and 20 kt on the same clock.
+  PHASE F2 (F+40)   The 50 kt entry, read as a number: ~1360 of 1400, with its
+                    1 kt and 20 kt on the same clock.
   PHASE F3          Russia reaches level 4 -- the band whose reply is the ender.
   (rise 3 + 12)
 
   PHASE G (F3+10)   Russia fires 100 kt.
-  PHASE G3 (G+40)   The 100 kt entry, read as a number: ~320 of 360.
+  PHASE G3 (G+40)   The 100 kt entry, read as a number: ~960 of 1000.
 
   PHASE G2          USA's game-ender is DRAWN and NOT FIREABLE, because USA is
-  (rise 4 + 12)     still reloading from a 50 kt it fired on the tick Russia's
-                    100 kt detonated -- phase D's construction, at the top rung.
+  (rise 4 + 12)     still reloading from its own 50 kt -- phase D's situation at
+                    the top rung, with the same SCENARIO SETUP guard in front of
+                    it and FiftyKilotonCooldownTicks (1400) sized for it.
                     Same rule through a DIFFERENT code path: the top rung is
                     armed by NuclearExchange.ArmableAtTopRung, which overrides
                     the `powers.event` prerequisite no faction provides, and a
@@ -121,7 +120,7 @@ scenario adds; nothing in the tree ran the deferral end to end before.
                     ender at all.
 
   PHASE H           The game-ender comes up when the side cooldown ends.
-  (G2 shot + 380)
+  (F's shot + 1440)
 
   PHASE I (H+10)    And the order is ACCEPTED. A drawn cameo and a fireable
                     weapon are two claims; only the second one reaches
@@ -137,8 +136,11 @@ scenario adds; nothing in the tree ran the deferral end to end before.
                     the shot in phase I is outside everything above and nothing
                     reads it.
 
-The run is about 2550 ticks (~2.5 min at 1x), against ~1000 before, and the
-difference is entirely flight time: four warheads at 260-610 ticks each.
+The run is about 2520 ticks (~2.5 min at 1x), against ~1000 before. Only ~480
+of the extra is flight time -- MEASURED at 110 ticks for the B61Low and 83 for
+the Iskander, because PowersSandboxCheckboxEnabled drops MissileDelay. The rest
+is the two full cooldown waits phases E and H are, which grew with the cooldowns
+that phases D and G2 need.
 
 GREEN means the ladder climbed one step per exchange, the firer never climbed
 itself, no band was ever fireable inside its side's cooldown, and every level
