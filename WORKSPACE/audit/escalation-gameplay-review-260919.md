@@ -1,8 +1,11 @@
 # DEFCON Escalation — whole-match gameplay review
 
 **Ref:** `wt/escalation-review @ 442859aa` (forked from `main @ 442859aa`). Every file:line below was read
-at that ref. **No game was launched for this document** — the runs it needs are specified in
-§"Runs requested" and their results belong in §"Simulation results", which is deliberately empty.
+at that ref. No game was launched *by the author*; the runs are specified in §"Runs requested" and
+executed by the manager, and their readings are folded into §"Simulation results".
+**UPDATED 2026-09-20 with R1 and R4.** R1 corrected §2.4's headline number — DEFCON 2 lasts **98
+ticks**, not the one tick predicted — and turned up one finding nobody asked for: on the shipped
+settings an even bot-vs-bot match reaches its nuclear phase and then never uses it.
 
 **Scope.** Started as the backlog item "tune the three DEFCON pace durations" and was widened by the
 user to a full stage-by-stage review of the mode as a human would experience it, plus an assessment of
@@ -286,7 +289,13 @@ you order"; the clock field goes to an em dash, deliberately, because the emptie
 the player this rung ends on an event (`DefconReadoutModel.cs:63-71`); and `FIRST KILL ENDS THIS PHASE`
 pulses where the countdown was.
 
-**And in practice the phase lasts about one tick.** Three things line up to guarantee it:
+**And in practice the phase is over in seconds. MEASURED 2026-09-20: 98 ticks — 5.9 s.**
+*(Run `260920_010605_p1901`, `test-escalation-full-match` on the shipped clocks, seed
+-1662796604: 3→2 on the clock at tick 5000, 2→1 on a qualifying kill at tick 5098. This
+paragraph originally predicted **about one tick** and that was wrong by two orders of magnitude
+— the correction, and what survives of the argument, are in §"Simulation results". What
+follows is the original reasoning, kept because two of its three legs are confirmed and the third
+is what R3 now exists to settle.)* Three things line up:
 
 1. Positioning delivers **both armies to the border**, because the border is the only thing there is to
    position against. The bots do it explicitly — `BorderStagingEnabled: true` clamps an axis to the near
@@ -298,8 +307,10 @@ pulses where the countdown was.
 
 So the decision the phase exists to dramatise is made before the player has read the banner announcing
 the phase — and that banner is then overwritten (§2.3). The evidence is already in the tree:
-`DefconEscalation.cs:288-292` records the one-tick run as an *observability* problem for a test poller.
-It is also a design one.
+`DefconEscalation.cs:288-292` records a **one-tick** run as an *observability* problem for a test
+poller. It is also a design one — and 98 ticks does not rescue it, because the transition banner is
+held for 66 ticks (`BannerHoldTicks`), so a 98-tick phase shows the DEFCON 2 banner for two thirds
+of its life and is then overwritten. The player gets one banner and a half.
 
 **The configuration in which the phase works is the one that skips Positioning.** `Opening phase =
 Weapons free` starts at 2, where `ActiveLevels` never matches so there is no wall at all, both sides
@@ -494,6 +505,17 @@ more than the first. Low impact; list it, do not chase it.
 **B9. Reconcile the reply window: 30 s in code, 15 s in three decisions.** §2.6. One number, one ruling;
 the code is probably right.
 
+**B11. Decide whether an even match declining to go nuclear is the drama or the anticlimax.**
+R1, above. Both bots reached the nuclear phase and then sat in it for 6.9 minutes without firing,
+because the bot policy fires only when losing and neither ever was; the match ended on the host's
+Dead Hand clock instead. There may be nothing to fix — decision 13 argues in as many words that a
+deterrent which is never used has not failed — and if the user does want matches to reach the
+exchange more often the levers are `NuclearBotModule`'s `LosingArmyRatioPercent` (60) and
+`LosingStreakRequired` (3) rather than anything in the mode itself. **Raised because the
+alternative is meeting it in a played match and reading it as a broken feature.** The corollary is
+operational and is the part not to lose: **bot-vs-bot runs cannot tune the ladder, the cooldowns or
+the postures, because an even match never reaches them.**
+
 **B10. `NoRushOptions`' top two stops are dead air at every configuration.** §1.4. Do **not** remove the
 keys — they are wire-visible and an out-of-set value throws on client join
 (`LobbySettingsNotification.cs:39`). The safe form is a tooltip saying what the long stops are for (a
@@ -545,7 +567,112 @@ over the line it replaces, which is the one thing a unit test cannot check.
 
 # Simulation results
 
-*Empty by design. The runs requested in the accompanying report are the manager's to execute; their
-readings belong here. Two things in this document are predictions rather than measurements and are what
-those runs would replace: §1.2's ×1.25 path-inflation factor, and §2.4's claim that DEFCON 2 lasts
-about one tick in a bot-vs-bot match on the shipped clocks.*
+## R1 — the whole match on the shipped clocks. **Run `260920_010605_p1901`, PASS, 6 min 21 s wall.**
+
+`./tools/autotest/run-test.sh --hidden --speed 8 --timeout 900 test-escalation-full-match`, from
+`main @ ee301478`. **Seed `-1662796604`** (the harness default, recorded in `result.json`) — that
+number is what makes R3 a set of pictures of *this* match rather than of another one.
+
+### What it confirms
+
+| claim | predicted | measured |
+|---|---|---|
+| 3→2 fires exactly on the no-rush clock | tick 5000 | **tick 5000** |
+| the minute→tick identity at a 60 ms timestep | 5 min = 5000 ticks | exact |
+| first warheads is an offset from DEFCON 1, not the match clock | 5098 + 10000 = 15098 | **release at 15101**, 3 ticks late — the gate is polled |
+| the wall stands at 3 and only at 3 | — | `wall 3=999/1000, 2=0/20, 1=0/3781` |
+
+The single missed DEFCON 3 sample is the opening tick, before `IWorldLoaded` has derived the line.
+
+### The correction: DEFCON 2 lasted 98 ticks, not one
+
+§2.4 predicted "about one tick". It is **98** — 5.9 s. That is wrong by two orders of magnitude and
+the error is worth naming precisely, because the *shape* of the finding survives and the *mechanism*
+I gave for it may not.
+
+- **What survives.** 5.9 s is not a phase. Nobody reads a banner, weighs a first strike and issues an
+  order in six seconds — and the transition banner is held for 66 ticks, so the DEFCON 2 banner is on
+  screen for two thirds of the phase and is then overwritten by DEFCON 1's (§2.3). Everything §B1 and
+  §B6 propose still applies, unchanged.
+- **What does not.** My stated reason was "tank range exceeds the one-cell band, so nobody has to move
+  to shoot". If that were the whole story the first kill would land in a handful of ticks. 98 ticks is
+  about 6 cells of tank movement, or an acquisition plus a burst plus a kill — so **either the armies
+  were not actually in contact when the wall fell, or they were and it simply takes ~6 s to kill
+  something.** Those two readings lead to opposite rulings: the first says §B1b's demilitarised zone
+  would buy real time, the second says it would buy almost none. **A tick count cannot tell them
+  apart. R3's contact frames can** — which is why R3's four captures were re-aimed from "just after
+  the wall drops" onto the measured window at 5010 / 5040 / 5070 / 5100.
+- Both bots were busy inside those 98 ticks: **118 and 121 orders**, 16 and 21 of them from
+  `PoiOffensiveBotModule`. The phase is not a stall; it is a scramble nobody can see.
+
+### The finding nobody asked for: the ladder was never climbed
+
+    nuclear USA{launches=1|band=5|fired=FinalExchange|reason=NotLosing|streak=0|committed=false}
+    nuclear RUS{launches=1|band=5|fired=FinalExchange|reason=NotLosing|streak=0|committed=false}
+
+Both bots fired **exactly once each, both game-enders, both inside the Dead Hand final exchange**.
+The release gate opened at tick 15101 and for the next **6900 ticks — 6.9 minutes — neither side
+fired a single ladder warhead**, because `NuclearBotModule` fires when it is *losing* and in an even
+bot-vs-bot match neither ever was.
+
+So the match ended through **door 2**, the Dead Hand clock the scenario set at tick 22000, and never
+through door 1, a player deciding. That is three things at once:
+
+1. **The deterrent working exactly as designed.** Decision 13 rejected a match clock to force the
+   spiral, on the grounds that "a deterrent that is never used has not failed". This run is that
+   sentence happening.
+2. **A hard limit on what bot runs can tune.** The 1/20/50/100 kt ladder, the 5/7/9/12-minute
+   cooldowns and the three postures were **not exercised at all** by a whole match on shipped
+   settings. No amount of bot-vs-bot running will tune them; that needs an asymmetric match or a
+   human. Any future plan that says "we will tune the exchange from tournament runs" is planning
+   against this result.
+3. **A question about the mode's shape.** A default Escalation match between evenly matched sides
+   reaches its nuclear phase and then declines it for seven minutes. Whether that is the intended
+   drama — a cold war that stays cold — or an anticlimax is a ruling rather than a bug, but it should
+   be made knowingly. Filed as **§B11**.
+
+### Raw readings, for the record
+
+    phases(recorded)  3@1  2@5000  1@5098
+    release@15101 (due 15098)      ending@22001 (time limit 22000)
+    wall  3=999/1000  2=0/20  1=0/3781
+    orders  defcon3[USA 5484 / RUS 5470]   defcon2[USA 118 / RUS 121]
+            defcon1-prerelease[USA 11610 / RUS 11683]   defcon1-released[USA 9063 / RUS 9059]
+    doomsday{phase=2|placements=2|closes=22500}   final-exchange placement seen=true
+    stop=deadline tick=24001 level=1
+
+## R4 — the readout copy in situ. **Run `260920_011522_p2650`, ten frames. No change needed.**
+
+`./tools/autotest/run-test.sh --background --speed 4 demo-defcon-readout`, window 1728×918 at 100 %
+display scale.
+
+The §A1 rule line **wraps to two lines** — "The border is closed. Nothing may cross it, and nothing"
+/ "may fire." — fully drawn, not clipped, on a strip tall enough to hold both.
+
+**That is the shipped design rather than an overflow, and the decisive evidence is frame
+`003_03-defcon2-emdash.png`**, which shows the DEFCON 2 strip at the same width reading "Your units
+will not fire on their own. Every shot is one you" / "order." over a third row,
+`FIRST KILL ENDS THIS PHASE`. So:
+
+- **DEFCON 2's rule line is 67 characters; the new DEFCON 3 line is 65.** The longest rule line in
+  the mod is *unchanged* by §A1, and the width at which a rule wraps was already being crossed by a
+  line that has shipped for weeks.
+- The widget says so itself: *"Both blocks are variable height — the rule line wraps"*
+  (`DefconReadoutWidget.cs:27`); `stripHeight` is computed from `ruleLines.Count` (`:259-264`); and
+  the strip is anchored at `DrawBottom() - stripHeight`, so it grows **upward**. A second line pushes
+  nothing off screen, which is what the frame shows.
+- DEFCON 3's block is now two rows where DEFCON 2's has always been three. It is still the shorter of
+  the two.
+
+**Verdict: accept the two-line rule as it stands.** No shortening, no width change, no re-capture. A
+one-line version would have to drop either the crossing rule or the firing rule, and the whole point
+of §A1 is that the phase has two of them.
+
+*(One thing the frames cannot settle, stated rather than implied: whether a two-line rule is
+**pleasant**, as opposed to correct and legible. It is the same shape DEFCON 2 already ships, so if
+it reads badly here it has been reading badly there too — that would be a copy pass across all three
+lines, not a fix to this one.)*
+
+## R2 — pending.
+
+## R3 — pending.
