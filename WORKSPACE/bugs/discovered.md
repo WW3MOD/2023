@@ -5,6 +5,40 @@
 
 ---
 
+- [2026-09-19] [MEDIUM] **The DEFCON 2 transition banner is destroyed before anyone sees it, and the
+  mode's signature phase is therefore invisible in the common case.**
+  `DefconTransitionBannerWidget` keeps a single `shownLevel`/`shownAtTick` pair and overwrites both on
+  the next level edge (`:142-143`), while `Draw` holds a banner for `BannerHoldTicks` = 4000/60 = 66
+  ticks (`:168-173`). DEFCON 2 routinely ends inside that window: run `260915_012829` went 3 -> 2 on the
+  clock at tick 5000 and 2 -> 1 on a kill at tick **5001** — recorded verbatim at
+  `DefconEscalation.cs:288-292`, where it is filed as an *observability* problem for a test poller. It
+  is also a player-facing one. The player sees only `OPEN WAR / A life has been taken`, never
+  `WEAPONS FREE / The holding period has run out. The border is open.`, and the two `DefconAlert.Play`
+  calls land on consecutive ticks and clip each other. **Do not fix this by queueing the banners**: the
+  DEFCON 1 banner would then be delayed four seconds behind a banner claiming the border has just
+  opened, while autonomous fire is already live — a lie instead of an omission. The proposal is a
+  single combined banner naming both causes and the phase's length, filed as §B6 of
+  `WORKSPACE/audit/escalation-gameplay-review-260919.md`. Reachable at the shipped defaults; no
+  scenario currently asserts on either banner.
+  (found while working on: the whole-match Escalation gameplay review)
+
+- [2026-09-19] [MEDIUM] **An Escalation lobby with three or more sides gets no border AND a total
+  cease-fire, so the correct play is to park in an enemy base and wait for the clock.** Decision 15
+  rules that Escalation requires exactly two sides and says it is to be enforced in the lobby;
+  **nothing enforces it.** `NuclearExchange.cs:28-31` and `:764-768` state the gap in their own words
+  and log a warning. Independently, `DefconWall`'s derivation refuses to draw a line from anything but
+  two alliance groups (`:397-402`) — deliberately, on the reasoning that a line pointing somewhere
+  nobody chose is worse than no line — so the wall stays down for the whole of DEFCON 3. But the
+  Positioning cease-fire is gated on the mode and the level, not on the border existing
+  (`DefconFireDiscipline.CeasesFire`), so it still applies: every weapon on the map is cold, nothing
+  is separated, and a player can drive their entire army into an undefended enemy base and open fire
+  the instant the clock expires. **The wall's absence is the correct half; the cease-fire surviving it
+  is what makes the match broken rather than merely ordinary.** Two fixes ranked as §B3 of
+  `WORKSPACE/audit/escalation-gameplay-review-260919.md` — a lobby-side refusal (right) or making
+  `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
+  Escalation is not the default game mode.
+  (found while working on: the whole-match Escalation gameplay review)
+
 - [2026-09-19] [FIXED in `6a0a0554` on `wt/update-notice`] **The system-info consent prompt asked
   permission to send data that went nowhere.** `SystemInfoPromptLogic.CreateParameterString()` has
   exactly one consumer: `MainMenuLogic.LoadAndDisplayNews` appends it to the `WebServices.GameNews`
