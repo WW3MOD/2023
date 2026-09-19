@@ -118,6 +118,12 @@ namespace OpenRA.Mods.Common.Traits
 		bool finished;
 		int countdown;
 
+		// The match deadline in TICKS, resolved ONCE at WorldLoaded from config.TimeLimitSeconds and
+		// world.GameSpeed.Timestep. GameSpeed.Timestep, NOT world.Timestep -- the SpeedMultiplier
+		// block below lowers world.Timestep, and resolving the deadline against the lowered value
+		// would scale the tick count by the speed-up instead of leaving it alone.
+		int timeLimitTicks;
+
 		// The authoritative match seed (lobby RandomSeed — from Test.RandomSeed or the
 		// DateTime.Now fallback), captured at load so SerializeVerdict can stamp the verdict.
 		int capturedSeed;
@@ -187,7 +193,9 @@ namespace OpenRA.Mods.Common.Traits
 				// Light load-time logging only. SR discovery is deferred to first
 				// Tick because IWorldLoaded fires BEFORE SpawnMapActors instantiates
 				// the actors — at this point world.Actors doesn't yet include them.
-				diag($"WorldLoaded: scorer={config.Scorer} winrule={config.WinRule} timeLimit={config.TimeLimitTicks} ticks ({config.TimeLimitSeconds}s)");
+				timeLimitTicks = config.TimeLimitTicksAt(world.GameSpeed.Timestep);
+
+				diag($"WorldLoaded: scorer={config.Scorer} winrule={config.WinRule} timeLimit={timeLimitTicks} ticks ({config.TimeLimitSeconds}s at {world.GameSpeed.Timestep} ms/tick)");
 				diag($"WorldLoaded: world has {world.Players.Length} players, {world.Actors.Count()} actors (pre-SpawnMapActors)");
 
 				active = true;
@@ -320,7 +328,9 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in state.OriginalSrOwner.Keys)
 				scores[p] = scorer.ComputeScore(p, world, state);
 
-			// Periodic diagnostic — every 5 evaluations (5 sec real-time at 25/s).
+			// Periodic diagnostic — every 5 evaluations = 125 ticks = 7.5 s of real time at the mod's
+			// 16.667 ticks/s. The "5 sec at 25/s" this comment used to claim is the 1.5x tick-rate
+			// error catalogued in DOCS/reference/conventions.md; the CADENCE is unchanged.
 			if (world.WorldTick % (info.EvaluationInterval * 5) < info.EvaluationInterval)
 			{
 				var scoreStr = string.Join(" / ", scores.Select(s => $"{s.Key.InternalName}={s.Value.Total}"));
@@ -328,7 +338,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Evaluate win rule.
-			var verdict = winRule.EvaluateEndState(world, state, scores, world.WorldTick, config.TimeLimitTicks);
+			var verdict = winRule.EvaluateEndState(world, state, scores, world.WorldTick, timeLimitTicks);
 			if (verdict == null)
 				return;
 

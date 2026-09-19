@@ -97,7 +97,30 @@ namespace OpenRA.Mods.Common.Tournament
 			return config;
 		}
 
-		/// <summary>Convert time limit to ticks at standard 40 ms tick (25 ticks/second).</summary>
-		public int TimeLimitTicks => TimeLimitSeconds * 25;
+		/// <summary>
+		/// Match deadline in TICKS at a given millisecond timestep. 720 s at the mod's 60 ms default
+		/// is 12000 ticks, which is the identity to check any change here against.
+		/// </summary>
+		// WAS `public int TimeLimitTicks => TimeLimitSeconds * 25;`, with a doc comment asserting a
+		// "standard 40 ms tick". That is an RA-era assumption and it is wrong for every tournament
+		// this repo runs: no shipped tournament*.yaml sets a GameSpeed key and run-tournament.sh
+		// defaults GAME_SPEED="default", whose Timestep is 60 ms = 16.667 ticks/s. So
+		// `TimeLimitSeconds: 720` was 18000 ticks = 1080 real seconds, and every tournament.yaml's
+		// own comment ("720s = 12 in-game minutes at standard 1x speed") was wrong by that 1.5x.
+		//
+		// CONSEQUENCE OF THE FIX, STATED PLAINLY: tournament matches get ~33 % SHORTER in ticks
+		// (720 s: 18000 -> 12000) and now last exactly the seconds they are configured for. Any
+		// benchmark baseline taken before 2026-09-19 was taken over a longer match and does not
+		// compare. run-tournament.sh's wall-clock budget is 4x TimeLimitSeconds, which was absorbing
+		// the 1.5x; it is now 4x a match that really does take TimeLimitSeconds, so it gets more
+		// headroom rather than less and no run can start timing out because of this.
+		//
+		// PASS THE CONFIGURED TIMESTEP, NOT world.Timestep: BotVsBotMatchWatcher lowers the latter
+		// to apply SpeedMultiplier, and feeding that back in here would multiply the deadline by the
+		// speed-up instead of leaving the tick count alone.
+		public int TimeLimitTicksAt(int timestepMilliseconds)
+		{
+			return TickTime.TicksForSeconds(TimeLimitSeconds, timestepMilliseconds);
+		}
 	}
 }
