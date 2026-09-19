@@ -1041,6 +1041,46 @@ def verdict_names(script_texts, seeds=None):
     return terminating
 
 
+def check_power_fired(name, scen_dir, own_text, findings):
+    """A scenario that CHARGES a support power and never fires one.
+
+    TestHarness.EnsurePower buys and waits for a charge; Test.ActivateSupportPower is the
+    only binding that puts it on the map. A rig with the first and not the second has built
+    its whole setup -- cash, sandbox checkbox, proxy actor, charge poll -- and then runs to
+    completion having launched nothing, which looks from the outside exactly like a rig that
+    fired and produced no effect. That is the same class of silence as an unstarted driver,
+    reached from the other end.
+
+    WARN rather than an error, because there is one honest shape here that the check cannot
+    tell from the mistake: a test asserting that a power BECOMES AVAILABLE -- that the buy
+    tab takes the order, or that a cooldown expires -- legitimately ensures a power and
+    never fires it. No scenario in the tree does that today; the severity is set for the one
+    that eventually will.
+
+    `own_text` must be the scenario's OWN body, exactly as check_verdict_reachable takes it.
+    EnsurePower is DEFINED in test-helpers.lua and every scenario in the tree declares that
+    helper, so a version of this check that scanned helper text would fire on all of them.
+    """
+    if "EnsurePower" not in own_text:
+        return
+    if "ActivateSupportPower" in own_text:
+        return
+
+    # SYMBOL, not `name`. Findings dedupe on (path, line, symbol, severity), and this one
+    # lands on the same file at the same line 0 with the same severity as
+    # check_verdict_reachable -- a `test-` scenario that charges a power and fires nothing
+    # usually trips both. Keying on the scenario name made the two collide and the SECOND
+    # one was dropped in silence. Caught by run_driver_e2e_acceptance, not by review.
+    findings.append(Finding(
+        "warn", repo_rel(os.path.join(scen_dir, name + ".lua")), 0,
+        "TestHarness.EnsurePower",
+        "calls TestHarness.EnsurePower but never names Test.ActivateSupportPower, so the "
+        "power is bought and charged and then nothing fires it. The scenario runs to "
+        "completion having tested nothing, and reads from the outside like a strike that "
+        "landed and did no damage. Either fire it, or -- if the point IS that the power "
+        "merely becomes available -- assert that readiness explicitly."))
+
+
 def check_verdict_reachable(name, scen_dir, luas, declared, own_text, findings, seeds=None):
     """A `test-` scenario whose Lua names no way to finish.
 
@@ -1124,6 +1164,9 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
     rel = repo_rel(lua_path)
 
     for lineno, symbol, message in local_used_before_defined(text):
+        findings.append(Finding("error", rel, lineno, symbol, message))
+
+    for lineno, symbol, message in orphaned_drivers(text):
         findings.append(Finding("error", rel, lineno, symbol, message))
 
     bound = lua_bindings(text)
@@ -1388,8 +1431,9 @@ def run_check(args):
                 body_texts.append(strip_lua(fh.read()))
 
         if body_texts:
-            check_verdict_reachable(
-                name, d, luas, declared, "\n".join(body_texts), findings, seeds)
+            body = "\n".join(body_texts)
+            check_verdict_reachable(name, d, luas, declared, body, findings, seeds)
+            check_power_fired(name, d, body, findings)
 
     seen, deduped = set(), []
     for f in findings:
@@ -1867,6 +1911,9 @@ def run_driver_acceptance():
     out = [(desc, len(orphaned_drivers(strip_lua(text))) == want)
            for desc, text, want in cases]
 
+    out.extend(run_power_acceptance())
+    out.extend(run_driver_e2e_acceptance())
+
     # The span scanner underpins all of the above, so pin the arithmetic it gets wrong when
     # `for`/`while` are counted alongside their `do`, and the bail-out on a desync.
     out.append(("function spans: `for ... do ... end` inside a body does not close it",
@@ -1881,6 +1928,105 @@ def run_driver_acceptance():
                     "local function f()\n\tendTick = 1\nend\n")) is not None))
     out.append(("function spans: an unbalanced file returns None rather than guessing",
                 lua_function_spans(strip_lua("local function f()\n\tx = 1\n")) is None))
+    return out
+
+
+def run_driver_e2e_acceptance():
+    """Both new checks, driven through run_check() over a synthetic scenario on disk.
+
+    The unit cases above prove the ANALYSIS discriminates. This proves it is actually
+    plumbed: a finding that never reaches a Finding() is a check nobody will ever see fire,
+    and wiring is exactly what this gate exists to doubt. It also pins the severity split --
+    an unstarted driver must be an ERROR (exit 2, it makes the scenario inert) and an unfired
+    power a WARNING (exit 1, a readiness-only test is a legitimate shape).
+    """
+    import tempfile
+    global SCENARIOS, MOD_SCRIPTS
+    saved = (SCENARIOS, MOD_SCRIPTS)
+    out = []
+
+    driver_body = DRIVER_ORPHAN.rstrip("\n") + "\n"
+    fixed_body = driver_body.replace(
+        "\tCamera.Position = WPos.New(1, 2, 0)\n",
+        "\tCamera.Position = WPos.New(1, 2, 0)\n\tTrigger.AfterDelay(1, step)\n")
+
+    try:
+        for label, body, needle, want in (
+                ("run_check reports an unstarted driver as an ERROR",
+                 driver_body, "NOTHING EVER STARTS IT", True),
+                ("...and says nothing once the kickoff is restored",
+                 fixed_body, "NOTHING EVER STARTS IT", False),
+                ("run_check reports a charged-but-unfired power",
+                 "WorldLoaded = function()\n\tTestHarness.EnsurePower(USA, P, K, 1)\nend\n",
+                 "never names Test.ActivateSupportPower", True),
+                ("...and not one that fires it",
+                 "WorldLoaded = function()\n\tTestHarness.EnsurePower(USA, P, K, 1)\n"
+                 "\tTest.ActivateSupportPower(USA, K, CPos.New(1, 2))\n\tTest.Pass('x')\nend\n",
+                 "never names Test.ActivateSupportPower", False)):
+            with tempfile.TemporaryDirectory() as root:
+                scen = os.path.join(root, "scenarios")
+                scripts = os.path.join(root, "scripts")
+                d = os.path.join(scen, "test-zz-driver")
+                os.makedirs(d)
+                os.makedirs(scripts)
+                _write(os.path.join(d, "map.yaml"), WIRING_MAP + "Rules: rules.yaml\n")
+                _write(os.path.join(d, "rules.yaml"),
+                       "World:\n\tLuaScript:\n\t\tScripts: test-helpers.lua, "
+                       "test-zz-driver.lua\n")
+                _write(os.path.join(d, "test-zz-driver.lua"), body)
+                # The real universal helper both DEFINES EnsurePower and CALLS Test.Fail.
+                # If run_check ever lets helper text answer for a scenario, the power check
+                # fires on every scenario in the tree; this stand-in is what catches that.
+                _write(os.path.join(scripts, "test-helpers.lua"),
+                       "function TestHarness.EnsurePower(p, x, k, t)\n\treturn true\nend\n"
+                       "function TestHarnessFail()\n\tTest.Fail('h')\nend\n")
+                SCENARIOS, MOD_SCRIPTS = scen, scripts
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    code = run_check(argparse.Namespace(scenario=None, strict=False, json=False))
+                text = buf.getvalue()
+                ok = (needle in text) == want
+                if want and "NOTHING EVER STARTS IT" in needle:
+                    ok = ok and code == 2 and "[error]" in text
+                if want and "ActivateSupportPower" in needle:
+                    ok = ok and code == 1 and "[warn]" in text
+                out.append((label, ok))
+    finally:
+        SCENARIOS, MOD_SCRIPTS = saved
+    return out
+
+
+def run_power_acceptance():
+    """EnsurePower with no ActivateSupportPower fires; every other combination stays quiet.
+
+    The third case is the one worth having. EnsurePower is defined in test-helpers.lua,
+    which EVERY scenario declares, so a check fed helper text as well as scenario text would
+    report all 350 of them. It is asserted here rather than left to a comment.
+    """
+    ensure = "local ok = TestHarness.EnsurePower(USA, Proxy, Key, tick)\n"
+    fire = "Test.ActivateSupportPower(USA, Key, CPos.New(1, 2))\n"
+    helper = ("function TestHarness.EnsurePower(p, proxy, key, t)\n\treturn true, 'ready'\nend\n")
+
+    cases = (
+        ("a scenario that charges a power and never fires it is reported", ensure, 1),
+        ("...and one that fires it is not", ensure + fire, 0),
+        ("a scenario naming neither is not reported", "local x = 1\n", 0),
+        ("firing without EnsurePower is not reported", fire, 0),
+        ("the helper that DEFINES EnsurePower cannot make a scenario fire", helper, 1),
+    )
+
+    out = []
+    for desc, body, want in cases[:-1]:
+        f = []
+        check_power_fired("test-zz-power", "zz", body, f)
+        out.append((desc, len(f) == want))
+
+    # The last case is about WHOSE text is passed, so assert the contract directly: helper
+    # text alone would fire, therefore run_check must never hand it to this check.
+    f = []
+    check_power_fired("test-zz-power", "zz", helper, f)
+    out.append(("helper text WOULD fire, so run_check must pass the scenario body only",
+                len(f) == 1))
     return out
 
 

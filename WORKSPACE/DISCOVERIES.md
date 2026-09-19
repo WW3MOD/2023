@@ -23244,3 +23244,27 @@ Relative-after-`cd` sidesteps all three at once and needs no `cygpath`, which is
 
 ## 2026-09-19 — `--hidden` autotest runs write NO screenshots, while result.json still lists them
 Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-field-swallows-nuke`: the run reported `PASS (3 screenshot(s))`, `result.json` and `manifest.json` both listed three PNG paths with `captured_at` timestamps, and the run directory contained **no PNG at all** (only debug.log, lua.log, manifest.json, result.json). The identical run with `--background` wrote all three files. `--hidden` never maps a window (`SDL_WINDOW_HIDDEN`, run-test.sh:17), so the framebuffer grab has nothing to read; the harness records the capture as successful anyway. Consequence: CLAUDE.md's "prefer `--hidden`" is right for assertion scenarios and WRONG for any scenario whose answer is a frame — use `--background` (the default) for captures, and treat a result.json that lists screenshots as a claim, not evidence, until `ls` shows the files. DOCS/recipes/SCREENSHOT.md:214 already warns that `--minimized` can give blank PNGs on macOS; this is the Windows sibling, one step worse (no file rather than a blank one). Leading hypothesis for the harness half: the screenshot writer swallows the failure of an unmapped surface and still appends the manifest entry — unverified; confirm by reading the TestMode screenshot path in the engine.
+
+## 2026-09-19 — Two findings from teaching lua-gate to see an unstarted driver
+
+**A `Finding` is deduped on `(path, line, symbol, severity)`, so two different whole-file
+checks on one scenario silently cancel.** `lua_gate.py:run_check` dedupes findings on that
+four-tuple. Both `check_verdict_reachable` and the new `check_power_fired` report at line 0
+of `<scenario>/<name>.lua` at severity `warn`, and both originally used the scenario NAME as
+the symbol — so a `test-` scenario that charges a power, fires nothing and reaches no verdict
+produced two findings with identical keys and **the second was dropped without a word**. Not
+caught by review or by the unit fixtures; caught only by a fixture that ran the whole of
+`run_check` over a scenario on disk and looked for the message. Any future check that reports
+at line 0 on the scenario's own `.lua` must pick a symbol that names the thing at fault
+(`TestHarness.EnsurePower`), not the scenario. `tools/lua-gate/lua_gate.py:1438` (the dedupe),
+`:1076` (the symbol choice).
+
+**The `demo-nuke-river-zeta` kickoff trap catches tooling too, not just readers.** That
+scenario's own comment warns that the literal `Trigger.AfterDelay(1, step)` appears twice —
+as the kickoff at the end of `WorldLoaded` and, identically indented with one tab, as the
+reschedule inside `step`. Reconstructing the pre-fix file for an acceptance test with
+`grep -v` on that line removed **both**, which deleted the self-reschedule and made the new
+check correctly stay silent — a false "the check does not work" that cost a debugging pass.
+Anything reconstructing that failure must delete only the LAST occurrence.
+`tools/autotest/scenarios/demo-nuke-river-zeta/demo-nuke-river-zeta.lua:114` (reschedule) vs
+`:179` (kickoff).
