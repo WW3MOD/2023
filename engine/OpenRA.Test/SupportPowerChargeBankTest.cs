@@ -120,6 +120,62 @@ namespace OpenRA.Test
 			Assert.That(bank.IconVisible(false), Is.False);
 		}
 
+		/// <summary>
+		/// THE CLAIM THE WHOLE DEFCON BAND DESIGN RESTS ON, previously true only by reading. Revoking a
+		/// condition on a weapon the player has ALREADY PAID FOR must cost them nothing: a band that
+		/// locks and unlocks is a cameo appearing and disappearing over an untouched magazine. If this
+		/// were false, every level change in an Escalation match would quietly confiscate stock, and the
+		/// ruling that a lock is free would have to be withdrawn rather than merely re-tested.
+		///
+		/// WHAT MAKES THE LOOP MEANINGFUL RATHER THAN DECORATIVE: permission is not stored here at all.
+		/// It is an argument, recomputed by SupportPowerInstance on every tick and passed in, so a cycle
+		/// is exactly this pair of calls and there is no revoke path with a side effect to miss.
+		/// The same holds one level up, verified by reading rather than by this test, which cannot build
+		/// a World: the only bank mutators the instance owns are GrantCharge (purchase completed) and the
+		/// single Consume on the FIRE path (SupportPowerManager.cs:279, :332, :480). `Permitted` reaches
+		/// the bank through Disabled and Purchasable only, and both are read-only projections; Tick and
+		/// PrerequisitesAvailable reset remainingSubTicks and nothing else.
+		/// </summary>
+		[Test]
+		public void ABankedShotSurvivesAnyNumberOfLockAndUnlockCycles()
+		{
+			var bank = Purchased(1);
+
+			for (var i = 0; i < 100; i++)
+			{
+				Assert.That(bank.IconVisible(false), Is.False, $"cycle {i}: a locked band must take the cameo down");
+				Assert.That(bank.IconVisible(true), Is.True, $"cycle {i}: and unlocking must bring it straight back");
+				Assert.That(bank.Charges, Is.EqualTo(1), $"cycle {i}: the cycle spent a shot the player had paid for");
+			}
+
+			// AND IT IS STILL SPENDABLE. A bank that survived the cycles as a number but refused to fire
+			// afterwards would satisfy the loop above and still lose the player their purchase.
+			Assert.That(bank.Consume(), Is.True, "the surviving shot could not be fired");
+			Assert.That(bank.Charges, Is.Zero);
+		}
+
+		[Test]
+		public void LockingAnEmptyBankNeitherBanksNorSpendsAnything()
+		{
+			// The other direction, and the one an off-by-one would break: cycling while the magazine is
+			// empty must not underflow it, and must not hand out a free shot on the way back up either.
+			var bank = Purchased();
+
+			for (var i = 0; i < 100; i++)
+			{
+				Assert.That(bank.IconVisible(false), Is.False);
+				Assert.That(bank.IconVisible(true), Is.False,
+					$"cycle {i}: an empty magazine must stay out of the bin however often the band cycles");
+			}
+
+			Assert.That(bank.Charges, Is.Zero);
+			Assert.That(bank.HidesIcon, Is.True);
+
+			// The shop stays open throughout -- the half of the model a locked band must not close, since
+			// CanPurchase is the host gate and nothing else.
+			Assert.That(bank.CanPurchase(true), Is.True);
+		}
+
 		// ---------- one purchase, one shot ----------
 
 		[Test]
