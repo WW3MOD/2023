@@ -5620,3 +5620,59 @@ reader to check. Both guards now use a shared `StillInTheMatch(s, building)`.
 
 **Consequence to look for when it next runs:** `02-suppressed` should now show suppression pips on
 the civilian building as well as the tower. That is a change to a screenshot, not to a verdict.
+
+- [2026-09-19] [LATENT — not reachable through any current caller] **All three root launchers
+  compute a wrong path if invoked by absolute MSYS path, and exit 0 while doing it.**
+  `launch-game.sh:25`, `launch-dedicated.sh:29` and `utility.sh:30` all build
+  `TEMPLATE_LAUNCHER` by interpolating `$0` **into a python source string**
+  (`python -c "import os; print(os.path.realpath('$0'))"`). MSYS converts POSIX paths in argv and
+  in env vars, but not one buried inside a larger quoted token it has no reason to parse — so
+  the native python receives `/c/Users/...` raw and resolves the leading `/` against the current
+  drive. Measured at `e0674307`: `$0 = ./launch-game.sh` → `C:\Users\fredr\worktrees\ww3mod\autotest-hygiene\launch-game.sh`
+  (correct); `$0 = /c/Users/fredr/.../launch-game.sh` → `C:\c\Users\fredr\...\launch-game.sh`
+  (a drive-root ghost). `TEMPLATE_ROOT` then feeds `MOD_SEARCH_PATHS` and `Engine.LaunchPath`.
+  **Not a live bug today** only because every caller in the tree uses the relative form after
+  `cd`-ing to the repo root (`run-test.sh:338-339`, `:742`; `run-tournament.sh:296`;
+  `run-synchash.sh:77`; `screenshot-infopanel.sh:67`). **It becomes live the first time someone
+  writes `"${REPO_ROOT}/launch-game.sh"`**, which is the natural thing to write and is how
+  `dump-stats.sh` acquired the same class of bug. Fix shape if it ever bites: pass `$0` as an
+  argument rather than interpolating it (`python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0"`),
+  which puts it back in argv where MSYS converts it. Not changed here — the item that found this
+  was scoped to fix only a *reaching* bug, and this one does not reach.
+  (found while working on: autotest-hygiene item [2], the MSYS-path audit of the three launchers)
+
+- [2026-09-19] [REAL, upstream-inherited] **`launch-dedicated.sh` never passes `MOD_SEARCH_PATHS`
+  to the server at all, so a dedicated server cannot find `ww3mod`.** `:74` is
+  `MOD_SEARCH_PATHS="${MOD_SEARCH_PATHS}"` on **its own line** — no `\` continuation onto `:75`'s
+  `dotnet bin/OpenRA.Server.dll`, and no `export` anywhere in the file. It is therefore a no-op
+  self-assignment to a shell variable, not an environment prefix. `OpenRA.Server/Program.cs:81-84`
+  reads the env var and, finding it unset, falls back to `Path.Combine(Platform.EngineDir, "mods")`
+  — i.e. `engine/mods` only, which holds `ra`/`common` but **not** `ww3mod` (that lives in the repo
+  root's `mods/`). The sibling `utility.sh:54` has the identical line correctly written as a
+  prefix on the same line as `dotnet`, which is what makes the deviation visible.
+  **Inherited from upstream, not a WW3MOD regression**: the split-line form is already present
+  before `cf876f39` ("Remove RUNTIME=mono support entirely"), whose diff context shows it
+  untouched. **Severity is low in practice** — nothing in this repo runs a dedicated server, and
+  no tooling calls this script; `git grep` finds only its own usage comments. Filed rather than
+  fixed because it is out of the scope that found it and because a one-line change to a launcher
+  nobody exercises should ride with a reason to run it.
+  (found while working on: autotest-hygiene item [2], classifying the three launchers)
+
+- [2026-09-19] [REAL — may already be one of the ten known 25-tps sites] **`TournamentConfig`
+  converts the match clock at 25 ticks/second, so every tournament runs 1.5× longer than its
+  config says.** `engine/OpenRA.Mods.Common/Tournament/TournamentConfig.cs:100-101` is
+  `/// <summary>Convert time limit to ticks at standard 40 ms tick (25 ticks/second).</summary>`
+  over `public int TimeLimitTicks => TimeLimitSeconds * 25;` — an RA-era assumption. The mod runs
+  at `Timestep: 60` (`mods/ww3mod/mod.yaml:381-382` `DefaultSpeed: default`, `:406` `Timestep: 60`)
+  = 16.667 ticks/s. **Checked before filing, because `Timestep: 40` does exist in this mod**
+  (`mod.yaml:417-418`, the `fastest` speed) and would make `*25` correct — but no shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all, and `run-tournament.sh:148-149` defaults
+  `GAME_SPEED="default"`. So `TimeLimitSeconds: 720` (twelve `tournament*.yaml` files) is
+  18000 ticks = **1080 real seconds, not 720**. The prose comment in each `tournament.yaml`
+  ("720s = 12 in-game minutes at standard 1× speed") is wrong by the same factor.
+  **Consequence is a mis-stated duration, not a broken run**: `run-tournament.sh:164`'s wall-clock
+  budget is `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`, and 4× absorbs the 1.5×. What it corrupts is
+  any reasoning about how long a tournament match represents. CLAUDE.md records that the 25-tps
+  error "is still live at ten other sites"; this may be one of the ten already counted — not
+  cross-checked against that list.
+  (found while working on: autotest-hygiene item [31], auditing scenario durations)

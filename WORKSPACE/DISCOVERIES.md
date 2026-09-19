@@ -23046,3 +23046,61 @@ It does not. `LobbyOptionsLogic` assigns `dropdown.GetTooltipDesc = () => ddDesc
 **TWO TRAPS FOR WHOEVER SWEEPS THIS NEXT.** (1) `ObserverArmyIconsWidget.cs:126-128`, `ObserverProductionIconsWidget.cs:182-184` and `ObserverSupportPowerIconsWidget.cs:161` match the "no EventBounds, no GetCursor, suppresses in Draw()" pattern and **must not be given empty bounds** — they read `EventBounds.Contains(Viewport.LastMousePos)` to drive their own tooltips, so the guard would silently kill the observer stats tooltips. Interactivity is the term a pattern-match sweep drops. (2) `DefconBannerBand.cs` sits in the same directory, is named like the three, and is a **static helper class, not a widget** — there is nothing to fix in it and no hazard.
 
 **WHAT NO STATIC CHECK CAN SAY.** Whether this is the defect the user is *seeing*. The stripe geometry is predicted from the YAML and never observed; confirming it wants a running game with the pointer moved across `Y ≈ (WINDOW_HEIGHT - 96) / 3` over open ground with units selected. The defect is real regardless — it is derivable from `Widget.cs` alone — but "fixed the reported bug" and "fixed a bug with the reported symptom" are different claims and only the second is earned by reading.
+
+## 2026-09-19 — The three root launchers do NOT carry the MSYS-absolute-path bug, and the reason is two independent mechanisms — one of which is a comma (`wt/autotest-hygiene`, base `main @ e0674307`)
+
+**THE OPEN QUESTION THIS CLOSES.** `DISCOVERIES.md:824` ends the `dump-stats.sh` entry with *"Not verified: `launch-game.sh:27`, `launch-dedicated.sh:31` and `utility.sh:32` build their first search entry from `TEMPLATE_ROOT=$(dirname ...)` and may carry the same shape; not chased, because checking means launching."* **It does not need a launch, and none of the three is broken.** Verified by probe on this Windows/MSYS host at `e0674307`, no game started.
+
+**MEASURED FIRST, BECAUSE EVERY CLAIM BELOW RESTS ON IT.** `python` here is `C:\Python314\python.exe` — a NATIVE Windows process (`sys.platform == 'win32'`), so it is a valid stand-in for `dotnet` as a conversion target. Probe and verbatim output:
+
+```
+$ python -c "import sys; [print(repr(a)) for a in sys.argv[1:]]" \
+      /c/Users/fredr "X=/c/Users/fredr" "/c/a,/c/b" "X=/c/a,/c/b" "X=/c/a,./b"
+'C:/Users/fredr'          <- bare absolute: CONVERTED
+'X=C:/Users/fredr'        <- KEY=path: CONVERTED (conversion looks past the '=')
+'C:/a,/c/b'               <- comma list: ONLY THE FIRST ELEMENT CONVERTED
+'X=C:/a,/c/b'             <- same, with a key
+'X=C:/a,./b'              <- first converted; the relative tail needs none
+
+$ PROBE="/c/a,/c/b" python -c "...os.environ['PROBE']..."
+'C:/a,/c/b'               <- ENV VARS ARE CONVERTED TOO, same first-element-only rule
+$ PROBE="/c/a:/c/b" python -c ...
+'C:\a;C:\b'               <- COLON lists convert FULLY, and ':' becomes ';'
+
+$ dotnet exec "/c/nonexistent-probe/app.dll"
+The application to execute does not exist: 'C:/nonexistent-probe/app.dll'
+$ dotnet exec "--depsfile=/c/nonexistent-probe/app.deps.json" ...
+The application to execute does not exist: '--depsfile=C:/nonexistent-probe/app.deps.json'
+```
+
+**SO THE RULE IS NOT "MSYS PATHS REACH NATIVE PROCESSES RAW".** MSYS converts far more than expected — bare argv, `KEY=value` argv, **and environment variables** — and `dotnet` sees the converted form exactly as `python` does. What it does **not** convert is any element after the **first comma**. Colons it handles (that is the POSIX `PATH` shape it was built for); commas it does not.
+
+**THAT COMMA IS PRECISELY WHAT KILLED `dump-stats.sh`, AND THE OLD ENTRY'S DIAGNOSIS CAN NOW BE STATED EXACTLY.** Its form was `MOD_SEARCH_PATHS="<REPO_ROOT>/mods,<ENGINE_DIR>/mods"` — **two absolute entries**. Probed verbatim: `C:/repo/mods,/c/repo/engine/mods`. The first entry survived, so `ww3mod` resolved; the second did not, so `engine/mods` — which is where the base `ra` mod lives — did not. Hence `Could not load mod 'ra'` with `Available mods: ww3mod`, and a zero-byte dump. **The reported symptom names the SECOND entry, and only the second entry was ever broken.**
+
+**CLASSIFICATION OF THE THREE SUSPECTS. All read at `e0674307`; line numbers verified, not carried over.**
+
+| Call site | What is built | Does it reach a native process? | Verdict |
+|---|---|---|---|
+| `launch-game.sh:27` → `:52` | `MOD_SEARCH_PATHS="<TEMPLATE_ROOT>/mods,./mods"`, passed as argv `Engine.ModSearchPaths=…` **and** `Engine.LaunchPath=<TEMPLATE_LAUNCHER>` to `dotnet bin/OpenRA.dll` | **Yes** — argv to `dotnet` | **SAFE, doubly.** `TEMPLATE_ROOT` is already a Windows path (see below); and even were it MSYS, the absolute entry is the element *before* the comma, so argv conversion catches it, and the trailing `./mods` is relative. |
+| `launch-dedicated.sh:31` → `:74-75` | Same string, but `:74` is a **standalone assignment** (no `\` continuation, no `export`), so it is a no-op self-assignment and `:75`'s `dotnet bin/OpenRA.Server.dll` passes no `ModSearchPaths` on argv either | **No** — the value never leaves the shell | **SAFE from this bug** (nothing is handed out). Separately broken for a different reason — filed in `bugs/discovered.md`. |
+| `utility.sh:32` → `:54` | Same string, as an **env-var prefix** `MOD_SEARCH_PATHS=… ENGINE_DIR=".." dotnet bin/OpenRA.Utility.dll` | **Yes** — environment to `dotnet` | **SAFE.** Env vars are converted too (probed above), and the same first-element-before-the-comma rule covers it. `ENGINE_DIR=".."` is relative. |
+
+**WHY `TEMPLATE_ROOT` IS NOT AN MSYS PATH IN THE FIRST PLACE, WHICH IS THE LOAD-BEARING HALF.** All three build it from `TEMPLATE_LAUNCHER=$(PYTHON -c "import os; print(os.path.realpath('$0'))")` (`launch-game.sh:25`, `launch-dedicated.sh:29`, `utility.sh:30`). That `python` is **native**, so it returns a **Windows** path — and every caller in the tree invokes the launcher **relatively** after `cd`-ing to the repo root (`run-test.sh:338-339` then `:742` `LAUNCHER="${AUTOTEST_LAUNCHER:-./launch-game.sh}"`; `run-tournament.sh:296`, `run-synchash.sh:77`, `screenshot-infopanel.sh:67` likewise). Measured:
+
+```
+$0 = ./launch-game.sh          -> C:\Users\fredr\worktrees\ww3mod\autotest-hygiene\launch-game.sh    CORRECT
+$0 = /c/Users/fredr/.../launch-game.sh -> C:\c\Users\fredr\...\launch-game.sh                        WRONG
+```
+
+**THE SECOND LINE IS A REAL LATENT TRAP AND IT IS WORTH MORE THAN THE NEGATIVE RESULT.** `$0` is interpolated **into the python source string**, not passed as an argument — and MSYS does not convert a path buried inside a larger quoted string it has no reason to read as a path. So conversion is skipped, native `realpath` resolves the leading `/` against the current drive, and you get `C:\c\Users\…`: a path that does not exist, produced by a command that exits 0. **Invoke any of the three launchers by absolute MSYS path — `bash /c/…/launch-game.sh`, or a future caller written as `"${REPO_ROOT}/launch-game.sh"` where `REPO_ROOT` came from `$(cd … && pwd)` — and the mod search silently points at a drive-root ghost.** The relative form is not a style preference here; it is what makes the line correct. Filed as a latent bug.
+
+**THE GENERAL RULE, WHICH IS SHARPER THAN "MSYS PATHS BREAK NATIVE PROCESSES".** MSYS conversion is good enough that the naive version of that warning is wrong and will send you chasing non-bugs. What actually fails is narrower, and all three failures are shapes you can see by eye:
+1. **A path after the first comma** in a comma-joined list. (Colon-joined is fine.)
+2. **A path embedded inside a larger string** the shell hands over as one token — a `python -c` / `sh -c` program text, a quoted heredoc, a JSON blob.
+3. **A path the shell never sees as a path at all** because it was assembled inside the callee.
+
+Relative-after-`cd` sidesteps all three at once and needs no `cygpath`, which is why `utility.sh:54`, `tools/impact-scar/extract-palettes.sh:18` and `engine/utility.sh:5` are the house form.
+
+**AND A NOTE ON `utility.sh` SPECIFICALLY: ON THIS HOST IT IS MOOT, BUT DO NOT GENERALISE THAT.** `utility.sh:7` is `command -v make … || exit 1`, and `command -v make` finds nothing in Git Bash here — so the script cannot reach line 54 on this machine at all (already recorded at `DISCOVERIES.md:22440`). That makes the classification above **untestable end-to-end here**, not wrong: it is settled from the probe plus the code path, and it becomes live the moment anyone installs `make`. **The moot-ness is a property of this machine, not of the script**, so it is not a reason to leave the line unclassified.
+
+**NO FIX WAS MADE, DELIBERATELY.** The item's condition was "fix iff a real native-process call site receives an unconverted MSYS path". None does. Rewriting the three to the relative form would be a no-op against the only bug it defends, and would remove `Engine.LaunchPath`'s absolute value, which the engine genuinely wants absolute.
