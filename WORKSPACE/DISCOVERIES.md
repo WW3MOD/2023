@@ -250,6 +250,103 @@ the NSIS 3.09 sources and from `makensis` compiling the reworked script (exit 0,
 `-V2`, and exit 1 at the intended `!error` when `-DUNINSTALL_MANIFEST` is withheld). **No installer
 was run and no runtime behaviour was observed** — the human procedure that would observe it is
 `packaging/windows/INSTALLER-TEST-PLAN.md`.
+## 2026-09-19 - A gate that starts the game has THREE outcomes, and the third is the one that gets banked as the second (`wt/smoke-gates`, base `main @ 64185a89`)
+
+Building `make.ps1 smoke` — the first gate in this repo that constructs a `World` — forced the
+question of what a non-zero exit from a launcher actually means. **A static gate has two outcomes,
+clean and finding. A gate that launches something has three: clean, finding, and NOTHING RAN.**
+Collapsing the third onto the second is not a cosmetic error: it converts "we learned nothing"
+into "the world is broken", and the false alarm is indistinguishable from the real thing at the
+exit code. CLAUDE.md already records this shape twice — a bare `./run-test.sh` exits 127 because
+the launchers live in `tools/autotest/`, and a zero-byte log plus a fast non-zero exit is a launch
+failure rather than a slow tool — which is two instances of one general rule nobody had written
+down. `run-smoke.sh` discriminates three ways and each catches a different miss:
+
+1. **Pre-flight the binaries.** `launch-game.sh:40-44` exits 1 with "Required engine files not
+   found" when `engine/bin/OpenRA.dll` is absent. Run eleven maps against an unbuilt tree and you
+   get **eleven identical NO-RESULTs** — which by outcome alone is exactly what eleven broken maps
+   look like. Mirroring the launcher's own guard in the driver turns the single real cause into a
+   single message before anything starts. *(This worktree's `engine/bin/` was empty, which is how
+   the case was noticed rather than reasoned about.)*
+2. **Require the outcome FILE, not the exit code.** `run-test.sh` writes `outcome=` to
+   `AUTOTEST_OUTCOME_FILE` from its `EXIT` trap, so every exit path writes it — crash, Ctrl-C,
+   internal `set -e` abort. **A missing or empty outcome file therefore means the runner never
+   reached its own trap**, which is a launch failure and can never be a test result. This is
+   strictly better than reading `$?`, which a pipe destroys, and better than grepping stdout,
+   which a truncating filter can hide.
+3. **Distrust a fast failure.** A real world-construction failure still costs a process start, a
+   mod load and a map load. Under ~8s the game cannot have got far enough to fail the way the gate
+   is asking about, so a fast non-PASS is reported as a launch failure *with its duration* rather
+   than banked as evidence about the `World`.
+
+**Generalise: for any gate that spawns a process, the question "did the thing under test fail?"
+is downstream of "did the thing under test run?", and only the second has a cheap certain answer.**
+Answer it explicitly, before the run and after it, or the gate will eventually report a broken
+toolchain as a broken product.
+
+## 2026-09-19 - `Launch.Map` resolves by map DIRECTORY NAME as well as UID, which is what makes a shipped map runnable by the autotest harness (`wt/smoke-gates`, base `main @ 64185a89`)
+
+`Game.LoadMap` (`engine/OpenRA.Game/Game.cs:1218`) is
+`MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap)`.
+The second disjunct is the useful one and is easy to miss: **`Launch.Map=nuclear-winter-ww3` works,
+with no UID lookup anywhere**. `run-test.sh` has always relied on it — it passes the scenario folder
+name straight through — but the harness also hard-requires `tools/autotest/scenarios/<name>` to
+exist (`run-test.sh:392`), so the two facts together mean the runner could reach every scenario and
+no shipped map. That is the whole reason nothing we ran had ever loaded `mods/ww3mod/maps/`.
+
+Resolved with a `--map NAME` flag that overrides only the `Launch.Map` value while the scenario
+directory keeps supplying the run rig (test name, description, result path, screenshot dir) — one
+flag instead of ten near-identical stub scenarios. **The flag validates the name against
+`mods/ww3mod/maps/` itself rather than letting the engine resolve it**, because `Game.LoadMap`
+*throws* `ArgumentException("Could not find map")` on a miss: a typo in the caller would surface as
+a process crash and be graded `CRASH`, i.e. **a caller's typo would be reported as the very bug the
+smoke gate exists to detect.**
+
+Second-order consequence worth carrying: a shipped map carries no Lua, so it can never reach
+`Test.Pass` and a `--map` run has no way to a verdict on its own. That gap is what
+`Test.SmokeTicks=<N>` + `SmokeTestExit` (a world trait, inert unless both `Test.Mode=true` and the
+arg are set) exists to close. **"Can the harness load it" and "can the harness reach a verdict on
+it" are separate questions, and the second is the one that decides whether a gate is possible.**
+
+## 2026-09-19 - The same line of C# is correct or fatal depending on WHICH ACTOR the trait sits on, at a signal ratio of 0 in 57 (`wt/smoke-gates`, base `main @ 64185a89`)
+
+`self.World.WorldActor.Trait<Foo>()` inside `INotifyCreated.Created` is **correct** on
+`DefconCasualtyObserver` (`[TraitLocation(SystemActors.Player)]`) and **crashed every match** on
+`DefconWall` (`[TraitLocation(SystemActors.World)]`). Character for character identical; player and
+unit actors are built after the world actor exists, world traits are built *during*
+`World.cs:252`'s `WorldActor = CreateActor(...)`, before the assignment. `DefconWall.cs:318-325`
+says so in a comment ending "copying an idiom is only safe once you have checked it was written for
+the same actor" — which is the lesson, and which no grep can enforce.
+
+The measurement is the part worth keeping. Sweeping all of `engine/` (not just
+`Mods.Common/Traits/`, and matching combined flag lists like `World | EditorWorld`, which the
+obvious `TraitLocation(SystemActors.World)` grep misses) finds **30 files declaring a world-located
+trait, containing 57 code-level `.WorldActor` dereferences, of which 0 are violations** — every one
+is in `IWorldLoaded.WorldLoaded`, `ITick` or a later member, where the field is assigned and the
+read is right. **A hazard whose correct form outnumbers its broken form ~57:0 cannot be policed by
+review or by grep**: the reviewer goes blind long before the one that matters, and the grep dump is
+57 lines of noise. It needs a checker that models the lifecycle, or it needs nothing at all.
+
+Three matcher details decide whether such a checker is usable rather than switched off.
+`.WorldActorInfo` is a **different member** (`Map`/`ActorInfo` metadata, safe throughout) and must
+not match — `\.WorldActor\b` separates them. Comments must be blanked before matching, because
+`DefconWall.cs` and `NuclearExchange.cs` both discuss the trap at length and a naive matcher
+reports **the fix as the bug**. And a null-conditional `WorldActor?.Trait<…>()` survives without
+throwing but resolves to `null` every time, trading a loud crash for a quiet wrong answer, so it is
+a finding and not an accepted form.
+
+## 2026-09-19 - `chmod +x` does not reach the git index when `core.filemode=false`, which is how a launcher gets committed at 100644 (`wt/smoke-gates`, base `main @ 64185a89`)
+
+This repo sets `core.filemode=false` (unavoidable on Windows). Under it, `chmod +x foo.sh` followed
+by `git add foo.sh` stages the file at **100644**, silently — `git ls-files -s` is the only place
+the mode is visible, and nothing warns. CLAUDE.md already records the consequence from the other
+end: `engine/utility.sh` is "tracked mode `100644` and therefore never executable", so running it
+dies with `permission denied` and **exit 126**, and redirected it produces a zero-byte log whose
+only diagnostic is on stderr. That is not a quirk of that one file; it is what happens to **any**
+script added from Windows. `git update-index --chmod=+x <path>` is the fix and `git ls-files -s` is
+the check. The Makefile's own `check-sdk-scripts` target already prints exactly this remedy for the
+four SDK launchers (`Makefile:105-124`) — evidence the trap has been hit before and was fixed
+per-file rather than as a rule.
 
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 

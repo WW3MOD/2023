@@ -290,6 +290,10 @@ World:
 	# Universal Test.SpeedMultiplier apply for non-tournament test runs.
 	# No-op unless Test.Mode=true + Test.SpeedMultiplier>1 + no tournament config.
 	TestModeSpeedMultiplier:
+	# World-construction smoke gate. Silently no-op unless launched with both Test.Mode=true
+	# AND Test.SmokeTicks>0. Lets `make.ps1 smoke` run a SHIPPED map -- which carries no Lua
+	# and so can never reach Test.Pass -- to a real verdict. See tools/autotest/run-smoke.sh.
+	SmokeTestExit:
 	ScenarioLobbyDropdown:
 	# Runs time-varying local light events (LightEventWarhead from any weapon, TimedLightSource from any
 	# actor). World-only rather than in ^BaseWorld because it is ITick and the editor world does not tick.

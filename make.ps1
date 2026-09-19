@@ -244,6 +244,83 @@ function MountGate-Command
 		exit $lastexitcode
 	}
 }
+# Static world-trait guard. A trait marked [TraitLocation(SystemActors.World)] must not
+# dereference .WorldActor in its constructor, in INotifyCreated.Created, or in its Info's
+# Create(): World.cs:252 is `WorldActor = CreateActor(...)`, so the field is still null while
+# its own traits are being built. DefconWall shipped that on 2026-09-10 and no match would
+# start, with six gates green. Buildless, ~5s, no game launch. Wired into `check` (below)
+# rather than `test` because it is a C# lint and CLAUDE.md already makes `check` mandatory
+# before committing C#, while `test` is the contended YAML gate.
+function WorldActorGate-Command
+{
+	$python = (Get-Command 'python' -ErrorAction SilentlyContinue)
+	if ($python -eq $null)
+	{
+		$python = (Get-Command 'python3' -ErrorAction SilentlyContinue)
+	}
+
+	if ($python -eq $null)
+	{
+		Write-Host "worldactor-gate needs python on PATH; skipping." -ForegroundColor Yellow
+		return
+	}
+
+	Write-Host "Checking world traits for construction-time WorldActor reads (worldactor-gate)..." -ForegroundColor Cyan
+	& $python.Source "tools/worldactor-gate/worldactor_gate.py" selftest
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+
+	# No warning band: the field is null in those members or it is not. Exit 2 is fatal.
+	& $python.Source "tools/worldactor-gate/worldactor_gate.py" check
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+}
+
+# World-construction smoke gate. THE ONLY TARGET HERE THAT STARTS THE GAME -- it is the
+# answer to "nothing we run constructs a World", so by construction it cannot be static.
+# Does NOT build: run it after `all`. run-smoke.sh pre-flights engine/bin/OpenRA.dll and
+# refuses to start on an unbuilt tree, because an unbuilt tree otherwise produces one
+# NO-RESULT per map, which reads exactly like every map being broken.
+#
+# Exit 0 = every map constructed a World and ticked. Exit 2 = at least one started and
+# never reached a verdict (the bug class). Exit 3 = LAUNCH FAILURE, nothing was proven.
+function Smoke-Command
+{
+	$sh = (Get-Command 'bash' -ErrorAction SilentlyContinue)
+	if ($sh -eq $null)
+	{
+		$sh = (Get-Command 'sh' -ErrorAction SilentlyContinue)
+	}
+
+	if ($sh -eq $null)
+	{
+		# Not a skip, unlike the python gates above. A skipped static check still leaves the
+		# other gates meaningful; a skipped smoke gate leaves the merge gate believing a World
+		# was constructed when nothing tried. Fail loudly.
+		Write-Host "smoke needs bash (Git Bash) on PATH. Install Git for Windows, or run" -ForegroundColor Red
+		Write-Host "  bash tools/autotest/run-smoke.sh" -ForegroundColor Red
+		Write-Host "from a shell that has it." -ForegroundColor Red
+		exit 3
+	}
+
+	# Everything after the subcommand is forwarded (--quick, --timeout N, --map NAME).
+	$forward = @()
+	if ($command.Length -gt 1)
+	{
+		$forward = $command[1..($command.Length - 1)]
+	}
+
+	Write-Host "Running the world-construction smoke gate (this LAUNCHES the game)..." -ForegroundColor Cyan
+	& $sh.Source "tools/autotest/run-smoke.sh" @forward
+	if ($lastexitcode -ne 0)
+	{
+		exit $lastexitcode
+	}
+}
 
 function Test-Command
 {
@@ -263,6 +340,12 @@ function Test-Command
 
 function Check-Command
 {
+	# FIRST, before the clean+rebuild below, because it costs ~5s against a Debug build that
+	# costs minutes and it answers a question the build cannot: a world trait reading
+	# .WorldActor during construction compiles perfectly and throws at runtime. Putting it
+	# after the build would mean paying for the build to learn something already knowable.
+	WorldActorGate-Command
+
 	If (!(Test-Path "*.sln"))
 	{
 		Write-Host "No custom solution file found. Skipping static code checks." -ForegroundColor Cyan
@@ -482,6 +565,10 @@ if ($args.Length -eq 0)
 	Write-Host "  nav-guard (n)      - Checks no map lost reachable ground. No build required."
 	Write-Host "  lua-gate (l)       - Checks scenario Lua resolves and scenarios are wired to run. No build required."
 	Write-Host "  mount-gate (m)     - Checks every mod.yaml mount resolves inside a packaged build. No build required."
+	Write-Host "  smudge-gate        - Checks every terrain type in use accepts a scar. No build required."
+	Write-Host "  worldactor-gate(w) - Checks no world trait reads .WorldActor while being constructed."
+	Write-Host "  smoke              - LAUNCHES the game on each shipped map to prove a World still"
+	Write-Host "                       constructs. Needs a build first; exit 3 means it never ran."
 	Write-Host "  check (e)          - Checks .cs files for StyleCop violations."
 	Write-Host "  check-scripts(s)   - Checks .lua files for syntax errors."
 	Write-Host ""
@@ -637,6 +724,13 @@ switch ($execute)
 	"l" { LuaGate-Command }
 	"mount-gate" { MountGate-Command }
 	"m" { MountGate-Command }
+	# Test-Command has called SmudgeGate-Command since it was written, but the function was
+	# never given a switch entry, so `make.ps1 smudge-gate` answered "Invalid command" and
+	# the gate could only ever be run as part of the whole contended YAML target.
+	"smudge-gate" { SmudgeGate-Command }
+	"worldactor-gate" { WorldActorGate-Command }
+	"w" { WorldActorGate-Command }
+	"smoke" { Smoke-Command }
 	"check" { Check-Command }
 	"e" { Check-Command }
 	"check-scripts" { Check-Scripts-Command }

@@ -5771,3 +5771,25 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
 - **Candidate 2 — the strong one.** `a144e9c9` made `UnitOrderTargeter.CanTarget` return false early (`UnitOrderTargeter.cs:60-61`) whenever `MovementModifierMath.YieldsToMovementOrder(modifiers, relationship)` — Alt held and the target an Ally (self counts as Ally, `Player.cs:250-251`) — so the terrain-only `AttackMoveTargeter` wins on the second pass. But that suppression is unconditional while `AttackMoveTargeter.CanTarget` accepts only with the modifier AND `target.Type == Terrain` AND `IMove` on the actor (`AttackMove.cs:209-212`). An ally with no `IMove` in the selection, or a cell where `OrderFallbackMath.AllowsRetryResult` filters the retry (`UnitOrderGenerator.cs:380`), yields no order and therefore no cursor — `CursorForOrders` drops null cursors (`:303`) and `:220` paints default. Fits the original report (Alt held for attack-move, varies with what is under the pointer). Standing rule already recorded at `WORKSPACE/DISCOVERIES.md` ("any future change that suppresses an order suppresses its cursor too"). Fix shape: add the missing cursor path for the suppressed case + a unit test.
 - **Candidate 4 — narrower, half-fixed.** `ad64a317` fixed a stuck `AttackMoveOrderGenerator` (dropped Alt KeyUp → generator stays installed → `GetCursor` null → bare pointer everywhere) by re-deriving the mode's lifetime per tick from live modifier state — for that generator ONLY. `GuardOrderGenerator.GetCursor` (`:63-66`) still returns null when `subjects` is empty and `ForceModifiersOrderGenerator` (`:37-41`) delegates upward; neither has the per-tick lifetime guard. Fix shape: the same guard as ad64a317.
 - Not applicable: `WORKSPACE/cursor-honesty-audit.md` covers "cursor promises an order the game refuses" — a different problem from "cursor disappears".
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **`make.ps1 smudge-gate` printed "Invalid
+  command" — the function existed and was called, but had no switch entry.** `SmudgeGate-Command`
+  has been part of `Test-Command` since it was written, so the gate ran as part of `.\make.ps1 test`
+  — but the `switch ($execute)` block at the bottom of `make.ps1` listed `nav-guard`/`n` and
+  `lua-gate`/`l` and never `smudge-gate`, so the fast standalone form fell through to
+  `Default { Write-Host "Invalid command" }`. Consequence was not a missing check but a missing
+  *inner loop*: the only way to run a ~1s buildless gate was to run the whole contended YAML target
+  with it. One-line fix, so fixed rather than filed.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the same switch)
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **smudge-gate did not exist on Linux/macOS
+  at all: the Makefile had neither the target nor the dependency.** `make.ps1`'s `Test-Command`
+  calls `NavGuard-Command`, `LuaGate-Command` and `SmudgeGate-Command`; the Makefile's `test` target
+  read `test: all nav-guard lua-gate`. So the two platforms' nominally-equivalent `test` targets
+  differed by a whole gate, and a scar-coverage hole introduced on a Linux box would reach the
+  Windows merge gate to be found there — the same platform-drift shape the file's own `lua-gate`
+  comment records ("make.ps1 never did, so on Windows the gate had never run at all"), with the
+  platforms swapped. Fixed by adding a `smudge-gate` target and putting it in `test`'s prerequisites;
+  verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
+  `clean`), so this cannot newly redden anyone's `make test`.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)

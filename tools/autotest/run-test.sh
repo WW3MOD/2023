@@ -34,6 +34,22 @@
 #                          pin the size or it is a statement about one desktop.
 #                          Ignored under --fullscreen / F.
 #
+# Map override:
+#   --map NAME             Load NAME instead of the scenario's own map, where NAME is a
+#                          directory under mods/ww3mod/maps/. The scenario directory is
+#                          still required and still supplies the run rig -- test name,
+#                          description, result path, screenshot dir -- but its map.yaml,
+#                          rules.yaml and Lua are NOT loaded, because the engine is pointed
+#                          at a different map entirely. Game.LoadMap resolves Launch.Map by
+#                          UID *or* by map directory name (engine/OpenRA.Game/Game.cs:1218),
+#                          which is what makes a bare folder name work here.
+#
+#                          A shipped map carries no Lua and therefore cannot reach Test.Pass,
+#                          so a run using this flag needs some other way to a verdict --
+#                          pass `AUTOTEST_EXTRA_ARGS="Test.SmokeTicks=30"` for the world-
+#                          construction smoke gate, which is the one caller this exists for.
+#                          Without that, expect a watchdog TIMEOUT-FAIL, correctly.
+#
 # Audio flags:
 #   --audio                Keep sound on. (run-demo.sh injects this.)
 #   --mute                 Force mute. (Default for tests.)
@@ -179,6 +195,7 @@ MISSILE_TRACE=0
 MISSILE_TRACE_MODE=full
 SYNC_REPORTS=0
 WINDOW_SIZE=""
+LAUNCH_MAP=""
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -201,6 +218,8 @@ while [ $# -gt 0 ]; do
 		--mute)                 AUDIO_MUTE=1; shift ;;
 		--size=*)               WINDOW_SIZE="${1#*=}"; shift ;;
 		--size)                 WINDOW_SIZE="$2"; shift 2 ;;
+		--map=*)                LAUNCH_MAP="${1#*=}"; shift ;;
+		--map)                  LAUNCH_MAP="$2"; shift 2 ;;
 		--speed=*)              SPEED_MULT="${1#*=}"; shift ;;
 		--speed)                SPEED_MULT="$2"; shift 2 ;;
 		--seed=*)               SEED="${1#*=}"; shift ;;
@@ -224,7 +243,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--size WxH] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
+	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--size WxH] [--map NAME] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -393,6 +412,21 @@ MAP_DIR="tools/autotest/scenarios/${TEST_NAME}"
 if [ ! -d "${MAP_DIR}" ]; then
 	echo "Error: test map not found at ${MAP_DIR}"
 	exit 3
+fi
+
+# --map override. Resolved and VALIDATED here rather than left to the engine: Game.LoadMap
+# throws ArgumentException("Could not find map") on a name it cannot resolve, which surfaces
+# as a process crash and would be graded CRASH -- i.e. a typo in the caller would be reported
+# as the very bug the smoke gate exists to detect. Checking the directory here turns it into
+# a harness error (exit 3, HARNESS-ERROR) instead, which is what it actually is.
+if [ -n "${LAUNCH_MAP}" ]; then
+	if [ ! -d "mods/ww3mod/maps/${LAUNCH_MAP}" ] && [ ! -d "tools/autotest/scenarios/${LAUNCH_MAP}" ]; then
+		echo "Error: --map '${LAUNCH_MAP}' is neither mods/ww3mod/maps/${LAUNCH_MAP} nor a scenario."
+		echo "       (Game.LoadMap matches a map UID or a map DIRECTORY NAME; pass the folder name.)"
+		exit 3
+	fi
+else
+	LAUNCH_MAP="${TEST_NAME}"
 fi
 
 # Detect screen size on macOS for window positioning. Falls back to 1920x1080.
@@ -742,7 +776,7 @@ fi
 LAUNCHER="${AUTOTEST_LAUNCHER:-./launch-game.sh}"
 
 "${LAUNCHER}" \
-	"Launch.Map=${TEST_NAME}" \
+	"Launch.Map=${LAUNCH_MAP}" \
 	"Test.Mode=true" \
 	"Test.Name=${TEST_NAME}" \
 	"Test.Description=${TEST_DESCRIPTION}" \
