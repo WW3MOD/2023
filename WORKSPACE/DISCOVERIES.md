@@ -3,6 +3,92 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-19 - Read site 6 of the DEFCON 2 hold is defence-in-depth on the STOCK ambush path and load-bearing only on the Stage-3 one, because the two disagree about whether `ambushTriggered` is terminal (`wt/defcon-scenarios`, base `main @ e0674307`, authored-not-run)
+
+`AutoTarget.TriggerNearbyAmbushAllies`'s own comment says one spotted ambusher "would otherwise
+light off a whole lane at DEFCON 2" and that "not one of the five guards above can catch it". The
+first half is the design intent; the second is true of the CALL and not of the OUTCOME, and the
+difference decides what a test of it can honestly claim.
+
+**What the proxy actually does is write `ambushTriggered = true` on an ally. It hands over no
+target.** The ally still has to find one, and it finds one only through `AmbushTickIdle` ->
+`ScanForTarget` -> `ChooseTarget`, which is **read site 1** and which returns `Target.Invalid` while
+the hold is on. The garrison half is the same shape one level down: `GarrisonManager.TriggerAmbush`
+latches `ambushTriggered` and calls `TriggerAmbushDeploy`, which reaches a target only through
+`ScanForTarget` — **read site 5** — and that trait's own guard comment already says so ("belt-and-
+braces"). So with site 6 deleted, a DEFCON 2 lane still fires nothing.
+
+**Where it IS the only guard is the Stage-3 gated path, and the mechanism is the latch's lifetime.**
+On the ungated stock path an ally that finds no target executes `ambushTriggered = false`
+(`AutoTarget.cs`, the `target.Type == TargetType.Invalid` branch), so a proxy write made during the
+hold is erased within a scan interval and cannot outlive the phase. On the Stage-3 path that same
+branch deliberately does **not** clear it — "SPRUNG is terminal until stance reset (design 5.2)" —
+so a latch written at DEFCON 2 **persists**, and the ally springs on the transition to DEFCON 1 with
+no fresh trigger of its own. The gate is `enable-ambush-tactics`, which `LaneAmbushBotModule` grants
+per-unit to the ambushers it posts on BOTH bot profiles since b8d2e601, so this is shipped behaviour
+rather than a hypothetical.
+
+**Consequence for testing, and it is why this is written down rather than fixed.**
+`test-defcon2-holdfire-ambush` can honestly assert the player-visible claim — *the lane does not
+light off* — and cannot isolate site 6 as the load-bearing guard, because sites 1 and 5 hold the
+same ground. Isolating it needs a scenario that grants `enable-ambush-tactics`, springs the proxy at
+DEFCON 2, and then drives the level to 1 to see whether a latch was banked. That scenario does not
+exist and is the obvious next item here. **Do not read the existing pair's green as coverage of the
+persistence case.**
+
+## 2026-09-19 - `Test.GetImpactEffectCount` is GLOBAL, so it is a valid "nothing fired" observable only in a phase where the scenario itself has ordered no shot (`wt/defcon-scenarios`)
+
+It is the best of the four observables for a hold-fire window precisely because it is global: it
+catches a shot from something the script never names. That is also what makes it wrong the moment
+the scenario stops being passive. A hold-fire scenario that (1) asserts silence, then (2) issues an
+order to prove ordered fire is still permitted, then (3) asserts the victim does not retaliate,
+cannot carry the same observable set across all three phases — in phase 3 the impact counter, the
+shooter's ammunition and the victim's health all move because phase 2 asked them to.
+
+Caught while authoring rather than in a run, and it is the false-RED mirror of the false-GREEN trap
+`AUTOTEST.md` documents: the assertion would have failed the treatment for doing exactly what the
+scenario told it to do. **The remedy is a per-phase observable set, not a per-phase threshold.** In
+`defcon2-holdfire-contact-lib.lua` the two are separate functions (`NothingFired` for the hold,
+`ContactHeld` for the return-fire window) with a comment at each saying which quantities are
+legitimately moving by then; a single function taking a flag was tried first and read as if the
+difference were a matter of strictness, which it is not.
+
+## 2026-09-19 - Atomic's smudge bands are `ceil(sqrt(dx^2+dy^2))` buckets with no gaps, and `ScarRim` — the only band with `Chance: 60` — is NOT the band that covers an 11x11 patch (`wt/defcon-scenarios`)
+
+Three corrections to the arithmetic a brief for a nuke-over-farmland rig was written on, all read
+out of the shipped YAML and `MapGrid`:
+
+1. **The bands tile the disc; they are not nested discs and there are no gaps.**
+   `LeaveSmudgeWarhead` passes `Size[1]` as `minRange` to `Map.FindTilesInAnnulus`, which walks
+   `Grid.TilesByDistance[i]` for `i` in `[min, max]`. `CreateTilesByDistance` files an offset under
+   `Exts.ISqrt(i*i + j*j, Ceiling)`, so **every** offset lands in exactly one integer bucket. Atomic's
+   five warheads are 0-2, 3-4, 5-7, 8-10, 11-12, which covers every bucket to 12 with no residue. A
+   cell at Euclidean 7.07 is bucket 8, not "between the char and burn bands".
+2. **`ScarRim` (11-12) is the only band carrying `Chance: 60`**, so it is absent from ~40% of runs.
+   Every other band is `Chance: 100`. An 11x11 patch centred on ground zero has its farthest cell at
+   `sqrt(50) = 7.07`, bucket 8, so the whole patch is covered by 100%-chance bands and the rim plays
+   no part in it. A visual criterion written against "the outermost band covers the patch" would be
+   both wrong about which band and nondeterministic.
+3. **Radius 12 does not fit `Bounds: 1,1,64,32` from a burst at `y=26`.** It runs to `y=38`. Ground
+   zero has to sit near the vertical middle of those bounds for the disc to be whole; `y=16` works
+   with margin.
+
+Also worth carrying for anyone staging a nuke capture: **detonation+10 ticks is a white screen.**
+`Warhead@Flash` is a `FlashPaletteEffect` with `Duration: 30`, and the scar bands themselves do not
+finish arriving until `Delay: 68`. Smudges are permanent, so there is no upper bound to trade
+against — capture at +140 or later.
+
+## 2026-09-19 - `test-field-swallows-shell` already existed and is the ARTILLERY half; the nuke half needed a different name (`wt/defcon-scenarios`)
+
+A backlog item asked for `test-field-swallows-shell` to be authored on the premise that "no scenario
+has both crop fields and a nuke". The premise is correct and the name was already taken: the
+directory has shipped since `db01b0ae` and fires one `m109` round into an 11x11 `v14` patch to prove
+`CreateEffectWarhead` no longer swallows the explosion — the same family of bugs, a different
+warhead class, and no nuke anywhere in it. `AUTOTEST.md` even cites it by name. The new rig is
+`test-field-swallows-nuke`. **This is the `WORKSPACE/pipeline/README.md` "a merged branch is not a
+finished item" check working in the other direction** — the item was live, but one `ls` on the name
+it proposed changed what had to be built.
+
 ## 2026-09-16 - The final exchange armed a weapon a second system still held locked, and neither layer was wrong on its own (`wt/escalation-endgame`, base `main @ ab2ac8b8`)
 
 **THE USER PLAYED ESCALATION AS RUSSIA, REACHED THE FINAL EXCHANGE, AND FIRED NOTHING.** Asked what
