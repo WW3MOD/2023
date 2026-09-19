@@ -33,7 +33,10 @@ label-openra = WW3MOD
 # has never carried a WW3MOD build. button-update-notice-download is new here, not an
 # override: the notice was labels only until the button beside these was added.
 label-update-notice-a = A newer version of WW3MOD is available.
-label-update-notice-b = Your current version can still play offline, but may not join newer servers.
+# Not a hedge: Server.cs rejects a handshake whose Metadata.Version differs from the host's
+# (IncompatibleVersion, engine/OpenRA.Game/Server/Server.cs:532-538), and packaging stamps that
+# field with the release tag -- so between two tagged builds this is a certainty, not a risk.
+label-update-notice-b = You cannot join games hosted on the newer version.
 button-update-notice-download = Get the Latest Release
 
 ## CreditsLogic
