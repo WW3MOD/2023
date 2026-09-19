@@ -46,8 +46,19 @@ local Ticks = 0
 WorldLoaded = function()
 	local usa = Player.GetPlayer("USA")
 	local russia = Player.GetPlayer("Russia")
+
+	-- Printed BEFORE the guard so a nil is diagnosable from lua.log alone. The first run of this
+	-- scenario failed here with a zero-byte lua.log precisely because the guard fired before
+	-- anything was printed, and a zero-byte lua.log is also the tell for "the game never
+	-- launched" -- two very different findings that looked identical from outside.
+	print("[precaptured] USA=" .. tostring(usa ~= nil) .. " Russia=" .. tostring(russia ~= nil))
+
 	if usa == nil or russia == nil then
-		Test.Fail("SETUP: could not resolve players USA / Russia")
+		Test.Fail("SETUP: could not resolve players USA / Russia. A side is missing a Player object. " ..
+			"CreateMapPlayers builds one per non-playable map player and one per OCCUPIED lobby slot, " ..
+			"skipping empty slots (CreateMapPlayers.cs:93-121), and run-test.sh seats exactly one " ..
+			"client -- so a second `Playable: True` side in map.yaml is a slot nobody fills and no " ..
+			"Player is created for it. Russia must stay a MAP PLAYER here; check map.yaml")
 		return
 	end
 

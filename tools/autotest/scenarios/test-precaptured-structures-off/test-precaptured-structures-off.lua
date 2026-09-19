@@ -36,8 +36,13 @@ local Ticks = 0
 WorldLoaded = function()
 	local usa = Player.GetPlayer("USA")
 	local russia = Player.GetPlayer("Russia")
+
+	print("[precaptured-off] USA=" .. tostring(usa ~= nil) .. " Russia=" .. tostring(russia ~= nil))
+
 	if usa == nil or russia == nil then
-		Test.Fail("SETUP: could not resolve players USA / Russia")
+		Test.Fail("SETUP: could not resolve players USA / Russia. See the sibling scenario's guard for " ..
+			"the mechanism: an empty lobby slot yields no Player object, so only ONE side of this map " ..
+			"may carry `Playable: True`. Russia must stay a map player")
 		return
 	end
 

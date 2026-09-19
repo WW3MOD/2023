@@ -30,9 +30,31 @@ Players:
 		Faction: america
 		Color: 4488FF
 		Enemies: Russia
+	# RUSSIA IS A MAP PLAYER, NOT A SLOT, AND THE MISSING `Playable: True` IS LOAD-BEARING.
+	#
+	# CreateMapPlayers builds a Player for every non-playable map player, then one per OCCUPIED
+	# lobby slot, and skips an empty slot outright -- `if (client == null) continue`
+	# (CreateMapPlayers.cs:93-121). run-test.sh launches a single local client
+	# (`Launch.Map=<scenario>`, run-test.sh:745), so it seats ONE slot. The first version of this
+	# file gave both sides `Playable: True`; Russia's slot therefore stayed empty, no Russia
+	# Player object was ever constructed, `Player.GetPlayer("Russia")` returned nil, and both
+	# arms died on their own setup guard 15 s in with "SETUP: could not resolve players USA /
+	# Russia" and a zero-byte lua.log. Every passing two-sided scenario in this tree is built the
+	# same way as this one now is: exactly one Playable slot for the client, the other side a map
+	# player (test-unit-indicators, test-frozen-owner-snapshot) or a `Bot:` map player
+	# (test-push-departs-together, test-combined-arms-rendezvous).
+	#
+	# `Enemies: USA` still makes the two mutual enemies, which is what the middle test needs:
+	# PreCapturedOwnership compares the nearest player against the nearest NON-ALLIED player, so
+	# if these two were allies Middle would be captured rather than left neutral.
+	#
+	# NOTE THE RESULTING PLAYER ORDER: map players come first, so World.Players is
+	# [Neutral, Russia, USA, Everyone] and the trait's contender list is [Russia, USA] -- Russia
+	# is index 0 and would win a tie. Nothing here ties (the closest margin is 3.6%), but the
+	# debug.log line the trait writes at world load prints the list, so read it rather than
+	# assuming the order.
 	PlayerReference@Russia:
 		Name: Russia
-		Playable: True
 		LockFaction: True
 		LockColor: True
 		Faction: russia
@@ -61,9 +83,11 @@ Players:
 # band — which is the point. If MiddleBandPercent is ever pushed BELOW 3.6, Middle flips to USA
 # and this goes red for a legitimate reason; fix the expectation, do not widen it.
 #
-# mpspawn actors are present so the map is a well-formed two-slot map, but nothing reads them:
-# with both SRs placed, AnchorFor never reaches its HomeLocation fallback. They sit on the SR
-# cells so that the two agree if it ever did.
+# mpspawn actors are present so the map is a well-formed map with a spawn point, but nothing
+# here reads them: with both SRs placed, AnchorFor returns on its Supply Route branch and never
+# reaches the HomeLocation fallback. They sit on the SR cells so that the two agree if it ever
+# did -- which for Russia it could not, since a map player's HomeLocation is PlayerReference's
+# CPos.Zero default and AnchorFor now drops a contender that reads it.
 Actors:
 	SpawnUSA: mpspawn
 		Owner: Neutral
