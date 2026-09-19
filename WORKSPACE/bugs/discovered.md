@@ -5752,6 +5752,19 @@ the civilian building as well as the tower. That is a change to a screenshot, no
   error "is still live at ten other sites"; this may be one of the ten already counted — not
   cross-checked against that list.
   (found while working on: autotest-hygiene item [31], auditing scenario durations)
+  **[2026-09-19, FIXED — and the premise above is WRONG for 42 of the 53 configs.]** "No shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all" is true of the 11 plain `tournament.yaml`
+  files and false of every `-smoke`, `-sanity`, `-quick`, `-eco-5min` and `-combat-12min` variant
+  plus `tournament-arena-composition-2p` and the repo-root
+  `tools/autotest/tournament-combat-12min-combatweighted.yaml`: all 42 set `GameSpeed: fastest`, which
+  `run-tournament.sh:148/302` forwards as `Test.GameSpeed` and `World.cs:217-220` resolves to
+  `Timestep: 40`, where `1000 / 40 = 25` exactly. **`* 25` was CORRECT for those 42 and their
+  durations have never been wrong.** The 11 that run at the 60 ms default were the real casualties
+  and were restated `720 -> 1080` alongside the arithmetic fix, preserving their 18000 ticks.
+  **The census is over the WHOLE REPOSITORY** (`grep -rl TimeLimitSeconds --include=*.yaml`), not over
+  `tools/autotest/scenarios/` — that narrower sweep returns 52 and drops the repo-root file above.
+  This correction was itself first written as "41 of 52" from the scenario-tree sweep; see the
+  DISCOVERIES entry, which is about exactly that. Full write-up: `WORKSPACE/DISCOVERIES.md` 2026-09-19.
 
 ## 2026-09-19 — WATCH, not a confirmed bug: cursor reverting to the plain arrow after the banner fix (moved here from the repo backlog)
 Conditional item, closed in the backlog on 2026-09-19 because it turns on an observation only the user can make ("Dont know, can check later"). **Re-open only if the user reports the cursor STILL reverts to the bare arrow in play after pulling main @ ab2ac8b8 or later** (that main carries the banner EventBounds fix, cf86ea79 — the Escalation banners used to eat the cursor while not drawing). Two VERIFIED mechanisms of UNPROVEN incidence remain; one question separates them: does the bare pointer appear only over own/allied units while Alt is held (candidate 2), or everywhere at once (candidate 4)?

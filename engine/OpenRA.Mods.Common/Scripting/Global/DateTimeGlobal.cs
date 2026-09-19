@@ -20,7 +20,10 @@ namespace OpenRA.Mods.Common.Scripting
 	public class DateGlobal : ScriptGlobal
 	{
 		readonly TimeLimitManager tlm;
-		readonly int ticksPerSecond;
+
+		// The DEFAULT GameSpeed's milliseconds per tick, not a ticks-per-second rate. See the
+		// constructor.
+		readonly int timestepMilliseconds;
 
 		public DateGlobal(ScriptContext context)
 			: base(context)
@@ -28,7 +31,14 @@ namespace OpenRA.Mods.Common.Scripting
 			tlm = context.World.WorldActor.TraitOrDefault<TimeLimitManager>();
 			var gameSpeeds = Game.ModData.Manifest.Get<GameSpeeds>();
 			var defaultGameSpeed = gameSpeeds.Speeds[gameSpeeds.DefaultSpeed];
-			ticksPerSecond = 1000 / defaultGameSpeed.Timestep;
+
+			// ==== WAS `ticksPerSecond = 1000 / defaultGameSpeed.Timestep`, AND THAT TRUNCATED ====
+			// Integer division: 1000 / 60 = 16, not 16.667. So DateTime.Seconds(60) returned 960
+			// ticks -- 57.6 real seconds -- and every Lua delay in the mod ran 4 % early. The error
+			// is invisible upstream because cnc/ra/d2k/ts all default to a 40 ms timestep where
+			// 1000 / 40 = 25 exactly; it only bites at 60 ms. Multiplying before dividing is exact
+			// at BOTH, so this is byte-identical for those mods and correct for this one.
+			timestepMilliseconds = defaultGameSpeed.Timestep;
 		}
 
 		[Desc("True on the 31st of October.")]
@@ -41,7 +51,7 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Converts the number of seconds into game time (ticks).")]
 		public int Seconds(int seconds)
 		{
-			return seconds * ticksPerSecond;
+			return TickTime.TicksForSeconds(seconds, timestepMilliseconds);
 		}
 
 		[Desc("Get the current year (1-9999).")]
@@ -60,7 +70,11 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Converts the number of minutes into game time (ticks).")]
 		public int Minutes(int minutes)
 		{
-			return Seconds(minutes * 60);
+			// Not Seconds(minutes * 60): converting once from minutes cannot lose a tick to an
+			// intermediate, and at 60 ms the two happen to agree only because 60 * 1000 divides
+			// evenly. Going through TickTime directly keeps that an identity rather than a
+			// coincidence of this timestep.
+			return TickTime.TicksForMinutes(minutes, timestepMilliseconds);
 		}
 
 		[Desc("Return or set the time limit (in ticks). When setting, the time limit will count from now. Setting the time limit to 0 will disable it.")]

@@ -117,7 +117,7 @@ applies at world load as `world.Timestep = max(1, oldTimestep / N)`
 that asserts it.** The trait's header claims it "never enters a synced path"
 (`TestModeSpeedMultiplier.cs:8-9`); the thing that could falsify that is a gameplay trait reading the
 *mutable* `world.Timestep` (`World.cs:43`) rather than the immutable `world.GameSpeed.Timestep`.
-Three do — `TimeLimitManager.cs:118`, `NuclearUnlockClock.cs:284`, `DefconEscalation.cs:415` — and all
+Three do — `TimeLimitManager.cs:137`, `NuclearUnlockClock.cs:284`, `DefconEscalation.cs:415` — and all
 three read it **once, in their constructor**, to convert minutes into ticks. The ordering settles it:
 `World.cs:220` assigns `Timestep` from `GameSpeed`, `World.cs:252` then constructs the world actor and
 its traits (which latch 60), and only afterwards does `World.cs:320`/`:334` run `IWorldLoaded` — where
@@ -125,7 +125,7 @@ the multiplier lands. So the converters have already captured the unmultiplied v
 comments at `NuclearUnlockClock.cs:281-283` and `DefconEscalation.cs:410-413` say so explicitly. Every
 other consumer is pacing (`Game.cs:1006`, `OrderManager`), rendering (`WeatherOverlay.cs:250`),
 logging (`UnitLifecycleLogger.cs:257`), or reads the immutable base (`DoomsdayStrike.cs:738`,
-`TimeLimitManager.cs:146`). **Use `--speed` without worrying about it changing a verdict.**
+`TimeLimitManager.cs:166`). **Use `--speed` without worrying about it changing a verdict.**
 
 **Tick rate is 16.67/s, so 5000 ticks ≈ 300 s — that is the arithmetic the default invocation can
 afford.** (`Timestep: 60` ms, `mod.yaml:381-382` + `:406`. **Never write 25 tps**; the 25 that
@@ -161,10 +161,29 @@ The last two rows are the ones to check by hand rather than trust: 5000 and 4500
 under the watchdog, so whether they clear it depends on map-load time, which this audit did not
 measure. Treat them as "raise the timeout" rather than as known-good.
 
-**The twelve `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
+**The `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
 `run-tournament.sh` computes its own budget (`:164`, `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`) and
-does not use `run-test.sh`'s 300 s. Their clock is separately mis-stated — see
-`WORKSPACE/bugs/discovered.md` 2026-09-19 on `TournamentConfig.cs:101`.
+does not use `run-test.sh`'s 300 s.
+
+**Their clock was mis-stated, and FIXED 2026-09-19 — but only for 11 of the 53 configs, and the split
+is the part worth carrying.** `TournamentConfig` converted with a hardcoded `* 25`, which is exact at
+a 40 ms timestep and wrong at 60 ms. `run-tournament.sh:148` reads `GameSpeed:` out of the config and
+passes it as `Test.GameSpeed`, so the key really does pick the timestep:
+
+- **42 configs set `GameSpeed: fastest`** (40 ms) — the `-smoke`, `-sanity`, `-quick`, `-eco-5min` and
+  `-combat-12min` variants plus `tournament-arena-composition-2p`. `* 25` was CORRECT for these and
+  **their durations have not moved at all.**
+- **11 plain `tournament.yaml` files set no GameSpeed** (60 ms default). For those, `720` was 18000
+  ticks = **1080 real seconds**, so the file's own "12 in-game minutes" described a match nobody ever
+  played. They were restated `720 -> 1080` alongside the arithmetic fix, which keeps the tick count
+  at 18000 — every recorded baseline still compares — while making the number mean what it says.
+
+A bug entry dated 2026-09-19 says "no shipped `tournament*.yaml` sets a `GameSpeed` key at all". That
+is true of the 11 and **false of the other 42**; it generalised from the files it opened. **Read the
+`GameSpeed:` key before reasoning about any tournament's duration** — and note the new failure mode
+the fix introduces: the deadline is now a function of `world.GameSpeed`, and `Game.cs:1200-1204` warns
+that an unknown speed key falls back to default *silently*. `BotVsBotMatchWatcher` logs the timestep it
+actually resolved at `WorldLoaded` for exactly this reason.
 
 ### An empty `lua.log` from a TIMEOUT-FAIL means nothing on its own
 
