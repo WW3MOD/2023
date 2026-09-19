@@ -153,7 +153,8 @@ namespace OpenRA.Test
 			// untuned guesses, and that is what kept the whole section dimmed (decision 12).
 			var noRush = options.First(o => o.Id == DefconEscalationInfo.NoRushOptionId);
 			Assert.That(noRush.Values.Keys, Is.EquivalentTo(new[] { "2", "3", "5", "7", "10", "15" }));
-			Assert.That(noRush.DefaultValue, Is.EqualTo("5"), "5 minutes is what the retired Standard pace was worth.");
+			Assert.That(noRush.DefaultValue, Is.EqualTo("5"),
+				"5 minutes is the COMFORTABLY band of the deployment derivation; see ThePhaseClockDefaultsMatchTheDeploymentDerivation.");
 
 			var warheads = options.First(o => o.Id == DefconEscalationInfo.FirstWarheadsOptionId);
 			Assert.That(warheads.Values.Keys, Is.EquivalentTo(new[] { "2", "5", "7", "10", "15", "20" }));
@@ -173,6 +174,101 @@ namespace OpenRA.Test
 				"the nuclear ceiling is back; the exchange has no host cap and cannot honour one");
 			Assert.That(options.Any(o => o.Id == NuclearExchangeInfo.PostureOptionId), Is.False,
 				"DefconEscalation declared an exchange option; that belongs on NuclearExchange");
+		}
+
+		// ==== THE DERIVATION BEHIND THE TWO PHASE-CLOCK DEFAULTS, PINNED ====
+		// The three constants below are MEASUREMENTS, taken statically at 442859aa and written up in
+		// WORKSPACE/audit/escalation-gameplay-review-260919.md Part 1. A unit test cannot drive a unit
+		// across a map, so what this fixture can pin is the CONCLUSION -- which is precisely the thing
+		// a silent retune of the defaults would lose, and the reason the stops were never testable
+		// while they were three adjectives.
+		//
+		// HOW THEY WERE OBTAINED. Reinforcement latency is queue time + the edge -> Supply Route walk
+		// + the drive to the border. Nothing is built at the SR (ProductionFromMapEdge spawns on the
+		// closest map-edge cell); BuildDuration is unset on every unit so queue time is cost/10 ticks;
+		// the Vehicle queue is sequential with one producer, so a 4 MBT + 2 IFV + 1 APC push costs
+		// 1370 ticks before the last vehicle even appears. An Abrams makes 63 WDist/tick on Clear
+		// (Speed 90 at heavytracked's 70 %) = 1.03 cells/s. The border is the perpendicular bisector
+		// of the two sides' homes, so the distance to it is half the spawn separation -- 11 cells on
+		// river-zeta's closest seat, 77 on x-lake's widest pairing. Wave in position: 1:42 to 2:56
+		// across all ten maps and every pairing, with a x1.25 path-inflation factor on the drive.
+		//
+		// IF A FUTURE MEASUREMENT DISAGREES, change the constants AND the default in one commit, and
+		// say which run measured it. What must not happen is the default moving while these stay.
+
+		/// <summary>Slowest measured wave-in-position, in ticks: x-lake-ww3 s1-s3 (d=77), 2:56.</summary>
+		const int SlowestWaveTicks = 2934;
+
+		/// <summary>Fastest measured wave-in-position, in ticks: river-zeta-ww3 s0 (d=11), 1:42.</summary>
+		// THE SPREAD BETWEEN THESE TWO IS THE WHOLE POINT and is smaller than it looks like it should
+		// be: 1:42 to 2:56 over distances of 11 and 77 cells, because 1370 of every wave's ticks are
+		// the sequential Vehicle queue and every map pays those identically.
+		const int FastestWaveTicks = 1695;
+
+		[Test]
+		public void ThePhaseClockDefaultsMatchTheDeploymentDerivation()
+		{
+			var info = new DefconEscalationInfo();
+
+			// 60 ms, not a magic 40: mod.yaml's GameSpeeds default block is the mod's real timestep,
+			// and TicksForMinutes multiplies before dividing so this is exact rather than 4 % short.
+			const int Timestep = 60;
+
+			// THE IDENTITY EVERY NUMBER BELOW RESTS ON. One minute is 1000 ticks at 60 ms, so a stop
+			// in minutes reads straight off as thousands of ticks. If this breaks, every duration in
+			// the review and in the two [Desc] blocks is wrong by the same factor.
+			foreach (var minutes in info.NoRushOptions)
+				Assert.That(info.NoRushTicks(minutes, Timestep), Is.EqualTo(minutes * 1000),
+					$"the {minutes}-minute no-rush stop is not {minutes * 1000} ticks at a 60 ms timestep.");
+
+			foreach (var minutes in info.FirstWarheadsOptions)
+				Assert.That(info.NuclearReleaseDelayTicks(minutes, Timestep), Is.EqualTo(minutes * 1000),
+					$"the {minutes}-minute first-warheads stop is not {minutes * 1000} ticks at a 60 ms timestep.");
+
+			// THE DEFAULT CLEARS THE SLOWEST MAP, WHICH IS WHAT "COMFORTABLY" MEANS. 5000 vs 2933
+			// leaves 2:04 of slack on the worst map in the set -- enough for a second wave, which the
+			// 2000/min passive income pays for inside the same clock.
+			var defaultTicks = info.NoRushTicks(info.NoRushDefault, Timestep);
+			Assert.That(defaultTicks, Is.EqualTo(5000), "the shipped no-rush default is no longer 5 minutes.");
+			Assert.That(defaultTicks, Is.GreaterThan(SlowestWaveTicks),
+				"the default no-rush clock now expires before a starting-cash wave can reach the border on the slowest shipped map.");
+
+			// THREE MINUTES IS THE TIGHTEST STOP THAT CLEARS EVERY MAP, AND IT CLEARS BY 66 TICKS --
+			// four seconds. That is what "barely" means in the review's table, and it is why the gap
+			// between the 3 and 5 stops is the interesting one rather than the gap between 5 and 7.
+			// If a retune ever pushes SlowestWaveTicks past 3000 the list has lost its barely band.
+			Assert.That(info.NoRushOptions, Does.Contain(3), "the barely band's stop is gone from the list.");
+			Assert.That(info.NoRushTicks(3, Timestep), Is.GreaterThan(SlowestWaveTicks),
+				"3 minutes no longer clears the slowest shipped map, so the list has no barely band left.");
+			Assert.That(info.NoRushTicks(3, Timestep) - SlowestWaveTicks, Is.LessThan(500),
+				"3 minutes has stopped being tight; the list's barely band is now comfortable and the bands have collapsed.");
+
+			// AND THE SMALLEST STOP DELIBERATELY DOES NOT CLEAR IT. 2 minutes is the "skip the phase"
+			// setting, kept rather than removed because the keys are wire-visible.
+			//
+			// NOT "below the wave time on every map", which is what this assertion first claimed and
+			// which is FALSE: 2000 ticks is above FastestWaveTicks (1695), so on the closest seats of
+			// the 4- and 6-spawn maps a wave does arrive inside two minutes. What is true, and what is
+			// pinned, is that it does not clear the slowest. The stronger claim was caught by writing
+			// the assertion the other way round; do not restore it.
+			var shortest = info.NoRushOptions.Min();
+			Assert.That(info.NoRushTicks(shortest, Timestep), Is.LessThan(SlowestWaveTicks),
+				"every no-rush stop now clears the slowest shipped map, so the list can no longer express a skipped positioning phase.");
+			Assert.That(info.NoRushTicks(shortest, Timestep), Is.GreaterThan(FastestWaveTicks),
+				"the shortest stop now denies a wave even on the closest seat; the list's short end has gone from aggressive to useless.");
+
+			// FIRST WARHEADS: the offset from DEFCON 1, and the one number decision 17.1 ruled. 10000
+			// ticks is also what the retired fixed field was worth, so this pins a value the user set
+			// rather than one that was derived -- the derivation only CHECKED it (review Part 1.5).
+			Assert.That(info.NuclearReleaseDelayTicks(info.FirstWarheadsDefault, Timestep), Is.EqualTo(10000),
+				"the shipped first-warheads default is no longer 10 minutes after DEFCON 1.");
+
+			// THE SENTINELS ARE NOT INTERCHANGEABLE and the asymmetry is load-bearing: 0 is
+			// meaningless for a no-rush period (the clock is required positive) so 0 is its "not in
+			// play", while 0 IS a real first-warheads setting -- open the ladder on the tick DEFCON 1
+			// is reached -- so that one reserves -1. Unifying them would silently delete a setting.
+			Assert.That(info.NoRushTicksOverride, Is.EqualTo(0), "the no-rush override is in play by default.");
+			Assert.That(info.NuclearReleaseDelayTicksOverride, Is.EqualTo(-1), "the first-warheads override is in play by default.");
 		}
 
 		[Test]

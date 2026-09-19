@@ -96,11 +96,23 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		/// <summary>The ONE line stating the rule in force. Approved copy; see the file header.</summary>
+		// ==== WHY DEFCON 3's LINE STATES TWO RULES AND THE OTHER TWO STATE ONE ====
+		// It read "The border is closed. Neither side may cross it." until 2026-09-19, and that was the
+		// whole of the phase when the wording table was written. It is not any more: 5fef37dc
+		// ("Positioning phase: no weapon fires, by any path", 2026-09-16) gated Armament.CanFire on the
+		// level, so at DEFCON 3 NOTHING fires -- not autotarget, not an ordered attack, not force-fire
+		// at bare ground (DefconFireDiscipline.PermitsWeapon). The copy predated the rule, so a player
+		// who force-fired at anything got silence and no explanation anywhere on the HUD.
+		//
+		// The register is unchanged and is the constraint that shaped the rewrite: both clauses say
+		// what the player MAY NOT DO, neither names a trait, and TheRuleLinesNameNoMechanism still
+		// passes. It is deliberately not split into a second line -- the strip has one rule slot, and
+		// the DEFCON 2 line already carries two clauses in one string for the same reason.
 		public static string RuleLine(int level)
 		{
 			switch (level)
 			{
-				case 3: return "The border is closed. Neither side may cross it.";
+				case 3: return "The border is closed. Nothing may cross it, and nothing may fire.";
 				case 2: return "Your units will not fire on their own. Every shot is one you order.";
 				case 1: return "Everything is released. Units engage on sight.";
 				default: return null;
