@@ -40,8 +40,8 @@ The baked lettering on the shipped cameos is 5 ink rows ending on sprite row 46 
 
 convert.py's baked-caption font is 4px of ink on a 5px advance. At that pitch "PRECISION STR."
 is 69px against a 60px slot budget, so the widget would shorten the mod's own longest shipped
-caption to "PRECISION". 3px of ink on a 4px advance gives exactly the 56px the baked lettering
-measures, and 15 characters fit the un-badged budget.
+caption to "PRECISION". 3px of ink on a 4px advance puts it at 54px -- 15 letters or digits fit
+the un-badged budget, 11 fit beside a badge. Punctuation is narrower; see advance_of().
 
 Cap height is 5px = 640 units, sitting on the baseline. CameoCaptionCache puts the line box at
 slotHeight - bottomMargin - lineHeight and SpriteFont.DrawText adds `size` to reach the
@@ -49,29 +49,32 @@ baseline, so with CaptionBottomMargin: 0 the baseline is slot row 46 and a 5-row
 rows 41..45 -- which is where the baked lettering already is. The font SIZE cancels out of that
 derivation entirely; what has to be 5 is the CAP HEIGHT, not the size.
 
-THE AUTOHINTER IS ON, AND IT MOVES LOWERCASE i AND j UP BY ONE PIXEL
----------------------------------------------------------------------
+THE AUTOHINTER IS ON, AND IT IS WHY THIS FILE MEASURES THROUGH ftprobe AND NOT PILLOW
+---------------------------------------------------------------------------------------
 FT_LOAD_RENDER is FT_LOAD_DEFAULT plus a render, so HINTING IS ENABLED. A TTF with no bytecode
 -- which is everything fontTools writes -- takes FreeType's `maxSizeOfInstructions == 0` branch
 and gets the AUTOHINTER, whose latin module derives blue zones by sampling specific CHARACTERS
-through the cmap and snapping glyph edges to them.
+through the cmap and snapping glyph edges to them. So the cmap can move glyphs, and it does.
 
-Measured here, not assumed: with no a-z in the cmap every glyph rasterises with its ink box at
-exactly (0, 0, 4, 5). Add a-z -> A-Z and uppercase I and J move to (0, -1, 4, 5) -- one pixel
-high, out of line with the other 24 letters. The small-letter blue zones the autofitter builds
-from `i`/`j` land at the same height as the capital ones (because the lowercase entries point at
-5px capitals), and I/J then snap against the wrong zone.
+Measured, not assumed. With no a-z in the cmap, every glyph lands at exactly (0, 0, 4, 5). Point
+a-z at the SAME glyph ids as A-Z and uppercase I and J move to (0, -1, 4, 5) -- one pixel high,
+out of line with the other 24 letters -- because the small-letter blue zones the autofitter
+builds from `i`/`j` then sit at capital height and I/J snap against the wrong one. Giving a-z
+their own glyph ids carrying the same outlines fixes it, and that is what is built below.
+Lowercase is covered rather than dropped because the roster already ships
+`CameoCaption: 6x750 KT`, whose x would otherwise draw the .notdef block.
 
-Giving a-z their OWN glyph ids with the same outlines confines the damage: A-Z and 0-9 are all
-exactly (0, 0, 4, 5), and only lowercase `i` and `j` are still a pixel high. That is what is
-built below, because dropping lowercase entirely would make the roster's own
-`CameoCaption: 6x750 KT` draw a .notdef block for its x. --verify asserts the uppercase set and
-reports the i/j deviation; check_captions.py rejects a caption containing either.
+THE BUILD MATTERS, WHICH IS THE POINT WORTH CARRYING AWAY. With a-z on their own ids, the
+engine's freetype6 1.0.11 puts all 62 letters and digits on the grid; Pillow 12.3.0's bundled
+FreeType still holds `i` and `j` a pixel high. Same font file, same flags, different library
+build, different answer -- and only one of those two libraries is in the game. That is why
+--verify prefers ftprobe.py, which loads the very DLL the engine binds to, and says out loud
+which library it measured with when it cannot.
 
 Two things NOT to reach for here. Adding an embedded bitmap strike (EBDT/EBLC) looks like the
 obvious answer for a pixel font and would BREAK the engine: FT_LOAD_RENDER returns an embedded
 bitmap verbatim in FT_PIXEL_MODE_MONO, and FreeTypeFont.cs:117-124 reads the buffer one BYTE per
-pixel. And FT_LOAD_NO_HINTING in the engine would fix this without a per-font opt-in, but it is
+pixel. And FT_LOAD_NO_HINTING in the engine would sidestep the autohinter entirely, but it is
 engine-wide and would change how every other font in the mod renders.
 """
 
@@ -119,7 +122,7 @@ GLYPHS = {
     "K": "#.#|#.#|##.|#.#|#.#",
     "L": "#..|#..|#..|#..|###",
     "M": "#.#|###|###|#.#|#.#",
-    "N": "#.#|##.|###|.##|#.#",
+    "N": "#.#|##.|#.#|.##|#.#",
     "O": ".#.|#.#|#.#|#.#|.#.",
     "P": "##.|#.#|##.|#..|#..",
     "Q": ".#.|#.#|#.#|##.|.##",
@@ -138,27 +141,27 @@ GLYPHS = {
     "3": "##.|..#|.#.|..#|##.",
     "4": "#.#|#.#|###|..#|..#",
     "5": "###|#..|##.|..#|##.",
-    "6": ".##|#..|##.|#.#|.#.",
+    "6": ".##|#..|###|#.#|###",
     "7": "###|..#|.#.|.#.|.#.",
     "8": ".#.|#.#|.#.|#.#|.#.",
-    "9": ".#.|#.#|.##|..#|##.",
-    "!": ".#.|.#.|.#.|...|.#.",
+    "9": "###|#.#|###|..#|##.",
+    "!": "#|#|#|.|#",
     "\"": "#.#|#.#|...|...|...",
     "#": "#.#|###|#.#|###|#.#",
     "$": ".##|##.|.#.|.##|##.",
     "%": "#.#|..#|.#.|#..|#.#",
     "&": ".#.|#.#|.#.|#.#|.##",
-    "'": ".#.|.#.|...|...|...",
+    "'": "#|#|.|.|.",
     "(": "..#|.#.|.#.|.#.|..#",
     ")": "#..|.#.|.#.|.#.|#..",
     "*": "#.#|.#.|#.#|...|...",
     "+": "...|.#.|###|.#.|...",
-    ",": "...|...|...|.#.|#..",
+    ",": ".|.|.|#|#",
     "-": "...|...|###|...|...",
-    ".": "...|...|...|...|.#.",
+    ".": ".|.|.|.|#",
     "/": "..#|..#|.#.|#..|#..",
-    ":": "...|.#.|...|.#.|...",
-    ";": "...|.#.|...|.#.|#..",
+    ":": ".|#|.|#|.",
+    ";": ".|#|.|#|#",
     "<": "..#|.#.|#..|.#.|..#",
     "=": "...|###|...|###|...",
     ">": "#..|.#.|..#|.#.|#..",
@@ -169,12 +172,24 @@ GLYPHS = {
     "]": "##.|.#.|.#.|.#.|##.",
     "^": ".#.|#.#|...|...|...",
     "_": "...|...|...|...|###",
-    "`": "#..|.#.|...|...|...",
+    "`": "#|.|.|.|.",
     "{": "..#|.#.|##.|.#.|..#",
-    "|": ".#.|.#.|.#.|.#.|.#.",
+    "|": "#|#|#|#|#",
     "}": "#..|.#.|.##|.#.|#..",
     "~": "...|.##|#.#|##.|...",
 }
+
+def advance_of(pattern):
+    """Ink columns + 1px of letterspacing.
+
+    Letters and digits are all 3 wide and so all measure ADVANCE, which is what makes a caption's
+    width `4 * len(caption)` and keeps the pitch equal to the baked lettering's. The exception is
+    the narrow punctuation above -- a full stop drawn 3 cells wide is monospaced-looking in a way
+    the eye reads as a gap, and "0. 3 KT" was visibly wrong in the first proof render. One ink
+    column plus a gap puts it 1px from each neighbour instead of 2.
+    """
+    return len(pattern.split("|")[0]) + 1
+
 
 # A missing glyph draws a SOLID BLOCK, not the empty box a TTF would normally give you. A caption
 # with a character this font does not cover is an authoring mistake, and a loud one costs a
@@ -246,7 +261,8 @@ def build(path=TTF):
     fb.setupGlyphOrder(order)
     fb.setupCharacterMap(cmap)
     fb.setupGlyf(pens)
-    fb.setupHorizontalMetrics({n: (ADVANCE * PX, 0) for n in order})
+    widths = {name: advance_of(pattern) * PX for name, pattern in entries}
+    fb.setupHorizontalMetrics({n: (widths[n], 0) for n in order})
     fb.setupHorizontalHeader(ascent=CELL_H * PX, descent=-PX, lineGap=0)
     fb.setupNameTable({
         "familyName": "WW3 Caption",
@@ -296,63 +312,111 @@ LIVE_CAPTIONS = ["PRECISION STR.", "0.3 KT", "10 KT", "50 KT", "100 KT", "1 KT",
                  "6x750 KT", "1.2 MT", "6 MT", "50 MT", "20 KT"]
 
 
-def verify(path=TTF, verbose=True):
-    font = pil_font(path)
-    bad, lines = [], []
+def ink_box(ft, ch):
+    """(left, top-from-baseline, advance, height) for one glyph, through the engine's FreeType.
 
+    The engine equivalent of PIL's getbbox. `top` is measured DOWN from the cap line so a glyph
+    a pixel high reads as -1, matching what PIL reports and what the header describes.
+    """
+    g = ft.glyph(ch, PPEM)
+    if not g:
+        return None
+    w, h, advance, left, top, _ = g
+    return (left, CELL_H - top, advance, CELL_H - top + h)
+
+
+def verify(path=TTF, verbose=True):
+    """Measure the built font against the four acceptance rules.
+
+    Measured through the ENGINE'S OWN freetype6 where the NuGet cache has it (ftprobe.py), which
+    is the only measurement that settles the per-pixel coverage rule, and through Pillow's
+    FreeType otherwise. Which one ran is printed, because the two are not equally strong.
+    """
+    bad, lines = [], []
     sample = "".join(sorted(GLYPHS))
-    cov = coverage(font, sample)
-    grey = sorted({v for v in cov if v != 255})
-    lines.append("  every glyph, %d lit pixels: %s" % (
-        len(cov), "ALL 255" if not grey else "NOT 1-BIT -- other values seen: %r" % grey[:12]))
+
+    try:
+        import ftprobe
+        ft = ftprobe.FreeType(path)
+        engine = True
+        lines.append("  measured through the ENGINE's freetype6: %s" % ft.library_path)
+    except Exception as e:                                        # noqa: BLE001 -- reported, not swallowed
+        ft, engine = None, False
+        lines.append("  ENGINE freetype6 UNAVAILABLE (%s)" % e)
+        lines.append("  falling back to Pillow's own FreeType -- same flags and hinting decision, "
+                     "different build. Weaker evidence; see ftprobe.py's header.")
+
+    def cov(text, size=PPEM, font_path=path):
+        if engine:
+            f = ft if font_path == path else ftprobe.FreeType(font_path)
+            return ftprobe.coverage(f, text, size)
+        return coverage(pil_font(font_path, size), text)
+
+    def adv(ch):
+        return ft.glyph(ch, PPEM)[2] if engine else pil_font(path).getlength(ch)
+
+    def box(ch):
+        return ink_box(ft, ch) if engine else pil_font(path).getbbox(ch)
+
+    # 1. Every lit pixel opaque at the shipped size. This is the item.
+    c = cov(sample)
+    grey = sorted({v for v in c if v != 255})
+    lines.append("  every glyph at %dpx, %d lit pixels: %s" % (
+        PPEM, len(c), "ALL 255" if not grey else "NOT 1-BIT -- other values: %r" % grey[:12]))
     if grey:
         bad.append("glyph coverage is not 1-bit")
 
-    # Integer UI scales must stay exact too; a fractional one cannot and is reported, not failed.
+    # 2. Integer UI scales stay exact; a fractional one cannot, and is reported rather than failed.
     for scale in (2, 3):
-        c = coverage(pil_font(path, PPEM * scale), sample)
-        g = sorted({v for v in c if v != 255})
+        g = sorted({v for v in cov(sample, PPEM * scale) if v != 255})
         lines.append("  at UI scale %dx (ppem %d): %s" % (
             scale, PPEM * scale, "ALL 255" if not g else "NOT 1-BIT %r" % g[:8]))
         if g:
             bad.append("coverage is not 1-bit at UI scale %dx" % scale)
-    c = coverage(pil_font(path, 10), sample)  # ppem 10 == UI scale 1.5, the fractional case
-    g = sorted({v for v in c if v != 255})
+    g = sorted({v for v in cov(sample, 10) if v != 255})           # ppem 10 == UI scale 1.5
     lines.append("  at UI scale 1.5x (ppem 10): %s  <- EXPECTED: 896/10 is not a whole number of "
                  "units per pixel, so this one antialiases. Not a failure." % (
                      "all 255" if not g else "antialiased, %d grey values" % len(g)))
 
-    # Advance: designed 4px for every glyph. If the autohinter moved one, widths stop being
-    # predictable and every budget number in check_captions.py is wrong.
-    wrong = {c: a for c, a in ((ch, font.getlength(ch)) for ch in GLYPHS) if a != ADVANCE}
-    lines.append("  advance: %s" % ("all %dpx" % ADVANCE if not wrong else "WRONG: %r" % wrong))
+    # 3. Advance: designed 4px for every glyph. If the autohinter moved one, widths stop being
+    #    predictable and every budget number in check_captions.py is wrong.
+    wrong = {ch: (adv(ch), advance_of(GLYPHS[ch])) for ch in GLYPHS
+             if adv(ch) != advance_of(GLYPHS[ch])}
+    narrow = sorted(ch for ch in GLYPHS if advance_of(GLYPHS[ch]) != ADVANCE)
+    lines.append("  advance: %s  (letters and digits all %dpx; narrow: %s)" % (
+        "as designed" if not wrong else "WRONG got/want %r" % wrong, ADVANCE, "".join(narrow)))
     if wrong:
         bad.append("advances are not the designed width")
 
-    # Ink box: 5 rows tall, sitting on the baseline. This is what puts the caption on slot row 45.
-    # Checked PER GLYPH, because the failure this catches is not a wrong height but a single
-    # letter snapped a pixel out of line by the autohinter -- see the header.
+    # 4. Ink box, PER GLYPH: the failure this catches is not a wrong height but one letter snapped
+    #    a pixel out of line by the autohinter. See the header.
     want = (0, 0, ADVANCE, CELL_H)
-    off = {c: font.getbbox(c) for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-           if font.getbbox(c) != want}
-    lines.append("  A-Z 0-9 ink box == %r: %s" % (want, "all 36" if not off else "OFF: %r" % off))
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" + LOWERCASE
+    off = {ch: box(ch) for ch in letters if box(ch) != want}
+    lines.append("  all %d letters and digits, ink box == %r: %s" % (
+        len(letters), want, "on the grid" if not off else "OFF: %r" % off))
     if off:
         bad.append("glyphs sit off the baseline grid: %s" % ", ".join(sorted(off)))
 
-    lo = {c: font.getbbox(c) for c in LOWERCASE if font.getbbox(c) != want}
-    lines.append("  lowercase off-grid: %s  <- EXPECTED to be exactly i and j; see the header. "
-                 "check_captions.py rejects a caption containing either." % (sorted(lo) or "none"))
+    # The same measurement through Pillow, reported rather than asserted. It disagrees on i and j
+    # (see the header) and the disagreement is the evidence that ftprobe is worth having; a future
+    # Pillow could agree again without that meaning anything changed in the game.
+    if engine:
+        p = pil_font(path)
+        d = sorted(ch for ch in letters if tuple(p.getbbox(ch)) != want)
+        lines.append("  cross-check, Pillow's own FreeType: %s  <- reported, NOT a gate. Only the "
+                     "line above is about the game." % (
+                         "agrees on all of them" if not d else "holds %r a pixel high" % d))
 
-    # The comparison that is the whole point of the item.
-    old = pil_font(os.path.join(ROOT, "engine", "mods", "common", "FreeSansBold.ttf"))
-    o = sorted(coverage(old, sample))
-    lines.append("  FreeSansBold 7px, same sample: max %d, median %d, %d/%d opaque" % (
-        o[-1], o[len(o) // 2], sum(1 for v in o if v == 255), len(o)))
+    # The before/after the item is about, measured the same way.
+    o = sorted(cov(sample, PPEM, os.path.join(ROOT, "engine", "mods", "common", "FreeSansBold.ttf")))
+    lines.append("  the incumbent, FreeSansBold %dpx, same sample: max %d, median %d, %d/%d opaque"
+                 % (PPEM, o[-1], o[len(o) // 2], sum(1 for v in o if v == 255), len(o)))
 
-    lines.append("  budget %dpx plain / %dpx badged = %d / %d characters" % (
+    lines.append("  budget %dpx plain / %dpx badged = %d / %d letters or digits" % (
         BUDGET_PLAIN, BUDGET_BADGED, BUDGET_PLAIN // ADVANCE, BUDGET_BADGED // ADVANCE))
     for t in LIVE_CAPTIONS:
-        w = measure(font, t)
+        w = sum(adv(ch) for ch in t)
         verdict = "fits" if w <= BUDGET_BADGED else "fits plain only" if w <= BUDGET_PLAIN else "TOO WIDE"
         lines.append("    %-18r %3.0fpx  %s" % (t, w, verdict))
         if w > BUDGET_PLAIN:
@@ -380,4 +444,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     sys.exit(main())
