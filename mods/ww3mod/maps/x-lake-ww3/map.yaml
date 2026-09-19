@@ -1144,3 +1144,5 @@ Actors:
 	Actor431: mpspawn
 		Owner: Neutral
 		Location: 128,108
+
+Rules: rules.yaml

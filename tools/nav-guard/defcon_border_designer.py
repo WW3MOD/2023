@@ -48,9 +48,14 @@ import defcon_wall_audit as dwa
 RULES = modload.load_mod(nav_guard.MOD_DIR)
 MAPS = {p.name: p for p in modload.discover_maps(nav_guard.MOD_DIR)}
 
+_LOADED = {}
+
+
 def load(name):
-    mp = modload.load_map(MAPS[name])
-    return mp, RULES.tilesets[mp.tileset]
+    if name not in _LOADED:
+        mp = modload.load_map(MAPS[name])
+        _LOADED[name] = (mp, RULES.tilesets[mp.tileset])
+    return _LOADED[name]
 
 def terrain_cells(mp, ts, types):
     t = set(types)
@@ -148,13 +153,28 @@ import heapq
 COST = {'Cliffs':2,'Water':2,'River':2,'RiverShallow':4,'Bridge':6,'Rock':5,
         'Rough':8,'Debris':8,'Beach':8,'Road':10,'Clear':10,'Tree':6}
 
-def barrier_path(name, anchors, cost=None, forbid=()):
-    """Min-cost 4-connected chain through the Bounds, visiting `anchors` in order."""
+def barrier_path(name, anchors, cost=None, forbid=(), bias=None):
+    """Min-cost 4-connected chain through the Bounds, visiting `anchors` in order.
+
+    `bias` is an optional (axis, centre, weight) triple -- axis 'x' or 'y' -- adding
+    `weight * distance-from-centre` to every cell. It is what keeps a border on a map with
+    no continuous feature from wandering: without it the router will happily detour thirty
+    cells to pick up one more cliff, and the result reads as a scribble rather than a line.
+    """
     mp, ts = load(name)
     c = dict(COST); c.update(cost or {})
     l,t,w,h = mp.bounds
     forbid = set(forbid)
-    def W(x,y): return c.get(mp.terrain_type(ts,x,y), 10)
+    def W(x,y):
+        # A forbidden cell is priced out rather than removed. Deleting cells can disconnect
+        # the grid outright -- a capturable sitting on the map edge walls its own anchor in --
+        # and a router that cannot reach its destination gives no border at all, which is
+        # strictly worse than a border that grazes a derrick and gets moved by hand.
+        base = 1000 if (x,y) in forbid else c.get(mp.terrain_type(ts,x,y), 10)
+        if bias:
+            axis, centre, weight = bias
+            base += weight * abs((x if axis == 'x' else y) - centre)
+        return base
     def dij(src, dst):
         dist = {src: W(*src)}; prev = {}
         pq = [(dist[src], src)]
@@ -166,7 +186,6 @@ def barrier_path(name, anchors, cost=None, forbid=()):
             for dx,dy in ((1,0),(-1,0),(0,1),(0,-1)):
                 v = (ux+dx, uy+dy)
                 if not (l <= v[0] < l+w and t <= v[1] < t+h): continue
-                if v in forbid: continue
                 nd = d + W(*v)
                 if nd < dist.get(v, 1<<60):
                     dist[v] = nd; prev[v] = u; heapq.heappush(pq,(nd,v))
@@ -174,14 +193,16 @@ def barrier_path(name, anchors, cost=None, forbid=()):
         path=[dst]
         while path[-1] != src: path.append(prev[path[-1]])
         return list(reversed(path)), dist[dst]
+    forbid -= {tuple(a) for a in anchors}
+
     chain=[]; total=0
     for a,b in zip(anchors, anchors[1:]):
         p, d = dij(tuple(a), tuple(b)); total += d
         chain += p if not chain else p[1:]
     return mp, ts, chain, total
 
-def build(name, anchors, types=(), r=1, cost=None, forbid=(), verbose=True):
-    mp, ts, chain, total = barrier_path(name, anchors, cost, forbid)
+def build(name, anchors, types=(), r=1, cost=None, forbid=(), verbose=True, bias=None):
+    mp, ts, chain, total = barrier_path(name, anchors, cost, forbid, bias)
     band = clip(thicken(set(chain), r), mp)
     tcells = terrain_cells(mp, ts, types) if types else set()
     blocked = band | tcells
@@ -315,11 +336,30 @@ def sweep(name, refA, refB, pairs=(('N','S'),('W','E'),('N','E'),('N','W'),('S',
               f"bal={r_['bal']:.2f} A={r_['A']} B={r_['B']} stray={r_['stray']} band={r_['band']}")
     return out
 
-def finalize(name, anchors, types=(), r=1, cost=None, forbid_extra=(), cap_margin=2, quiet=True):
+def isthmus(name, x0, x1, y0, y1, wet=('Water', 'River')):
+    """Every DRY cell in a rectangle -- the land bridge through a lake, bank to bank.
+
+    River Zeta's ruling, applied to a lake instead of a ford: cover the crossing bank to
+    bank rather than plug it in the middle. A band that stops one cell short of the far
+    shore leaves a sliver of beach walled in by its own border and the water, which reads
+    as a hole in the band and measures as a sealed pocket.
+    """
+    mp, ts = load(name)
+    return {(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)
+            if mp.terrain_type(ts, x, y) not in wet}
+
+
+def finalize(name, anchors, types=(), r=1, cost=None, forbid_extra=(), cap_margin=2,
+             quiet=True, bias=None, extra=()):
     mp, ts = load(name)
     c = dict(DEFC); c.update(cost or {})
     fb = forbid_caps(mp, cap_margin) | set(forbid_extra)
-    mp,ts,chain,band,tc,blocked,hand = build(name, anchors, types=types, r=r, cost=c, forbid=fb)
+    mp,ts,chain,band,tc,blocked,hand = build(name, anchors, types=types, r=r, cost=c,
+                                             forbid=fb, bias=bias)
+    if extra:
+        band = band | clip(set(extra), mp)
+        blocked = band | tc
+        hand = sorted(clip(band - tc, mp), key=lambda cc: (cc[1], cc[0]))
     lab, sizes = comps_of(mp, blocked)
     spawns = sorted(a.location for a in mp.actors if a.name=='mpspawn')
     srs = [(x-1,y-1) for x,y in spawns]
@@ -344,3 +384,47 @@ def finalize(name, anchors, types=(), r=1, cost=None, forbid_extra=(), cap_margi
     print(f"    capturables per component: {dict(cnt)}   comp sizes={ {i:sizes[i] for i in sorted(set(lab.values()))} }")
     audit(name, types, blocked, quiet_loco=quiet)
     return mp,ts,chain,band,tc,blocked,hand,lab,sizes
+
+
+def scan(name, groupA, groupB, cands, r=1, cost=None, cap_margin=2, top=12):
+    """Rank candidate (anchors, bias) pairs on FAIRNESS first, feature-following second.
+
+    `spread` is the difference between the farthest and nearest spawn's Chebyshev distance
+    to the band, and it is the number that decides a candidate. The derived bisector is
+    equidistant from both sides by construction, so an authored border that hands one side a
+    twenty-cell head start is a worse border however handsome the river it follows.
+    `inv` counts route cells on terrain that is NOT already a barrier -- the border the map
+    did not provide and this tool invented.
+    """
+    mp, ts = load(name)
+    c = dict(DEFC); c.update(cost or {})
+    fb = forbid_caps(mp, cap_margin)
+    caps = capturable_footprints(mp)
+    spawns = sorted(a.location for a in mp.actors if a.name == 'mpspawn')
+    out = []
+    for anchors, bias in cands:
+        try:
+            _, _, chain, total = barrier_path(name, anchors, cost=c, forbid=fb, bias=bias)
+        except Exception:
+            continue
+        band = clip(thicken(set(chain), r), mp)
+        lab, sizes = comps_of(mp, band)
+        ga = {lab.get(s) for s in groupA} - {None}
+        gb = {lab.get(s) for s in groupB} - {None}
+        if len(ga) != 1 or len(gb) != 1 or ga == gb:
+            continue
+        d = [min(max(abs(s[0]-b[0]), abs(s[1]-b[1])) for b in band) for s in spawns]
+        inv = sum(1 for p in chain
+                  if mp.terrain_type(ts, *p) not in ('Water', 'River', 'Cliffs', 'Rock'))
+        hit = [k for k, occ in caps.items() if occ & band]
+        ia, ib = ga.pop(), gb.pop()
+        out.append(dict(anchors=anchors, bias=bias, n=len(chain), inv=inv, band=len(band),
+                        spread=max(d)-min(d), dist=d, A=sizes[ia], B=sizes[ib],
+                        stray=sum(sizes)-sizes[ia]-sizes[ib], caphit=hit,
+                        bal=min(sizes[ia], sizes[ib])/max(sizes[ia], sizes[ib])))
+    out.sort(key=lambda z: (z['spread'], z['inv']))
+    for z in out[:top]:
+        print(f"  {z['anchors']} bias={z['bias']} spread={z['spread']:2d} dist={z['dist']} "
+              f"inv={z['inv']:3d}/{z['n']:3d} bal={z['bal']:.2f} stray={z['stray']} "
+              f"cap={len(z['caphit'])}")
+    return out

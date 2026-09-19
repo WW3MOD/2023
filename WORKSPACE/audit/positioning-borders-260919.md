@@ -1,139 +1,181 @@
 # DEFCON 3 (Positioning) borders for the nine derived-bisector maps
 
-**STATUS 2026-09-19: WORK IN PROGRESS, PAUSED BY THE USER. No map has been authored yet.**
-Base `main @ 442859aa`, branch `wt/map-borders`. Nothing under `mods/ww3mod/maps/` has been
-touched. What exists is the authoring method, the measurements below, and one finished
-candidate route (polar-disorder). Resume instructions are at the bottom.
+Eight maps authored, one skipped with cause. Base `main @ 442859aa`, branch `wt/map-borders`;
+every figure below was measured statically at that ref, with no game launch. River Zeta
+(`184680d4`) is the ninth authored map and is included in the table as the reference case.
 
-## The one map already done, for reference
+The check that sees this work is new and is in the tree:
 
-`river-zeta-ww3` (184680d4): `RegionTerrainTypes: Water, River, Bridge` + 210 hand cells
-closing four dry crossings. Its `map.yaml` had to gain a `Rules: rules.yaml` line, because a
-rules file the map never declares is silently ignored (`Map.cs:102-107`).
+```
+python tools/nav-guard/defcon_wall_audit.py --region-from-map --quiet --show-sealed
+```
 
-## A map that should NOT be authored: `shellmap-open-field` (settled)
+It reads the region each map declares in its own `rules.yaml`, runs the engine's own load
+gate against it, then every locomotor. It exits 0 today on all nine. `make nav-guard` cannot
+see any of this — it decodes `map.bin` and the `map.yaml` `Actors:` block and has no
+`CustomTerrain` handling at all, so it is byte-identically green whether a map authors a
+region or not.
 
-**It can never run Escalation, so a border on it would be drawn for nobody.** The chain:
+## What was authored, and what it follows
+
+| map | the line follows | band | route on real terrain | open comps | spawn→band | sealed ground | capturables (side A / side B) |
+|---|---|---|---|---|---|---|---|
+| **polar-disorder-ww3** | **the water** — in at the eastern feeder river, down the great northern lake, over the central spur, along the x64-70 cliffs, out through the southern lake | 444 | **123 of 148** (102 Water/River, 20 Cliffs) | 2 — 5133 / 3639 | 35 W, 28 E | 0 ground | W 10 (7 oilb, 2 logisticscenter, 1 gun) / E 6 (5 oilb, 1 gun) |
+| **x-lake-ww3** | **the lake, one lobe west of the central causeway** — in at the northern inlet, through the twin cliff ridges, down the western lobe, out at the southern inlet | 484 | **107 of 164** (67 Cliffs, 40 Water/River) | 2 — 8304 / 7596 | 57/55 W, 55/63 E | **0 on every locomotor** | W 8 oilb / E 8 oilb + the central `bio` |
+| **siberian-pass-ww3** | **the cliff shelves that wall the pass**, crossing the valley road at its narrowest | 301 | **69 of 101** (60 Cliffs, 9 Road) | 2 — 3048 / 2826 | 34 SW, 34 NE | 1 cell (48,21) | SW 10 (2 oilb, 4 brl3, 3 barl, 1 miss) / NE 10 (2 oilb, 5 brl3, 3 barl) |
+| **woodland-warfare-ww3** | **the cliff line across the middle of the woods**, linked by the forest road net | 363 | **77 of 121** (65 Cliffs, 12 Road) | 2 — 4430 / 4423 | 41 N, 41 S | 0 | N 6 (4 oilb, 1 logisticscenter, `bio`) / S 5 (4 oilb, 1 logisticscenter) |
+| **nuclear-winter-ww3** | **the two escarpments that terrace the valley** (x40-61 at y25-31 and y40-46), joined across open snowfield | 299 | **44 of 100** (40 Cliffs, 3 Road) | 2 — 3124 / 3577 | 35 SW, 35 NE | 0 | SW 5 (3 oilb, fcom, miss) / NE 6 (3 oilb, fcom, miss, mslo) |
+| **seventh-woods-ww3** | **the north-east/south-west diagonal** the map's 180° spawn symmetry implies, picking up cliff shelves and rock belts | 606 | 67 of 202 | 2 — 6569 / 6377 | 35+48 NW, 42+41 SE | 1–2 cells (97,23) | NW 6 (3 oilb, 2 brl3, hosp) / SE 5 (3 oilb, 2 brl3) |
+| **twin-rivers-ww3** | **the northern river mouth, then straight south at x60** — both rivers sit far off-centre and neither can carry a fair border | 399 | 24 of 134 | 2 — 8137 / 7340 | 58+57 W, 48+51 E | 2 cells, amphibious only | W 4 oilb / E 6 oilb |
+| **arena-tank-duel** | **nothing — 2244 cells of Clear.** The vertical midline at x31-33, which is where the bisector already falls | 96 | 0 of 32 | 2 — 960 / 992 | 25, 25 | 0 | none on the map |
+| _river-zeta-ww3 (ref)_ | _the river itself: Water + River + Bridge + 210 hand cells_ | _844_ | _634 by terrain type_ | _2 — 3525 / 3325_ | _11–28_ | _17–52_ | _7 / 7_ |
+
+**skipped: `shellmap-open-field`** — see below.
+
+"route on real terrain" counts cells of the routed chain that sit on Water, River, Cliffs or
+Rock, i.e. the border the map already had rather than the border this work invented. "band"
+is the dilated cell count actually written to `RegionCells`. "spawn→band" is Chebyshev
+distance per spawn — the number that says whether both sides have the same distance to
+march, which is the fairness property the derived bisector has by construction and an
+authored border has to earn.
+
+Previews with the band painted in the trait's own amber, spawns in white, Supply Routes in
+cyan and capturables ringed yellow: **`WORKSPACE/mockups/borders/*-defcon3-border.png`**,
+regenerate with `python tools/nav-guard/defcon_border_preview.py`.
+
+## Why `shellmap-open-field` is skipped
+
+**It can never run Escalation, so a border on it would be drawn for nobody.**
 
 - `DefconWall.Apply` raises the wall only when `escalation.Level != NoLevel` and the level is
   in `ActiveLevels` (`DefconWall.cs:500-503`).
 - `DefconEscalationState` pins `Level = NoLevel` for the whole match when the mode is
   `Skirmish` (`DefconEscalationState.cs:75-76`).
-- The mode is a LOBBY OPTION read in the `DefconEscalation` constructor via
+- The mode is a LOBBY OPTION, read in the `DefconEscalation` constructor from
   `LobbyInfo.GlobalSettings.OptionOrDefault(ModeOptionId, info.ModeDefault)`, and
   `ModeDefault` is `Skirmish` (`DefconEscalation.cs:63`, `:424`).
-- `shellmap-open-field` is `Visibility: Shellmap` and NOT `Lobby` (`map.yaml:15`), and every
-  lobby map chooser filters on `MapVisibility.Lobby` (`LobbyLogic.cs:1105`,
-  `ServerCreationLogic.cs:105`, `MapCache.cs:416`). So no player can ever select it and set
-  the mode. Its only role is the menu background, where `Game.LoadShellMapInner` resets the
-  session through `Disconnect()` then `JoinLocal()` and injects only the `scenario` option
-  (`Game.cs:549-654`) -- the DEFCON mode stays at its `Skirmish` default.
+- The map is `Visibility: Shellmap` and NOT `Lobby` (`map.yaml:15`), and every lobby map
+  chooser filters on `MapVisibility.Lobby` (`LobbyLogic.cs:1105`, `ServerCreationLogic.cs:105`,
+  `MapCache.cs:416`). Nobody can select it and set the mode. Its only role is the menu
+  background, and `Game.LoadShellMapInner` resets the session through `Disconnect()` →
+  `JoinLocal()` and injects only the `scenario` option (`Game.cs:549-654`).
 
-Its terrain is 5704 cells of `Clear` and nothing else, so there is no feature to follow
-either. It is also stripped of `-SpawnStartingUnits` and `-ConquestVictoryConditions`
-(`shellmap-open-field/rules.yaml`), i.e. it has no Supply Route at all.
+It is also 5704 cells of `Clear` with nothing to follow, and strips `-SpawnStartingUnits` and
+`-ConquestVictoryConditions`, so it has no Supply Route at all.
 
-## A map the same argument covers, and the brief did not anticipate: `arena-tank-duel`
+**`arena-tank-duel` is in the same position and was authored anyway.** It is `Visibility:
+Shellmap` only too — `6b162ca2` took both maps out of the lobby list together, for the same
+reason — so the argument above applies verbatim and its border is very likely inert. It was
+authored because it costs three lines, because it reproduces rather than replaces the derived
+line (the bisector of `(6,16)` and `(58,16)` is x=32), and because it is then correct the day
+the map goes back in the lobby. Skipping it instead is a reasonable call and is the user's.
 
-**`arena-tank-duel` is in exactly the same position and this needs a ruling before it is
-authored.** It is `Visibility: Shellmap` only as well -- both were taken out of the lobby
-list together in 6b162ca2 ("Take the two developer maps out of the lobby map list"), for the
-same reason: both strip `-ConquestVictoryConditions` and `-SpawnStartingUnits`, so a player
-who picked either got a map with no Supply Route and no way to win. It is reachable by name
-through `Game.LoadMap` (that is how the combat-sim fixture loads it), but that path supplies
-a default session too, so the mode is `Skirmish` there as well.
+## The two things that decided every line
 
-Its terrain is 2244 cells of `Clear` and nothing else -- no water, no cliffs, no roads, no
-rough. Spawns `(6,16)` and `(58,16)`; the only sensible border is the vertical line `x=32`,
-which is *precisely* what the derived bisector already draws. So authoring it would replace
-the derived line with an identical hand-drawn one, on a map that never raises a wall.
+**1. A region that divides nothing raises no wall at all.** `DefconWallRegion.IsDegenerate` is
+`ComponentCount < 2` and `DefconWall.BuildRegion` *discards* a degenerate region — it does not
+fall back to the derived line, and the only trace is one `Log.Write`. That gate floods the
+Bounds rectangle with `Map.Contains` passability and nothing else, so it is strictly stronger
+than any per-locomotor test: a region can separate all fifteen locomotors and still never
+raise a wall. Every line above is checked against the gate first. All eight report exactly 2
+components.
 
-**Recommendation: skip both, author the seven that remain** (nuclear-winter, polar-disorder,
-seventh-woods, siberian-pass, twin-rivers, woodland-warfare, x-lake). Not acted on -- the
-brief said nine and named only the shellmap as a candidate skip, so this is the user's call.
+Method: a cell set separates the map in that 8-connected flood **iff** it contains a
+4-CONNECTED chain of blocked cells from one Bounds edge to another. So the border is a
+shortest path, not a min-cut — `tools/nav-guard/defcon_border_designer.py` runs Dijkstra over
+Bounds pricing already-barrier terrain near zero and open ground ten times higher, then
+dilates the chain by one cell. The dilation is why the band is three cells thick everywhere
+except where Bounds clips it: that is the thickness the shipped `HalfWidth: 1024` produces and
+it clears the √2⁄2 floor below which a diagonal band leaks through its own corners.
 
-## Method (implemented in `tools/nav-guard/defcon_border_designer.py`)
+**2. `RegionTerrainTypes` is empty on all eight, unlike River Zeta, and that is a judgement
+per map rather than a default.** On River Zeta the `Water` type *is* the divide: 588 cells,
+one channel. On these maps it is not — polar-disorder's 2023 water cells are a system with two
+north inlets and two south outlets, twin-rivers' 368 are 16 scattered components, x-lake's
+1941 are one square lake whose lobes sit thirty cells either side of the crossing. Naming a
+type would pull blobs nowhere near the border into the band and wash a fifth of the map in the
+trait's amber fill, which is drawn over every border cell. Same measurement River Zeta made
+when it rejected `Rock`.
 
-A set of cells separates the map in the 8-connected graph `DefconWallRegion.Label` floods
-iff it contains a 4-CONNECTED chain of blocked cells from one Bounds edge to another. So the
-border is a shortest-path problem: Dijkstra on a 4-connected grid over Bounds, with per-cell
-cost making terrain a player already reads as a barrier nearly free (`Water`, `River`,
-`Cliffs` = 1) and open ground expensive (`Clear`, `Road` = 10). The route therefore *follows*
-the map's real features and crosses open ground only where the map forces it. The chain is
-then dilated by one cell, giving a three-cell band -- the same thickness the shipped
-`HalfWidth: 1024` produces, so an authored band is never thinner than the line it replaces.
+## Sealed cells, and the one large figure
 
-**`RegionTerrainTypes` is deliberately NOT used on these maps, unlike River Zeta.** On River
-Zeta the `Water` type IS the divide (588 cells, one linear channel). On these maps it is not:
-polar-disorder's 2023 water cells are a sprawling lake system with two north inlets and two
-south outlets, twin-rivers' 368 are in 16 scattered components, x-lake's 1941 are one central
-square lake whose two lobes sit far to either side of the natural crossing. Naming the type
-would drag in blobs nowhere near the border and paint a fifth of the map amber. Hand cells
-only. (This is the same measurement River Zeta made when it rejected `Rock`.)
+Rule (b) was "sealed ground ≈ 0". Five of the eight are exactly zero on every locomotor.
+The residues:
 
-## Measurements taken (all static, no launch, at 442859aa)
+- **siberian-pass 1 cell** at (48,21), **seventh-woods 1–2 cells** at (97,23): single nooks
+  pinched against the band. Both maps already carry more pocketed cells than that in the
+  nav-guard baseline (36 and 3).
+- **twin-rivers 2 cells** at (62,21)/(63,21), and only for `lighttracked-amphibious` and
+  `tracked-amphibious` — two water cells cut off from the rest of the channel.
+- **polar-disorder 350 cells** for `immobilepara` **and for no other locomotor**. This
+  describes nothing that happens in play: `immobilepara` belongs to `^SummonBase`
+  (`defaults.yaml:1227`), whose `Mobile` has `Speed: 0`, `TurnSpeed: 0` and
+  `PauseOnCondition: !parachute`. It is the descending-summon placeholder and never walks
+  anywhere, so a connectivity number for it is not a fact about the ground. Its `TerrainSpeeds`
+  are `Clear`, `Road`, `Beach` only, which is why it fragments where nothing else does.
 
-| map | size | spawns | terrain the border can use |
-|---|---|---|---|
-| arena-tank-duel | 66x34 | 2 | none (100% Clear) |
-| nuclear-winter-ww3 | 102x72 | 2 (1,64)/(100,7) | Cliffs 276 in 6 clusters, Road 376 |
-| polar-disorder-ww3 | 98x98 | 2 (1,81)/(96,16) | Water 2023, Cliffs 562 |
-| seventh-woods-ww3 | 123x114 | 4 | Cliffs 344 in 17, Rock 323, Water 109 in 8 |
-| shellmap-open-field | 92x62 | 2 | none (100% Clear) |
-| siberian-pass-ww3 | 97x67 | 2 (1,51)/(95,15) | Cliffs 1086 in 30, Road 835 |
-| twin-rivers-ww3 | 128x128 | 4 W/E | Water 368 in 16, Cliffs 1258, Rock 1159 |
-| woodland-warfare-ww3 | 98x98 | 2 (1,4)/(96,93) | Cliffs 908 in 34, Road 1412 |
-| x-lake-ww3 | 130x130 | 4 corners | Water 1941 (two lobes x32-63 / x66-97, y32-97) |
+For comparison, the **derived line** that these replace seals **256 cells** on twin-rivers
+(x1-20, y104-126) on every ground locomotor, and 8–57 cells on x-lake. Those were re-measured
+for this pass with `python tools/nav-guard/defcon_wall_audit.py --quiet --show-sealed`.
 
-### polar-disorder-ww3 -- candidate CHOSEN but not yet written
+## Supply Routes on the Bounds edge
 
-Anchors `(61,1)` to `(37,96)`. The route follows the eastern feeder river in at the north
-edge, runs down the middle of the great northern lake, crosses the central highland spur,
-picks up the cliff line at x64-70, drops into the southern river system and leaves through
-the southern lake at x37-40.
+On six maps a Supply Route lands **outside Bounds** and therefore reads as `Unlabelled`:
+`SpawnStartingUnits` places the base actor at `HomeLocation + CVec(-1,-1)`
+(`MapStartingUnits.cs:37`), and after the 1-cell cordon (`097738f4`) a spawn at `x=1` puts its
+SR at `x=0` while `Bounds` start at `1,1`. `DefconWallRegion.IndexOf` returns -1 there.
 
-- 148 path cells, 444 band cells, **25 of 148 on open ground** -- the rest is water or cliff.
-- Engine load gate: **2 components**, 5133 / 3639. Spawn `(1,81)` to comp 0, `(96,16)` to comp 1.
-- Spawn-to-band distance 35 (west) vs 28 (east); area split 59/41.
-- **No capturable inside the band.** 10 on the west side (7 oilb, 2 logisticscenter, 1 gun),
-  6 on the east (5 oilb, 1 gun).
-- All 15 locomotors separate. `immobilepara` reports 350 sealed cells (bbox x30-65, y1-96) --
-  **NOT yet explained, and it is the one open question on this map.**
+Affected: nuclear-winter `(0,63)`, polar-disorder `(0,80)`, seventh-woods `(0,32)` and
+`(29,0)`, siberian-pass `(0,50)`, twin-rivers `(0,21)` and `(0,91)`, woodland-warfare `(0,3)`,
+x-lake `(0,20)` and `(0,107)`. **This is pre-existing and not caused by this work** — it is
+equally true of the derived line — and it is harmless for the border, because every one of
+those SRs sits directly against its own spawn, and every spawn is correctly labelled on its
+own side. But any future check that asserts "each SR is on its own side" must read the SPAWN
+on these maps, or it will report ten false failures.
 
-### Known, NOT yet re-measured
+## Manager verification recipe
 
-The prior findings the brief lists are still un-re-measured: woodland-warfare's two `oilb`
-derricks inside the derived band, twin-rivers' 256-279 cell loss at x1-20 y104-126, and the
-polar-disorder 55-95 / x-lake 8-9 cell residues.
+**There is no scenario that exercises any of these.** `test-defcon-wall` and
+`demo-defcon-wall` are their own map packages under `tools/autotest/scenarios/` with their own
+`rules.yaml`; they test the mechanism, never a shipped map's border. So this is a lobby check,
+and it is the same four steps on every map:
 
-### An oddity worth recording
+1. Skirmish → pick the map → set the **DEFCON game mode** dropdown to **Escalation**. It
+   defaults to Skirmish, which is a strict no-op: leave it and nothing will ever appear.
+2. Leave "no-rush period" at its default and start. The match opens at DEFCON 3.
+3. **What correct looks like:** a translucent amber band, three cells thick, appears over the
+   feature named in the table — and nothing else is drawn. A region has no centre line and no
+   hatch strokes (`DefconWall.RenderAnnotations` returns early for the region path); the band
+   fill is the whole picture, unlike the derived line.
+4. Order a tank across it: the cursor should refuse, and an order placed beyond it should be
+   rejected rather than silently accepted. Then wait out the clock — at **DEFCON 2 the band
+   must vanish completely** and the ground under it be passable again.
 
-On the maps whose spawns sit on the Bounds edge, the Supply Route lands OUTSIDE Bounds:
-`SpawnStartingUnits` places it at `HomeLocation + CVec(-1,-1)`, so polar-disorder's spawn
-`(1,81)` gives an SR at `(0,80)` while Bounds start at `1,1`. `DefconWallRegion.IndexOf`
-returns -1 there, so that SR's cell is `Unlabelled`. Its spawn is correctly labelled, so the
-border still works, but any check asserting "each SR is on its own side" must read the SPAWN
-on these maps. Same shape on nuclear-winter, siberian-pass, twin-rivers, x-lake,
-woodland-warfare.
+Per map, the thing to look at first:
 
-## Where to resume
+| map | look here |
+|---|---|
+| polar-disorder-ww3 | the band should sit *in* the water for most of its length; the only long dry stretch is the central spur at x65, y28-37 |
+| x-lake-ww3 | the band crosses the lake's waist just **west** of the central island; the island and its `bio` stay on the eastern side |
+| siberian-pass-ww3 | the band should read as the cliff wall of the pass, cutting the valley road once |
+| woodland-warfare-ww3 | a clean east–west line across the middle; check the derricks are reachable — the derived line buried two of them |
+| nuclear-winter-ww3 | two horizontal shelves at y25-31 and y40-46 joined by vertical runs; the horizontal parts should sit on cliff |
+| seventh-woods-ww3 | the weakest one — mostly open woodland floor; judge whether the diagonal reads at all |
+| twin-rivers-ww3 | a straight vertical line at x60 after the northern river bends away; judge whether "honest midline" is acceptable here |
+| arena-tank-duel | not reachable from the lobby; nothing to see unless the map is given `Lobby` visibility |
 
-1. Decide the arena-tank-duel question above (skip, vs author an x=32 line nobody sees).
-2. Run `sweep(name, refA, refB)` from `tools/nav-guard/defcon_border_designer.py` for each of
-   the six remaining maps, eyeball the top candidates with `show(...)`, pick one, and confirm
-   with `finalize(...)`. polar-disorder is already picked.
-3. Explain or dismiss the `immobilepara` sealed-cell figure before writing any map.
-4. Write `rules.yaml` per map with `DefconWall: RegionCells:` and add `Rules: rules.yaml` to
-   the six maps that lack one (polar-disorder, seventh-woods, siberian-pass, twin-rivers,
-   woodland-warfare, x-lake; arena, nuclear-winter, river-zeta and shellmap already have it).
-5. Extend `defcon_wall_audit.py` to READ an authored region back out of a map's rules.yaml
-   (`--region-from-map`), which is the only check that can see this work. Note that
-   `modload.load_map` does NOT resolve the inline `Rules: rules.yaml` form -- it only walks
-   the child nodes of `Rules:` -- so that reader has to handle the file-list form itself.
-6. Render a band-overlay PNG per map under `WORKSPACE/mockups/borders/` (Pillow 12.3.0 is
-   available; `tools/nav-guard/validate.py` already renders decoded terrain to compare
-   against `map.png`).
-7. Manager verification recipe per map: lobby, pick the map, set the DEFCON game mode
-   dropdown to **Escalation** (it defaults to Skirmish, which is a strict no-op). The wall
-   stands at DEFCON 3 only and drops at DEFCON 2. `test-defcon-wall` and `demo-defcon-wall`
-   are their own scenario map packages and do NOT exercise any shipped map's border.
+## Judgement calls the user may overrule
+
+- **x-lake's central island.** The map is mirror-symmetric and the `bio` at (64,64) is dead
+  centre, so *no* dividing border can be symmetric about it. The band runs one lobe west, which
+  puts the island on the eastern side. The alternative — running the band down the mirror axis
+  and through the island — was measured: it swallows the `bio` **into** the band and seals 34
+  cells of ground from both sides on every vehicle locomotor. The stated acceptance criterion
+  was "no capturable inside the band", so the western route shipped. If the symmetry matters
+  more than the criterion, that is a one-line change.
+- **twin-rivers is a straight line and says so.** Following the eastern river would put 53 of
+  148 route cells on open ground instead of 121 of 134 — far prettier — and it is rejected
+  because that river is 40 cells from the eastern spawns and 60 from the western ones.
+- **seventh-woods is two-thirds invented.** 135 of 202 route cells are open woodland floor.
+  The diagonal is chosen from the spawn layout (the four spawns are 180° rotations of each
+  other), not from terrain, because this map has no terrain to choose from.
