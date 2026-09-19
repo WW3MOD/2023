@@ -85,6 +85,8 @@ Usage:
     python defcon_wall_audit.py --map river-zeta --region-terrain Water,River,Bridge \
         --region-cells "44,0,44,1"                  # terrain plus hand-drawn end caps
     python defcon_wall_audit.py --map river-zeta --region-file region.txt
+    python defcon_wall_audit.py --region-from-map          # every map's OWN authored region
+    python defcon_wall_audit.py --region-from-map --quiet --show-sealed
 """
 
 from __future__ import annotations
@@ -98,8 +100,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import miniyaml  # noqa: E402
 import modload  # noqa: E402
 import nav_guard  # noqa: E402
+from miniyaml import base_key  # noqa: E402
 
 CELL = 1024
 HALF_CELL = 512
@@ -322,6 +326,72 @@ def region_cells_for(game_map, tileset, terrain_types: list[str],
     return cells
 
 
+def map_rule_nodes(game_map):
+    """Every rules node a map contributes, BOTH forms of `Rules:` -- which modload does not.
+
+    `Rules:` takes two shapes and only one of them is a child block. `Rules: rules.yaml` is
+    an inline FILE-LIST value (MiniYaml.cs:627-631 appends it to the mod's rule files), and
+    `modload.load_map` walks only `Rules:`' child nodes, so for that form it returns an
+    empty `rule_overrides` -- which is exactly the form river-zeta-ww3 and every map
+    authored here uses. Reading a map's DefconWall through `rule_overrides` alone therefore
+    finds nothing on precisely the maps that have one. Not fixed in modload on purpose:
+    nav-guard's baselines are built from `rule_overrides` and widening it there would move
+    them. See DISCOVERIES 2026-09-16.
+    """
+    roots = {n.key: n for n in miniyaml.parse(
+        (game_map.path / "map.yaml").read_text(encoding="utf-8"))}
+    rules_node = roots.get("Rules")
+    if rules_node is None:
+        return []
+
+    nodes = []
+    refs = []
+    if rules_node.value:
+        refs += [v.strip() for v in rules_node.value.split(",") if v.strip()]
+    for r in rules_node.nodes:
+        if r.nodes:
+            nodes.append(r)
+        elif r.key.endswith(".yaml"):
+            refs.append(r.key)
+
+    for ref in refs:
+        inc = game_map.path / ref
+        if inc.exists():
+            nodes += miniyaml.parse(inc.read_text(encoding="utf-8"))
+    return nodes
+
+
+def region_from_map(game_map):
+    """The authored DEFCON 3 region a map declares, as (blocked cells, types, authored cells).
+
+    Mirrors DefconWall.BuildRegion: resolve RegionTerrainTypes against the tileset and take
+    every cell of those types, then add RegionCells unconditionally. Returns an empty set for
+    a map that authors no region, which is how a caller tells "uses the derived line" from
+    "authored one".
+    """
+    types = []
+    cells = []
+    for node in map_rule_nodes(game_map):
+        if node.key != "World":
+            continue
+        for trait in node.nodes:
+            if base_key(trait.key) != "DefconWall":
+                continue
+            raw_types = trait.child_value("RegionTerrainTypes")
+            if raw_types:
+                types += [t.strip() for t in raw_types.split(",") if t.strip()]
+            raw_cells = trait.child_value("RegionCells")
+            if raw_cells:
+                cells += parse_region_cells(raw_cells)
+
+    if not types and not cells:
+        return set(), [], []
+
+    rules = modload.load_mod(nav_guard.MOD_DIR)
+    tileset = rules.tilesets[game_map.tileset]
+    return region_cells_for(game_map, tileset, types, cells), types, cells
+
+
 def engine_load_gate(game_map, blocked):
     """DefconWallRegion's OWN labelling, which decides whether the wall is raised at all.
 
@@ -443,6 +513,79 @@ def audit_region(model, blocked: set[tuple[int, int]], variant: str, spawns):
     }
 
 
+def run_authored(args, rules, maps) -> int:
+    """Audit the region each map AUTHORS, read back out of its own rules.yaml.
+
+    THIS IS THE ONLY CHECK THAT CAN SEE AN AUTHORED BORDER. `make nav-guard` decodes map.bin
+    and the map.yaml Actors block and has no CustomTerrain handling at all, so it is
+    byte-identically green whether a map authors a region or not; `--check-yaml` parses the
+    field and never asks whether the cells divide anything. A region that separates nothing
+    is DISCARDED by DefconWall.BuildRegion and the wall stays down for the whole match, with
+    one Log.Write as the only trace -- so without this mode the failure is invisible until
+    somebody plays the map and notices the border never appeared.
+    """
+    print("DEFCON wall audit -- AUTHORED REGIONS, read from each map's own rules.yaml "
+          f"(squeeze {args.squeeze})")
+    print("  A map with no region uses the derived line and is reported as such, not failed.\n")
+
+    failed = False
+    authored = 0
+    for game_map in maps:
+        blocked, types, cells = region_from_map(game_map)
+        if not blocked:
+            print(f"{game_map.name}   no authored region -- uses the derived line\n")
+            continue
+
+        authored += 1
+        tileset = rules.tilesets[game_map.tileset]
+        spawns = spawns_of(game_map)
+        locos = modload.world_locomotors(rules, game_map.rule_overrides)
+        if args.locomotor:
+            locos = [x for x in locos if x.name in args.locomotor]
+        occupancy, _ = nav_guard.cell_occupancy(rules, game_map, "live")
+
+        print(f"{game_map.name}   bounds={game_map.bounds}  spawns={len(spawns)} {spawns}")
+        print(f"    border cells: {len(blocked)}  "
+              f"(types {', '.join(types) or 'none'}; {len(cells)} authored by hand)")
+
+        in_bounds, dropped, open_components = engine_load_gate(game_map, blocked)
+        gate_ok = open_components >= 2
+        failed |= not gate_ok
+        print(f"    {'ok  ' if gate_ok else 'DEGENERATE'} engine load gate "
+              f"(DefconWallRegion, Map.Contains passability): {in_bounds} cell(s) in Bounds"
+              + (f", {dropped} dropped as out-of-Bounds" if dropped else "")
+              + f", {open_components} component(s)")
+        if not gate_ok:
+            print("         ! IsDegenerate -- BuildRegion logs and the wall stays DOWN.")
+
+        for loco in locos:
+            model = nav_guard.build_cell_model(rules, game_map, tileset, loco, occupancy)
+            if sum(model.passable) == 0:
+                continue
+            r = audit_region(model, blocked, args.squeeze, spawns)
+            if not [c for c in r["spawn_components"] if c is not None]:
+                continue
+            ok = r["separates"]
+            failed |= not ok
+            if args.quiet and ok and not r["newly_isolated"]:
+                continue
+            print(f"        {'ok  ' if ok else 'LEAK'} {loco.name:<26} "
+                  f"blocked={r['band']:>4} components={r['distinct']} "
+                  f"spawns={r['spawn_components']} sizes={r['components'][:4]}"
+                  + (f"  SEALED OFF {r['newly_isolated']} cells" if r["newly_isolated"] else ""))
+            if args.show_sealed and r["sealed_cells"]:
+                xs = [model.left + (c % model.width) for c in r["sealed_cells"]]
+                ys = [model.top + (c // model.width) for c in r["sealed_cells"]]
+                print(f"             sealed bbox x {min(xs)}..{max(xs)} "
+                      f"y {min(ys)}..{max(ys)}  e.g. ({xs[0]}, {ys[0]})")
+        print()
+
+    print(f"{authored} map(s) author a region.")
+    print("RESULT:", "AN AUTHORED REGION DOES NOT SEPARATE" if failed
+          else "every authored region separates the spawns on every locomotor that can reach them")
+    return 1 if failed else 0
+
+
 def run_region(args, rules, maps) -> int:
     terrain_types = [t.strip() for t in (args.region_terrain or "").split(",") if t.strip()]
 
@@ -548,6 +691,9 @@ def main(argv=None) -> int:
     ap.add_argument("--region-cells", default=None,
                     help="flat comma-separated X,Y list of extra border cells, exactly as "
                          "FieldLoader reads DefconWallInfo.RegionCells")
+    ap.add_argument("--region-from-map", action="store_true",
+                    help="audit the region each map AUTHORS in its own rules.yaml, instead "
+                         "of a region passed on the command line or the derived line")
     ap.add_argument("--region-file", default=None,
                     help="read the same flat X,Y list from a file (newlines count as commas)")
     args = ap.parse_args(argv)
@@ -556,6 +702,9 @@ def main(argv=None) -> int:
     maps = [modload.load_map(p) for p in modload.discover_maps(nav_guard.MOD_DIR)]
     if args.map:
         maps = [m for m in maps if any(f in m.name for f in args.map)]
+
+    if args.region_from_map:
+        return run_authored(args, rules, maps)
 
     if args.region_terrain or args.region_cells or args.region_file:
         return run_region(args, rules, maps)

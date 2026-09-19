@@ -1,0 +1,16 @@
+Player:
+	-ConquestVictoryConditions:
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# NO `PreCapturedStructures:` BLOCK, AND THE ABSENCE IS THE TEST. This arm reads the trait's
+	# own shipped default for CheckboxEnabled, which is false, through
+	# LobbyInfo.GlobalSettings.OptionOrDefault. Adding an explicit `CheckboxEnabled: false` here
+	# would still pass while testing something weaker -- it would pin the override path and say
+	# nothing about what a host who never touches the lobby gets. Do not "make the two scenarios
+	# symmetrical" by adding it.
+	LuaScript:
+		Scripts: test-helpers.lua, test-precaptured-structures-off.lua

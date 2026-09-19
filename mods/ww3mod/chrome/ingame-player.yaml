@@ -20,7 +20,11 @@ Container@PLAYER_WIDGETS:
 			Children:
 				SupportPowers@SUPPORT_PALETTE:
 					IconSize: 62, 46
-					CaptionFont: Caption
+					# WW3Caption, not FreeSansBold: a 1-bit pixel font, so the caption is solid white
+					# instead of the grey stipple a vector face gives at 7px (measured through the
+					# engine's own freetype6: 3 opaque pixels out of 1307 before, all 481 after).
+					# Its Size in mod.yaml is a pixel-grid constant -- see the comment there.
+					CaptionFont: CameoCaption
 					CaptionBackgroundColor: 000000FF
 					# THE CAPTION IS BOTTOM-ANCHORED, AND ZERO IS THE MEASURED ANSWER, not a taste
 					# call. The runtime caption has to land where the BAKED lettering already is,
@@ -1441,7 +1445,11 @@ Container@PLAYER_WIDGETS:
 					ReadyText: READY
 					HoldText: ON HOLD
 					IconSize: 62, 46
-					CaptionFont: Caption
+					# WW3Caption, not FreeSansBold: a 1-bit pixel font, so the caption is solid white
+					# instead of the grey stipple a vector face gives at 7px (measured through the
+					# engine's own freetype6: 3 opaque pixels out of 1307 before, all 481 after).
+					# Its Size in mod.yaml is a pixel-grid constant -- see the comment there.
+					CaptionFont: CameoCaption
 					CaptionBackgroundColor: 000000FF
 					# Bottom-anchored at 0, and padding >= margin, both for the reasons spelled out on
 					# SUPPORT_PALETTE above. The two palettes MUST agree: a unit's cameo appears in

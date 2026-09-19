@@ -1110,3 +1110,5 @@ Actors:
 	Actor425: tc01.husk
 		Owner: Neutral
 		Location: 51,34
+
+Rules: rules.yaml

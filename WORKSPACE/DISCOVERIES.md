@@ -1,4 +1,4 @@
-﻿# Discoveries
+# Discoveries
 
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
@@ -78,6 +78,97 @@ lobby options move the geometry.**
 
 Full arithmetic, the per-map table and the stage-by-stage review:
 `WORKSPACE/audit/escalation-gameplay-review-260919.md`.
+## 2026-09-19 - A player's Supply Route and their spawn cell are the SAME POINT, exactly (`wt/precaptured`, base `main @ 64185a89`)
+
+Any trait that needs "where is this player's base" faces an apparent choice between
+`p.HomeLocation` and the player's `SUPPLYROUTE` actor, and an apparent ordering hazard: at world
+load the SR only exists if `SpawnStartingUnits` has already run, and `IWorldLoaded` order is the
+world actor's trait-creation order (`World.cs:334`), i.e. YAML ordering. **The choice and the
+hazard are both illusory.** `SpawnStartingUnits` places the base actor at
+`p.HomeLocation + BaseActorOffset`, and `MapStartingUnitsInfo.BaseActorOffset` is `(-1,-1)`
+(`MapStartingUnits.cs:37`, not overridden anywhere in `world.yaml`); a 3x3 building's
+`CenterOffset` is `(+1,+1)` cells (`Building.cs:207-211`). The two cancel, so the SR's
+`CenterPosition` **is** `Map.CenterOfCell(p.HomeLocation)`, to the unit.
+
+So "SR if present, else HomeLocation" is not a fallback that degrades — the two arms answer the
+same question with the same number, which is the shape `conventions.md` §"`A() ?? B` in a decision
+path" asks you to check for. That matters for autotest scenarios specifically: they routinely carry
+`-SpawnStartingUnits:` and place `supplyroute` by hand, so the SR arm is the one they exercise,
+while a shipped skirmish may take either depending on trait order. **Verify the cancellation before
+relying on it** if a map ever overrides `BaseActorOffset` or the SR stops being 3x3 — nothing
+enforces the pairing and neither site mentions the other.
+
+**Two facts from the same census, both easy to get backwards:**
+
+* **Explosive barrels are capturable structures.** `BARL` and `BRL3` inherit `^TechBuilding`
+  (`civilian.yaml:772,793`), so they carry `CaptureManager` + `Capturable` like an oil derrick, and
+  fifteen of them sit Neutral across `siberian-pass-ww3` and `seventh-woods-ww3`. Anything that
+  enumerates "capturable structures" and acts on the result sweeps them up. They do carry
+  `-Selectable:`, which is the cheapest principled filter: if a player cannot select it, it is not a
+  structure they can own.
+* **`GUN` is the one neutral defense that stays capturable.** `GTWR`, `PBOX` and `HBOX` each strip
+  `CaptureManager`/`Capturable@neutral`/`Capturable@occupied` in their own blocks
+  (`structures-defenses.yaml:80-84, 207-211, 330-334`); `GUN` does not, and `^Defense` itself
+  reaches `^NeutralOrOccupiedCapturable` through `^Building`. `ai.yaml:336` already records the
+  three exclusions, which reads like the complete list and is not — it says nothing about `GUN`.
+
+**Method note worth reusing.** The capturable set here was resolved by walking the mod's own
+MiniYaml inheritance in a throwaway script (`Inherits@` splices, `-Key:` removals, `mod.yaml`'s
+Rules order) rather than by grepping for `Capturable`. A grep answers "who mentions the trait"; the
+question was "who ends up with it", and the three families above all differ from their parents.
+The resolver is kept at `tools/precaptured-calibration/precaptured_calibration.py` and is ~120
+lines; `--dump-balance-json` (conventions.md) answers the same question with a build.
+## 2026-09-19 - A DEFCON border is a SHORTEST PATH, not a min-cut, and one "locomotor" in the audit output is not a mover at all (`wt/map-borders`, base `main @ 442859aa`)
+
+**A SET OF BLOCKED CELLS SEPARATES THE MAP IN THE 8-CONNECTED GRAPH `DefconWallRegion.Label`
+FLOODS IF AND ONLY IF IT CONTAINS A 4-CONNECTED CHAIN OF THEM RUNNING FROM ONE BOUNDS EDGE TO
+ANOTHER.** That duality is the whole authoring method for the region form of `DefconWall`, and
+it is what makes the problem tractable by hand: the border is a shortest path across the map,
+not a minimum cut through it. Price terrain a player already reads as a barrier near zero and
+open ground high, run Dijkstra on the 4-connected grid over `Bounds`, and the route hugs
+whatever the map actually has and crosses open ground only where the map leaves no choice --
+measured across the eight maps authored here, between 0% (`arena-tank-duel`, which is 2244
+cells of `Clear`) and 83% (`polar-disorder-ww3`) of the route lands on real terrain. Dilating
+the chain by one cell then gives a three-cell band, which is exactly what the shipped
+`HalfWidth: 1024` produces and clears the sqrt(2)/2 floor below which a diagonal band leaks
+through its own corners. Implemented in `tools/nav-guard/defcon_border_designer.py`.
+
+**THE FAIRNESS NUMBER IS NOT AREA, IT IS CHEBYSHEV DISTANCE FROM EACH SPAWN TO THE BAND.** The
+derived bisector is equidistant from both sides by construction, so that is the property an
+authored border has to earn, and an even area split does not imply it. On `twin-rivers-ww3` a
+border laid along the eastern river is far prettier (53 of 148 route cells on open ground
+against 121 of 134 for the straight line) and was rejected on exactly this: the river is 40
+cells from the eastern spawns and 60 from the western ones.
+
+**`immobilepara` IS NOT A MOVER AND ITS CONNECTIVITY NUMBERS MEAN NOTHING.** It appears in
+every `defcon_wall_audit.py` and nav-guard per-locomotor listing next to `foot` and
+`heavytracked`, and on `polar-disorder-ww3` it was the ONLY locomotor reporting a sealed
+region -- 350 cells, against zero for all fourteen others, which reads like a serious defect.
+It is not one: the locomotor belongs to `^SummonBase` (`defaults.yaml:1227`), whose `Mobile`
+has `Speed: 0`, `TurnSpeed: 0` and `PauseOnCondition: !parachute`. It is the descending-summon
+placeholder and never walks anywhere. Its `TerrainSpeeds` are `Clear`, `Road`, `Beach` only
+(`world.yaml:242`), the narrowest list in the mod, which is why it fragments where nothing
+else does. **When one locomotor disagrees with all the others in a connectivity audit, read
+its `Mobile` before believing it.**
+
+**`arena-tank-duel` AND `shellmap-open-field` CANNOT RUN ESCALATION AT ALL**, so nothing
+DEFCON-gated is ever observable on either. Both are `Visibility: Shellmap` and not `Lobby`
+(`6b162ca2` took them out of the lobby list together), every lobby map chooser filters on
+`MapVisibility.Lobby` (`LobbyLogic.cs:1105`, `ServerCreationLogic.cs:105`, `MapCache.cs:416`),
+and the game mode is a lobby option whose `ModeDefault` is `Skirmish` (`DefconEscalation.cs:63`)
+-- which pins the level at `NoLevel` forever (`DefconEscalationState.cs:75-76`) so
+`DefconWall.Apply` never raises. The menu-background path is no escape: `Game.LoadShellMapInner`
+resets the session through `Disconnect()` then `JoinLocal()` and injects only the `scenario`
+option (`Game.cs:549-654`). Worth carrying beyond the wall: **any feature gated on the DEFCON
+level is unreachable on these two maps**, so neither is a valid fixture for testing one.
+
+**A SUPPLY ROUTE ON A BOUNDS-EDGE SPAWN IS OUTSIDE BOUNDS AND READS AS `Unlabelled`.**
+`SpawnStartingUnits` places the base actor at `HomeLocation + CVec(-1,-1)`
+(`MapStartingUnits.cs:37`), and after the 1-cell cordon (`097738f4`) a spawn at `x=1` puts its
+SR at `x=0` while `Bounds` start at `1,1`; `DefconWallRegion.IndexOf` returns -1 there. Ten SRs
+across six shipped maps are in that state. Harmless -- each sits against its own spawn, which
+IS labelled -- but a check written as "every Supply Route is on its own side" reports ten false
+failures. Read the spawn.
 
 ## 2026-09-19 - Repointing an endpoint in config also repoints whatever a DIFFERENT file attaches to it (`wt/update-notice`, base `main @ e0674307`)
 
@@ -23320,3 +23411,22 @@ Relative-after-`cd` sidesteps all three at once and needs no `cygpath`, which is
 
 ## 2026-09-19 — `--hidden` autotest runs write NO screenshots, while result.json still lists them
 Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-field-swallows-nuke`: the run reported `PASS (3 screenshot(s))`, `result.json` and `manifest.json` both listed three PNG paths with `captured_at` timestamps, and the run directory contained **no PNG at all** (only debug.log, lua.log, manifest.json, result.json). The identical run with `--background` wrote all three files. `--hidden` never maps a window (`SDL_WINDOW_HIDDEN`, run-test.sh:17), so the framebuffer grab has nothing to read; the harness records the capture as successful anyway. Consequence: CLAUDE.md's "prefer `--hidden`" is right for assertion scenarios and WRONG for any scenario whose answer is a frame — use `--background` (the default) for captures, and treat a result.json that lists screenshots as a claim, not evidence, until `ls` shows the files. DOCS/recipes/SCREENSHOT.md:214 already warns that `--minimized` can give blank PNGs on macOS; this is the Windows sibling, one step worse (no file rather than a blank one). Leading hypothesis for the harness half: the screenshot writer swallows the failure of an unmapped surface and still appends the manifest entry — unverified; confirm by reading the TestMode screenshot path in the engine.
+## 2026-09-19 — A pixel font renders 1-bit through FreeType with no engine change, and Pillow's FreeType will lie to you about whether it did (`wt/cameo-captions`, base `main @ 442859aa`)
+
+**THE ACCEPTANCE RULE WAS PER-PIXEL, WHICH IS WHAT MADE THE MEASURING TOOL MATTER MORE THAN THE FONT.** The sidebar drew cameo captions in FreeSansBold at 7px, and a vector face at 7px has no fully opaque pixel — `FT_RENDER_MODE_NORMAL` returns 8-bit coverage, `SpriteFont.cs:285-293` copies that byte into all four channels, so the caption is a grey, partly transparent stipple rather than the solid white the baked lettering beside it is. Over the solid black caption band you cannot see this; with the band off you can.
+
+**THE FIX NEEDED NO ENGINE CHANGE AND THE REASON IS WORTH KEEPING: FREETYPE ANTIALIASES EDGES, NOT SHAPES.** A pixel a contour covers *completely* still comes back 255. So a font whose every contour edge lands exactly on a device pixel boundary at the shipped size is 1-bit for free — no `FT_RENDER_MODE_MONO`, no `FT_LOAD_TARGET_MONO`, no per-font flag. The condition is arithmetic: `FreeTypeFont.cs:81` calls `FT_Set_Pixel_Sizes(face, size, size)` so ppem is the `mod.yaml` `Size`, and FreeType scales units to pixels by `FT_DivFix(ppem * 64, unitsPerEm)`, a 16.16 divide that is exact only when `unitsPerEm` divides `ppem * 2^22`. **`unitsPerEm = ppem * 2^k`** is the rule; `WW3Caption.ttf` uses 896 = 7·2⁷, giving 128 units per pixel at ppem 7. It stays exact at any INTEGER UI scale and stops being exact at a fractional one (ppem 10 = 1.5× UI scale measured 98 grey values), which is a real limit to state rather than discover.
+
+**MEASURE THROUGH THE ENGINE'S OWN `freetype6`, NOT PILLOW'S — THEY DISAGREE ON THIS FONT.** Every offline tool in `tools/cameo` measured through Pillow, which statically links its own FreeType; `WORKSPACE/mockups/glyph_probe.py` already warned that a hinted stem could land a pixel differently. It does. With `a-z` given their own glyph ids, the engine's `freetype6` 1.0.11 puts all 62 letters and digits on the grid at `(0,0,4,5)`; **Pillow 12.3.0 holds `i` and `j` a pixel high on the same file with the same flags.** `tools/cameo/ftprobe.py` now loads the DLL the engine actually binds to — `~/.nuget/packages/openra-freetype6/1.0.11/native/win-x64/freetype6.dll`, from the package `OpenRA.Platforms.Default.csproj:4` references — through `ctypes`, and makes the same four calls in the same order as `FreeTypeFont.CreateGlyph`. **It needs no build and no launch**, and it is the only offline measurement here that is evidence about the game rather than about Pillow.
+
+**THE AUTOHINTER IS ON, AND THE CMAP MOVES GLYPHS.** `FT_LOAD_RENDER` is `FT_LOAD_DEFAULT` plus a render, so hinting is enabled; a fontTools TTF has no bytecode, takes FreeType's `maxSizeOfInstructions == 0` branch and gets the AUTOHINTER, whose latin module derives blue zones by sampling *characters through the cmap*. Pointing `a-z` at the SAME glyph ids as `A-Z` moved **uppercase I and J** a pixel up, out of line with the other 24 letters, because the small-letter zones built from `i`/`j` then sat at capital height. Giving `a-z` their own ids carrying identical outlines fixed it. **The general shape: in a hinted font, adding a cmap entry can change how an UNRELATED glyph rasterises. A font's cmap is not just a lookup table.**
+
+**DO NOT ADD AN EMBEDDED BITMAP STRIKE.** `EBDT`/`EBLC` looks like the obvious answer for a pixel font and would break the engine silently: `FT_LOAD_RENDER` returns an embedded bitmap verbatim in `FT_PIXEL_MODE_MONO` (1 bit per pixel) and `FreeTypeFont.cs:117-124` reads the buffer one BYTE per pixel. The engine does not set `FT_LOAD_NO_BITMAP`, so nothing prevents this.
+
+**A CORRECTION TO `tools/cameo/README.md`'s PREMISE, WHICH THIS ITEM WAS BUILT ON.** It states the baked cameo lettering is 1-bit — "every one of its 115 pixels is pure white". **That is true of some shipped art and false of much of it.** Measured over the caption rows: `e4americaicon` is 125/130 pure white, but `e1americaicon` is 17/87, `t90icon` 5/29 and `mediamericaicon` 11/63 — those three are antialiased grey. So "match the baked art" is NOT the argument for a 1-bit caption font; the argument is that a crisp caption is the better treatment and the user asked for one. The README's *geometry* claims (5 ink rows, last ink row on slot row 45, 4px pitch) all re-measured correct.
+
+**AND A CORRECTION TO THIS FILE, LINE ~1171.** The 2026-08 cameo inventory records **`cmissicon` = biohazard trefoil, "CHEMICAL STRIKE"** and **`paranukeicon` = falling bomb, "PARANUKE"**. Both were superseded by `5b1773ef` (2026-09-09, "cameos: every strike power gets its own picture"). Rendered at `442859aa`: `cmissicon` is a night Trident II launch with no lettering, `paranukeicon` is a photograph of a B61-12 with no lettering, and `atomfakeicon` is a B83 under an airframe with no FAKE banner. `tools/cameo/binmock.py`'s footnote still asserted the old state and has been corrected; `WORKSPACE/proposals/260904-missile-powers.md` and `WORKSPACE/recon/powers-manager-findings.md` also carry it and were left as dated records.
+
+**TWO SHIPPED CAMEOS BAKE THE WRONG WORD, because the art was reused from Red Alert.** `fixicon` reads **SERVICE DEPOT** and is the **Supply Route** — the structure the entire economy turns on. `facticon` reads **CONVARD** and is the **Logistics Center**; a construction yard is an actor this mod does not have. Neither is a caption bug today (nothing draws a runtime caption over them), but both are what a reader looking at the sidebar sees, and both are why a caption table copying baked words verbatim still needs a per-entry escape hatch.
+
+**`power.*` PROXIES ARE BUILDABLE ACTORS, so the PRODUCTION palette already draws runtime captions.** It is natural to read `CameoCaption` as a support-power-bin feature — the yields live on `SupportPower` traits in `player.yaml` and `ingame/nuclear-arsenal.yaml`. But `rules/powers.yaml` also sets `Buildable: CameoCaption:` on the sixteen `power.*` buy proxies, which appear in the Powers build tab. So a change to `ProductionPalette`'s `CaptionFont` is player-visible TODAY, before any unit gets a caption. The roster is **116** buildable actors with a cameo (not the 115 in the backlog) across **94** distinct art files.

@@ -641,6 +641,16 @@ World:
 		# classes and are read together. Default stays `none`, so a match nobody touches is
 		# the match it was before this option existed.
 		ForwardDeploymentDropdownDisplayOrder: 51
+	# 52, immediately after Forward Deployment (51), because it answers the same question:
+	# what is already on the map when the match starts. Default stays OFF -- see the
+	# CheckboxEnabled [Desc] in PreCapturedStructures.cs for why that is load-bearing.
+	#
+	# Declared AFTER SpawnStartingUnits so the Supply Routes exist by the time this runs.
+	# That is tidiness, not correctness: the trait's spawn-cell fallback resolves to the
+	# same point (the offsets cancel exactly -- see the class comment), so reordering these
+	# two lines cannot change a single ownership decision.
+	PreCapturedStructures:
+		CheckboxDisplayOrder: 52
 	PathFinder:
 	ValidateOrder:
 	ControlAllUnitsManager:
