@@ -218,9 +218,9 @@ def build(outer_r, seed):
     #
     # DILATED BY 1 PX, NOT THE 3 scar_density USES, and the difference is scale rather
     # than taste. A dilation radius is only meaningful as a fraction of the cell: the
-    # screenshots are captured at 60 px per cell (Camera.Zoom 2 on a 125% display), so
-    # its 3 px is 5% of a cell edge, while a cell here is 24 px and the same 3 px would
-    # be 12.5%. Applied at that strength it swallowed most of the cell's ground and
+    # screenshots are captured at 48 or 60 px per cell depending on the session's display
+    # scaling, so its 3 px is 5-6% of a cell edge, while a cell here is 24 px and the same
+    # 3 px would be 12.5%. Applied at that strength it swallowed most of the cell's ground and
     # drove the occupied cell's wheat% to 3% against neighbours at 33% -- a number that
     # measured the structuring element rather than the scar.
     veh_mask = Image.new("L", (w * cs.CELL, h * cs.CELL), 0)

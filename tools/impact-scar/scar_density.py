@@ -46,21 +46,41 @@ neighbours of 36,14 read 31.1 / 31.5 / 31.5 / 31.6 -- a 0.5-point spread -- whil
 36,14 itself read 51.4. That tightness is what makes a +/-5 point threshold mean
 something.
 
-THE GEOMETRY, AND THE TRAP IN IT
---------------------------------
+THE GEOMETRY, AND WHY THE SCALE IS FITTED AND NOT ASSUMED
+---------------------------------------------------------
 Cell (cx,cy) maps to a screen square of side P centred on the camera cell:
 
-    left = W/2 + (cx - camX - 0.5) * P        P = 24 * zoom * ui_scale
+    left = W/2 + (cx - camX - 0.5) * P        P = 24 * zoom * display_scale
 
-`ui_scale` is NOT 1 on this machine: Windows runs at 125%, so a Camera.Zoom of 2
-renders 60 px per cell, not 48. Get P wrong and every number below measures the
-wrong cell -- silently, and plausibly. --patch exists for exactly that: give it
-the crop patch's cell rectangle and it checks the wheat really does land on those
-cell boundaries before reporting anything.
+`display_scale` IS A PROPERTY OF THE SESSION THAT RAN THE CAPTURE, NOT OF THIS
+TOOL, and the first version of this file got that wrong. It hardcoded 1.25 from a
+single observation -- a run captured while Windows was at 125% -- and every later
+run on a 100% session was rejected by its own self-check. The two are not
+distinguishable from the file: a 17:37 capture and a 21:06 capture of the SAME
+scenario at the SAME 2160x1147 window rendered at 60 and 48 px per cell
+respectively, and the 21:06 frames rendered at 48 whether the window was 1728x918
+or 2160x1147. Window size does not tell you the scale; it only tells you how much
+map is on screen.
+
+So the scale is now MEASURED. --patch names the crop patch's cell rectangle, and
+the tool tries each plausible display scale, predicts where that rectangle would
+land, and keeps the SMALLEST one that captures at least 90% of the frame's wheat.
+That separates cleanly rather than marginally: on the three frames this was built
+against the right scale scores 0.997 and the next one down scores 0.598.
+
+WHAT THE OLD CHECK GOT WRONG, BEYOND THE CONSTANT. It located the patch by its
+FIRST bright-wheat pixel and compared that against the predicted corner. Even with
+the right scale that is a fragile anchor, because the thing being measured --
+how much the scar darkens the crop -- acts directly on it: darken the patch's
+near edge enough and the check fails for the reason it exists to detect. The
+replacement uses the wheat's DISTRIBUTION over the whole patch, which a darker
+scar thins but does not move.
 
 Usage:
   python tools/impact-scar/scar_density.py SHOT.png --camera 39,15 --zoom 2 \
       --cells 36,14 --neighbours --gz 33,16 --patch 28,11,38,21
+
+--ui-scale overrides the fit for a frame that carries no crop patch to fit against.
 """
 import argparse
 import sys
@@ -68,12 +88,41 @@ import sys
 import numpy as np
 from PIL import Image, ImageFilter
 
-# Windows display scaling on this machine. Camera.Zoom 2 renders 60 px/cell, not 48.
-DEFAULT_UI_SCALE = 1.25
 CELL_PX = 24
 
-# How far a cell may sit from its same-band neighbours' mean and still count as
+# Display scales a session can plausibly have run at, ascending. Windows offers
+# 100/125/150/175/200%; the rest are there so an unusual setting reports itself as a
+# scale rather than as a mystery failure.
+DISPLAY_SCALES = (1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 3.0)
+
+# How much of the frame's wheat a candidate scale must place inside the patch to be
+# accepted. Deliberately far below what the right scale achieves (0.997 on every frame
+# this was built against) and far above what the next scale down achieves (0.598), so
+# the margin absorbs a scar dark enough to erase whole cells of crop.
+MIN_PATCH_RECALL = 0.90
+
+# How far ABOVE its same-band neighbours' mean a cell may read and still count as
 # "scarred like them".
+#
+# ONE-SIDED, AND THAT IS A CORRECTION RATHER THAN A LOOSENING. The defect this measures
+# is farmland that stayed UNBURNT under a nuke: it makes a cell read too BRIGHT, never
+# too dark. A two-sided band was the first version's mistake and it failed the fixed
+# build -- cell 36,14 came out 12.2 points BELOW its neighbours once the scar was drawn
+# on it, which reads as a regression and is not one.
+#
+# Two things push an occupied cell's number down and neither can push it up, so the low
+# side carries no signal about this defect. Measured on frame B:
+#   * The vehicle's SHADOW is dark, is not blue, and so is not excluded by the actor
+#     mask -- it is counted as unburnt ground that holds no wheat. 8.6% of that cell's
+#     ground is below luminance 22 against 3.4% and 5.4% on its two neighbours.
+#   * The half of the cell that survives masking is its PERIPHERY, and the crop sprite's
+#     wheat is not uniform -- the hull sits on the densest part of it. The offline
+#     preview hits the same thing harder at 24 px a cell.
+#
+# A cell reading far BELOW its neighbours would be the other failure in the scenario's
+# README -- a double composite making field cells darker than bare ground -- so it is
+# reported as a note. It is not failed on, because nothing here can separate that from
+# the two biases above, and a threshold picked to look decisive would be invented.
 TOLERANCE = 5.0
 
 
@@ -112,12 +161,66 @@ def bucket(cx, cy, gz):
 
 
 class Frame:
-    def __init__(self, path, camera, px):
+    def __init__(self, path, camera, px=None):
         a = np.asarray(Image.open(path).convert("RGB")).astype(int)
         self.h, self.w = a.shape[0], a.shape[1]
         self.wheat, self.actor = masks(a)
         self.cam = camera
         self.px = px
+
+    def rect(self, patch, px):
+        """The screen rectangle a cell rectangle would occupy at this scale."""
+        px0, py0, px1, py1 = patch
+        return (self.w / 2.0 + (px0 - self.cam[0] - 0.5) * px,
+                self.h / 2.0 + (py0 - self.cam[1] - 0.5) * px,
+                self.w / 2.0 + (px1 - self.cam[0] + 0.5) * px,
+                self.h / 2.0 + (py1 - self.cam[1] + 0.5) * px)
+
+    def fit_scale(self, patch, zoom, margin=6):
+        """Measure px-per-cell by asking which display scale puts the frame's wheat
+        inside the crop patch, and set self.px to it.
+
+        THE SMALLEST ACCEPTABLE SCALE WINS, not the best-scoring one, and that is the
+        whole trick. Recall alone is monotone in the wrong direction -- double the scale
+        and the predicted rectangle swallows the screen, so it captures everything and
+        scores 1.0. Requiring merely that a scale explains the wheat, and then taking
+        the tightest such scale, gets the answer without needing a second criterion.
+
+        `margin` forgives a few pixels of sprite overhang: ^CivField draws at
+        RenderSprites.Scale 1.15, so the patch's art is slightly larger than its cells."""
+        ys, xs = np.nonzero(self.wheat)
+        if len(xs) == 0:
+            raise SystemExit(
+                "scale fit: this frame contains no bright wheat at all, so there is "
+                "nothing to fit against. Pass --ui-scale explicitly, or check that this "
+                "capture really is the one with the crop patch in it.")
+
+        total = float(len(xs))
+        table, chosen = [], None
+        for scale in DISPLAY_SCALES:
+            px = CELL_PX * zoom * scale
+            x0, y0, x1, y1 = self.rect(patch, px)
+            inside = ((xs >= x0 - margin) & (xs <= x1 + margin) &
+                      (ys >= y0 - margin) & (ys <= y1 + margin)).sum()
+            recall = inside / total
+            table.append((scale, px, recall))
+            if chosen is None and recall >= MIN_PATCH_RECALL:
+                chosen = (scale, px, recall)
+
+        summary = "  ".join(f"{s * 100:.0f}%:{r:.3f}" for s, _p, r in table)
+        if chosen is None:
+            raise SystemExit(
+                "scale fit FAILED: no display scale places 90% of this frame's wheat "
+                f"inside cells {patch[0]},{patch[1]}-{patch[2]},{patch[3]}. Recalls were "
+                f"{summary}. That is not a scale problem -- --camera or --patch is wrong, "
+                "or this is not the frame you think it is.")
+
+        scale, px, recall = chosen
+        self.px = px
+        print(f"scale fit: {px:.1f} px/cell  (Camera.Zoom {zoom:g} at {scale * 100:.0f}% "
+              f"display scale), {recall * 100:.1f}% of wheat inside the patch")
+        print(f"           candidates {summary}")
+        return px
 
     def box(self, cx, cy):
         x = self.w / 2.0 + (cx - self.cam[0] - 0.5) * self.px
@@ -134,31 +237,60 @@ class Frame:
         n = ground.sum()
         return (100.0 * w / n if n else 0.0), int(n), int((~ground).sum())
 
-    def check_patch(self, patch, tol=8):
-        """Fail loudly if the geometry is wrong. The search window is the patch's own
-        rows and columns plus a small margin, so a vehicle or a fire elsewhere in the
-        frame cannot widen the box and hide a misalignment."""
-        px0, py0, px1, py1 = patch
-        ex0, ey0 = self.box(px0, py0)[0], self.box(px0, py0)[1]
-        ex1, ey1 = self.box(px1, py1)[2], self.box(px1, py1)[3]
-        wx0, wy0 = max(ex0 - 20, 0), max(ey0 - 20, 0)
-        sub = self.wheat[wy0:ey1 + 20, wx0:ex1 + 20]
-        ys, xs = np.nonzero(sub)
-        if len(xs) == 0:
-            raise SystemExit(
-                "patch check: no wheat anywhere near the expected rectangle. Either "
-                "--camera/--zoom/--ui-scale are wrong, or this frame holds no crop field.")
+    def check_patch(self, patch, max_empty_fraction=0.30):
+        """Confirm the fitted geometry really does land on the patch's cells.
 
-        gx0, gy0 = xs.min() + wx0, ys.min() + wy0
-        off = (int(abs(gx0 - ex0)), int(abs(gy0 - ey0)))
-        print(f"patch check: {self.px:.1f} px/cell; patch expected at "
-              f"({ex0},{ey0})-({ex1},{ey1}), wheat starts at ({gx0},{gy0}), "
-              f"offset {off[0]},{off[1]} px")
-        if max(off) > tol:
+        BY DISTRIBUTION, NOT BY A CORNER. The previous version of this took the
+        patch's first bright-wheat pixel and compared it with the predicted corner,
+        which fails for the reason the tool exists: a scar that darkens the crop at the
+        patch's near edge moves that first pixel, so the check breaks on exactly the
+        change it is supposed to be measuring. What a darker scar does NOT do is move
+        the crop -- so this asks whether every cell of the patch still holds some, and
+        treats a cell that holds none as news rather than as a failure.
+
+        The hard failure is reserved for the case the check is actually for: a
+        transform so wrong that most of the patch has no crop in it at all."""
+        px0, py0, px1, py1 = patch
+        cells = [(cx, cy)
+                 for cy in range(py0, py1 + 1)
+                 for cx in range(px0, px1 + 1)]
+
+        empty, offframe = [], 0
+        for (cx, cy) in cells:
+            x0, y0, x1, y1 = self.box(cx, cy)
+            if x0 < 0 or y0 < 0 or x1 > self.w or y1 > self.h:
+                offframe += 1
+                continue
+            if not self.wheat[y0:y1, x0:x1].any():
+                empty.append((cx, cy))
+
+        checked = len(cells) - offframe
+        if checked == 0:
             raise SystemExit(
-                f"patch check FAILED: off by {off} px, tolerance {tol}. Every number "
-                "below would be measuring the wrong cells. Check --zoom and --ui-scale "
+                f"patch check FAILED: none of the {len(cells)} patch cells is on this "
+                "frame. --camera is wrong, or this capture is pointed somewhere else.")
+
+        rx0, ry0, rx1, ry1 = self.rect(patch, self.px)
+        print(f"patch check: cells {px0},{py0}-{px1},{py1} at "
+              f"({rx0:.0f},{ry0:.0f})-({rx1:.0f},{ry1:.0f}); "
+              f"{checked - len(empty)}/{checked} hold crop"
+              + (f", {offframe} off-frame" if offframe else ""))
+
+        if len(empty) > max_empty_fraction * checked:
+            raise SystemExit(
+                f"patch check FAILED: {len(empty)} of {checked} patch cells hold no crop "
+                "at all. At that rate the cell grid is not on the patch, so every number "
+                "below would be measuring the wrong cells. Check --camera and --patch "
                 "against the scenario's Lua.")
+
+        if empty:
+            # Worth saying out loud: a cell of farmland with no crop pixel left is
+            # either a very dark scar or a vehicle covering the whole cell, and both
+            # are things the reader is here to find out about.
+            shown = ", ".join(f"{cx},{cy}" for cx, cy in empty[:8])
+            more = f" (+{len(empty) - 8} more)" if len(empty) > 8 else ""
+            print(f"             note: {len(empty)} patch cell(s) hold no crop pixel: "
+                  f"{shown}{more}")
 
 
 def parse_cell(s):
@@ -167,8 +299,8 @@ def parse_cell(s):
 
 
 def report(f, cx, cy, gz, neighbours):
-    """Returns True when the cell is within tolerance of its same-band neighbours,
-    False when it is outside, None when there is nothing to compare against."""
+    """Returns True when the cell is not brighter than its same-band neighbours by more
+    than TOLERANCE, False when it is, None when there is nothing to compare against."""
     got = f.measure(cx, cy)
     if got is None:
         print(f"cell {cx},{cy}: off-frame")
@@ -209,9 +341,17 @@ def report(f, cx, cy, gz, neighbours):
     delta = wf - mean
     # bool(): numpy comparisons yield np.bool_, and `np.bool_(False) is False`
     # is False -- the caller's identity test would silently never fire.
-    ok = bool(abs(delta) <= TOLERANCE)
+    ok = bool(delta <= TOLERANCE)
+    verdict = "PASS" if ok else "FAIL -- reads as unburnt farmland"
     print(f"  --> {cx},{cy} is {delta:+.1f} points from its same-band mean "
-          f"({mean:.1f}%): {'WITHIN' if ok else 'OUTSIDE'} +/-{TOLERANCE:.0f}")
+          f"({mean:.1f}%); bar is at most +{TOLERANCE:.0f}: {verdict}")
+
+    if delta < -TOLERANCE:
+        print(f"             note: it reads {-delta:.1f} points BELOW its neighbours. On a cell "
+              "holding a vehicle that is expected -- the hull's shadow counts as ground "
+              "and the hull covers the crop's densest part -- and it is not failed on. If "
+              "this cell holds no vehicle, suspect a double composite instead.")
+
     return ok
 
 
@@ -220,7 +360,10 @@ def main():
     ap.add_argument("shot")
     ap.add_argument("--camera", required=True, help="camera cell, e.g. 39,15")
     ap.add_argument("--zoom", type=float, required=True)
-    ap.add_argument("--ui-scale", type=float, default=DEFAULT_UI_SCALE)
+    ap.add_argument("--ui-scale", type=float, default=None,
+                    help="display scale of the session that captured the frame. Omit to "
+                         "measure it from --patch, which is what you want: it is a "
+                         "property of that session and not of this machine.")
     ap.add_argument("--cells", required=True, help="semicolon-separated cells to report")
     ap.add_argument("--neighbours", action="store_true",
                     help="also report the 8 neighbours, split by annulus bucket")
@@ -228,10 +371,24 @@ def main():
     ap.add_argument("--patch", help="crop patch cell rect x0,y0,x1,y1 -- geometry self-check")
     args = ap.parse_args()
 
-    f = Frame(args.shot, parse_cell(args.camera), CELL_PX * args.zoom * args.ui_scale)
+    patch = tuple(int(v) for v in args.patch.split(",")) if args.patch else None
+    f = Frame(args.shot, parse_cell(args.camera))
 
-    if args.patch:
-        f.check_patch(tuple(int(v) for v in args.patch.split(",")))
+    if args.ui_scale is not None:
+        f.px = CELL_PX * args.zoom * args.ui_scale
+        print(f"scale given: {f.px:.1f} px/cell (Camera.Zoom {args.zoom:g} at "
+              f"{args.ui_scale * 100:.0f}% display scale), not measured")
+    elif patch:
+        f.fit_scale(patch, args.zoom)
+    else:
+        raise SystemExit(
+            "no --patch to measure the display scale against, and no --ui-scale given. "
+            "The scale is a property of the session that captured the frame -- the same "
+            "scenario at the same window size has rendered at both 48 and 60 px/cell -- "
+            "so it cannot be assumed. Pass one or the other.")
+
+    if patch:
+        f.check_patch(patch)
 
     gz = parse_cell(args.gz) if args.gz else None
     verdicts = [report(f, cx, cy, gz, args.neighbours)
