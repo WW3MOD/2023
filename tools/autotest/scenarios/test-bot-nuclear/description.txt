@@ -26,8 +26,8 @@ against the module's LosingArmyRatioPercent of 60.
                    anything: the exchange raises the other side's level wherever
                    the warhead lands, with no damage attribution at all.
 
-  THE FLIGHT       ~305 ticks, and the run WATCHES it rather than waiting out a
-  (t300..~t605)    constant. Since the 2026-09-16 ruling the victim's level does
+  THE FLIGHT       ~110 ticks, and the run WATCHES it rather than waiting out a
+  (t300..~t410)    constant. Since the 2026-09-16 ruling the victim's level does
                    not rise on the click: it rises at the first warhead's IMPACT
                    plus EscalationDelayTicks (50). Two assertions live in that
                    window, and they are the coverage this scenario adds --
@@ -59,8 +59,11 @@ against the module's LosingArmyRatioPercent of 60.
                    time it is asked.
 
                    AND STRONGER AGAIN WITH THE DEFERRAL: the bot now spends the
-                   whole 305-tick flight -- six evaluations -- holding a loaded
+                   whole 110-tick flight -- two evaluations -- holding a loaded
                    1 kt with a warhead inbound, and then declines the 20 kt too.
+                   (110, not the ~305 the B61's MissileDelay implies: this
+                   scenario sets PowersSandboxCheckboxEnabled, and
+                   SandboxRemovesLaunchDelay drops that delay entirely.)
 
                    READ 12 TICKS AFTER THE BAND APPEARS, not 80 after the rise.
                    The anchor is the tick the condition arrived, so only one
@@ -120,7 +123,7 @@ WHAT THIS DELIBERATELY DOES NOT MEASURE:
 
 THE SOFTEST ASSUMPTION IN THE RUN is that the two armies do not shoot each
 other. They sit fifty cells apart with HoldFire / HoldPosition on ^Combatant,
-and the whole run is ~1450 ticks -- but Russia IS a bot, and its ordinary ground
+and the whole run is ~1260 ticks -- but Russia IS a bot, and its ordinary ground
 modules are free to order its humvees anywhere. If phase C ever reports fewer
 than three kills, that is what happened, and the fault text says so rather than
 letting the run fail somewhere downstream as a mystery.

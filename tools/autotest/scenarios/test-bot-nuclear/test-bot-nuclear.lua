@@ -18,9 +18,12 @@
 -- victim's level rose on the tick the enemy CLICKED. That override is gone and the scenario now
 -- runs the shipped path: the level rises at the first warhead's IMPACT plus
 -- NuclearExchangeInfo.EscalationDelayTicks (50 = 3.0 s), and the flight in between is however long
--- the B61-12 takes -- MissileDelay 200 before its arc is even counted, plus the map diagonal and
--- ApproachMargin over the missile's Speed. THAT NUMBER IS NOT WRITTEN DOWN ANYWHERE HERE, and it
--- must not be: every phase from the launch onward is anchored on an OBSERVED event instead.
+-- the B61-12 takes -- the map diagonal plus ApproachMargin over the missile's Speed, and
+-- MissileDelay on top of that wherever the sandbox option is not dropping it. NO ASSERTION HERE
+-- WRITES THAT NUMBER DOWN, and none may: every phase from the launch onward is anchored on an
+-- OBSERVED event instead. (The one place it is quoted, FLIGHT_BUDGET_TICKS, is a watchdog no
+-- assertion reads -- and quoting it wrong is exactly what broke test-nuclear-exchange's first
+-- retiming on 2026-09-19.)
 --
 --   the explosion   Test.GetImpactEffectCount, snapshotted at the launch. It counts
 --                   CreateEffectWarhead impacts that passed the validity gates, and the B61's
@@ -93,9 +96,15 @@ local ESCALATION_DELAY_TICKS = 50
 -- warhead's CreateEffectWarhead actually runs on.
 local ESCALATION_SLACK_TICKS = 40
 -- How long the warhead is allowed to be in the air before this file calls it lost. The B61-12's
--- shipped flight on a 66x34 map is MissileDelay 200 + ceil((diagonal + 16c0) / Speed 900) ~= 305
--- ticks; 900 is three times that. IT IS A WATCHDOG, NOT A MEASUREMENT -- no assertion below reads
--- it, and widening it cannot make a failing run pass.
+-- flight on a 66x34 map is about 110 ticks: ceil((diagonal + 16c0) / Speed 900) = 102 plus the
+-- few ticks between the activity completing and the payload firing. MissileDelay DOES NOT APPLY
+-- HERE -- `PowersSandboxCheckboxEnabled: true` in rules.yaml makes SandboxRemovesLaunchDelay drop
+-- it (MissileStrikePower.cs:515, PowersLobbyOptions.cs:168), so the B61's 200 ticks of dead air are
+-- gone and the flight is the arc alone. (110 is the figure MEASURED in test-nuclear-exchange, which
+-- fires the same power on the same map size with the same sandbox setting; this scenario's own
+-- passing run did not print it.) 900 is eight times that and also covers the MissileDelay-restored
+-- case. IT IS A WATCHDOG, NOT A MEASUREMENT -- no assertion below reads it, and widening it cannot
+-- make a failing run pass.
 local FLIGHT_BUDGET_TICKS = 900
 -- Ticks between the victim's band being DRAWN and the reading that asserts it is also LOADED.
 -- BOUNDED AT BOTH ENDS, and the lower bound is different from the one this file used to carry.
@@ -247,7 +256,7 @@ WorldLoaded = function()
 			if tick - watch.orderTick > FLIGHT_BUDGET_TICKS then
 				fault("NO WARHEAD EVER DETONATED. USA's %s was issued at t%d and"
 					.. " Test.GetImpactEffectCount has not moved off %d in %d ticks, against a"
-					.. " shipped B61-12 flight of about 305 on this map. The warhead never left"
+					.. " B61-12 flight of about 110 on this map. The warhead never left"
 					.. " (MissileStrikePower.Activate bailed), never arrived, or its"
 					.. " CreateEffectWarhead impact was discarded at the validity gates. Nothing"
 					.. " below is evidence either way",
@@ -421,7 +430,7 @@ WorldLoaded = function()
 		-- rest of the match and declines every time it is asked.
 		--
 		-- AND IT IS STRONGER AGAIN SINCE THE ESCALATION WAS DEFERRED TO THE IMPACT. The bot now
-		-- spends the WHOLE FLIGHT -- about 305 ticks, six evaluations -- holding a loaded 1 kt it
+		-- spends the WHOLE FLIGHT -- about 110 ticks, two evaluations -- holding a loaded 1 kt it
 		-- may fire and knowing a warhead is inbound, and then declines the 20 kt as well.
 		if tick == LEVEL_HOLD_CHECK_TICK then
 			local ok = expectPower(Russia, "Russia", RU_20KT, "ready",

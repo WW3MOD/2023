@@ -19,10 +19,11 @@
 -- This file used to set `EscalationDelayTicks: -1` in rules.yaml — the escape hatch that restores
 -- the pre-2026-09-16 timing, where a victim's level rose on the tick the enemy CLICKED. It was set
 -- because the phase schedule was a column of constants that fired and then read a level 65 ticks
--- later, and the shipped rise lands a whole missile flight after the click: MissileDelay 200 on
--- the B61 before its arc is even counted, and the arc is the map diagonal plus ApproachMargin over
--- the missile's Speed. THE OVERRIDE IS GONE AND THE CONSTANTS WENT WITH IT. Every phase from the
--- first launch onward hangs off an event this file OBSERVES.
+-- later, and the shipped rise lands a whole missile flight after the click -- the map diagonal plus
+-- ApproachMargin over the missile's Speed, plus MissileDelay wherever that is not dropped (it IS
+-- dropped here; see the run note below, which is the detail that cost a slot). THE OVERRIDE IS GONE
+-- AND THE CONSTANTS WENT WITH IT. Every phase from the first launch onward hangs off an event this
+-- file OBSERVES.
 --
 --   the explosion   Test.GetImpactEffectCount, snapshotted on the order tick. It counts
 --                   CreateEffectWarhead impacts that passed the validity gates, and every warhead
@@ -39,11 +40,33 @@
 --       MissileStrikePower never reported. (a) cannot see that: a level that never rises also
 --       never rises early.
 --
--- AND TWO OF THE CHOREOGRAPHY'S MOVES CHANGED, because two phases need a victim who is RELOADING
--- at the moment it is escalated, and a flight is longer than a compressed cooldown. Both are built
--- the same way and neither needs a flight time: the victim fires its own warhead ON THE TICK THE
--- INCOMING EXPLOSION IS SEEN, so the escalation lands ~50 ticks into a 300- or 340-tick lockout.
--- See phases D and G2. The claim each makes is word-for-word what it made before.
+-- AND NOTHING IN HERE WAITS A NUMBER OF TICKS FOR A CAMEO EITHER. Every launch polls the power's
+-- own state and fires on the tick it reads `ready`, with a bounded wait; see readyToFire. A launch
+-- that has to wait shifts every phase after it, which costs nothing, because every phase after it
+-- is an offset from an observation rather than a constant.
+--
+-- ==== WHAT THE FIRST RUN OF THIS FILE GOT WRONG (2026-09-19, run 260919_205330) ====
+-- Phases D and G2 need a victim who is RELOADING at the moment it is escalated. The first version
+-- of this retiming built that by having the victim fire its own warhead ON THE TICK THE INCOMING
+-- EXPLOSION WAS SEEN, on the belief that a flight (~305 ticks) outlasts every compressed cooldown
+-- here and so the victim could not still be reloading from its own earlier shot. IT FAILED: USA's
+-- 1 kt read `charging:43` at the moment it was asked to fire.
+--
+-- THE FLIGHTS IN THIS SCENARIO ARE A THIRD OF THAT, AND THE REASON IS ONE LINE IN rules.yaml.
+-- `PowersSandboxCheckboxEnabled: true` is set here (for the `powers.event` prerequisite the
+-- game-enders need), and SandboxRemovesLaunchDelay defaults TRUE, so MissileStrikePower drops
+-- MissileDelay entirely (MissileStrikePower.cs:515, PowersLobbyOptions.cs:168). The B61's 200 ticks
+-- of dead air are gone and the flight is the arc alone: MEASURED at 110 ticks for the B61Low and
+-- 83 for the Iskander on this map, not the ~305 the shipped MissileDelay implies. A cooldown of 300
+-- therefore OUTLASTS a flight here, which is the opposite of what the construction assumed.
+--
+-- SO THE CONSTRUCTION IS GONE AND THE NATURAL ONE IS BACK: the side cooldowns below are long enough
+-- that a victim is still reloading from its OWN shot when the enemy's warhead escalates it, exactly
+-- as this file worked before the deferral existed. Polling for readiness could not have rescued the
+-- old construction -- USA became ready at t425 and the escalation landed at t427, a two-tick window
+-- that is a lottery rather than a test. Phases D and G2 each check that setup explicitly before
+-- asserting anything, so a future drift reports "this scenario's constants no longer set the trap"
+-- instead of looking like a free-shot bug in the build.
 --
 -- ==== THE THREE READINGS THAT SEPARATE v2 FROM EVERY MODEL BEFORE IT ====
 --
@@ -118,14 +141,21 @@ local AIM_X, AIM_Y = 32, 8
 --
 -- THE FOUR ARE KEPT DISTINCT, AND THAT IS THE POINT OF NOT USING ONE NUMBER: a build that applied
 -- the FIRED band's cooldown correctly and a build that applied the firer's own band, or the first
--- entry in the table, are the same run at 300/300/300/300 and different runs at these. Since
+-- entry in the table, are the same run at one flat value and different runs at these. Since
 -- 2026-09-19 that claim is made DIRECTLY rather than inferred from which side recovered first: a
 -- `charging:<n>` reading is taken 40 ticks after each of the four launches and compared against
 -- that band's constant. See expectCooldownAbout, and the note on phase E.
-local CD_1KT   = 300
-local CD_20KT  = 320
-local CD_50KT  = 340
-local CD_100KT = 360
+--
+-- THEY ARE NO LONGER IN ASCENDING ORDER AND THAT IS DELIBERATE. Nothing reads them as an ordering
+-- any more; what each has to satisfy is written at its line in rules.yaml. The two that carry a
+-- constraint are the 1 kt and the 50 kt, and both say the same thing: A VICTIM MUST STILL BE
+-- RELOADING FROM ITS OWN SHOT WHEN THE ENEMY WARHEAD ESCALATES IT (phases D and G2). Raised from
+-- 300/320/340/360 on 2026-09-19 after the first retiming failed -- see the header for why the
+-- flights here are a third of what the shipped MissileDelay implies.
+local CD_1KT   = 900
+local CD_20KT  = 700
+local CD_50KT  = 1400
+local CD_100KT = 1000
 
 -- ---- THE DEFERRAL'S OWN CONSTANTS, RESTATED FROM THE ENGINE ------------------------------------
 -- NuclearExchangeInfo.EscalationDelayTicks, the SHIPPED value. Deliberately not overridden in
@@ -136,10 +166,18 @@ local ESCALATION_DELAY_TICKS = 50
 -- Player actor — plus ten ticks for the skew between the ESTIMATED impact tick MissileStrikePower
 -- reports and the tick the warhead's CreateEffectWarhead actually runs on.
 local ESCALATION_SLACK_TICKS = 40
--- WATCHDOG, NOT A MEASUREMENT. The slowest warhead this file fires is the Kalibr: MissileDelay 400
--- plus ceil((diagonal + 16c0) / Speed 450) ≈ 605 ticks on a 66x34 map. 1200 is twice that. No
--- assertion reads it and widening it cannot turn a red run green.
+-- WATCHDOG, NOT A MEASUREMENT. The slowest warhead this file fires is the Kalibr, and with
+-- MissileDelay dropped by the sandbox option its flight is the arc alone: (diagonal + 16c0) over
+-- Speed 450 ≈ 205 ticks on a 66x34 map, ~213 to the detonation. 1200 is well past that AND past
+-- the ~613 it would be with MissileDelay back. No assertion reads it and widening it cannot turn
+-- a red run green.
 local FLIGHT_BUDGET_TICKS = 1200
+-- How long a launch may wait for its own cameo before this file calls the scenario broken. Every
+-- launch polls rather than assuming (readyToFire), so a cooldown or flight that drifts delays the
+-- run instead of failing it -- but a side that never rearms is a real fault and must not hang.
+-- Generous against the longest cooldown here (1400) because a wait this long means a phase before
+-- it already failed and named the cause.
+local READY_WAIT_TICKS = 900
 -- Ticks between a victim's band being DRAWN and the reading that says what its timer holds.
 -- BOUNDED AT BOTH ENDS:
 --     > 1    the band leaving `hidden` IS its condition arriving, so all that is still owed is one
@@ -164,25 +202,24 @@ local COOLDOWN_TOLERANCE = 6
 -- scheduled yet", which no tick can equal.
 local RELEASE_CHECK_TICK = 90
 local FIRE_1KT_TICK      = 120                        -- USA b1 -> USA cooldown; RU level 2 at impact
-local USA_CD1_CHECK_TICK = FIRE_1KT_TICK + LAUNCH_COOLDOWN_GAP
+local USA_CD1_CHECK_TICK = -1                         -- fire + 40
 local RATCHET_CHECK_TICK = -1                         -- rise 1 + 12
 local FIRE_20KT_TICK     = -1
 local RU_CD20_CHECK_TICK = -1                         -- fire + 40
-local USA_REFIRE_TICK    = -1                         -- set to the tick the 20 kt DETONATES
 local LOCKED_CHECK_TICK  = -1                         -- rise 2 + 12  <<< escalated WHILE RELOADING
-local RECOVER_CHECK_TICK = -1                         -- refire + CD_1KT + 40
+local RECOVER_CHECK_TICK = -1                         -- the 1 kt launch + CD_1KT + 40
 local FIRE_50KT_TICK     = -1
 local USA_CD50_CHECK_TICK = -1                        -- fire + 40
 local L4_CHECK_TICK      = -1                         -- rise 3 + 12
 local FIRE_100KT_TICK    = -1
 local RU_CD100_CHECK_TICK = -1                        -- fire + 40
-local USA_REFIRE2_TICK   = -1                         -- set to the tick the 100 kt DETONATES
 local END_LOCKED_TICK    = -1                         -- rise 4 + 12  <<< at END, still reloading
-local END_READY_TICK     = -1                         -- refire2 + CD_50KT + 40
+local END_READY_TICK     = -1                         -- the 50 kt launch + CD_50KT + 40
 local FIRE_ENDER_TICK    = -1
--- HARD BACKSTOP in absolute ticks. The four flights total about 1500 ticks and the recoveries
--- another 700; this is well past the whole run.
-local BUDGET_TICK        = 4000
+-- HARD BACKSTOP in absolute ticks. The run is about 2520 ticks: four flights totalling ~480 and
+-- two full cooldown waits (900 and 1400) that are the price of phases D, E, G2 and H. This is
+-- well past it and past a run in which several launches have had to wait for their cameo.
+local BUDGET_TICK        = 6000
 
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
@@ -197,16 +234,9 @@ WorldLoaded = function()
 	local watch = nil
 	local risesSeen = 0
 
-	-- ==== A WARHEAD IN THE AIR THAT NOBODY IS WATCHING, AND WHY IT HAS TO BE TRACKED ====
-	-- The watch decides "this warhead detonated" from a DELTA on Test.GetImpactEffectCount, which
-	-- cannot say WHICH warhead moved it. The two reloading-victim shots (phases D and G2) are fired
-	-- for their cooldown alone and escalate nobody -- but they still detonate, and if one of them
-	-- were still in the air when the NEXT watch took its baseline, that watch would read the wrong
-	-- explosion and (b) would be measured against a tick fifty ticks too early. So an unwatched
-	-- shot is recorded here and the next launch waits for the sky to clear. It always has cleared
-	-- on the shipped constants -- there is a comfortable margin either way -- and this exists so
-	-- that margin is not load-bearing.
-	local skyPending = nil
+	-- The tick each power was FIRST asked to fire on, so a bounded wait for its cameo can be
+	-- measured. One entry per power; no power in this file is fired twice.
+	local firstTry = {}
 
 	local function state(player, key)
 		return Test.GetSupportPowerState(player, key)
@@ -338,8 +368,7 @@ WorldLoaded = function()
 	-- moved" mean "THIS warhead detonated" rather than "some warhead has detonated this run".
 	--
 	-- `sentinel` is the band the rise must GRANT, chosen per launch so a failure names a rung rather
-	-- than timing out anonymously; see each call site. Pass nil for a shot fired only to put its own
-	-- side on cooldown, where nobody's level moves.
+	-- than timing out anonymously; see each call site.
 	local function launch(player, who, key, why, victim, victimWho, sentinel)
 		local effects0 = Test.GetImpactEffectCount()
 		local result = Test.ActivateSupportPower(player, key, CPos.New(AIM_X, AIM_Y))
@@ -347,10 +376,6 @@ WorldLoaded = function()
 			fault("%s could not fire %s: %q. %s Nothing after this point is evidence either way",
 				who, key, result, why)
 			return false
-		end
-
-		if sentinel == nil then
-			return true
 		end
 
 		if state(victim, sentinel) ~= "hidden" then
@@ -371,6 +396,13 @@ WorldLoaded = function()
 
 	-- Drive the watch one tick. nil while the warhead is still on its way, the TICK the sentinel
 	-- band appeared on once the escalation has landed, or -1 on a fault.
+	--
+	-- EVERY SHOT THIS FILE FIRES IS WATCHED, WHICH IS WHAT MAKES THE BASELINE HONEST. The delta on
+	-- Test.GetImpactEffectCount cannot say WHICH warhead moved it, so a shot fired for its cooldown
+	-- alone -- which the first version of this retiming used, and which is now gone -- could be in
+	-- the air when the next watch took its baseline and make (b) measure the wrong explosion. With
+	-- four launches and four watches, the sky is empty at every arm by construction rather than by
+	-- a margin.
 	local function pollWatch()
 		local w = watch
 		local drawn = state(w.victim, w.sentinel) ~= "hidden"
@@ -453,91 +485,50 @@ WorldLoaded = function()
 		end
 	end
 
-	local step
-
-	-- ==== THE RELOADING-VICTIM MOVE, WRITTEN ONCE AND USED TWICE ====
-	-- Phases D and G2 both need a victim who is INSIDE ITS OWN COOLDOWN at the moment an enemy
-	-- warhead escalates it. Before the deferral that happened by itself: a level rose on the click,
-	-- eighty ticks after the victim's own shot. It cannot happen by itself now -- the rise is a
-	-- whole missile flight downstream of the click, and every compressed cooldown here is shorter
-	-- than every flight.
+	-- ==== A LAUNCH WAITS FOR ITS CAMEO, IT DOES NOT ASSUME ONE ====
+	-- Returns true when the power can be fired on this tick, false while it is still charging, and
+	-- nil once the wait has run past READY_WAIT_TICKS (a fault is recorded). The caller re-schedules
+	-- its own phase for the next tick on false, which shifts everything after it -- harmlessly,
+	-- because every later phase is an offset from an observation rather than a constant.
 	--
-	-- SO THE VICTIM FIRES ON THE TICK IT SEES THE INCOMING EXPLOSION. The escalation is scheduled
-	-- for that same explosion plus EscalationDelayTicks, so it lands about fifty ticks into a 300-
-	-- or 340-tick lockout -- deep inside it, not near an edge, and with no flight time anywhere in
-	-- the arithmetic. The shot itself is harmless to the ladder: it escalates the enemy to a rung
-	-- the enemy already holds.
-	local function refireOnImpact(key, why)
-		if state(USA, key) ~= "ready" then
-			fault("USA's %s reads %q at t%d and cannot be fired. This shot is what puts USA back"
-				.. " on a cooldown so the escalation arriving ~%d ticks from now lands on a"
-				.. " RELOADING side, which is the whole subject of the phase that follows. %s",
-				key, state(USA, key), tick, ESCALATION_DELAY_TICKS, why)
-			return false
+	-- WHY THIS IS HERE AT ALL. The first version of this retiming asked USA to fire on a tick it
+	-- derived from an impact, found the power `charging:43`, and died with "cannot be fired". A
+	-- scenario whose own arithmetic drifts should WAIT and then say so, not report a build defect.
+	local function readyToFire(player, who, key)
+		if firstTry[key] == nil then
+			firstTry[key] = tick
 		end
 
-		if not launch(USA, "USA", key, why, nil, nil, nil) then
-			return false
+		local got = state(player, key)
+		if got == "ready" then
+			return true
 		end
 
-		-- The baseline is taken AFTER the launch, on the tick the watched warhead's own impact was
-		-- counted, so it already includes that bump and the next delta is this shot's.
-		skyPending = { effects0 = Test.GetImpactEffectCount(), orderTick = tick, key = key }
-		return true
+		if tick - firstTry[key] > READY_WAIT_TICKS then
+			fault("%s's %s reads %q and has not become fireable in the %d ticks since t%d. A"
+				.. " `charging:` reading here means this scenario's own cooldown constants no"
+				.. " longer leave room for the shot; `hidden` means the band was never granted,"
+				.. " and an earlier phase should have said so first",
+				who, key, got, tick - firstTry[key], firstTry[key])
+			return nil
+		end
+
+		return false
 	end
+
+	local step
 
 	step = function()
 		tick = tick + 1
-
-		-- ---- THE SKY, before anything else reads the impact counter.
-		if skyPending ~= nil then
-			if Test.GetImpactEffectCount() > skyPending.effects0 then
-				skyPending = nil
-			elseif tick - skyPending.orderTick > FLIGHT_BUDGET_TICKS then
-				fault("USA's unwatched %s, fired at t%d to put its side back on cooldown, never"
-					.. " detonated: Test.GetImpactEffectCount has not moved off %d in %d ticks."
-					.. " The phase that needed the cooldown may still have passed, but the next"
-					.. " watch cannot take an honest baseline while a warhead is unaccounted for",
-					skyPending.key, skyPending.orderTick, skyPending.effects0,
-					tick - skyPending.orderTick)
-				verdict()
-				return
-			end
-		end
 
 		-- ---- THE WATCH RUNS FIRST, EVERY TICK, from each launch until the level it caused rises.
 		-- It is the only thing in this file that reads a tick it did not choose, and it is what
 		-- schedules the phase that follows each launch. See the file header for (a) and (b).
 		if watch ~= nil and watch.riseTick == nil then
-			local before = watch.impactTick
 			local risen = pollWatch()
 			if risen == -1 then
 				verdict()
 				return
-			end
-
-			-- THE EXPLOSION WAS SEEN ON THIS TICK. Two of the four launches hand the reloading-
-			-- victim move off this edge; see refireOnImpact.
-			if before == nil and watch.impactTick ~= nil then
-				if risesSeen == 1 then
-					USA_REFIRE_TICK = tick
-					if not refireOnImpact(USA_1KT,
-						"USA's own 1 kt, off cooldown since t" .. (FIRE_1KT_TICK + CD_1KT) .. ".") then
-						verdict()
-						return
-					end
-
-					RECOVER_CHECK_TICK = tick + CD_1KT + 40
-				elseif risesSeen == 3 then
-					USA_REFIRE2_TICK = tick
-					if not refireOnImpact(USA_50KT,
-						"USA's 50 kt, the highest band its level 3 allows.") then
-						verdict()
-						return
-					end
-
-					END_READY_TICK = tick + CD_50KT + 40
-				end
 			end
 
 			if risen ~= nil then
@@ -585,6 +576,18 @@ WorldLoaded = function()
 		-- ---- PHASE B. USA fires the smallest warhead in the mod at empty ground.
 		-- SENTINEL RU_20KT: the one band this rise grants, so a watch timeout names the rung.
 		if tick == FIRE_1KT_TICK then
+			local ready = readyToFire(USA, "USA", USA_1KT)
+			if ready == nil then
+				verdict()
+				return
+			end
+
+			if not ready then
+				FIRE_1KT_TICK = tick + 1
+				Trigger.AfterDelay(1, step)
+				return
+			end
+
 			if not launch(USA, "USA", USA_1KT,
 				"This is rung 1 of 4 and release just handed it over.",
 				Russia, "Russia", RU_20KT) then
@@ -592,6 +595,11 @@ WorldLoaded = function()
 				return
 			end
 
+			-- THE COOLDOWN THIS SHOT STARTS IS WHAT MAKES PHASE D A TEST. USA must still be
+			-- reloading from it when Russia's reply escalates USA, which is the natural shape of
+			-- this model and is what CD_1KT is sized for; see rules.yaml.
+			USA_CD1_CHECK_TICK = tick + LAUNCH_COOLDOWN_GAP
+			RECOVER_CHECK_TICK = tick + CD_1KT + 40
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -644,6 +652,18 @@ WorldLoaded = function()
 		-- SENTINEL USA_50KT: USA goes from level 1 to level 3, so bands 2 and 3 are both new;
 		-- the 50 kt is the one phase D reads.
 		if tick == FIRE_20KT_TICK then
+			local ready = readyToFire(Russia, "Russia", RU_20KT)
+			if ready == nil then
+				verdict()
+				return
+			end
+
+			if not ready then
+				FIRE_20KT_TICK = tick + 1
+				Trigger.AfterDelay(1, step)
+				return
+			end
+
 			if not launch(Russia, "Russia", RU_20KT,
 				"Rung 2 of 4, fired from the level USA's shot just handed Russia.",
 				USA, "USA", USA_50KT) then
@@ -674,15 +694,32 @@ WorldLoaded = function()
 		end
 
 		-- ---- PHASE D. ESCALATED WHILE RELOADING. THE SHARPEST ASSERTION IN THE FILE.
-		-- USA fired its own 1 kt on the tick Russia's 20 kt detonated (refireOnImpact), so it is
-		-- about fifty ticks into a 300-tick lockout when that detonation's escalation lands. Both
-		-- of its newly granted bands must be DRAWN (the level is real) and NOT FIREABLE (the
-		-- cooldown is too). See the file header for why a build that gets this wrong is broken in
-		-- most matches.
+		-- USA has been reloading since its own 1 kt at t120 and Russia's 20 kt has just taken it to
+		-- level 3. Both of its newly granted bands must be DRAWN (the level is real) and NOT
+		-- FIREABLE (the cooldown is too). See the file header for why a build that gets this wrong
+		-- is broken in most matches.
 		if tick == LOCKED_CHECK_TICK then
+			-- ==== THE SETUP, CHECKED BEFORE THE SUBJECT ====
+			-- If USA's own 1 kt has already come off cooldown, USA is not reloading and every
+			-- reading below would be about a state this scenario failed to reach -- which reads
+			-- exactly like a free-shot bug in the build and is not one. Said first, and said in
+			-- terms of the constant to change.
+			if chargingTicks(USA, USA_1KT) == nil then
+				fault("SCENARIO SETUP: USA's %s reads %q at t%d, so USA is NOT reloading and phase"
+					.. " D has nothing to measure. It fired at t%d against a KilotonCooldownTicks"
+					.. " of %d, and the escalation it was waiting for landed %d ticks later --"
+					.. " so the cooldown in rules.yaml is now SHORTER than the flight plus"
+					.. " EscalationDelayTicks and must be raised. This is not a defect in the"
+					.. " build; nothing below is evidence either way",
+					USA_1KT, state(USA, USA_1KT), tick, FIRE_1KT_TICK, CD_1KT,
+					tick - FIRE_1KT_TICK)
+				verdict()
+				return
+			end
+
 			local ok = expectCharging(USA, "USA", USA_50KT,
 				"USA'S BRAND-NEW 50 KT IS FIREABLE INSIDE ITS OWN COOLDOWN. Russia's 20 kt raised"
-				.. " USA to level 3, and USA has been reloading since t" .. USA_REFIRE_TICK .. "."
+				.. " USA to level 3, and USA has been reloading since t" .. FIRE_1KT_TICK .. "."
 				.. " `ready` here is NuclearExchange.MakeBandsReady zeroing the timer on a level"
 				.. " rise instead of setting it to the side's REMAINING cooldown -- a free 50 kt"
 				.. " shot that rule 2 exists to deny, in the most ordinary situation this model"
@@ -692,7 +729,7 @@ WorldLoaded = function()
 				"same defect, one band down -- USA reached level 3, so 2 and 3 are both new") and ok
 
 			-- AND THE NUMBERS MUST MATCH, WHICH IS WHAT MAKES THE TWO READINGS ABOVE EVIDENCE.
-			-- USA_1KT has carried the side cooldown since USA_REFIRE_TICK and was not granted by
+			-- USA_1KT has carried the side cooldown since FIRE_1KT_TICK and was not granted by
 			-- this rise; the two new bands were. If the grant never ran, the new bands are counting
 			-- down their OWN constructed intervals (320 and 340 from rules.yaml) and will not agree
 			-- with it -- which is exactly how this file passed phase D on a broken build before
@@ -705,7 +742,7 @@ WorldLoaded = function()
 				"same comparison, one band down") and ok
 
 			note(ok, "locked-while-escalated ok at t%d (USA reloading since t%d)",
-				tick, USA_REFIRE_TICK)
+				tick, FIRE_1KT_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -715,17 +752,18 @@ WorldLoaded = function()
 		-- one phase D catches -- so the recovery is asserted, not assumed.
 		--
 		-- THIS PHASE USED TO CARRY A SECOND CLAIM AND NO LONGER DOES. It read at a tick where USA's
-		-- 300 had expired and Russia's 320 had not, which separated the two constants by inference
-		-- and needed the two launches to sit inside one cooldown of each other. A deferred
-		-- escalation makes that impossible -- Russia's shot now waits a whole flight for the level
-		-- that permits it -- so the claim moved to expectCooldownAbout, which reads the applied
-		-- entry as a NUMBER at each launch. Phases B2, C3, F2 and G3 carry it now, one per band.
+		-- 1 kt cooldown had expired and Russia's 20 kt one had not, which separated two of the four
+		-- constants by inference and needed the two launches to sit inside one cooldown of each
+		-- other. A deferred escalation makes that unreliable -- Russia's shot waits a whole flight
+		-- for the level that permits it -- so the claim moved to expectCooldownAbout, which reads
+		-- the applied entry as a NUMBER at each launch. Phases B2, C3, F2 and G3 carry it now, one
+		-- per band, and that is why the four values no longer have to be in ascending order.
 		if tick == RECOVER_CHECK_TICK then
 			local ok = expect(USA, "USA", USA_1KT, "ready",
 				string.format("USA's arsenal did not come back %d ticks after it fired, against a"
 					.. " KilotonCooldownTicks of %d in rules.yaml. If this still reads `charging:`"
 					.. " the applied cooldown is longer than the override",
-					tick - USA_REFIRE_TICK, CD_1KT))
+					tick - FIRE_1KT_TICK, CD_1KT))
 			ok = expect(USA, "USA", USA_50KT, "ready",
 				"the band USA gained WHILE reloading must come back with the rest of the arsenal,"
 				.. " on the same clock. A band still charging after the firer recovered means the"
@@ -734,7 +772,7 @@ WorldLoaded = function()
 				"same claim, one band down") and ok
 
 			note(ok, "recovery ok at t%d, %d ticks after USA fired",
-				tick, tick - USA_REFIRE_TICK)
+				tick, tick - FIRE_1KT_TICK)
 			FIRE_50KT_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
@@ -743,9 +781,13 @@ WorldLoaded = function()
 		-- ---- PHASE F. USA climbs to 50 kt. Russia goes to level 4.
 		-- SENTINEL RU_100KT: the top of the newly granted range and the band phase F3 reads.
 		if tick == FIRE_50KT_TICK then
-			-- WAIT FOR THE SKY. USA's phase-D shot is the one warhead that could still be in the
-			-- air here, and this watch's baseline has to be taken with nothing else falling.
-			if skyPending ~= nil then
+			local ready = readyToFire(USA, "USA", USA_50KT)
+			if ready == nil then
+				verdict()
+				return
+			end
+
+			if not ready then
 				FIRE_50KT_TICK = tick + 1
 				Trigger.AfterDelay(1, step)
 				return
@@ -756,7 +798,10 @@ WorldLoaded = function()
 				return
 			end
 
+			-- PHASE G2'S TRAP IS SET HERE, the same way phase D's is set by the 1 kt shot: USA must
+			-- still be reloading from this when Russia's 100 kt takes it to END.
 			USA_CD50_CHECK_TICK = tick + LAUNCH_COOLDOWN_GAP
+			END_READY_TICK = tick + CD_50KT + 40
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -793,6 +838,18 @@ WorldLoaded = function()
 		-- level granting no cameo -- into an anonymous watch timeout; watching the 100 kt lets the
 		-- rise be DETECTED and lets phase G2 fail on the ender by name.
 		if tick == FIRE_100KT_TICK then
+			local ready = readyToFire(Russia, "Russia", RU_100KT)
+			if ready == nil then
+				verdict()
+				return
+			end
+
+			if not ready then
+				FIRE_100KT_TICK = tick + 1
+				Trigger.AfterDelay(1, step)
+				return
+			end
+
 			if not launch(Russia, "Russia", RU_100KT,
 				"Rung 4 of 4: the 100 kt shot whose reply is a game-ender.",
 				USA, "USA", USA_100KT) then
@@ -823,16 +880,30 @@ WorldLoaded = function()
 		-- prerequisite that no faction provides, and a fix that reached for MakeReady there without
 		-- re-applying the cooldown would open the game-ender early. One tick of that is the match.
 		--
-		-- USA fired its 50 kt on the tick Russia's 100 kt detonated (refireOnImpact), so it is
-		-- about fifty ticks into a 340-tick lockout when the escalation lands.
+		-- USA has been reloading since its own 50 kt at FIRE_50KT_TICK, which is what
+		-- FiftyKilotonCooldownTicks is sized to outlast; see rules.yaml.
 		if tick == END_LOCKED_TICK then
+			-- ==== THE SETUP, CHECKED BEFORE THE SUBJECT ==== Phase D's guard, at the top rung.
+			if chargingTicks(USA, USA_50KT) == nil then
+				fault("SCENARIO SETUP: USA's %s reads %q at t%d, so USA is NOT reloading and phase"
+					.. " G2 has nothing to measure. It fired at t%d against a"
+					.. " FiftyKilotonCooldownTicks of %d, and the escalation it was waiting for"
+					.. " landed %d ticks later -- so the cooldown in rules.yaml is now SHORTER than"
+					.. " the flight plus EscalationDelayTicks and must be raised. This is not a"
+					.. " defect in the build",
+					USA_50KT, state(USA, USA_50KT), tick, FIRE_50KT_TICK, CD_50KT,
+					tick - FIRE_50KT_TICK)
+				verdict()
+				return
+			end
+
 			-- THE SAME PAIR OF READINGS AS PHASE D, for the same reason: `charging:` alone cannot
 			-- tell a correctly-applied side cooldown from a band that was never granted. USA_50KT
-			-- has carried the cooldown since USA_REFIRE2_TICK, so the ender is compared against the
+			-- has carried the cooldown since FIRE_50KT_TICK, so the ender is compared against the
 			-- carrier rather than against a tick count.
 			local ok = expectCharging(USA, "USA", USA_ENDER,
 				"USA'S GAME-ENDER IS FIREABLE INSIDE ITS OWN COOLDOWN. USA reached level 5 on this"
-				.. " tick and has been reloading since t" .. USA_REFIRE2_TICK .. "."
+				.. " tick and has been reloading since t" .. FIRE_50KT_TICK .. "."
 				.. " `ready` means the top-rung arming path (NuclearExchange.ArmableAtTopRung ->"
 				.. " MakeReady) skipped the cooldown that every other band honours -- and at this"
 				.. " rung that is one click from ending the match. `hidden` is the OTHER bug, the"
@@ -858,7 +929,7 @@ WorldLoaded = function()
 				.. " as the ordinary one does -- at this rung, being a few hundred ticks early is"
 				.. " the match") and ok
 
-			note(ok, "END-locked ok at t%d (USA reloading since t%d)", tick, USA_REFIRE2_TICK)
+			note(ok, "END-locked ok at t%d (USA reloading since t%d)", tick, FIRE_50KT_TICK)
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -870,7 +941,7 @@ WorldLoaded = function()
 					.. " against a FiftyKilotonCooldownTicks of %d. If this still reads `charging:`"
 					.. " the END band is on a longer clock than the rest of the side's arsenal --"
 					.. " the cooldown is the SIDE's and every band shares it",
-					tick - USA_REFIRE2_TICK, CD_50KT))
+					tick - FIRE_50KT_TICK, CD_50KT))
 
 			note(ok, "END-ready ok at t%d", tick)
 			FIRE_ENDER_TICK = tick + 10
