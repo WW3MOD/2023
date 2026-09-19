@@ -1,0 +1,1 @@
+CONTROL ARM (declared fail): the same two tanks, the same ten cells, the same FireAtWill -- in an ordinary Skirmish, where nothing is holding fire. They engage each other within a couple of autotarget scan intervals and the hold-window assertion fails. A PASS here is RED: it would mean the treatment's green was never evidence of anything.

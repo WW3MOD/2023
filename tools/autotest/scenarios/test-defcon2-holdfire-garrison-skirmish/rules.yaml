@@ -1,0 +1,58 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, defcon2-holdfire-garrison-lib.lua
+
+	# ===== THE ONE QUANTITY THAT SEPARATES THIS DIRECTORY FROM ITS -skirmish TWIN =====
+	# ModeDefault: Skirmish here, Escalation in the treatment. Nothing else in either directory
+	# differs except the map Title and the prose. `diff -r` the two before believing any result that
+	# rests on the comparison.
+	DefconEscalation:
+		ModeDefault: Skirmish
+		StartAtDefault: 2
+
+E1:
+	# Held silent for the walk in. They are Russia-owned and the probe is on HoldFire, so this is
+	# belt-and-braces -- but a rifleman who stops to fight is a rifleman who never reaches the
+	# shelter, and the garrison is the subject. It does NOT gate deployment: GarrisonManager reads
+	# the BUILDING's stance, never the soldiers' (GarrisonManager.cs:796, :865, :1316), and
+	# AttackGarrisoned fires the deployed soldier's armaments directly without consulting his
+	# AutoTarget at all (AttackGarrisoned.cs:292). Both fields because AutoTarget.cs:497 picks
+	# InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+humvee:
+	# THE BAIT, and it must never be the thing that fires. HoldFire on both fields; USA IS Playable
+	# so InitialStance is the one that takes effect.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	# IT MUST ALSO SURVIVE PHASE 2. A stock humvee is 4000 HP against 5.56mm.E3's 200 per round from
+	# four men, and a kill at DEFCON 2 is a QUALIFYING CASUALTY that drops the level to 1 and
+	# un-holds every gun on the map mid-measurement. Fifty times the HP puts that far outside the
+	# run. One trait field, deliberately: weakening the weapon instead is the override trap
+	# conventions.md names -- warhead overrides are constructed fresh rather than merged per field,
+	# so restating Damage silently resets Penetration to the engine default of 1.
+	Health:
+		HP: 200000
+
+# NOTHING IS ADDED TO V01. ^CivBuilding ships no AutoTarget, so GarrisonManager's
+# `autoTarget?.Stance ?? UnitStance.FireAtWill` leaves the building on FireAtWill in BOTH arms. The
+# sibling scenario test-human-autoacquires-garrisoned-house adds an AutoTarget at HoldFire here
+# precisely to stop ports deploying; this scenario needs them to deploy in the control arm, so the
+# trait must stay absent. If a future edit adds one, the -skirmish arm stops failing and the pair
+# stops discriminating.

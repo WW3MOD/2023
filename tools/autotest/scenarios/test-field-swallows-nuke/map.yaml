@@ -1,0 +1,460 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a nuclear scar must cross a crop field (auto, screenshot)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS STAGES, and why it did not exist until now. Sixteen scenarios carry crop fields and about
+# nine detonate a nuke, and the two sets are DISJOINT -- so SmudgeLayer.GroundCoverOverlay, the
+# feature whose entire purpose is to redraw a terrain scar ON TOP of a crop field after the actor
+# pass, has never had a nuclear blast drawn over a field in any committed scenario.
+#
+# THE FEATURE. Smudges are a terrain-pass decal and actors are drawn in a later pass, so a scar on a
+# cell holding a crop field is placed, is present, and is completely hidden by the field sprite on
+# top of it -- farmland reading as immune to a nuclear blast. GroundCoverOverlay draws the same
+# sprite at the same alpha a SECOND time, from IRenderAboveWorld, for those cells only
+# (SmudgeLayer.cs:76-87, :285-320). All five Scar* layers opt in (world.yaml:505-540).
+# The restriction is exact: a cell qualifies only when it holds at least one actor and EVERY actor
+# in it is ground cover, so a scar can never appear on top of a tank, a soldier or a building; and an
+# EMPTY cell is excluded, because the terrain pass already drew it and drawing it twice would
+# composite the sprite onto itself and make bare ground darker than farmland.
+#
+# GEOMETRY -- and it is NOT the geometry the original brief specified, for a reason worth keeping.
+# The brief said to graft the patch at x28-38 / y21-31 with ground zero at 33,26, "which fits the
+# bounds". It does not: Atomic's outermost band is ScarRim at radius 12, so a burst at y=26 runs to
+# y=38 against a map that ends at y=32 and the disc is clipped along the south edge. The patch is
+# therefore lifted ten cells north and the burst with it. Nothing else about the arrangement changes.
+#
+#   Field patch   x28..38, y11..21   121 v14 actors, Neutral, one per cell (^CivField is tiled)
+#   Probe         33,16              bradley at the centre of the patch; rules.yaml gives it an
+#                                    Explodes: Atomic gated on an ExternalCondition, so the
+#                                    detonation lands on a tick this scenario chooses rather than on
+#                                    one a ballistic flight happens to produce
+#   WitnessField  36,14              humvee standing ON a field cell, bucket 4 -> ScarCrater band.
+#                                    The cell WOULD have taken the overlay; the vehicle is what must
+#                                    stop it. This is the "never over a unit" half of the criteria.
+#   WitnessBare   42,16              humvee on BARE ground, bucket 9 -> ScarBurn band, just east of
+#                                    the patch. The comparison reference.
+#
+# THE BANDS, and why the disc is continuous. Map.FindTilesInAnnulus buckets an offset by
+# ceil(sqrt(dx^2+dy^2)) (MapGrid.CreateTilesByDistance), so every offset lands in exactly one bucket
+# and Atomic's five LeaveSmudge warheads -- 0..2 core, 3..4 crater, 5..7 char, 8..10 burn, 11..12
+# rim -- tile the whole disc with no gaps. The patch's farthest cell is a corner at sqrt(50) = 7.07,
+# bucket 8, so the WHOLE patch is inside the burn band or tighter and every band that touches it
+# carries Chance 100. ScarRim is the only one with Chance: 60 and it lands at radius 11-12, entirely
+# OFF the patch -- if the outermost ring is missing from a capture that is the 40%, not a defect.
+#
+# THE SEAM TO LOOK AT is y=16, where x38 is the last field cell (bucket 5) and x39 and x40 are bare
+# ground (buckets 6 and 7). All three are in the SAME ScarChar band, so they must read as the same
+# darkness. The full criteria are in README.md and are the manager's to judge; the scenario's own
+# verdict is only that it ran to the captures with its witnesses alive.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+
+Actors:
+	Probe: bradley
+		Owner: USA
+		Location: 33,16
+		Facing: 768
+	WitnessField: humvee
+		Owner: USA
+		Location: 36,14
+		Facing: 768
+	WitnessBare: humvee
+		Owner: USA
+		Location: 42,16
+		Facing: 256
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,29
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 33,16
+	Field000: v14
+		Owner: Neutral
+		Location: 28,11
+	Field001: v14
+		Owner: Neutral
+		Location: 29,11
+	Field002: v14
+		Owner: Neutral
+		Location: 30,11
+	Field003: v14
+		Owner: Neutral
+		Location: 31,11
+	Field004: v14
+		Owner: Neutral
+		Location: 32,11
+	Field005: v14
+		Owner: Neutral
+		Location: 33,11
+	Field006: v14
+		Owner: Neutral
+		Location: 34,11
+	Field007: v14
+		Owner: Neutral
+		Location: 35,11
+	Field008: v14
+		Owner: Neutral
+		Location: 36,11
+	Field009: v14
+		Owner: Neutral
+		Location: 37,11
+	Field010: v14
+		Owner: Neutral
+		Location: 38,11
+	Field011: v14
+		Owner: Neutral
+		Location: 28,12
+	Field012: v14
+		Owner: Neutral
+		Location: 29,12
+	Field013: v14
+		Owner: Neutral
+		Location: 30,12
+	Field014: v14
+		Owner: Neutral
+		Location: 31,12
+	Field015: v14
+		Owner: Neutral
+		Location: 32,12
+	Field016: v14
+		Owner: Neutral
+		Location: 33,12
+	Field017: v14
+		Owner: Neutral
+		Location: 34,12
+	Field018: v14
+		Owner: Neutral
+		Location: 35,12
+	Field019: v14
+		Owner: Neutral
+		Location: 36,12
+	Field020: v14
+		Owner: Neutral
+		Location: 37,12
+	Field021: v14
+		Owner: Neutral
+		Location: 38,12
+	Field022: v14
+		Owner: Neutral
+		Location: 28,13
+	Field023: v14
+		Owner: Neutral
+		Location: 29,13
+	Field024: v14
+		Owner: Neutral
+		Location: 30,13
+	Field025: v14
+		Owner: Neutral
+		Location: 31,13
+	Field026: v14
+		Owner: Neutral
+		Location: 32,13
+	Field027: v14
+		Owner: Neutral
+		Location: 33,13
+	Field028: v14
+		Owner: Neutral
+		Location: 34,13
+	Field029: v14
+		Owner: Neutral
+		Location: 35,13
+	Field030: v14
+		Owner: Neutral
+		Location: 36,13
+	Field031: v14
+		Owner: Neutral
+		Location: 37,13
+	Field032: v14
+		Owner: Neutral
+		Location: 38,13
+	Field033: v14
+		Owner: Neutral
+		Location: 28,14
+	Field034: v14
+		Owner: Neutral
+		Location: 29,14
+	Field035: v14
+		Owner: Neutral
+		Location: 30,14
+	Field036: v14
+		Owner: Neutral
+		Location: 31,14
+	Field037: v14
+		Owner: Neutral
+		Location: 32,14
+	Field038: v14
+		Owner: Neutral
+		Location: 33,14
+	Field039: v14
+		Owner: Neutral
+		Location: 34,14
+	Field040: v14
+		Owner: Neutral
+		Location: 35,14
+	Field041: v14
+		Owner: Neutral
+		Location: 36,14
+	Field042: v14
+		Owner: Neutral
+		Location: 37,14
+	Field043: v14
+		Owner: Neutral
+		Location: 38,14
+	Field044: v14
+		Owner: Neutral
+		Location: 28,15
+	Field045: v14
+		Owner: Neutral
+		Location: 29,15
+	Field046: v14
+		Owner: Neutral
+		Location: 30,15
+	Field047: v14
+		Owner: Neutral
+		Location: 31,15
+	Field048: v14
+		Owner: Neutral
+		Location: 32,15
+	Field049: v14
+		Owner: Neutral
+		Location: 33,15
+	Field050: v14
+		Owner: Neutral
+		Location: 34,15
+	Field051: v14
+		Owner: Neutral
+		Location: 35,15
+	Field052: v14
+		Owner: Neutral
+		Location: 36,15
+	Field053: v14
+		Owner: Neutral
+		Location: 37,15
+	Field054: v14
+		Owner: Neutral
+		Location: 38,15
+	Field055: v14
+		Owner: Neutral
+		Location: 28,16
+	Field056: v14
+		Owner: Neutral
+		Location: 29,16
+	Field057: v14
+		Owner: Neutral
+		Location: 30,16
+	Field058: v14
+		Owner: Neutral
+		Location: 31,16
+	Field059: v14
+		Owner: Neutral
+		Location: 32,16
+	Field060: v14
+		Owner: Neutral
+		Location: 33,16
+	Field061: v14
+		Owner: Neutral
+		Location: 34,16
+	Field062: v14
+		Owner: Neutral
+		Location: 35,16
+	Field063: v14
+		Owner: Neutral
+		Location: 36,16
+	Field064: v14
+		Owner: Neutral
+		Location: 37,16
+	Field065: v14
+		Owner: Neutral
+		Location: 38,16
+	Field066: v14
+		Owner: Neutral
+		Location: 28,17
+	Field067: v14
+		Owner: Neutral
+		Location: 29,17
+	Field068: v14
+		Owner: Neutral
+		Location: 30,17
+	Field069: v14
+		Owner: Neutral
+		Location: 31,17
+	Field070: v14
+		Owner: Neutral
+		Location: 32,17
+	Field071: v14
+		Owner: Neutral
+		Location: 33,17
+	Field072: v14
+		Owner: Neutral
+		Location: 34,17
+	Field073: v14
+		Owner: Neutral
+		Location: 35,17
+	Field074: v14
+		Owner: Neutral
+		Location: 36,17
+	Field075: v14
+		Owner: Neutral
+		Location: 37,17
+	Field076: v14
+		Owner: Neutral
+		Location: 38,17
+	Field077: v14
+		Owner: Neutral
+		Location: 28,18
+	Field078: v14
+		Owner: Neutral
+		Location: 29,18
+	Field079: v14
+		Owner: Neutral
+		Location: 30,18
+	Field080: v14
+		Owner: Neutral
+		Location: 31,18
+	Field081: v14
+		Owner: Neutral
+		Location: 32,18
+	Field082: v14
+		Owner: Neutral
+		Location: 33,18
+	Field083: v14
+		Owner: Neutral
+		Location: 34,18
+	Field084: v14
+		Owner: Neutral
+		Location: 35,18
+	Field085: v14
+		Owner: Neutral
+		Location: 36,18
+	Field086: v14
+		Owner: Neutral
+		Location: 37,18
+	Field087: v14
+		Owner: Neutral
+		Location: 38,18
+	Field088: v14
+		Owner: Neutral
+		Location: 28,19
+	Field089: v14
+		Owner: Neutral
+		Location: 29,19
+	Field090: v14
+		Owner: Neutral
+		Location: 30,19
+	Field091: v14
+		Owner: Neutral
+		Location: 31,19
+	Field092: v14
+		Owner: Neutral
+		Location: 32,19
+	Field093: v14
+		Owner: Neutral
+		Location: 33,19
+	Field094: v14
+		Owner: Neutral
+		Location: 34,19
+	Field095: v14
+		Owner: Neutral
+		Location: 35,19
+	Field096: v14
+		Owner: Neutral
+		Location: 36,19
+	Field097: v14
+		Owner: Neutral
+		Location: 37,19
+	Field098: v14
+		Owner: Neutral
+		Location: 38,19
+	Field099: v14
+		Owner: Neutral
+		Location: 28,20
+	Field100: v14
+		Owner: Neutral
+		Location: 29,20
+	Field101: v14
+		Owner: Neutral
+		Location: 30,20
+	Field102: v14
+		Owner: Neutral
+		Location: 31,20
+	Field103: v14
+		Owner: Neutral
+		Location: 32,20
+	Field104: v14
+		Owner: Neutral
+		Location: 33,20
+	Field105: v14
+		Owner: Neutral
+		Location: 34,20
+	Field106: v14
+		Owner: Neutral
+		Location: 35,20
+	Field107: v14
+		Owner: Neutral
+		Location: 36,20
+	Field108: v14
+		Owner: Neutral
+		Location: 37,20
+	Field109: v14
+		Owner: Neutral
+		Location: 38,20
+	Field110: v14
+		Owner: Neutral
+		Location: 28,21
+	Field111: v14
+		Owner: Neutral
+		Location: 29,21
+	Field112: v14
+		Owner: Neutral
+		Location: 30,21
+	Field113: v14
+		Owner: Neutral
+		Location: 31,21
+	Field114: v14
+		Owner: Neutral
+		Location: 32,21
+	Field115: v14
+		Owner: Neutral
+		Location: 33,21
+	Field116: v14
+		Owner: Neutral
+		Location: 34,21
+	Field117: v14
+		Owner: Neutral
+		Location: 35,21
+	Field118: v14
+		Owner: Neutral
+		Location: 36,21
+	Field119: v14
+		Owner: Neutral
+		Location: 37,21
+	Field120: v14
+		Owner: Neutral
+		Location: 38,21
+
+Rules: rules.yaml

@@ -1,0 +1,64 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# Nothing may be produced. The measurement names two actors and only two, and production is the
+	# documented way a named-actor predicate stops being about the named actors (AUTOTEST.md, "The
+	# named actors were not the ones the system chose to use").
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the abrams' stance is the one stated below on every
+	# machine -- the whole subject here is what a unit on FireAtWill does NOT do.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, defcon2-holdfire-contact-lib.lua
+
+	# ===== THE ONE QUANTITY THAT SEPARATES THIS DIRECTORY FROM ITS -skirmish TWIN =====
+	# ModeDefault: Skirmish here, Escalation in the treatment. Nothing else in either directory differs
+	# except the map Title and the prose. `diff -r` the two before believing any result that rests on
+	# the comparison (the practice test-drone-lost-track/CONTROL-ARM.md states).
+	#
+	# StartAtDefault rather than the lobby dropdown, for the reason test-defcon-wall and
+	# test-bot-defcon2-breaks-peace both state: the option is registered with its C# default whatever
+	# a rules.yaml says, so the Info field is the only way in.
+	#
+	# OPENING AT 2 MEANS THERE IS NO CLOCK TO WAIT OUT AND NONE TO SURVIVE. DefconEscalationState.
+	# ClockFor returns 0 for every level but the ceiling, so 2 is terminal until a qualifying casualty
+	# moves it to 1 -- which is why every actor this scenario shoots at has its HP raised below.
+	DefconEscalation:
+		ModeDefault: Skirmish
+		StartAtDefault: 2
+
+abrams:
+	# Both fields because AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+	# InitialStance`. USA IS Playable, so InitialStance is the one that fires here; stating both means
+	# re-pointing either actor at a bot or non-playable slot cannot silently fall back to the default.
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+
+t90:
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+	# THE TARGET MUST SURVIVE THE ORDERED SHOT, and this is the cheapest way to guarantee it.
+	# TankRound.Abrams lands 20000 (TargetDamage) + 3000 (SpreadDamage) against a stock t90's 24000 HP
+	# -- one hit leaves it on 1000 and the second kills it. A kill at DEFCON 2 is a QUALIFYING CASUALTY
+	# (DefconCasualtyObserver -> DefconEscalationState.ReportCasualty), the level drops to 1, and
+	# autonomous fire becomes legal again in the middle of the return-fire window this scenario is
+	# measuring. Ten times the HP puts the second, third and fourth hits comfortably inside the phase.
+	#
+	# A SINGLE TRAIT FIELD, DELIBERATELY. The alternative -- weakening TankRound.Abrams -- is the
+	# override trap conventions.md names: warhead overrides are CONSTRUCTED FRESH rather than merged
+	# per field, so restating Damage silently resets Penetration to the engine default of 1 and the
+	# run reports a confident, wrong number. Health: HP: is an ordinary per-field trait merge.
+	Health:
+		HP: 240000
