@@ -17,14 +17,6 @@ World:
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true
 
-	# Explored + no fog. Not cosmetic here: shroud and fog are themselves per-cell work that would
-	# land inside the same tick window as the detonation and be attributed to it. Pre-explored, the
-	# MapLayers cost is paid once at load and the detonation window measures the detonation.
-	MapLayers:
-		ExploredMapCheckboxEnabled: true
-		ExploredMapCheckboxLocked: true
-		FogCheckboxEnabled: false
-		FogCheckboxLocked: true
 
 	-StartGameNotification:
 	-SpawnStartingUnits:
@@ -57,6 +49,25 @@ Player:
 	MissileStrikePower@Sarmat:
 		MissileDelay: 60
 		AimPointFallbackSpread: 40c0
+
+	# Explored + no fog. Not cosmetic here: shroud and fog are themselves per-cell work that would
+	# land inside the same tick window as the detonation and be attributed to it. Pre-explored, the
+	# MapLayers cost is paid once at load and the detonation window measures the detonation.
+	#
+	# IT IS A PLAYER TRAIT AND IT MUST BE IN THIS NODE. MapLayers is
+	# [TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)] (MapLayers.cs:18) and the mod
+	# declares it on Player (player.yaml:3). This block sat under `World:` until 2026-09-20 and the
+	# consequence was not "the override is ignored" -- MiniYaml added a SECOND MapLayers, to the
+	# World actor, and MapLayers implements ILobbyOptions, so the session then offered the option id
+	# `explored` twice (MapLayers.cs:63). LobbySettingsNotification.ClientJoined builds a dictionary
+	# keyed on that id, threw ArgumentException, and the server DROPPED THE JOINING CLIENT -- which
+	# presents as the game sitting on the main menu until the watchdog kills it, with no lua.log and
+	# a twelve-line debug.log. See WORKSPACE/DISCOVERIES.md, 2026-09-20.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
 
 	# 448 Russian actors die here. Without this the match ends on elimination partway through the
 	# window and the world stops ticking while the effects that cost the most are still running.
