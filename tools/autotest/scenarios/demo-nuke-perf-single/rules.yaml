@@ -1,0 +1,82 @@
+# Nuke PERF RIG overrides -- SINGLE-WARHEAD ARM. Nothing here is asserted. See demo-nuke-perf-single.lua for the schedule and
+# tools/nuke-perf/README.md for how to run it and what the numbers mean.
+#
+# THE RULE THIS FILE LIVES BY: override TIMING and GEOMETRY, never COST. Every value below moves
+# when a shot is fired or where it lands. NOT ONE of them touches a warhead, a light curve, a
+# radius, a damage interval or an actor -- because those are the quantities being measured, and a
+# rig that tunes them measures itself. If you need to change one to make a run finish, the run is
+# telling you something; record it rather than tuning it away.
+
+World:
+	# THE SANDBOX SWITCH, AND WITHOUT IT THIS RIG FIRES NOTHING. The Sarmat is EVENT TIER --
+	# `Prerequisites: powers.event` (player.yaml) -- and powers.event is provided by no faction, only
+	# by the unfiltered ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`. Omit this
+	# block and TestHarness.EnsurePower returns 'refused' forever, the salvo never leaves, and the
+	# run produces a perfectly clean flat perf log of a nuke that did not happen.
+	PowersLobbyOptions:
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+
+	# Explored + no fog. Not cosmetic here: shroud and fog are themselves per-cell work that would
+	# land inside the same tick window as the detonation and be attributed to it. Pre-explored, the
+	# MapLayers cost is paid once at load and the detonation window measures the detonation.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so Player.HomeLocation comes from the pinned PlayerReference value rather than from a
+	# spawn assignment -- the missile entry point is derived from home, so an unpinned home makes the
+	# flight time vary between runs and the impact tick stop being a constant.
+	-MapStartingLocations:
+	-CrateSpawner:
+
+	# DECLARED, and that declaration is the whole of whether the script runs at all. A rules.yaml the
+	# map never references is silently ignored (Map.cs:102-107) and a LuaScript with no Scripts is
+	# skipped by the one engine lint that would catch it (Lint/CheckLuaScript.cs:21-23) -- the
+	# scenario then loads, draws, writes a zero-byte lua.log and does nothing.
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-perf-single.lua
+
+Player:
+	# TIMING ONLY. Shipped is 500 ticks (30 s) of beacon over an empty sky before the missile is even
+	# spawned -- SpawnActorEffect holds the actor out of the world and renders nothing while it waits
+	# (SpawnActorEffect.cs:44-49). 60 ticks costs the rig nothing it measures and saves 26 seconds of
+	# wall clock on every run.
+	#
+	# AimPointFallbackSpread is GEOMETRY. A Lua order is a SINGLE-TARGET order, and a single-target
+	# order on a power whose AimPoints is above one lays warhead 1 on the clicked cell and the other
+	# five on a ring of this radius at even angles (MissileStrikePower.cs:79-87). Shipped is 24c0,
+	# chosen for a bot. 40c0 here puts the six fireballs across the whole playfield instead of
+	# stacked over the middle of it, which is the loaded case: six FireballLight sources each
+	# notifying every in-bounds cell, six blast discs, six thermal discs, all live at once.
+	# MaxAimPointSpread is zero (unbounded) on the shipped Sarmat, so it does not cap this.
+	#
+	# AimPoints: 1 IS THE WHOLE OF THIS ARM. One missile, one NukeSarmatRV, one of everything --
+	# so a salvo number can be divided by it and the question "does six cost six times one?"
+	# has an answer. At 1 the fallback spread is never read at all (MissileStrikePower.cs:85-86)
+	# and SelectTarget takes the ordinary single-target path (:245-249), which is the same path
+	# the six-RV arm's Lua order takes -- so the two arms differ in warhead COUNT and in nothing
+	# else about how the order is issued.
+	MissileStrikePower@Sarmat:
+		MissileDelay: 60
+		AimPoints: 1
+
+	# 448 Russian actors die here. Without this the match ends on elimination partway through the
+	# window and the world stops ticking while the effects that cost the most are still running.
+	-ConquestVictoryConditions:
+
+	# Enough to buy power.sarmat (32000) several times over. DefaultCash 0 means no purchase, which
+	# under RequiresPurchase means no shot -- silently.
+	PlayerResources:
+		DefaultCash: 250000
+
+# BuildDuration 5 instead of the shipped load time. This is a PRICE, and the price is not what is
+# being measured; a shipped load would add minutes of empty ticks to every run. The order tick in
+# demo-nuke-perf-single.lua is pinned independently of this, so shortening it moves nothing else.
+power.sarmat:
+	Buildable:
+		BuildDuration: 5

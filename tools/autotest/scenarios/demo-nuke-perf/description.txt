@@ -1,0 +1,18 @@
+NUKE PERF RIG -- one full six-RV RS-28 Sarmat salvo, fired at a pinned tick onto a 128x128 map
+carrying 665 actors.
+
+This scenario exists to be MEASURED, not watched. It is instrumentation: it fires one nuclear
+order at tick 60, the six re-entry vehicles land between ticks 246 and 306, and the run then
+carries on to tick 1000 doing nothing else at all -- so every millisecond after tick 246 is a
+millisecond the engine spent on the detonation.
+
+HOW TO RUN IT AND WHAT THE NUMBERS MEAN: tools/nuke-perf/README.md. Do not run this scenario
+without reading that file; the useful output is not the verdict, it is two log files that are
+only written when the right launch arguments are set and only survive a clean exit.
+
+It ends on Test.Skip rather than on no verdict at all -- against DEMO.md's rule and for a
+mechanical reason: the benchmark CSVs are written from World.Dispose (World.cs:726), so a run the
+watchdog kills produces nothing. SKIP is not a claim that anything passed.
+
+Sibling arm: demo-nuke-perf-single, identical in every respect except that it fires ONE warhead
+instead of six. Run both; the pair is what answers "does six cost six times one, or worse?"

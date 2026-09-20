@@ -1,0 +1,13 @@
+NUKE PERF RIG -- the SINGLE-WARHEAD arm. One RS-28 Sarmat missile carrying one NukeSarmatRV, fired
+at a pinned tick onto a 128x128 map carrying 665 actors.
+
+Identical to demo-nuke-perf in terrain, actors, players, order tick and run length. The ONLY
+difference is AimPoints: 1 in rules.yaml, so one warhead lands at tick 246 instead of six landing
+between 246 and 306.
+
+It exists so a salvo measurement has a denominator. Several of the costs under investigation are
+per-warhead and should scale x6; at least one (the terrain relight, which notifies every in-bounds
+cell for every light because a 79-cell light radius exceeds every shipped map) should scale x6 as
+well but from a much larger base. Running only the salvo cannot tell those apart.
+
+HOW TO RUN IT AND WHAT THE NUMBERS MEAN: tools/nuke-perf/README.md.
