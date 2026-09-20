@@ -545,3 +545,21 @@ export ENGINE_DIR=".." MOD_SEARCH_PATHS="<repo>/mods,<repo>/engine/mods"
 ./bin/OpenRA.Utility.exe ww3mod --check-missing-sprites
 ./bin/OpenRA.Utility.exe ww3mod --list-mix "<mix>" "engine/global mix database.dat"
 ```
+
+## Added 2026-09-20 — the Trident II D5 cameo
+
+`MissileStrikePower@TridentW88` and `power.trident` (America's national game-ender, added with the
+final-exchange redesign) both draw **`cmissicon`**, which is the cruise-missile cameo the 100 kt
+Kalibr already uses. Two entries therefore share one icon in the support bin and the Powers buy
+tab, and neither reads as a submarine-launched ICBM.
+
+**Wanted:** one 62x48 cameo for the Trident II D5, in the arsenal's existing style. The caption
+(`455 KT`) and the nuclear badge are already wired and need no art.
+
+**Deliberately NOT placeholder-generated.** A generated glyph would look finished and would stop
+anybody noticing; a shared icon looks exactly as unfinished as it is. Same reasoning the rest of
+this document applies to the audio list.
+
+`TridentMissile` also reuses `sarmatmissile`'s sprite (the `iskander-missile` sequence at Scale 1.3)
+and would take a body of its own in the same pass — lower priority, since the two really are the
+same class of delivery body and the reuse is defensible rather than merely expedient.

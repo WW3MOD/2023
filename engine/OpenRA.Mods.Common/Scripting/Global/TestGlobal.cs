@@ -2101,9 +2101,81 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (strike == null)
 				return "absent";
 
+			// APPEND-ONLY. Three scenarios match `phase=`, `placements=` and `closes=` out of this
+			// string with Lua patterns; a field inserted between them would be invisible to those
+			// patterns, but a field RENAMED or REORDERED could silently break one. New readings go
+			// on the end.
 			return $"phase={strike.FinalExchangePhaseValue}|open={(strike.FinalExchangeOpen ? "true" : "false")}|" +
 				$"placements={strike.FinalExchangePlacements}|salvo={(strike.SalvoInProgress ? "true" : "false")}|" +
-				$"closes={strike.FinalExchangeClosesTick}";
+				$"closes={strike.FinalExchangeClosesTick}|package={strike.PackageSize}|" +
+				$"warheads={strike.FinalExchangeWarheads}|anchor={strike.FinalExchangeAnchorTick}|" +
+				$"last={strike.FinalExchangeLastImpactTick}|spacing={strike.ImpactSpacingTicks}";
+		}
+
+		[Desc("The SIDES in this match, comma-joined in seat order -- " + nameof(CombatantSides) +
+			".CountsAsASide's answer -- or \"absent\" outside test mode.",
+			"",
+			"EXISTS BECAUSE A SCENARIO CANNOT OTHERWISE SEE THAT ONE OF ITS SIDES IS NOT IN THE " +
+			"MATCH, and there are two different ways for that to be true. A map authoring TWO " +
+			"`Playable: True` seats gets one Player and one empty slot, because run-test.sh seats a " +
+			"single client -- so Player.GetPlayer(\"<the other>\") returns nil. A map authoring the " +
+			"second side as a bare map combatant DOES get a Player, but any trait filtering on " +
+			"`Player.Playable` cannot see it. The first fails as a nil dereference; the second fails " +
+			"hundreds of ticks later as whatever that trait does with one side instead of two, which " +
+			"on 2026-09-20 was a final exchange that armed nobody and said nothing.",
+			"",
+			"ASSERT ON THIS IN WorldLoaded, AND print it BEFORE the guard: a Test.Fail on the first " +
+			"line of a scenario produces an empty lua.log, which is also the documented tell for " +
+			"\"the game never launched\".",
+			"",
+			"Read-only and test mode only.")]
+		public string MatchSides()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			var w = Context.World;
+			if (w == null)
+				return "absent";
+
+			// Fully qualified: this method's own name would otherwise shadow the type.
+			return string.Join(",", w.Players
+				.Where(OpenRA.Mods.Common.Traits.CombatantSides.CountsAsASide)
+				.Select(p => p.InternalName));
+		}
+
+		[Desc("What ONE side's strike package actually did in the final exchange, as " +
+			"`impacts=<t;t;…>|auto=<x,y;x,y;…>`, or \"absent\" on a world with no " +
+			nameof(DoomsdayStrike) + ".",
+			"",
+			"`impacts` is the tick each of this side's warheads is scheduled to DETONATE on, in " +
+			"launch order — the cascade slots it was given, not its own flight. `auto` is the cells " +
+			"the machine aimed its package at and is EMPTY for a side that placed its own, which is " +
+			"how a scenario tells the two halves of the partition apart.",
+			"",
+			"THIS EXISTS BECAUSE NEITHER READING IS OBSERVABLE ANY OTHER WAY, and that is structural " +
+			"rather than a convenience. A missile spends its whole MissileDelay held OUT of the world " +
+			"by SpawnActorEffect (SpawnActorEffect.cs:44-49), so `Map.ActorsInWorld` cannot " +
+			"distinguish eight warheads in the air from nothing having been fired; and an aim point " +
+			"is consumed by BallisticMissileFly and stored nowhere a script can reach. A scenario " +
+			"asserting on the exchange must read the exchange itself, which is this — the same " +
+			"argument " + nameof(DoomsdayStrike) + "'s own state reading makes.",
+			"",
+			"Read-only and test mode only.")]
+		public string FinalExchangePackage(Player player)
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			// TraitOrDefault for the reason DefconLevel above records: DoomsdayStrike is declared
+			// exactly once across the mod, unsuffixed (world.yaml).
+			var strike = Context.World?.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (strike == null || player == null)
+				return "absent";
+
+			var impacts = string.Join(";", strike.ExchangeImpactTicksFor(player));
+			var auto = string.Join(";", strike.AutoFiredAimPointsFor(player).Select(c => $"{c.X},{c.Y}"));
+			return $"impacts={impacts}|auto={auto}";
 		}
 
 		[Desc("Whether the DEFCON 3 dividing wall is STANDING right now. False in Skirmish, false " +

@@ -220,7 +220,7 @@ Player:
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 7
 
-	# ---- RS-28 Sarmat: 6 x 750 kt MIRV --------------------------------------------------------
+	# ---- RS-28 Sarmat: 750 kt per re-entry vehicle ---------------------------------------------
 	# PLAYER-AIMED SINCE 2026-09-07, and this is the entry that changed shape. It used to be one
 	# click: one missile carrying NukeSarmatMIRV, whose FireCluster warheads scattered six RVs at
 	# random inside a 21-cell footprint. The user fired it and reported "the MIRV lands all nukes
@@ -246,10 +246,15 @@ Player:
 		NuclearYieldTons: 750000
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
-		CameoCaption: 6x750 KT
+		# 750 KT, NOT 6x750, SINCE 2026-09-20. The count is no longer a property of the weapon: it
+		# is DoomsdayStrike.PackageSize, derived from the map, and it is 2 on arena-tank-duel and 6
+		# on x-lake. A caption naming one number would be wrong on seven of the ten shipped maps.
+		# The per-RV yield is what every other arsenal caption states anyway.
+		# CameoCaptionsTest.CaptionNeverReachesUnderTheBadge carries the shipped list; keep it in step.
+		CameoCaption: 750 KT
 		CameoBadge: nuclear
-		Name: RS-28 Sarmat MIRV (6 x 750 kt)
-		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nClick SIX aim points; one 750 kt warhead goes to each.\nRight-click or Escape while placing cancels without firing.
+		Name: RS-28 Sarmat MIRV (750 kt per RV)
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nOne click per warhead; the count is set by the size of the map.\nRight-click or Escape while placing cancels without firing.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -263,8 +268,12 @@ Player:
 		# 13c0 = 2090 m. Every NukeSarmatRV and NukeSarmatMIRV warhead carries AirThreshold: 24c0.
 		DetonationAltitude: 13c0
 		MissileDelay: 500
-		# SIX independently-aimed warheads, the number the bus was always described as carrying here.
-		AimPoints: 6
+		# AimPoints IS DELIBERATELY ABSENT, exactly as on the B83 below, and it was REMOVED on
+		# 2026-09-20 rather than merely ignored. MissileStrikePower.AimPointsFor overrides this
+		# field for any power NuclearGameEnders.Is() accepts, so a `6` here decided nothing about
+		# the salvo -- but NuclearBotModule was still reading it raw to size its aim list, which is
+		# how run 260920_140551 delivered 3 warheads of a 4-warhead package. Both callers now ask
+		# the one definition, and an inert number that reads like a live one is worse than none.
 		# 12 ticks between RVs, so 60 ticks across the salvo. The six tracks are PARALLEL as of
 		# 2026-09-07 -- one azimuth for the whole salvo, taken from its centroid -- so this stagger is
 		# now what separates them along the approach rather than what stops them overlapping: they
@@ -297,6 +306,89 @@ Player:
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 8
 
+	# ---- UGM-133A Trident II D5 / W88: 455 kt per re-entry vehicle -----------------------------
+	# AMERICA'S NATIONAL GAME-ENDER, and the symmetric counterpart to the Sarmat above. Before
+	# 2026-09-20 that role was the B83's -- a single 1.2 Mt free-fall bomb against Russia's MIRV,
+	# which meant one warhead against six and a package whose size no map could move. The user's
+	# ruling was to give America a MIRV ICBM at a real matched yield instead; this is it.
+	#
+	# 455 kt AGAINST THE SARMAT RV'S 750 IS DELIBERATE AND IS NOT A BALANCE OVERSIGHT. W88 is a
+	# real warhead and 455 kt is its real yield; the packages are matched by COUNT, which is what
+	# DoomsdayStrike.PackageSize equalises, not by tonnage. Recorded as the user's knowing choice.
+	#
+	# EVERYTHING BELOW MIRRORS @Sarmat except the yield, the missile and the cameo. AimPoints is
+	# ABSENT on purpose: MissileStrikePower.AimPointsFor overrides it for any power
+	# NuclearGameEnders.Is() accepts, and a number here would read like a live one while deciding
+	# nothing -- which is precisely how the Sarmat's stale `AimPoints: 6` came to steer
+	# NuclearBotModule into a three-warhead package on 2026-09-20.
+	MissileStrikePower@TridentW88:
+		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender
+		# 455000 t = 455 kt, the yield of ONE re-entry vehicle and not of the salvo. The ladder
+		# counts one RELEASE per activation however many warheads it delivers.
+		NuclearYieldTons: 455000
+		OrderName: TridentStrike
+		# REUSED ART, AND IT IS A PLACEHOLDER. cmissicon is the cruise-missile cameo the 100 kt
+		# Kalibr also draws, so two entries share it until a Trident cameo exists. Logged on the
+		# standing art list at WORKSPACE/audit/260816-content-completeness.md rather than papered
+		# over with a generated glyph.
+		Icon: cmissicon
+		# 455 KT, the per-RV yield. It names no COUNT, because the count is the map's
+		# (DoomsdayStrike.PackageSize) and any number here would be wrong on most shipped maps --
+		# the same reason the Sarmat's caption stopped saying 6x750 on 2026-09-20.
+		# CameoCaptionsTest.CaptionNeverReachesUnderTheBadge carries the shipped list.
+		CameoCaption: 455 KT
+		CameoBadge: nuclear
+		Name: UGM-133A Trident II D5 (455 kt per RV)
+		Description: Submarine-launched ICBM carrying independently-targeted re-entry vehicles.\nOne click per warhead; the count is set by the size of the map.\nRight-click or Escape while placing cancels without firing.
+		# BOUGHT, NOT CHARGED, like every power in the mod since 2026-09-06. ChargeInterval is
+		# absent rather than set high: SupportPowerInstance forces TotalTicks to 0 under
+		# RequiresPurchase, so any value here would be inert.
+		#
+		# PowerPurchaseWiringTest.EveryPurchasablePowerHasSomewhereToBeBought REQUIRES a matching
+		# proxy, which is power.trident in rules/powers.yaml. The two must land together.
+		RequiresPurchase: True
+		Cursor: nuke
+		MissileActor: tridentmissile
+		SpawnAltitude: 27c0
+		# 11c0 = 1770 m = 230 * 455^(1/3), the same burst-height law the Sarmat's 13c0 and the
+		# B83's 15c256 both come from. Every NukeW88 warhead carries AirThreshold: 22c0, so there
+		# are eleven cells of headroom -- the same margin the Sarmat runs. IF THIS BURST HEIGHT IS
+		# EVER RAISED, raise the AirThreshold column in weapons-nuclear-arsenal.yaml first and in
+		# the same edit: past it the warhead silently stops seeing the ground.
+		DetonationAltitude: 11c0
+		MissileDelay: 500
+		# 12 ticks between RVs, the Sarmat's value: the tracks are parallel (one azimuth per salvo,
+		# taken from its centroid), so this separates them along the approach and they cross the
+		# map boundary in echelon. Inert INSIDE the final exchange, where the cascade derives every
+		# launch time from its reserved impact slot instead.
+		AimPointInterval: 12
+		# OVERLAY ONLY -- read by the placement order generator and by nothing in the simulation.
+		# 26 cells is HALF NukeW88's blast wave (51.4c), the same half-the-outer-extent rule the
+		# Sarmat's 30c0 follows against its RV's 60.8c. It answers "put a second RV closer than
+		# this and it is buying nothing", not "this is the reach".
+		#
+		# IT IS ALSO WHAT THE AUTO-FIRE OBEYS: DoomsdayStrike.ChooseAimPoints passes this number to
+		# FinalExchangeTargeting as the minimum separation.
+		AimPointRadius: 26c0
+		# Only read for a SINGLE-target order -- a bot or a Lua binding. First RV on the chosen
+		# point, the rest on a 20-cell ring around it, scaled from the Sarmat's 24c0 by the same
+		# 51.4/60.8 blast ratio as the radius above.
+		AimPointFallbackSpread: 20c0
+		CameraRange: 26c0
+		CameraSpawnAdvance: 60
+		CameraRemoveDelay: 1100
+		BeaconRemoveAdvance: 5
+		DisplayBeacon: True
+		DisplayMiniMapPing: True
+		DisplayTimerRelationships: Ally, Neutral, Enemy
+		BeaconPoster: atomicon
+		ArrowSequence: arrow
+		ClockSequence: clock
+		CircleSequence: circles
+		SelectTargetSpeechNotification: SelectTarget
+		IncomingSpeechNotification: AbombLaunchDetected
+		SupportPowerPaletteOrder: 9
+
 	# ---- B83-1: 1.2 Mt ------------------------------------------------------------------------
 	MissileStrikePower@B83:
 		RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender
@@ -307,7 +399,7 @@ Player:
 		CameoCaption: 1.2 MT
 		CameoBadge: nuclear
 		Name: B83-1 (1.2 Mt)
-		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nComes in from off-map over your own back line.
+		Description: The largest weapon in the current US stockpile.\nOne click per bomb; the count is set by the size of the map.\nSlow, and visible for its whole approach.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -324,6 +416,37 @@ Player:
 		DetonationAltitude: 15c256
 		MissileDelay: 500
 		CameraRange: 47c0
+		# ==== MULTI-AIM-POINT AS OF 2026-09-20, AND AimPoints IS DELIBERATELY ABSENT ====
+		# The B83 used to leave AimPoints at its default 1 -- one click, one bomb -- against the
+		# Sarmat's six. That was the asymmetry the final-exchange redesign removed: a game-ender's
+		# warhead count is now DoomsdayStrike.PackageSize, read from the map by
+		# MissileStrikePower.EffectiveAimPoints, and it is the SAME number for both nations.
+		#
+		# SETTING AimPoints HERE WOULD BE INERT AND MISLEADING. EffectiveAimPoints ignores this
+		# field entirely for any power NuclearGameEnders.Is() accepts, so a number written here
+		# would read like a live one and decide nothing. The three fields below are the ones that
+		# still matter, because they govern HOW the points are placed rather than how many.
+		#
+		# 8 TICKS, NOT THE SARMAT'S 12. This is the launch stagger for a salvo that is NOT under
+		# cascade control -- a B83 fired OUTSIDE a final exchange, which in a normal match never
+		# happens and under Sandbox is the only way it does. Tighter than the Sarmat because a
+		# free-fall bomb's whole approach is drawn and a long stagger reads as a queue.
+		AimPointInterval: 8
+		# OVERLAY ONLY. 35 cells against the Sarmat's 30: NukeB83's blast wave runs to 70.9c against
+		# an RV's 60.8c, and the ring is deliberately HALF the outer extent on both -- it answers
+		# "put a second bomb closer than this and it is buying nothing", not "this is the reach".
+		#
+		# IT IS ALSO WHAT THE AUTO-FIRE OBEYS: DoomsdayStrike.ChooseAimPoints passes this very
+		# number to FinalExchangeTargeting as the minimum separation, so the machine spaces its
+		# bombs by the rule the player is shown.
+		AimPointRadius: 35c0
+		# Only read for a SINGLE-target order, i.e. one from a bot or a Lua binding, which knows
+		# nothing about placement mode. First bomb on the chosen point, the rest on a 28-cell ring
+		# around it -- scaled from the Sarmat's 24 by the same 70.9/60.8 blast ratio as the radius
+		# above. WITHOUT THIS A BOT'S WHOLE PACKAGE WOULD STACK ON ONE CELL, which is what the
+		# field's zero default means and what NuclearBotModule would otherwise have produced the
+		# moment the B83 stopped being a one-warhead weapon.
+		AimPointFallbackSpread: 28c0
 		CameraSpawnAdvance: 70
 		CameraRemoveDelay: 1250
 		BeaconRemoveAdvance: 5
@@ -877,6 +1000,59 @@ SarmatMissile:
 	# the salvo used to be; do not assume editing it changes the Sarmat.
 	Explodes:
 		Weapon: NukeSarmatRV
+
+# ---- UGM-133A Trident II D5 ------------------------------------------------------------------
+# THE SARMAT'S BODY AT A DIFFERENT PAYLOAD, and deliberately so: the user's ruling was to reuse the
+# Sarmat missile visuals rather than wait on new art. Identical flight model, identical hypersonic
+# plasma and trail, identical speed -- one re-entry vehicle per aim point, exactly as SarmatMissile
+# carries ONE NukeSarmatRV rather than the six-way bus. Only Explodes and the tooltip differ.
+#
+# SCALE 1.5 IS THE SARMAT'S, unchanged. The two are the same class of delivery body and nothing in
+# the sequence set distinguishes them; when a Trident sprite exists this is where it lands.
+TridentMissile:
+	Inherits: ^ShootableMissile
+	Valued:
+		Cost: 0
+	Tooltip:
+		Name: UGM-133A Trident II
+	RenderSprites:
+		Scale: 1.5
+	Health:
+		HP: 200
+	# Unacquirable, same mechanism and same PITFALL as the other missile bodies: the inherited
+	# target types are OVERRIDDEN rather than the Targetable traits removed, because
+	# WeaponInfo.IsValidAgainst gates on GetEnabledTargetTypes and an actor with NO target types is
+	# invalid for every weapon, splash included -- it would fall through its own salvo untouched.
+	Targetable@Ground:
+		TargetTypes: Hypersonic
+		RequiresCondition: !airborne
+	Targetable@Airborne:
+		TargetTypes: Hypersonic
+		RequiresCondition: airborne
+	BallisticMissile:
+		LaunchAngle: 30
+		Speed: 1600
+		Acceleration: 0
+		InitialSpeedPercent: 100
+		LaunchRiseTicks: 0
+		PostErectionWaitTicks: 0
+		VisualPitchMultiplier: 47
+	WithHypersonicPlasma:
+		LeadingSamples: 3
+		LeadingSpacing: 128
+		LeadingColor: E6F5FFC8
+		TrailingSamples: 10
+		TrailingSpacing: 320
+		TrailingColor: FFC88C8C
+		BodyColor: FFF0E1BE
+	LeavesTrailsCA:
+		Image: smokey2
+		Palette: effect_ts
+		MovingInterval: 1
+		Type: CenterPosition
+		Offsets: -1000, 0, 300
+	Explodes:
+		Weapon: NukeW88
 
 B83Missile:
 	Inherits: ^ShootableMissile

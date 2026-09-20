@@ -298,8 +298,14 @@ namespace OpenRA.Test
 						n.Key.StartsWith("Warhead@TreeBurn", StringComparison.Ordinal)))
 						burns.Add((weapon.Key, wh));
 
-			Assert.That(burns.Count, Is.EqualTo(14),
-				$"expected 14 Warhead@TreeBurn (12 arsenal weapons plus Atomic and AtomicHighYield); " +
+			// 15 SINCE 2026-09-20: NukeW88 (Trident II D5 / W88, America's national game-ender)
+			// joined the arsenal. This is one of FOUR hand-maintained roster counts a new nuclear
+			// warhead moves -- the others are ScarUnderActorsTest's per-file smudge count, the
+			// two generators' YIELDS dicts, and NuclearYieldTest's yield table. None of them can
+			// derive the roster, so all four fail loudly rather than drifting, which is the
+			// intended trade.
+			Assert.That(burns.Count, Is.EqualTo(15),
+				$"expected 15 Warhead@TreeBurn (13 arsenal weapons plus Atomic and AtomicHighYield); " +
 				$"found {burns.Count}. A nuke without one leaves its own crater full of green trees.");
 
 			foreach (var (weapon, wh) in burns)

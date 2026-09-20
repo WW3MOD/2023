@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - Two clocks for one event: the ending's ordering bug could not be fixed by tuning either of them (`wt/final-exchange`, base `main @ 20ae9548`)
+
+**Symptom, as the user reported it.** In the Escalation endgame the machine's warheads always
+landed before the player's own, whatever the player did.
+
+**Mechanism, and the reason it reads as a tuning problem and is not one.** Two independent
+schedules, neither of them wrong:
+
+| | first impact, measured from the window opening |
+|---|---|
+| Dead Hand's salvo | `LeadInTicks 30` + a 44-tick flight = **open + 74** |
+| a Sarmat ordered on the FIRST tick of the window | `MissileDelay 500` + a ~92-tick flight = **open + 592** |
+
+There is no value of `LeadInTicks` that fixes this, because the gap is not a lead-in: it is
+`MissileDelay`, which exists so a strategic weapon has a warning time, and which the player's
+warhead pays and the machine's did not. **The fix was not a number, it was removing the second
+clock** — every game-ender warhead fired inside the exchange now takes a slot in one shared
+cascade (`FinalExchangeCascade`), and the launch delay is solved backwards from the reserved impact
+tick (`MissileStrikePower.cs`, the `ScheduleExchangeImpact` block in `Activate`).
+
+**The generalisable shape: when two subsystems must agree about WHEN, give one of them the answer
+and let the other derive its input from it.** The old code had both deriving an arrival from their
+own launch; the new code has both deriving a launch from a shared arrival. It is the same
+inversion `MissileStrikePower.ApproachDistance` already made for flight time (shorten the flight,
+lengthen the wait, keep the sum) and it is why that field could be left alone here.
+
+**A design ruling that does not survive contact, and what to do about it.** The design said the
+cascade's anchor is *"the trigger's first impact tick"* on the release door. Taken literally it
+breaks the very property it exists to create: a responder placing on the LAST tick of a 250-tick
+window cannot reach an anchor fixed 250 ticks earlier — its flight has not started — so it gets
+clamped to "launch now" and arrives outside the cascade, which is the original defect with the
+sides swapped. The anchor is therefore **floored** at `close + FinalExchangeFlightTicks` on both
+doors. It is still the trigger's first impact whenever that is late enough; the floor only ever
+raises it. Pinned by `FinalExchangeCascadeTest.BothPackagesLandInsideOneBoundedSpanFromAnyPlacementTime`,
+which sweeps every placement tick in the window against both missile speeds and asserts BOTH that
+the impact is in range and that the launch delay is non-negative — the second half is what catches
+a schedule that is satisfiable on paper and unreachable in fact.
+
+**`Player.HomeLocation` is `CPos.Zero` on every autotest scenario, and a side classifier that reads
+it is vacuous there.** `PlayerReference.HomeLocation`'s field default is `CPos.Zero`, and
+`Player.cs:213` falls back to the `PlayerReference` whenever no `IAssignSpawnPoints` trait exists —
+which is every scenario under `tools/autotest/scenarios`, all of which strip `MapStartingLocations`.
+So `DefconWall.SideOf(Player)` reads cell (0,0) for *both* sides and answers the same value twice.
+Resolve a player through an **anchor** instead — the `CenterPosition` of their lowest-ActorID
+`BaseBuilding`, i.e. their Supply Route (`DoomsdayStrike.AnchorOf`). On every shipped map the two
+agree exactly, because the Supply Route sits on its owner's spawn cell; the anchor is only
+*different* where `HomeLocation` is absent, which is where it is also the only one that is right.
+Found by the `wt/precaptured-line` worker and documented at the declaration of
+`DefconWall.SideOf(Player)`; recorded here because it is a trap for every future consumer of that
+surface, not just for these two.
 ## 2026-09-20 - Pre-captured structures by the border: the shipped borders hand out EVERY capturable, and the design note's marquee promise no longer holds (`wt/precaptured-line`, base `main @ 20ae9548`)
 
 **What changed.** `PreCapturedStructures` used to decide ownership by a distance RATIO against

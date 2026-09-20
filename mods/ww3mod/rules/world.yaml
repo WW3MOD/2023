@@ -737,8 +737,8 @@ World:
 			1: WarningOneMinuteRemaining
 	ColorPickerManager:
 		PreviewActor: e3.colorpicker
-	# DOOMSDAY. The lobby has said "Doomsday Clock / Nuclear apocalypse when the clock runs out" since
-	# long before anything implemented it; this is what makes that true. It REPLACES the plain
+	# THE FINAL EXCHANGE. The lobby has said "Nuclear apocalypse when the clock runs out" since long
+	# before anything implemented it; this is what makes that true. It REPLACES the plain
 	# time-limited game rather than sitting beside it — there is no separate "time limit" concept left
 	# in the UI to coexist with, and a mode selected by two dropdowns that must agree is a worse lobby
 	# than one. The checkbox exists so a host can get the old score-comparison ending back, and defaults
@@ -746,48 +746,98 @@ World:
 	#
 	# TIMED AUTOTESTS AND TOURNAMENTS ARE UNAFFECTED: RunInTestMode defaults false, so a TestMode
 	# session with a time limit still ends the way it always did. The demo scenario opts in explicitly.
+	#
+	# REDESIGNED 2026-09-20. The map-wide "Dead Hand" salvo is gone, and with it every knob that laid
+	# it out — OutlierMissile, CityMissile, LethalRadius, JitterRadius, MinSeparation, CityLinkDistance,
+	# CityMinBuildings, WarheadsPerCity, SpawnAltitude, ApproachDistance, WithinWaveTicks,
+	# OutlierToCityPauseTicks and LeadInTicks. A scenario still setting any of them will fail to load
+	# with "unknown field"; that is deliberate and is the only way a stale override announces itself.
+	# What replaced them is below: a package sized from the map, and one shared impact cascade.
 	DoomsdayStrike:
-		OutlierMissile: deadhandtacticalmissile
-		CityMissile: deadhandstrategicmissile
-		# 14c0, just inside `Atomic`'s ShockwaveDamage MaxRadius of 15c0 — the ~2.7 psi contour, the
-		# outer edge of serious structural damage (weapons-superweapons.yaml). It used to be 20c0, read
-		# off the delivery body's claim of igniting structures to ~28 cells, and it was set high
-		# because the whole total-coverage guarantee rested on it. IT NO LONGER DOES: the fill pass
-		# that consumed this number is gone (2026-09-07 retune), so all this now governs is the jitter
-		# bound and how far a city's warheads may spread from its centroid. Stating it against the
-		# blast contour rather than the ignition one is the honest reading now that nothing downstream
-		# is generating warheads from it.
-		LethalRadius: 14c0
-		JitterRadius: 4c0
-		# 10c0, DOWN FROM 12c0, and it is not a taste change: it must be <= LethalRadius - JitterRadius
-		# (14 - 4 = 10) or the separation filter can drop a derrick and leave it outside every blast.
-		# The old 12 was safe only because the lethal radius was 20 and the fill pass covered the rest.
-		MinSeparation: 10c0
-		CityLinkDistance: 8c0
-		CityMinBuildings: 4
-		# ONE per city, not two. river-zeta clusters into exactly two cities once crop fields and trees
-		# stop being counted as buildings, so one warhead each IS the user's "two city destroyers".
-		WarheadsPerCity: 1
-		SpawnAltitude: 38c0
-		ApproachDistance: 5c0
-		WithinWaveTicks: 2
-		OutlierToCityPauseTicks: 40
+		# ---- THE PACKAGE, SIZED FROM THE MAP ------------------------------------------------
+		# N = round(playableCells / CellsPerImpact), clamped to [MinPackage, MaxPackage], and BOTH
+		# NATIONS GET THE SAME N. This is decision 20's retired host control ("it was arithmetic:
+		# one per ~1340 cells of map, split between sides") finally built: AimPoints was a static 6
+		# on the Sarmat and a static 1 on the B83, so Russia fired six warheads against America's
+		# one on every map from arena-tank-duel to x-lake.
+		#
+		# WHAT THE SHIPPED MAPS GET, and FinalExchangePackageTest pins the whole table so a retune
+		# here shows up as a table diff rather than as a number:
+		#     arena-tank-duel 2  nuclear-winter 3  river-zeta 3  siberian-pass 3  shellmap 2
+		#     polar-disorder 4   woodland-warfare 4
+		#     seventh-woods 6    twin-rivers 6     x-lake 6
+		CellsPerImpact: 2400
+		# TWO, NOT ONE. arena-tank-duel's 2048 playable cells round to 1, and a one-warhead
+		# "exchange" on a duelling map is a coin toss rather than an ending.
+		MinPackage: 2
+		# SIX, because that is what the Sarmat's re-entry bus carries and what its art, its camera
+		# budget and its AimPointInterval were all tuned around.
+		MaxPackage: 6
+
+		# ---- THE CASCADE --------------------------------------------------------------------
+		# Every warhead of both packages lands on a slot of ONE staggered sequence, so the ending
+		# is one event instead of two unrelated schedules. 15 ticks is 0.9 s at the 60 ms timestep.
+		#
+		# THIS IS THE FIX FOR WHAT THE USER WATCHED. Dead Hand flew on LeadInTicks 30 plus a 44-tick
+		# flight while a Sarmat carries MissileDelay 500, so the machine's warheads landed roughly
+		# eight seconds before the player's own, every time. Neither number was wrong; they were two
+		# clocks. See FinalExchangeCascade.
+		ImpactSpacingTicks: 15
+		# THE PRE-LAUNCH COUNTDOWN FOR AN EXCHANGE LAUNCH, replacing the powers' own MissileDelay
+		# 500 for any game-ender fired inside the window. That 500 exists so a target has thirty
+		# seconds of beacon to react to; inside the exchange there is nothing to react with --
+		# production is halted, the score is frozen, the map is revealed and Annihilate is seconds
+		# away -- so warning time is a property of a weapon IN PLAY and this is exactly where there
+		# is no play left. Lowering MissileDelay on the powers themselves would change every
+		# ordinary match instead.
+		FinalExchangeMissileDelay: 100
+		# THE FLOOR ON THE ANCHOR: no warhead of the exchange lands until this long after the window
+		# shuts, so a warhead placed on the LAST tick still has its whole countdown and flight ahead
+		# of it rather than being scheduled into the past.
+		#
+		# 350, DOWN FROM 800 ON 2026-09-20, and the knob above is what paid for it. The floor exists
+		# for exactly one case -- a warhead placed on the LAST tick of the window must be able to
+		# REACH the anchor -- so the requirement is the longest ARC in the arsenal on the largest
+		# shipped map, b83missile at Speed 700 across x-lake's standoff, about 292 ticks. 350 carries
+		# 20% of headroom over it.
+		#
+		# THE COUNTDOWN ABOVE DOES NOT ENTER THIS NUMBER, and assuming it did is the mistake this
+		# line has now carried twice. A warhead the cascade MOVES has its launch delay solved
+		# backwards from its reserved slot, so its countdown is discarded; the one warhead the cascade
+		# does not move is the one that SET the anchor from its own natural tick. The old 800 assumed
+		# the floor had to carry the powers' own MissileDelay 500 as well.
+		#
+		# WHAT IT BUYS, on river-zeta: the first impact moves from 63 s after the trigger to 36 s and
+		# the verdict from 75 s to 48 s, with the quiet gap between the band clearing and the first
+		# missile appearing cut from 35 s to about 8 s.
+		FinalExchangeFlightTicks: 350
+
+		# ---- WHAT AN UNPLACED PACKAGE IS AIMED AT ---------------------------------------------
+		# Was CityLinkDistance. Same 8c0 and the same single-linkage algorithm; the input is one
+		# side's own actors now rather than every building on the map, so a cluster is an army or a
+		# base rather than a town.
+		ConcentrationLinkDistance: 8c0
+		# Tier 1 and tier 3 of FinalExchangeTargeting. Tier 2 is the clustering above and tier 4 is
+		# farthest-point padding, neither of which needs a list.
+		SupplyRouteTypes: supplyroute
+		NeutralHighValueTypes: oilb
+		ExcludeTypes: barb, sbag, fenc, brik, cycl, tanktrap, tanktrap2
+
+		# ---- THE TAIL -------------------------------------------------------------------------
 		AnnihilationDelayTicks: 90
 		ResolutionDelayTicks: 30
-		LeadInTicks: 30
-		# THE FINAL EXCHANGE WINDOW. 500 ticks = 30.0 s at the mod's 60 ms timestep -- NOT 25 tps,
-		# which would read this as 20 s. Written out here rather than left to the C# default because
-		# it is the one number in this block a player experiences directly: it is how long they have
-		# to place their own warheads before Dead Hand places the rest. Set it to 0 to get the old
-		# fully automatic salvo back.
+		# THE FINAL EXCHANGE WINDOW. 250 ticks = 15.0 s at the mod's 60 ms timestep -- NOT 25 tps,
+		# which would read this as 10 s. Written out here rather than left to the C# default because
+		# it is the one number in this block a player experiences directly. Set it to 0 to fire every
+		# package on the trigger tick with no interaction at all.
 		#
-		# RAISED FROM 250 ON 2026-09-16 after the user played Escalation as Russia and fired nothing.
-		# Russia's game-ender is the RS-28 Sarmat with AimPoints: 6, so the order is not issued until
-		# the SIXTH aim point is placed; America's B83 is one click. Fifteen seconds did not cover
-		# notice-the-banner + find-the-cameo + six-clicks, and the whole match turns on that one
-		# moment. See DoomsdayStrikeInfo.FinalExchangeWindowTicks for the three alternatives and why
-		# none of them is this one.
-		FinalExchangeWindowTicks: 500
+		# BACK TO 250 FROM THE 500 SET ON 2026-09-16, and the raise is reversed rather than
+		# overruled. Its argument was that Russia's ender asked for SIX clicks and America's for ONE,
+		# so fifteen seconds did not cover the slower faction. Both nations now ask for the same
+		# map-derived package — 2 or 3 clicks on most shipped maps — so that argument has gone with
+		# the asymmetry that produced it. Decisions 14, 17 and 20 all say fifteen; audit item B9
+		# asked for the mismatch to be settled deliberately. This is that.
+		FinalExchangeWindowTicks: 250
 
 	# THE TWO PER-POWER NUCLEAR GATES WERE RETIRED ON 2026-09-15 and this block used to describe
 	# them. `tactical-nuke` and `high-yield-nuke` each gated exactly one EVENT-TIER power -- a tier

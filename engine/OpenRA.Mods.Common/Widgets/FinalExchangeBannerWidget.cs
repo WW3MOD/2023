@@ -1,4 +1,4 @@
-﻿#region Copyright & License Information
+#region Copyright & License Information
 /*
  * WW3MOD addition. Not upstream OpenRA.
  */
@@ -6,7 +6,9 @@
 
 /*
  * THE FINAL EXCHANGE COUNTDOWN -- the one window the player must not be able to miss. Its length
- * is DoomsdayStrikeInfo.FinalExchangeWindowTicks (500 = 30 s since 2026-09-16, previously 250).
+ * is DoomsdayStrikeInfo.FinalExchangeWindowTicks (250 = 15 s; it was briefly 500 between
+ * 2026-09-16 and 2026-09-20, for an asymmetry between the two factions' game-enders that no
+ * longer exists).
  *
  * Unlike DefconTransitionBannerWidget, which this is otherwise modelled on, it is NOT a four-second
  * announcement. It is on screen for the whole window and it carries a clock, because the thing it is
@@ -48,7 +50,13 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly int UrgentSeconds = 5;
 
 		public readonly string Title = "FINAL EXCHANGE";
-		public readonly string Line = "PLACE YOUR WARHEADS";
+
+		// WHAT HAPPENS NOW, NOT WHAT THE PLAYER MAY DO. "PLACE YOUR WARHEADS" told a player what
+		// button to press and left the consequence of not pressing it entirely unstated -- which,
+		// while Dead Hand existed, a player could reasonably read as "or nothing of mine flies".
+		// Since 2026-09-20 an unplaced package fires at the enemy anyway, and the banner says so:
+		// the choice on offer is WHERE, never WHETHER.
+		public readonly string Line = "PLACE YOUR STRIKE PACKAGE — UNPLACED FIRES AT THE ENEMY";
 
 		readonly World world;
 		readonly SpriteFont titleFont, lineFont;
@@ -75,8 +83,8 @@ namespace OpenRA.Mods.Common.Widgets
 		// "default" beats the world's move/attack cursor for the entire match outside the window.
 		//
 		// AND THE DRAWN CASE MATTERS MORE HERE THAN FOR THE OTHER TWO. This band is up for the whole
-		// fifteen-second window while the line under it says PLACE YOUR WARHEADS -- a player doing
-		// exactly that, through the strip, must not have the cursor go dead on them.
+		// fifteen-second window while the line under it tells the player to place a strike package --
+		// a player doing exactly that, through the strip, must not have the cursor go dead on them.
 		public override Rectangle EventBounds => Rectangle.Empty;
 
 		public override void Tick()
