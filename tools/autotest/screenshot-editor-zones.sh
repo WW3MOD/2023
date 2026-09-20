@@ -21,6 +21,20 @@
 # MapToolsLogic therefore reads Test.EditorTool directly. Same reasoning as
 # Test.OpenIngameInfoPanel existing alongside `click`.
 #
+# SELECTING A TOOL IS NOT SHOWING ITS TAB, and this driver's first run is the
+# proof. It waited for `editor zone selected:`, got it, took two frames and
+# reported PASS — and both frames showed the TILES tab, because the Tools panel
+# lives inside TOOLS_WIDGETS and tab visibility belongs to MapEditorTabsLogic,
+# whose menuType defaults to Tiles. Every marker the driver checked was about the
+# TOOL; none was about the CONTAINER it is drawn in, so the run was green on a
+# capture of the wrong panel. Test.EditorTool now flips the tab too, and — the
+# part that actually makes this safe — the PASS below rests on `zone panel
+# shown:`, which is emitted from the readout label's own GetText and therefore
+# cannot be written unless that label was really rendered.
+#
+# GENERALISE: a capture driver's evidence must come from the thing that would be
+# IN THE PHOTOGRAPH, not from the mechanism you were exercising.
+#
 # THE STROKE GOES THROUGH THE BRUSH'S OWN ACTION. `zone-erase x,y,size` arms
 # TestMode.ZoneStroke; EditorZoneBrush.Tick replays it through the same
 # PaintZoneEditorAction a dragged stroke uses, so it is undoable, appears in the
@@ -219,8 +233,20 @@ wait_for_log() {
 	return 1
 }
 
+# READINESS IS "THE READOUT WAS DRAWN", NOT "THE TOOL WAS SELECTED". Those are
+# different facts and the difference cost a whole capture run: the first version
+# of this driver waited on `editor zone selected:`, passed, and returned two
+# frames of the TILES tab. Selecting a tool inside TOOLS_WIDGETS says nothing
+# about whether TOOLS_WIDGETS is the visible tab — that lives in
+# MapEditorTabsLogic, which defaults to Tiles.
+#
+# `zone panel shown:` is logged from inside the readout label's own GetText, and
+# LabelWidget.Draw is its only caller while Widget.DrawOuter early-returns on an
+# invisible widget. So the line cannot exist unless that label was RENDERED, with
+# that text, in a real frame. components= is the machine-readable half; the
+# sentence is a Fluent string and would move under a reword.
 READY=1
-wait_for_log "\[TestMode\] editor zone selected:" 120 || READY=0
+wait_for_log "zone panel shown: components=2" 120 || READY=0
 
 # NEVER FIRE A CAPTURE OFF THE LOAD MARKER ITSELF. World setup is logged well
 # before that world's first render pass, and a shot taken the instant the marker
@@ -235,7 +261,13 @@ sleep 3
 # Cut the band. The readout is throttled to 250ms and keyed on the layer's
 # revision, so three seconds is ample for it to re-flood and turn red.
 send "zone-erase ${CUT_X},${CUT_Y},${CUT_SIZE}" || true
-sleep 3
+
+# Same evidence again for the red state, and it is what ties FRAME 02 to it: the
+# line only appears once the label has been drawn with the new text.
+CUT_SHOWN=1
+wait_for_log "zone panel shown: components=1" 60 || CUT_SHOWN=0
+sleep 2
+
 send "screenshot 02-zones-cut" || true
 sleep 3
 
@@ -253,6 +285,7 @@ STATUS="PASS"
 	echo "run_dir=${RUN_DIR}"
 	echo "map=${MAP_NAME}"
 	echo "cut=${CUT_X},${CUT_Y} size ${CUT_SIZE}"
+	grep -a "zone panel shown:" "${RUN_LOG}" 2>/dev/null | sed 's/^/readout=/' || true
 } > "${RESULT}"
 
 SHOTS=0
@@ -272,8 +305,23 @@ echo "shots=${SHOTS}" >> "${RESULT}"
 
 if [ "${READY}" != "1" ]; then
 	STATUS="NO-RESULT"
-	echo "error=the editor never reported a selected zone; nothing below is of the Zones panel" >> "${RESULT}"
+	echo "error=the Zones readout was never DRAWN with a split band; frame 01 is not of this panel" >> "${RESULT}"
 fi
+
+if [ "${CUT_SHOWN}" != "1" ]; then
+	STATUS="NO-RESULT"
+	echo "error=the Zones readout was never DRAWN with a cut band; frame 02 is not of the red state" >> "${RESULT}"
+fi
+
+# Belt and braces on top of the two waits: assert the evidence is in the FINAL
+# log copy as well, so a race in the poll-copy cannot leave a PASS resting on a
+# line that was read once and never landed in the artefact the reader inspects.
+for needle in 	"editor tab: Tools" 	"editor tool: Zones" 	"zone panel shown: components=2" 	"zone panel shown: components=1"; do
+	if ! grep -aq "${needle}" "${RUN_LOG}" 2>/dev/null; then
+		STATUS="NO-RESULT"
+		echo "error=debug.log never showed '${needle}'" >> "${RESULT}"
+	fi
+done
 
 if [ "${SHOTS}" -lt 2 ]; then
 	STATUS="NO-RESULT"

@@ -3,6 +3,45 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A capture driver's evidence has to come from the thing that would be IN THE PHOTOGRAPH (`wt/dmz-zones`, base `main @ 20ae9548`)
+
+**Symptom.** `tools/autotest/screenshot-editor-zones.sh` reported **PASS** with two frames of the
+map editor's **Tiles** tab, while claiming to have photographed the **Zones** panel. Every check it
+ran was green and every check was true. `debug.log` really did contain `editor tool: Zones` and
+`editor zone selected: DMZ`; the scripted `zone-erase` really did cut the band; the two frames
+really were distinct and both over 120 KB. The panel under test was never on screen.
+
+**Mechanism.** The editor's right-hand area is six containers gated by `MapEditorTabsLogic`
+(`container.IsVisible = () => menuType == tabType`, `MapEditorTabsLogic.SetupTab`), and `menuType`
+initialises to `Tiles`. `Test.EditorTool=Zones` was handled in `MapToolsLogic`, which lives
+*inside* `TOOLS_WIDGETS` — so it correctly selected a tool within a container that was never
+visible. **Selecting a thing and showing the tab it lives in are two different facts, and the
+driver only ever asserted the first.**
+
+**The general rule: a capture driver's markers must be about the thing that would appear in the
+image, not about the mechanism you were exercising.** Construction, selection, state changes and
+command consumption all happen identically whether or not the widget is on screen, so every marker
+of that kind is evidence about the engine and none of it is evidence about the photograph. The
+driver had four such markers and they bought nothing. This is the same family as the
+`NO SUCH VISIBLE WIDGET` trap already recorded for `click` — a driver that does not check for the
+miss photographs whatever was there instead — but one level further out: here nothing missed, and
+the frame was still of the wrong thing.
+
+**The fix worth reusing: log from inside the widget's own `GetText` delegate.**
+`LabelWidget.Draw` is that delegate's only caller on a label nothing resizes, and
+`Widget.DrawOuter` early-returns on `!IsVisible()` (`Widget.cs:500-508`). So a line written from
+there **cannot exist unless that label was rendered, with that text, in a real frame** — which is
+exactly the proposition a screenshot driver needs and cannot get any other way without reading
+pixels. `MapZonesLogic.LoggedSplitText` does this, and emits a machine-readable
+`components=<n>` beside the text so the driver greps a number rather than a Fluent string that a
+reword or a translation would move.
+
+**And note which half of the run was sound.** The capture verified the whole data path --
+`map.yaml` → `Map.Zones` → overlay → scripted stroke → undo history -- because those were visible
+IN the frames (the band rendered, the hole appeared, Undo lit). Only the claim about the panel was
+wrong. A driver can be simultaneously right about everything it photographed and wrong about what
+it says it photographed.
+
 ## 2026-09-20 - Map data belongs in the map package, and the thing that tells you a border is wrong has to be the SAME flood the engine runs (`wt/dmz-zones`, base `main @ 20ae9548`)
 
 **What was built.** A `Zones:` node in `map.yaml` (row-ranges by Y), an editor tool that paints it,

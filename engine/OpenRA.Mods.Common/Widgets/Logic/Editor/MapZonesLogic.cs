@@ -74,6 +74,8 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		int? selectedZone;
 		int brushSize = 3;
 
+		string lastLoggedSplitText;
+
 		int cachedRevision = -1;
 		int cachedZone = -1;
 		int cachedComponents;
@@ -143,7 +145,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var sizeValue = widget.Get<LabelWidget>("BRUSH_SIZE_VALUE");
 			sizeValue.GetText = () => brushSize.ToString(NumberFormatInfo.InvariantInfo);
 
-			splitLabel.GetText = SplitText;
+			splitLabel.GetText = TestMode.IsActive ? LoggedSplitText : SplitText;
 			splitLabel.GetColor = () => selectedZone != null && Components(selectedZone.Value) < 2 ? warningColor : normalColor;
 
 			// WW3MOD: with Test.EditorTool=Zones, arrive with the first zone already selected --
@@ -211,6 +213,33 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			cachedComponents = zoneLayerTrait.ComponentCount(zone);
 			nextRecomputeMs = Game.RunTime + RecomputeIntervalMs;
 			return cachedComponents;
+		}
+
+		/// <summary>
+		/// <see cref="SplitText"/>, plus a debug line the moment the readout's text CHANGES.
+		/// </summary>
+		// LOGGED FROM INSIDE GetText BECAUSE THAT IS THE ONLY THING THAT PROVES THE PANEL WAS ON
+		// SCREEN. LabelWidget.Draw is the sole caller (IncreaseHeightToFitCurrentText is the other,
+		// and nothing calls it on this label), and Widget.DrawOuter early-returns on !IsVisible() --
+		// so this line cannot be written unless this label was actually RENDERED, with this text, in
+		// a real frame. Constructing the logic, selecting the tool, even selecting the zone all
+		// happen whether or not the Tools tab is showing; the first capture run proved that the hard
+		// way by photographing the Tiles tab twice and passing.
+		//
+		// components= is the machine-readable half and is what the driver greps: the sentence itself
+		// is a Fluent string and would change under a translation or a reword, which is not a thing
+		// a screenshot driver should break on.
+		string LoggedSplitText()
+		{
+			var text = SplitText();
+			if (text != lastLoggedSplitText)
+			{
+				lastLoggedSplitText = text;
+				var components = selectedZone == null ? -1 : Components(selectedZone.Value);
+				Log.Write("debug", $"[TestMode] zone panel shown: components={components} text=\"{text}\"");
+			}
+
+			return text;
 		}
 
 		string SplitText()
