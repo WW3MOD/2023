@@ -364,6 +364,45 @@
 	# 260509: the crash-disabled-then-repair-and-fly-again concept was scrapped.
 	# Safe-landed helis simply burn out and explode (ChangesHealth@CrashBurn above).
 
+# A helicopter with NO Armament anywhere in its resolved set -- TRAN and HALO, the two
+# transports. Audit rank-system-260919 §6 #11 / §5.2.
+#
+# ^GainsExperience (defaults.yaml, reached here via ^Helicopter -> ^Airborne) declares five
+# rank axes. Two of them modify armaments, so on an unarmed actor FirepowerMultiplier@Rank_1..4
+# and ReloadDelayMultiplier@Rank_1..4 are eight ConditionalTraits that resolve and scale
+# nothing -- the profile advertised firepower and reload bonuses the unit cannot use. Strip
+# exactly those eight; the three axes that DO work on a hauler (damage taken, speed and turn,
+# concealment) are untouched, as is the XP path and the evacuation credit.
+#
+# WHY THIS SUBCLASSES ^Helicopter INSTEAD OF BEING A MIXIN, which is the shape you would
+# reach for first and which does not work here. Both alternatives throw at rules load:
+#
+#   1. A removal-ONLY template (just the eight `-Key:` lines, inherited alongside
+#      ^Helicopter) is impossible. ResolveInherits consumes a `-Key:` against the
+#      accumulator of the node it is WRITTEN IN, before that node's result is folded into
+#      the child (MiniYaml.cs:479-484) -- so the removals run against an empty list and
+#      throw "There are no elements with key `FirepowerMultiplier@Rank_1` to remove"
+#      (:482-483). Verified: it throws in the audit's port of the loader too.
+#
+#   2. Making that mixin `Inherits: ^GainsExperience` first, to give the removals something
+#      to bite, then throws on the CHILD instead: TRAN would reach ^GainsExperience twice
+#      (once through ^Helicopter -> ^Airborne, once through the mixin) and the duplicate
+#      guard fires -- "Parent type `^GainsExperience` was already inherited by this yaml
+#      tree" (MiniYaml.cs:467-474).
+#
+# Subclassing is what is left: the removals sit below an `Inherits:` that has already
+# supplied the eight traits, and each actor names exactly one parent.
+^UnarmedHelicopter:
+	Inherits: ^Helicopter
+	-FirepowerMultiplier@Rank_1:
+	-FirepowerMultiplier@Rank_2:
+	-FirepowerMultiplier@Rank_3:
+	-FirepowerMultiplier@Rank_4:
+	-ReloadDelayMultiplier@Rank_1:
+	-ReloadDelayMultiplier@Rank_2:
+	-ReloadDelayMultiplier@Rank_3:
+	-ReloadDelayMultiplier@Rank_4:
+
 ^Drone:
 	Inherits: ^Airborne
 	-Voiced:
