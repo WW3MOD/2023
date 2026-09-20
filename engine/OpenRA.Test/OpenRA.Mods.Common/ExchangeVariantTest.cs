@@ -340,14 +340,35 @@ namespace OpenRA.Test
 			var actors = ResolvedActors();
 			foreach (var (baseName, variantName) in ActorPairs)
 			{
+				var baseFields = Flatten(Node(actors, baseName));
+				var variantFields = Flatten(Node(actors, variantName));
+
 				// LOAD-BEARING, NOT TIDINESS. MissileStrikePower reads BallisticMissileInfo off the
-				// RESOLVED actor to compute the flight time, so a variant that quietly flew faster
-				// would arrive on a different tick from its base — and demo-nuke-perf's two arms
-				// would stop sharing the schedule that makes them subtractable.
-				var differing = DiffKeys(Flatten(Node(actors, baseName)), Flatten(Node(actors, variantName)));
-				Assert.That(differing, Is.EqualTo(new List<string> { "Explodes.Weapon" }),
-					$"{variantName} differs from {baseName} in more than its payload: " +
-					$"{string.Join(", ", differing)}");
+				// RESOLVED actor to compute the flight time — and since main's per-missile pipeline
+				// solve, so does the cascade's arc term. A variant that quietly flew faster would
+				// arrive on a different tick from its base, demo-nuke-perf's two arms would stop
+				// sharing the schedule that makes them subtractable, and an exchange launch would
+				// solve one arc while flying another.
+				//
+				// RenderSprites.Image IS THE SECOND PERMITTED DIFFERENCE, and it is here because it
+				// is the line that makes the bodies visually the SAME. Without it the variant
+				// resolves its sprite from its own name (RenderSprites.cs:110-115), finds no
+				// sequences, and throws at spawn — which is what happened on run 260920_174129.
+				var differing = DiffKeys(baseFields, variantFields);
+				Assert.That(differing, Is.EqualTo(new List<string> { "Explodes.Weapon", "RenderSprites.Image" }),
+					$"{variantName} differs from {baseName} in more than its payload and its image " +
+					$"pointer: {string.Join(", ", differing)}");
+
+				// AND THE POINTER POINTS AT THE BASE'S OWN IMAGE. Asserting only that the key differs
+				// would pass a variant pointed at any sprite in the mod, which is the one thing this
+				// line exists to prevent.
+				var baseImage = baseFields.TryGetValue("RenderSprites.Image", out var bi) && bi.Length > 0
+					? bi.ToLowerInvariant()
+					: baseName.ToLowerInvariant();
+				Assert.That(variantFields["RenderSprites.Image"].ToLowerInvariant(), Is.EqualTo(baseImage),
+					$"{variantName} draws a different sprite from {baseName}. The two are the same " +
+					"delivery body carrying different payloads; a player must not be able to tell " +
+					"them apart in flight");
 			}
 		}
 
