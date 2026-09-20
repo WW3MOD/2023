@@ -3,10 +3,19 @@
  * WW3MOD pre-captured structure ownership tests — who owns a neutral derrick before a shot is fired.
  *
  * The "Pre-captured Structures" lobby option hands every neutral capturable structure to the nearest player at
- * world load, unless nobody is meaningfully nearer, in which case it stays neutral. "Meaningfully nearer" is a
- * RATIO against the nearest non-allied player, and the threshold was calibrated on the ten shipped maps rather
- * than chosen — so the thing worth pinning is not the arithmetic in the abstract but the specific verdicts the
- * calibration promised. Every woodland-warfare-ww3 fixture below is the real geometry: the map's own spawn
+ * world load, leaving the contested ones neutral. There are TWO rules and these fixtures cover both.
+ *
+ * THE BORDER RULE is what runs on nine of the ten shipped maps, which author a DefconWall region in their own
+ * rules.yaml. A structure inside the border band stays neutral; otherwise it goes to the nearest contender whose
+ * own home is on the structure's side of the border, and a side with nobody living on it keeps its structures
+ * neutral. PreCapturedOwnership.ResolveOnSide is that rule and the ResolveOnSide fixtures at the bottom of this
+ * file pin it. It has no alliance clause: "contested" is stated by the map, not inferred from two distances.
+ *
+ * THE RATIO RULE is the FALLBACK, for a map where no border resolves. It is unchanged, and the fixtures for it
+ * below are unchanged with it -- they are now tests of the fallback rather than of the shipped path, which is
+ * why they still carry the calibration's verdicts. "Meaningfully nearer" is a RATIO against the nearest
+ * non-allied player, and the threshold was calibrated on the ten shipped maps rather than chosen — so the thing
+ * worth pinning is not the arithmetic in the abstract but the specific verdicts the calibration promised. Every woodland-warfare-ww3 fixture below is the real geometry: the map's own spawn
  * points and actor locations, run through the same cell-centre and building-centre offsets the engine applies.
  *
  * Three properties are load-bearing and each has cost something to get wrong elsewhere in this repo:
@@ -182,6 +191,158 @@ namespace OpenRA.Test
 			const long Far = 188000;
 			Assert.That(PreCapturedOwnership.Resolve(new[] { Far, Far * 2 }, AllEnemies, Band), Is.EqualTo(0));
 			Assert.That(PreCapturedOwnership.Resolve(new[] { Far, Far + 100 }, AllEnemies, Band), Is.EqualTo(-1));
+		}
+
+		// =====================================================================================
+		// THE BORDER RULE -- ResolveOnSide, which is what actually decides ownership on the nine
+		// shipped maps that author a DefconWall region.
+		// =====================================================================================
+		//
+		// SIDE IDS ARE OPAQUE NON-NEGATIVE INTEGERS AND NEGATIVE MEANS UNCLASSIFIED. That contract
+		// is DefconWall's level-independent surface: a region answers with a connected-component id
+		// (0, 1, ...), a line with 0 or 1, and DefconWall.NoSide is -1 on both. These fixtures use
+		// 0 and 1 for the two halves and -1 for "in the band / off the map / straddling", which is
+		// exactly what SideOfFootprint collapses those three cases to.
+
+		const int NoSide = -1;
+
+		// The structure is in the band. This is the case the whole feature is for, and it does not
+		// matter how near anybody is: it is the MAP saying this ground is contested, not a ratio.
+		[Test]
+		public void AStructureInTheBandStaysNeutralHoweverNearSomebodyIs()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(NoSide, new long[] { 1000, 90000 }, new[] { 0, 1 }),
+				Is.EqualTo(-1));
+		}
+
+		// SideOfFootprint returns NoSide for a building whose footprint cells disagree on side --
+		// one corner each side of a bending border, with no cell actually in the band. It reaches
+		// this function as the same NoSide the band case does, which is why one test covers both.
+		[Test]
+		public void AStructureStraddlingTheBorderStaysNeutral()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(NoSide, new long[] { 40000, 41000 }, new[] { 0, 1 }),
+				Is.EqualTo(-1));
+		}
+
+		[Test]
+		public void TheNearestContenderOnTheStructuresOwnSideTakesIt()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(1, new long[] { 10000, 40000, 50000 }, new[] { 0, 1, 1 }),
+				Is.EqualTo(1));
+		}
+
+		// TWO CONTENDERS ON ONE SIDE: the nearer wins, and the one on the other side is not
+		// consulted at all even though it is nearest of the three. This is the row where the border
+		// rule and the ratio rule disagree, and the reason the feature was changed: 10000 units is
+		// half the distance of the winner, and it is still not that player's structure.
+		[Test]
+		public void ANearerContenderOnTheWrongSideDoesNotTakeIt()
+		{
+			var winner = PreCapturedOwnership.ResolveOnSide(1, new long[] { 10000, 40000, 30000 }, new[] { 0, 1, 1 });
+
+			Assert.That(winner, Is.EqualTo(2));
+		}
+
+		// A side with no contender on it keeps its structures neutral. Handing them to whoever is
+		// nearest would hand them across the border, which is what this rule exists to stop.
+		[Test]
+		public void ASideWithNobodyLivingOnItKeepsItsStructuresNeutral()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(1, new long[] { 10000, 20000 }, new[] { 0, 0 }),
+				Is.EqualTo(-1));
+		}
+
+		// ALLIES ARE NOT A SPECIAL CASE HERE, unlike in the ratio rule. Two teammates sharing a side
+		// simply race on distance; there is nothing to declare contested, because the map already
+		// said where contested is.
+		[Test]
+		public void TwoAlliesOnOneSideRaceOnDistanceAndTheNearerTakesIt()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 60000, 45000 }, new[] { 0, 0 }),
+				Is.EqualTo(1));
+		}
+
+		// Ties break on the lowest index -- World.Players order, identical on every client. Same
+		// rule as Resolve, and for the same desync reason.
+		[Test]
+		public void AnExactTieOnOneSideBreaksOnTheLowerIndex()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 50000, 50000 }, new[] { 0, 0 }),
+				Is.EqualTo(0));
+		}
+
+		// A contender with no side of their own -- their anchor sits in the band or off the map --
+		// contends for nothing. They are excluded by the side comparison itself rather than by a
+		// second test, because a negative can never equal a non-negative structure side.
+		[Test]
+		public void AContenderWithNoSideOfTheirOwnContendsForNothing()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 1000, 90000 }, new[] { NoSide, 0 }),
+				Is.EqualTo(1));
+			Assert.That(PreCapturedOwnership.ResolveOnSide(NoSide, new long[] { 1000 }, new[] { NoSide }),
+				Is.EqualTo(-1));
+		}
+
+		// A region can have more than two components -- DefconWallRegion labels every connected
+		// piece, and IsDegenerate only requires two. The rule is an equality test on ids, so a
+		// third pocket behaves like any other side rather than like a special case.
+		[Test]
+		public void AThirdComponentIsJustAnotherSide()
+		{
+			var distances = new long[] { 10000, 20000, 30000 };
+			var sides = new[] { 0, 1, 2 };
+
+			Assert.That(PreCapturedOwnership.ResolveOnSide(2, distances, sides), Is.EqualTo(2));
+			Assert.That(PreCapturedOwnership.ResolveOnSide(3, distances, sides), Is.EqualTo(-1));
+		}
+
+		[Test]
+		public void MalformedInputIsNeutralRatherThanAThrow()
+		{
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, null, new[] { 0 }), Is.EqualTo(-1));
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 1000 }, null), Is.EqualTo(-1));
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, Array.Empty<long>(), Array.Empty<int>()), Is.EqualTo(-1));
+
+			// Lengths that disagree are a caller bug; answering neutral is the safe half of it.
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 1000, 2000 }, new[] { 0 }), Is.EqualTo(-1));
+		}
+
+		// =====================================================================================
+		// The autotest scenario's own arithmetic, so a red here and a red in test-precaptured-
+		// structures mean the same thing rather than two different things.
+		// =====================================================================================
+		// test-precaptured-structures places two Supply Routes at cells 4,16 (USA) and 60,16
+		// (Russia) and a two-cell vertical band at x=31,32. Contender order is [Russia, USA] --
+		// map players precede slot players in World.Players -- so Russia is index 0, and Russia
+		// lives east (side 1) with USA west (side 0). Distances are in world units, from the
+		// map.yaml table: 1024 units to the cell.
+		static readonly int[] ScenarioSides = { 1, 0 };
+
+		[Test]
+		public void TheScenarioWestDerrickGoesToUsa()
+		{
+			// The derrick at 11,15 is west of the band: 7.52 cells from USA, 48.50 from Russia.
+			Assert.That(PreCapturedOwnership.ResolveOnSide(0, new long[] { 49664, 7700 }, ScenarioSides),
+				Is.EqualTo(1));
+		}
+
+		[Test]
+		public void TheScenarioEastDerrickGoesToRussia()
+		{
+			// The derrick at 51,15 is east of the band: 8.51 cells from Russia, 47.50 from USA.
+			Assert.That(PreCapturedOwnership.ResolveOnSide(1, new long[] { 8714, 48640 }, ScenarioSides),
+				Is.EqualTo(0));
+		}
+
+		[Test]
+		public void TheScenarioMiddleDerrickIsInTheBandAndStaysNeutral()
+		{
+			// 27.50 vs 28.50 cells -- a 3.6% margin, which the RATIO rule also calls neutral. The
+			// scenario is nonetheless evidence about the border rule: with the band authored, the
+			// verdict comes from the footprint being inside it, and the distances are not consulted.
+			Assert.That(PreCapturedOwnership.ResolveOnSide(NoSide, new long[] { 29184, 28160 }, ScenarioSides),
+				Is.EqualTo(-1));
 		}
 	}
 }
