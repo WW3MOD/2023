@@ -102,11 +102,24 @@ namespace OpenRA.Mods.Common.Traits
 		// author the border as a SET OF CELLS instead -- "every water, river and bridge cell, plus
 		// these" -- which is a set and not a function of position.
 		//
-		// PRECEDENCE, AND IT IS EXPLICIT BECAUSE THREE THINGS NOW COMPETE:
-		//   1. A REGION WINS over everything. Either field below being non-empty selects the region
-		//      path, and neither Start/End nor DeriveFromSpawns is consulted at all.
+		// PRECEDENCE, AND IT IS EXPLICIT BECAUSE FOUR THINGS NOW COMPETE:
+		//   1. A REGION WINS over everything. The map's painted `Zones: DMZ` cells, or either field
+		//      below being non-empty, selects the region path, and neither Start/End nor
+		//      DeriveFromSpawns is consulted at all.
 		//   2. An authored Start/End beats DeriveFromSpawns, exactly as it always has.
 		//   3. DeriveFromSpawns is the fallback, and is what world.yaml switches on.
+		//
+		// THE THREE REGION SOURCES ARE UNIONED, NOT RANKED. `Zones: DMZ` in map.yaml, the terrain
+		// types below, and the authored cells below all contribute to one cell set -- so a map may
+		// paint a band in the editor AND keep `RegionTerrainTypes: Water` to pull the river in, which
+		// is exactly what river-zeta-ww3 does. "Painted DMZ >= RegionCells" describes which SOURCE a
+		// map author should reach for first, not a source that suppresses another.
+		//
+		// WHY THE PAINTED ZONE IS THE ONE TO REACH FOR. RegionCells lives in the map's rules.yaml,
+		// which the editor cannot write; the nine shipped borders were drawn by a Python script and
+		// pasted in by hand. A DMZ zone lives in the map package where the editor paints it. Both are
+		// read here and neither is deprecated -- a mod rule may still author RegionCells for a map it
+		// does not own.
 		// A REGION THAT DIVIDES NOTHING DOES NOT FALL BACK TO A LINE. It logs and the wall stays
 		// down. Falling back would hand a map author who believed they had a river border a straight
 		// line cutting across it, which is the one outcome worse than no border -- the same ruling
@@ -394,7 +407,7 @@ namespace OpenRA.Mods.Common.Traits
 			// A REGION WINS OVER BOTH THE AUTHORED LINE AND THE DERIVATION, and returns either way:
 			// a region that divides nothing leaves the wall DOWN rather than falling through to a
 			// line. See the precedence note on DefconWallInfo.RegionTerrainTypes for why.
-			if (info.RegionTerrainTypes.Length > 0 || info.RegionCells.Length > 0)
+			if (UsesRegion(w.Map.Zones[MapZones.Dmz].Length, info.RegionTerrainTypes.Length, info.RegionCells.Length))
 			{
 				BuildRegion(w);
 				return;
@@ -464,6 +477,20 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Does the border come from the region path rather than from a line? True as soon as ANY of
+		/// the three region sources has a cell to contribute.
+		/// </summary>
+		// PURE AND STATIC SO IT CAN BE PINNED WITHOUT A World. Nothing in OpenRA.Test can construct
+		// one, and the property that actually has to hold when a new source is added is that the
+		// answer for a map with NO painted zone is bit-for-bit what it was before the zone existed.
+		// That is a statement about this expression, not about the trait, so this is where it is
+		// tested -- see DefconWallZoneTest.
+		public static bool UsesRegion(int dmzZoneCells, int regionTerrainTypes, int regionCells)
+		{
+			return dmzZoneCells > 0 || regionTerrainTypes > 0 || regionCells > 0;
+		}
+
+		/// <summary>
 		/// Build the border from the authored terrain types and cells. Runs once, at WorldLoaded, for
 		/// the same ordering reason the derivation does.
 		/// </summary>
@@ -482,6 +509,13 @@ namespace OpenRA.Mods.Common.Traits
 		void BuildRegion(World w)
 		{
 			var cells = new List<CPos>();
+
+			// THE PAINTED ZONE GOES IN FIRST AND IS NOT SPECIAL AFTERWARDS. DefconWallRegion takes a
+			// cell set, so a cell contributed by two sources is one border cell either way -- there
+			// is nothing to de-duplicate and no ordering to get wrong. Like RegionCells below, these
+			// are added unconditionally including cells OUTSIDE Bounds, because a zone painted up to
+			// the map edge has to close the same seam RegionCells closes (see the note there).
+			cells.AddRange(w.Map.Zones[MapZones.Dmz]);
 
 			if (info.RegionTerrainTypes.Length > 0)
 			{
@@ -524,13 +558,25 @@ namespace OpenRA.Mods.Common.Traits
 				// and therefore fixable, a border that claims to divide the map and does not is not.
 				Log.Write("debug", $"DEFCON wall: the authored region covers {region.BlockedCells.Count} " +
 					$"cell(s) and leaves the map in {region.ComponentCount} piece(s); it divides nothing, " +
-					"so the wall stays down.");
+					$"so the wall stays down. Sources: {SourceBreakdown(w)}.");
 				region = null;
 				return;
 			}
 
 			Log.Write("debug", $"DEFCON wall region: {region.BlockedCells.Count} border cell(s), " +
-				$"{region.ComponentCount} component(s).");
+				$"{region.ComponentCount} component(s). Sources: {SourceBreakdown(w)}.");
+		}
+
+		/// <summary>
+		/// Which of the three region sources contributed, for the log. Worth spelling out because the
+		/// three fail differently: a painted DMZ that divides nothing is a map the author can reopen
+		/// in the editor and fix, a RegionTerrainTypes that selected nothing is usually a type name
+		/// the tileset does not carry, and neither is distinguishable from the other in a cell count.
+		/// </summary>
+		string SourceBreakdown(World w)
+		{
+			return $"{w.Map.Zones[MapZones.Dmz].Length} painted DMZ cell(s), " +
+				$"{info.RegionTerrainTypes.Length} terrain type(s), {info.RegionCells.Length} authored cell(s)";
 		}
 
 		/// <summary>True on a map that authored a region; false on every map that uses the line.</summary>
