@@ -446,6 +446,7 @@ A10:
 	Inherits@AirRadar: ^AirRadar
 	Inherits@AutoTarget: ^AutoTargetGroundAntiTank
 	RenderSprites:
+		Scale: 1.2
 		PlayerPalette: playertd
 	Buildable:
 		Prerequisites: ~disabled
@@ -492,10 +493,6 @@ A10:
 		# direction, as the abrams/t90 split (80 vs 70) on DU-versus-tungsten penetrator.
 		# Was 5 per 25 (0.20/round).
 		SupplyValue: 10
-	ReloadAmmoPool@1:
-		AmmoPool: primary-ammo
-		Sound: minelay1.aud
-		RequiresCondition: unit.docked && !airborne
 	WithAmmoPipsDecoration@1:
 		Position: Bottom
 		Margin: 8, 6
@@ -522,6 +519,13 @@ A10:
 		# Hellfire: 4 batches × 1 missile × 200 supply = 800 (~13% of cost 6000).
 		# Universal Hellfire rate.
 		SupplyValue: 200
+	# NOTE: this is @1, not @2 as every other two-pool aircraft in this file writes it.
+	# Until 2026-09-20 a second ReloadAmmoPool@1 also sat in the primary group above;
+	# MiniYaml merged the pair into one trait and this block's AmmoPool won, so the
+	# 30mm has never reloaded while docked and A10.Airstrike's -ReloadAmmoPool@1 has
+	# always removed this one. Kept verbatim to preserve that. Making it @2 (which the
+	# house pattern implies was meant) is a BALANCE change, not a cleanup -- see
+	# WORKSPACE/bugs/discovered.md.
 	ReloadAmmoPool@1:
 		AmmoPool: secondary-ammo
 		Sound: minelay1.aud
@@ -569,8 +573,6 @@ A10:
 		TrailWhileStationary: true
 		Type: CenterPosition
 		RequiresCondition: critical-damage
-	RenderSprites:
-		Scale: 1.2
 
 F16:
 	Inherits@Type: ^Aircraft

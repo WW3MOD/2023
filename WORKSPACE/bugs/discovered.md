@@ -5,6 +5,22 @@
 
 ---
 
+- [2026-09-20] [LOW] **The A-10's 30mm GAU-8 has never reloaded while docked, because a paste typo
+  made its reloader `@1` twice instead of `@1`/`@2`.** In `rules/ingame/aircraft-america.yaml` the
+  A10 block carried `ReloadAmmoPool@1` twice — `AmmoPool: primary-ammo` in the primary group and
+  `AmmoPool: secondary-ammo` in the secondary group. MiniYaml merges same-key siblings second-wins
+  (`MiniYaml.cs:438`/`:538`), so the actor resolved to ONE reloader pointed at `secondary-ammo`; the
+  primary block was inert from the day it was written. **Every other two-pool aircraft in both faction
+  files writes the pair as `@1` primary + `@2` secondary** (america `:186`/`:221`, `:362`/`:391`,
+  `:625`/`:653`; russia `:186`/`:218`, `:361`/`:404`, `:639`/`:667`), so `@2` is almost certainly what
+  was meant. **It was NOT changed to `@2`** while fixing the load-time duplicate: that is a balance
+  change (the 30mm would start regenerating ammo while docked), and it would also silently alter the
+  derived `A10.Airstrike` (`:687`), whose `-ReloadAmmoPool@1:` currently removes the one merged trait
+  and would then leave a live `@2` reloading its 2 Hellfires on a one-pass strafe actor that also has
+  `-Rearmable:`. Needs a balance ruling, and a combat-sim pass per `DOCS/recipes/BALANCE.md`, not a
+  cleanup. The surviving block is commented in place.
+  (found while working on: making the cameo caption table loadable)
+
 - [2026-09-19] [MEDIUM] **The DEFCON 2 transition banner is destroyed before anyone sees it, and the
   mode's signature phase is therefore invisible in the common case.**
   `DefconTransitionBannerWidget` keeps a single `shownLevel`/`shownAtTick` pair and overwrites both on

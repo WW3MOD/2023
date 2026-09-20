@@ -3,6 +3,48 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A latent duplicate key inside ONE actor is inert until ANOTHER file overrides that actor; the first override is what detonates it (`wt/caption-load`, base `main @ 1c806add`)
+
+Loading `rules/cameo-captions.yaml` (102 `ACTOR: -> Buildable: -> CameoCaption:` overrides) broke rule
+loading mod-wide with `MiniYaml.Merge, duplicate values found for the following keys: ReloadAmmoPool@1
+... RenderSprites ...`, all four locations inside the **single** `A10:` block in
+`rules/ingame/aircraft-america.yaml`. The caption table did not introduce the duplicates and does not
+mention those traits. It was simply the first file in the mod's history ever to override `A10:`.
+
+**The check is reachable only through a cross-file collision.** `MiniYaml.Merge` (`MiniYaml.cs:399`)
+runs `MergeSelfPartial` per source, then `.Aggregate(MergePartial)` across sources. The conflict
+report lives in `MergePartial(MiniYaml, MiniYaml)` at `:520-530`, which calls
+`IntoDictionaryWithConflictLog` on **both** sides' child lists. Nothing reaches that overload for an
+actor's own children until two sources define the same key: `MergeNode` (`:557-588`) appends a
+first-seen key and only calls it at `:587`, when a key repeats across the merged lists. So an actor
+defined in exactly one file never has its children dictionary-ified, and an in-file duplicate sits
+there indefinitely — merged silently, never reported.
+
+**What the engine was doing with the duplicates in the meantime is not "dropping the second".** The
+pair is merged field-by-field: `ResolveInherits` -> `MergeIntoResolved` (`:427-501`) finds the repeat
+via `existingNodeKeys`, merges with `MergePartial` at `:438`, and stores the result **at the first
+node's index** (`:498`). Leaf conflicts resolve `overrideNodes.Value ?? existingNodes.Value`
+(`:538`) — the **later** block wins per key, and keys only the earlier block names survive. So two
+trait blocks of the same key become ONE trait carrying the union, second-wins. For A10 that meant
+`RenderSprites` = `PlayerPalette: playertd` + `Scale: 1.2`, and a single `ReloadAmmoPool@1` pointed at
+`secondary-ammo` — the primary-ammo block above it had **never** been in effect.
+
+**Note the asymmetry: the diagnostic is stricter than the merge it guards.** `:525-530` throws on a
+shape that `:541-589` would then have merged deterministically. The exception is a correctness
+tripwire, not a failure of the merge algorithm — which is why the fix belongs in the shipped actor,
+not in the overriding file, and why turning the override off only re-hides the defect.
+
+**Scope is narrower than "every duplicate in the mod", and the bound is the shape of the override.**
+The conflict walk only descends the **intersection** of the two node trees, so a table of
+`ACTOR -> Buildable -> field` can only ever detonate (a) duplicate direct children of an overridden
+actor and (b) duplicate children inside that actor's `Buildable:`. Inheritance is irrelevant here:
+`ResolveInherits` runs at `:417`, after the `Aggregate` at `:408`, so duplicates inside an inherited
+`^Template` cannot participate in this throw. A scan of `mods/ww3mod/rules/` found 21 blocks with
+duplicate direct children, of which exactly one (`A10`) is overridden by the table; the (b) scan
+returned zero. **The corollary is the thing to carry: every future override file is a detonator for
+whichever latent duplicates it happens to touch, and the remaining 19-20 are live landmines waiting
+for their first overrider.**
+
 ## 2026-09-20 - Two traits answering "who are the sides" with different predicates: `Playable` is a lobby-slot fact, not a statement about the match (`wt/fwd-deploy-band`, base `main @ ee301478`)
 
 `test-forward-deploy-clears-band` failed its first ever run with **zero forward units** while every
