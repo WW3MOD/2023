@@ -361,16 +361,58 @@ def map_rule_nodes(game_map):
     return nodes
 
 
+def zone_cells_from_map(game_map) -> list[tuple[int, int]]:
+    """The DMZ cells a map paints in the editor, from map.yaml's `Zones:` node.
+
+    Mirrors MapZones.DecodeRows. The form is row-ranges -- `12: 40-44, 60-61` -- where the key is Y
+    and the value is a comma-separated list of INCLUSIVE X ranges, each `lo-hi` or a bare `x`. The
+    separator is the first `-` at index > 0, which is what keeps a negative bound unambiguous.
+
+    ZONES ARE NOT CLIPPED TO Bounds here, for the same reason RegionCells is not: a band painted up
+    to the map edge has to close the ring where Bounds stops one cell short. engine_load_gate does
+    the clipping and reports what it dropped.
+    """
+    roots = {n.key: n for n in miniyaml.parse(
+        (game_map.path / "map.yaml").read_text(encoding="utf-8"))}
+    zones = roots.get("Zones")
+    if zones is None:
+        return []
+
+    cells = []
+    for zone in zones.nodes:
+        if zone.key != "DMZ":
+            continue
+        for row in zone.nodes:
+            y = int(row.key.strip())
+            for token in (row.value or "").split(","):
+                token = token.strip()
+                if not token:
+                    continue
+                split = token.find("-", 1)
+                lo, hi = (int(token), int(token)) if split < 0 else (int(token[:split]), int(token[split + 1:]))
+                if hi < lo:
+                    raise ValueError(f"{game_map.name}: Zones DMZ row {y}: range `{token}` runs backwards")
+                cells += [(x, y) for x in range(lo, hi + 1)]
+
+    return cells
+
+
 def region_from_map(game_map):
     """The authored DEFCON 3 region a map declares, as (blocked cells, types, authored cells).
 
-    Mirrors DefconWall.BuildRegion: resolve RegionTerrainTypes against the tileset and take
-    every cell of those types, then add RegionCells unconditionally. Returns an empty set for
-    a map that authors no region, which is how a caller tells "uses the derived line" from
+    Mirrors DefconWall.BuildRegion: the map's painted `Zones: DMZ` cells, plus every cell of a
+    type named in RegionTerrainTypes, plus RegionCells -- all three UNIONED, with the last two
+    added unconditionally including cells outside Bounds. Returns an empty set for a map that
+    authors no region at all, which is how a caller tells "uses the derived line" from
     "authored one".
+
+    THE ZONE IS COUNTED WITH THE HAND-AUTHORED CELLS in the returned tuple rather than reported
+    separately, because for the audit's purpose they are the same thing: cells somebody drew. The
+    migration from RegionCells to Zones therefore has to leave every number this tool prints
+    UNCHANGED, which is exactly the check that was run on it.
     """
     types = []
-    cells = []
+    cells = list(zone_cells_from_map(game_map))
     for node in map_rule_nodes(game_map):
         if node.key != "World":
             continue

@@ -71,6 +71,31 @@ namespace OpenRA
 		// slot is scarce enough that capturing one tooltip per run is not viable.
 		public static string HoverProductionIcon { get; set; }
 
+		// Map directory name / title / UID to open in the MAP EDITOR once the menu
+		// loads, so a screenshot driver can photograph editor UI without a human at
+		// the mouse. The sibling of OpenSkirmishLobby, and resolved by the same
+		// MainMenuLogic.ResolveLobbyMapId. Set via Test.OpenEditorMap=<map-id>.
+		public static string OpenEditorMap { get; private set; }
+
+		// Which entry of the editor's Tools dropdown to select once the editor chrome
+		// is up, e.g. "Zones". A DROPDOWN'S ITEMS DO NOT EXIST UNTIL IT IS OPENED --
+		// ScrollItemWidget.Setup runs inside ShowDropDown -- so the cmd file's `click`
+		// verb, which matches a VISIBLE widget by id, cannot reach them. MapToolsLogic
+		// therefore selects the tool from this setting directly, and the tool's own
+		// panel logic selects its first item. Set via Test.EditorTool=Zones.
+		public static string EditorTool { get; private set; }
+
+		// One pending editor zone stroke, as "paint <x>,<y>[,<size>]" or
+		// "erase <x>,<y>[,<size>]". EditorZoneBrush.Tick consumes it and replays it
+		// through its OWN PaintZoneEditorAction, so a scripted stroke is the same
+		// undoable operation a dragged one is and moves the same revision counter the
+		// split readout watches.
+		//
+		// Settable for the same reason HoverProductionIcon is: the "zone-paint" /
+		// "zone-erase" cmd-file verbs rewrite it mid-session, so one launch can
+		// photograph a band both intact and cut.
+		public static string ZoneStroke { get; set; }
+
 		// Path to a marker file LobbyLogic touches once MapIsPlayable. External
 		// drivers (tools/autotest/screenshot-lobby.sh) poll this to know when
 		// it's safe to fire a "screenshot" command — without this signal they
@@ -229,6 +254,8 @@ namespace OpenRA
 			SetLobbyOptions = args.GetValue("Test.SetLobbyOptions", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
 			HoverProductionIcon = args.GetValue("Test.HoverProductionIcon", null);
+			OpenEditorMap = args.GetValue("Test.OpenEditorMap", null);
+			EditorTool = args.GetValue("Test.EditorTool", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
