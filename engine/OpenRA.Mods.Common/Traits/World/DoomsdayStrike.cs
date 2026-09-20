@@ -631,11 +631,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// <see cref="FinalExchangeCascade"/> for why the slots are sequential rather than interleaved
 		/// by side.</para>
 		/// </summary>
+		/// <returns>
+		/// The reserved slot, or <b>-1</b> when this launch is not part of an exchange and the
+		/// caller's own arithmetic stands. A SENTINEL RATHER THAN THE ARGUMENT ECHOED BACK, since
+		/// 2026-09-20: the caller used to test `scheduled != natural` to decide whether to solve
+		/// backwards, and that has a hole -- the warhead that SETS the anchor is given a slot equal
+		/// to its own natural tick, so the test failed for it and that one warhead skipped the
+		/// pipeline correction every other warhead got.
+		/// </returns>
 		public static int ScheduleExchangeImpact(World world, Player firer, int naturalImpactTick, SupportPowerInfo powerInfo)
 		{
 			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
 			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
-				return naturalImpactTick;
+				return -1;
 
 			var scheduled = dd.cascade.Reserve(naturalImpactTick);
 			dd.exchangeImpacts.Add((firer, scheduled));
@@ -743,12 +751,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>THE ONE-TICK LOOKBACK. A launch reported before the exchange exists is kept for exactly the
 		/// tick it was reported on, and <see cref="BeginFinalExchange"/> absorbs it.</para>
 		/// </summary>
-		public static void NotifyExchangeLaunch(World world, Player firer, int impactTick, SupportPowerInfo powerInfo, Actor missile = null)
+		public static void NotifyExchangeLaunch(World world, Player firer, int impactTick, SupportPowerInfo powerInfo)
 		{
-			world.WorldActor.TraitOrDefault<DoomsdayStrike>()?.ReportExchangeLaunch(firer, impactTick, powerInfo, missile);
+			world.WorldActor.TraitOrDefault<DoomsdayStrike>()?.ReportExchangeLaunch(firer, impactTick, powerInfo);
 		}
 
-		void ReportExchangeLaunch(Player firer, int impactTick, SupportPowerInfo powerInfo, Actor missile = null)
+		/// <summary>
+		/// <para>Measure this warhead against the slot the cascade RESERVED for it. Separate from
+		/// <see cref="NotifyExchangeLaunch"/> because the two carry different ticks and conflating
+		/// them is exactly what run 260920_165621 caught: that one reports the arrival the power's
+		/// own arithmetic predicts, which inside the exchange is the slot minus the pipeline.</para>
+		/// </summary>
+		public static void WatchExchangeWarhead(World world, Player firer, int reservedSlot, Actor missile)
+		{
+			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (dd != null && missile != null && reservedSlot >= 0)
+				dd.watched.Add((firer, reservedSlot, missile));
+		}
+
+		void ReportExchangeLaunch(Player firer, int impactTick, SupportPowerInfo powerInfo)
 		{
 			if (!SalvoInProgress)
 			{
@@ -775,11 +796,6 @@ namespace OpenRA.Mods.Common.Traits
 			// behalf is the other half of that partition rather than a placement.
 			if (IsGameEnder(powerInfo))
 				window.RecordPlacement(firer?.InternalName);
-
-			// WATCHED ONLY FOR A GAME-ENDER, matching the slot the cascade reserved: a tactical shot
-			// fired inside the window takes no slot, so it has no schedule to be measured against.
-			if (missile != null && IsGameEnder(powerInfo))
-				watched.Add((firer, impactTick, missile));
 
 			if (impactTick > playerImpactTick)
 				playerImpactTick = impactTick;

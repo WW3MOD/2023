@@ -195,6 +195,15 @@ namespace OpenRA.Test
 			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 1500, 200),
 				Is.EqualTo(500 - 200 - FinalExchangeCascade.DetonationPipelineTicks));
 
+			// THE ARC CEILING IS PER MISSILE, MEASURED 2026-09-20. Run 260920_165621 put America's
+			// four warheads a tick later than Russia's against the same slots, on the same map and
+			// the same missile body -- the whole difference being that one salvo's hDist divided
+			// exactly by the speed and the other's did not.
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3200, 1600, 0), Is.EqualTo(0), "exact division needs no ceiling");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3201, 1600, 0), Is.EqualTo(1), "a remainder costs one tick");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(900, 1600, 0), Is.EqualTo(0), "EstimateArcTicks already clamps a sub-tick flight up to 1");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3201, 1600, 5), Is.EqualTo(0), "the accelerating branch integrates and needs no correction");
+
 			// AND THE ROUND TRIP, which is the property rather than the formula: launch when this
 			// says, fly the flight, pay the pipeline, and land on the tick that was reserved.
 			// SLOTS THE FLIGHT CAN ACTUALLY REACH. The round trip only holds where the delay is
