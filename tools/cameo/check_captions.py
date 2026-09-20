@@ -24,10 +24,14 @@ Six checks, each of which is a mistake somebody could actually make here:
                    Until 2026-09-20 this check asserted the opposite (the table was a proposal);
                    the user ruled it live, so a missing or non-final entry is now the mistake.
 
-WHAT THIS CANNOT CHECK. It reads the rules DIRECTORY, not mod.yaml's Rules list, so "already has
-a live caption" means "some file under mods/ww3mod/rules sets one". The table's own file is
-excluded from that scan by name -- without which every actor would look already-captioned by
-itself and check 1 would pass vacuously.
+  7. DEFINED      every entry names an actor that some file in mod.yaml's `Rules:` list actually
+                   defines. An override on an actor only an UNLOADED file defines does not fail
+                   loudly -- MiniYaml creates a bare actor from it, which then trips two lints on
+                   every map in the mod. Added 2026-09-20, after exactly that shipped.
+
+THE ACTOR UNIVERSE IS mod.yaml's `Rules:` LIST, not the rules directory. The two differ by 20
+files. captions_table.loaded_rules_paths() resolves it and is shared with the generator, so a
+table entry the generator would not emit is one this gate rejects.
 """
 
 import os
@@ -47,44 +51,15 @@ MOD_YAML = os.path.join(ROOT, "mods", "ww3mod", "mod.yaml")
 
 
 def survey_excluding_table():
-    """captions_table.survey(), but blind to the table file itself.
+    """Every buildable actor with a cameo, from the rules files mod.yaml LOADS, table excluded.
 
-    Done by moving the file aside in memory: rollout_survey.merge walks the directory, so the
-    only way to exclude one file is to filter the walk. Reimplemented here rather than
-    parameterised into rollout_survey, which other tools depend on.
+    Both halves matter and both used to be wrong here. This walked the rules DIRECTORY, so an
+    actor defined only in a file mod.yaml never loads (ingame/old.yaml, ingame/vehicles-ukraine
+    .yaml, all of weapons/ and sound/ and campaign/) counted as real and a table entry on it
+    looked legitimate -- check 7 below is the check that state needed. captions_table.survey()
+    now owns both the universe and the exclusion, so the generator and this gate cannot drift.
     """
-    import rollout_survey as rs
-    rules_dir = os.path.join(ROOT, "mods/ww3mod/rules")
-    paths = [p for p in rs.walk(rules_dir) if os.path.abspath(p) != os.path.abspath(TABLE)]
-    rules = rs.merge(paths)
-    seqs = rs.merge(rs.walk(os.path.join(ROOT, "mods/ww3mod/sequences")))
-    low = {k.lower(): v for k, v in seqs.items()}
-
-    def seq_art(image, icon):
-        node, guard = low.get(image.lower()), 0
-        while node is not None and guard < 8:
-            guard += 1
-            for key in node:
-                m = re.match(rf"{re.escape(icon)}:\s*(\S+)", key)
-                if m:
-                    return m.group(1)
-            parent = next((re.match(r"Inherits(?:@\w+)?:\s*(\S+)", k).group(1)
-                           for k in node if re.match(r"Inherits(?:@\w+)?:\s*(\S+)", k)), None)
-            node = low.get(parent.lower()) if parent else None
-        return None
-
-    out = {}
-    for name in rules:
-        if name.startswith("^") or name in ("Player", "World", "Defaults"):
-            continue
-        t = rs.resolve(name, rules)
-        if "Buildable" not in t:
-            continue
-        icon = (rs.field(t.get("Buildable"), "Icon") or "icon").split()[0]
-        image = rs.field(t.get("RenderSprites"), "Image") or name
-        art = (seq_art(image, icon) or seq_art(name, icon) or "?").split("|")[-1]
-        out[name] = dict(art=art, live=rs.field(t.get("Buildable"), "CameoCaption"))
-    return out
+    return captions_table.survey()
 
 
 def parse_table(path=TABLE):
@@ -129,8 +104,11 @@ def main():
     notes.append("%d buildable actors with a cameo = %d in the table + %d already live"
                  % (len(actors), len(table), len(live)))
 
-    # 5 -- case. parse_table keys come from the file; actors keys come from the tree.
-    by_lower = {a.lower(): a for a in actors}
+    # 5 -- case. parse_table keys come from the file; the authority is every top-level key the
+    # LOADED rules files define -- not just the buildable ones, so a mis-cased key is still caught
+    # when the actor it meant to hit is not itself in the survey.
+    defined = captions_table.defined_in_loaded_rules()
+    by_lower = {a.lower(): a for a in defined}
     wrong_case = sorted("%s (defined as %s)" % (a, by_lower[a.lower()])
                         for a in table if a.lower() in by_lower and by_lower[a.lower()] != a)
     if wrong_case:
@@ -170,6 +148,28 @@ def main():
     widest = max(table.items(), key=lambda kv: width(kv[1]))
     notes.append("widest caption: %r on %s at %dpx of %dpx"
                  % (widest[1], widest[0], width(widest[1]), pixelfont.BUDGET_PLAIN))
+
+    # 7 -- DEFINED. Every entry must name an actor some LOADED rules file defines. An entry that
+    # does not is not inert and is not a no-op: MiniYaml creates a bare top-level actor carrying
+    # only this Buildable, which then fails `does not define a default visibility type` and
+    # `has no (enabled) Tooltip` on EVERY map. On 2026-09-20 five such entries produced 3,650
+    # lint errors -- ten messages across 365 maps -- and nothing before the full gate saw them.
+    undefined = sorted(set(table) - defined)
+    if undefined:
+        elsewhere = {}
+        for path in captions_table.unloaded_rules_paths():
+            keys = captions_table.top_level_keys(path)
+            rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+            for a in undefined:
+                if a in keys:
+                    elsewhere.setdefault(a, rel)
+        for a in undefined:
+            where = elsewhere.get(a)
+            fails.append(
+                "%s: no loaded rules file defines this actor, so the entry CREATES a bare actor "
+                "and breaks every map's lint -- %s"
+                % (a, ("it is defined in %s, which mod.yaml's Rules: list does not load" % where)
+                   if where else "nothing under mods/ww3mod/rules defines it at all"))
 
     # 6 -- loaded, and loaded LAST so its captions win over anything an earlier file sets.
     mod_text = open(MOD_YAML, encoding="utf-8-sig").read()

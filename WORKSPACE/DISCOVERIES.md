@@ -3,9 +3,46 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A rules override on an actor no LOADED file defines does not fail; MiniYaml CREATES the actor, and the bare result breaks every map's lint (`wt/caption-load`, base `main @ 2f94dad1`)
+
+**Symptom.** The first complete `.\make.ps1 test` of the loaded caption table exited 1 with
+`Errors: 3672` against a baseline of 22. The 3,650 unrecorded errors were **ten distinct messages x
+365 maps** — `Actor type 'x' does not define a default visibility type` and `The following buildable
+actor has no (enabled) Tooltip: 'x'`, for x in mcv, mcv.ai, mcv2, mcv2.ai, t72. Nothing in the table
+mentions visibility or tooltips, and the per-map error count is the tell: a defect in one actor
+definition, multiplied by every map that loads the rules.
+
+**Mechanism.** Those five are defined ONLY in `rules/ingame/old.yaml:2/42/65/73` and
+`rules/ingame/vehicles-ukraine.yaml:2`, and **mod.yaml's `Rules:` list loads neither file**
+(`mod.yaml:113-152`, 39 entries; `ingame/mcvs.yaml` IS listed but is 79 lines of comment and zero
+live ones, so it defines nothing). A top-level key in a loaded file that matches nothing already
+present is **not an error and not a no-op** — MiniYaml has no notion of "override an existing
+actor", so `Merge` simply adds the node and the mod gains a NEW actor whose entire definition is
+`Buildable: CameoCaption`. It has no `Tooltip`, no `Interactable`/`RenderSprites`, and so fails both
+lints, on every map, forever.
+
+**The general rule: for an override file, the set of names you may use is mod.yaml's `Rules:` list,
+not the rules directory.** The two differ by **20 files** here — all of `weapons/` and `sound/`, the
+`campaign/` tree, `disable-player-experience.yaml`, `ingame/old.yaml`, `ingame/vehicles-ukraine.yaml`.
+Any tool that builds an actor universe with `os.walk` over `mods/ww3mod/rules` is counting actors
+that are not in the game; `tools/cameo/captions_table.py` did exactly that, which is how five dead
+names reached a shipped file. It now resolves the list itself (`captions_table.loaded_rules_paths()`,
+which parses the `Rules:` block and the `ww3mod|` prefix), and `check_captions.py` check 7 fails on
+an entry no loaded file defines, naming the unloaded file that does define it when there is one.
+
+**Why nothing caught it earlier, which is the part worth generalising.** Every cheap gate passed:
+`check_captions.py` was green (its universe had the same bug, so the entries looked real), the NUnit
+suite was green, and the A10 duplicate had aborted the previous full lint before it reached a map.
+**A generator and its checker that share a wrong assumption agree with each other**, and no amount of
+running them proves anything — the checker has to derive the universe from a DIFFERENT authority
+than the one being tested, or, as here, both must be corrected together and the check must name the
+thing it rejects. Note also the ordering trap this sits inside: the table must load LAST to win, and
+loading last is also what makes its bad names authoritative.
+
 ## 2026-09-20 - A latent duplicate key inside ONE actor is inert until ANOTHER file overrides that actor; the first override is what detonates it (`wt/caption-load`, base `main @ 1c806add`)
 
-Loading `rules/cameo-captions.yaml` (102 `ACTOR: -> Buildable: -> CameoCaption:` overrides) broke rule
+Loading `rules/cameo-captions.yaml` (102 `ACTOR: -> Buildable: -> CameoCaption:` overrides, since
+regenerated to 97 -- see the entry above) broke rule
 loading mod-wide with `MiniYaml.Merge, duplicate values found for the following keys: ReloadAmmoPool@1
 ... RenderSprites ...`, all four locations inside the **single** `A10:` block in
 `rules/ingame/aircraft-america.yaml`. The caption table did not introduce the duplicates and does not

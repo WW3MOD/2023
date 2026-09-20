@@ -1,18 +1,25 @@
-# CAMEO CAPTIONS -- AUTHORED, COMPLETE, AND DELIBERATELY NOT LOADED.
+# CAMEO CAPTIONS -- AUTHORED, COMPLETE, AND LIVE.
 #
-# TO TURN THIS ON, ADD ONE LINE. In mods/ww3mod/mod.yaml, under `Rules:`, add
+# The user ruled these live on 2026-09-20. mods/ww3mod/mod.yaml lists
 #
 #     	ww3mod|rules/cameo-captions.yaml
 #
-# as the LAST entry in the list, and nothing else anywhere. Until that line exists this file is
-# inert: the mod never reads it, no cameo draws a caption it does not draw today, and deleting it
-# would change nothing. That is the point -- the wording is reviewable without being live.
+# as the LAST entry under `Rules:`, and that position is not incidental.
 #
 # WHY IT GOES LAST. These are overrides on actors defined elsewhere, and MiniYaml resolves
 # `Inherits@`/`-Key:` where they appear, so an override loaded before its definition is an
 # override of nothing. Last is the only position that is right regardless of what moves above it.
 #
-# WHAT HAPPENS THE DAY IT IS ON. Every cameo below starts drawing its caption over a black band
+# WHY EVERY ENTRY BELOW IS AN ACTOR mod.yaml ACTUALLY LOADS. An override on an actor that no
+# loaded rules file defines does not fail loudly -- MiniYaml simply creates a new top-level actor
+# carrying only this `Buildable: CameoCaption`, and that actor then trips `does not define a
+# default visibility type` and `has no (enabled) Tooltip` on EVERY map in the lint. Five entries
+# did exactly that on 2026-09-20 (MCV, MCV.ai, MCV2, MCV2.ai from rules/ingame/old.yaml and t72
+# from rules/ingame/vehicles-ukraine.yaml -- mod.yaml loads neither file): 3,650 lint errors, ten
+# messages across 365 maps. The generator now takes its actor universe from mod.yaml's Rules:
+# list, and check_captions.py check 7 fails if such an entry is reintroduced.
+#
+# WHAT IT LOOKS LIKE IN GAME. Every cameo below draws its caption over a black band
 # (CaptionBackgroundColor: 000000FF in chrome/ingame-player.yaml), which covers the baked
 # lettering underneath. The wording is that lettering verbatim wherever it was legible, so for
 # most of the roster the sidebar should look unchanged. It is NOT a licence to turn the band off:
@@ -299,28 +306,10 @@ m270:
 	Buildable:
 		CameoCaption: M270 MLRS
 
-# SPLIT: shares a sprite with another actor; the baked word cannot name both
+# WRONG: the baked word names a DIFFERENT actor -- reused art
 LCCV:
 	Buildable:
 		CameoCaption: LOGISTICS MCV
-
-MCV:
-	Buildable:
-		CameoCaption: MCV
-
-MCV.ai:
-	Buildable:
-		CameoCaption: MCV
-
-# SPLIT: shares a sprite with another actor; the baked word cannot name both
-MCV2:
-	Buildable:
-		CameoCaption: FIELD BASE
-
-# SPLIT: shares a sprite with another actor; the baked word cannot name both
-MCV2.ai:
-	Buildable:
-		CameoCaption: FIELD BASE
 
 MEDI:
 	Buildable:
@@ -411,10 +400,6 @@ SN.russia:
 strykershorad:
 	Buildable:
 		CameoCaption: STRYKER AA
-
-t72:
-	Buildable:
-		CameoCaption: T72
 
 t90:
 	Buildable:

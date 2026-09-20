@@ -251,7 +251,16 @@ source images. Do not go looking for a `--strip-captions`.
 
 `tools/cameo/rollout_survey.py` counts it: **116 buildable actors have a cameo**
 across **94 art files** (re-counted 2026-09-19; it was 115 across 87 and it grows), and of the 76 it can decode, **74 (101 actors) carry
-baked lettering**. Ten more are ShpTD, which its decoder cannot read at all, so
+baked lettering**.
+
+> **That 116 counts the rules DIRECTORY, not the game.** `rollout_survey.py` walks
+> `mods/ww3mod/rules/**.yaml`, 20 files of which mod.yaml never loads — so it counts
+> actors that are not in the mod. The figure for the SHIPPED roster is **111**, which is
+> what `check_captions.py` reports, because that tool takes its universe from mod.yaml's
+> `Rules:` list via `captions_table.loaded_rules_paths()`. Treat 116 as an upper bound on
+> art work and 111 as the number of cameos a player can actually see. Captioning an actor
+> in the 5-actor gap is not harmless: it creates a bare actor and breaks every map's lint
+> (2026-09-20; see `WORKSPACE/DISCOVERIES.md`). Ten more are ShpTD, which its decoder cannot read at all, so
 their verdict is unknown rather than clean. `samicon` is in no repo file — it is
 base-game content loaded from the RA install, **not a missing sprite**.
 
@@ -379,7 +388,7 @@ Neither fit mode ever stretches non-uniformly.
 | `pixelfont.py` | generates `mods/ww3mod/WW3Caption.ttf`; `--verify` measures the 1-bit rule |
 | `ftprobe.py` | rasterises through the ENGINE's freetype6 via ctypes — no build, no launch |
 | `captions_table.py` | the authored caption table; writes `rules/cameo-captions.yaml` |
-| `check_captions.py` | gates that table: coverage, width, glyphs, key case, still-inert |
+| `check_captions.py` | gates that table: coverage, width, glyphs, key case, loaded-last, defined-in-a-loaded-file |
 | `contact_sheet.py` | `--all` every cameo at 4x (read the baked words); `--powers` the bin |
 | `caption_proof.py` | the before/after font sheet in `WORKSPACE/mockups/caption-font-1bit.png` |
 | `work/` | staging scratch (git-ignored; safe to delete) — where the renders land |
