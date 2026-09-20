@@ -5701,3 +5701,117 @@ NukeRuKalibr:
 		ValidTargets: Ground, Water, Trees
 		IgnoreActors: true
 		AirThreshold: 24c0
+
+# =====================================================================================================
+# THE EXCHANGE VARIANTS -- the two national game-enders as they detonate during the FINAL EXCHANGE
+# =====================================================================================================
+#
+# NEITHER OF THESE IS PURCHASABLE, AIMABLE OR REACHABLE BY A PLAYER. Nothing lists them in a power,
+# a cameo or a hotkey slot. The only route to them is MissileStrikePowerInfo.EscalationMissileActor,
+# which MissileStrikePower flies instead of MissileActor exactly when DoomsdayStrike.IsExchangeLaunch
+# says the launch has been given a cascade slot. Fire a Sarmat at nuclear release level 5 before the
+# window opens, or under Skirmish's `Nuclear Unlock = No wait`, and you get NukeSarmatRV as always.
+#
+# ---- WHAT THEY DROP, AND WHY IT IS NOT A PERFORMANCE ARGUMENT -------------------------------------
+# ThermalRadiation, the ten Fire rings, the EMP disc and the five Suppression rings. Every one of
+# those is a STATE INFLICTED ON A SURVIVOR: burn it, disable it, pin it down. The final exchange has
+# no survivors and no next minute to spend suppressed in -- the cascade is the end of the match, the
+# verdict comes from a score frozen before the first warhead (DoomsdayStrike.FreezeStatistics), and
+# ConquestVictoryConditions is stood down for the duration. A condition with a 1438-tick duration
+# granted to a structure that will not exist in twenty ticks is work done for nobody to see.
+#
+# Measured on the rig they are also cheap -- under 1% of a salvo's detonation cost, against the
+# fireball's terrain relight at very nearly all of it -- so DO NOT justify this block on speed. The
+# one line here that is about cost is TerrainRefreshInterval, below, and it is about CADENCE rather
+# than total: at 5 roughly a fifth of the detonation's ticks are expensive, and during a cascade up
+# to 2N lights overlap. 16 is the Tsar Bomba's shipped value, chosen there for the same reason.
+#
+# ---- WHAT THEY KEEP, DELIBERATELY AND IN FULL -----------------------------------------------------
+# Flash, all the shake stages, the fireball sprite, the fireball LIGHT at its full radii, intensities,
+# tints and duration, Vaporize at an unchanged radius, the visible blast wave, all five scar bands and
+# the scorched-tree pulse. The ending has to LOOK like the ending; the variants are not a cheap
+# version of the weapon, they are the same detonation with the aftermath machinery removed.
+#
+# Warhead@TreeBurn IS KEPT, and it is the one judgement call in the list. Its name and its [Desc]
+# place it with the thermal pulse, but what it does is grant `scorched` -- a permanent, purely
+# cosmetic mark on a neutral tree, with no duration, no damage and no state to be in. It belongs with
+# the scars, and a crater ringed by green forest is exactly the tell the ending must not have.
+#
+# ---- WHY THESE ARE SUBCLASSES AND NOT A SHARED "minus the aftermath" MIXIN ------------------------
+# MiniYaml inheritance is single-path subtyping, not composable mixins: a template of PURE `-Key:`
+# removals runs them against an empty accumulator and throws `There are no elements with key ... to
+# remove` (MiniYaml.cs:479-484), and giving that template an Inherits: to bite on makes the CHILD
+# reach the same parent twice and trip the duplicate-parent guard (:467-474). Recorded in
+# WORKSPACE/DISCOVERIES.md, 2026-09-20. So the seventeen removals are written out twice; there is no
+# shape that shares them.
+#
+# ---- THE FOUR ROSTERS THESE DELIBERATELY DO NOT JOIN ----------------------------------------------
+# A new nuclear warhead normally moves four hand-maintained lists. These move none of them, because
+# they DECLARE no physics of their own -- every radius, curve, delay and falloff is the base weapon's
+# and is checked where the base weapon is:
+#   NuclearYieldTest.AllNukes     -- reads RAW nodes (MiniYaml.FromFile, no inheritance resolution),
+#                                    so a variant listed there would be a weapon with no numbers in
+#                                    it and would fail every invariant. Its instruction "anything
+#                                    added to either file has to be added here" is about weapons that
+#                                    state a yield; these restate nothing.
+#   BurntTreeScopeTest            -- counts raw Warhead@TreeBurn nodes. These inherit theirs and
+#   ScarUnderActorsTest           -- counts raw LeaveSmudge nodes. Same: inherited, not declared.
+#   gen_fireball_light.py YIELDS  -- both generators WRITE the block they own into the weapon they
+#   gen_shake.py YIELDS              name. Adding a variant there would produce a SECOND copy of the
+#                                    light and shake stacks that has to be regenerated in step with
+#                                    the first; inheriting them is what makes that impossible. The
+#                                    one field below that the light generator also emits --
+#                                    TerrainRefreshInterval -- is a hand-set cadence knob, and
+#                                    regenerating the base rewrites the BASE's node, never this one.
+# ExchangeVariantTest pins each of those claims so a later edit that breaks one is loud.
+
+# ---- RS-28 Sarmat re-entry vehicle, 750 kt, as it lands in the final exchange ----------------------
+NukeSarmatRVExchange:
+	Inherits: NukeSarmatRV
+	Warhead@FireballLight:
+		Light:
+			# 16, the Tsar Bomba's value, against the base weapon's 5. The light is unchanged in
+			# every other respect -- same radii, same intensities, same tints, same 307-tick run --
+			# so this buys cadence and costs nothing but how often the terrain is re-tinted.
+			TerrainRefreshInterval: 16
+	-Warhead@ThermalRadiation:
+	-Warhead@Fire1:
+	-Warhead@Fire2:
+	-Warhead@Fire3:
+	-Warhead@Fire4:
+	-Warhead@Fire5:
+	-Warhead@Fire6:
+	-Warhead@Fire7:
+	-Warhead@Fire8:
+	-Warhead@Fire9:
+	-Warhead@Fire10:
+	-Warhead@EMP:
+	-Warhead@Suppression1:
+	-Warhead@Suppression2:
+	-Warhead@Suppression3:
+	-Warhead@Suppression4:
+	-Warhead@Suppression5:
+
+# ---- W88 / Trident II D5 re-entry vehicle, 455 kt, as it lands in the final exchange ---------------
+NukeW88Exchange:
+	Inherits: NukeW88
+	Warhead@FireballLight:
+		Light:
+			TerrainRefreshInterval: 16
+	-Warhead@ThermalRadiation:
+	-Warhead@Fire1:
+	-Warhead@Fire2:
+	-Warhead@Fire3:
+	-Warhead@Fire4:
+	-Warhead@Fire5:
+	-Warhead@Fire6:
+	-Warhead@Fire7:
+	-Warhead@Fire8:
+	-Warhead@Fire9:
+	-Warhead@Fire10:
+	-Warhead@EMP:
+	-Warhead@Suppression1:
+	-Warhead@Suppression2:
+	-Warhead@Suppression3:
+	-Warhead@Suppression4:
+	-Warhead@Suppression5:
