@@ -65,6 +65,23 @@ Note this does **not** forbid operator retargeting onto a DIFFERENT enemy after
 the original target dies — that is intended and specified in §5. The rule is
 about re-homing on the target that was missed.
 
+**A missile that has lost guidance keeps being MEASURED against its real target, so `min_dist` is a true miss
+distance.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* In `Missile.Tick` the block that
+refreshes `targetPosition` from the live target (`Projectiles/Missile.cs:1134`) sits **above** the
+freefall/homing branch (`move = FreefallTick()` at `:1158`) and is gated only on the target still being valid
+and locked — not on whether guidance is being applied. So a missile that drops to freefall stops *steering*
+while the trace keeps comparing it against where the target actually is. `MissileTrace.MinDist` is "closest 3D
+approach to `targetPosition` (segment-exact)" (`Projectiles/MissileTrace.cs:99`), which therefore reads as the
+genuine miss distance against a **moving** target rather than the distance to a frozen last-known point. That
+is what makes `min_dist > close_enough` a valid pass criterion for any *"the missile should stop tracking"*
+scenario — and `close_enough` is in the same record (`:86`, surfaced through `TestGlobal.GetMissileRecord`), so
+such a scenario can derive its threshold instead of hard-coding a distance.
+
+**Corollary for scenario authors: a STATIONARY target cannot detect a guidance drop.** `FreefallTick`
+(`:546-556`) keeps the current velocity and adds gravity — the missile flies *on*, it is not removed — so a
+ballistic missile already pointed at a stationary target still lands on it. The target has to move across the
+missile's path for the drop to be observable at all.
+
 ### I3 — Randomness is legitimate; systematic failure is not
 
 Missiles are *meant* to miss sometimes, unpredictably. What is unacceptable is a
