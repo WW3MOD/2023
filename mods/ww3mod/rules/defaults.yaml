@@ -310,10 +310,14 @@
 		LevelUpImage: crate-effects
 	# Evacuating a ranked unit intact returns that rank to the purchase stock.
 	CreditsRankOnEvacuation:
-	# ConditionModifier@Rank_1:
-	# 	RequiresCondition: rank-veteran == 1
-	# 	Condition: suppressed
-	# 	Modifier: -1
+	# THERE IS NO `ConditionModifier` TRAIT. A four-line commented-out block used to sit
+	# here proposing suppression resistance per rank (`Condition: suppressed,
+	# Modifier: -1`), and it read like a one-line re-enable. It is not: uncommenting it
+	# would fail the rules load. `engine/OpenRA.Mods.Common/Traits/Multipliers/
+	# ConditionModifier.cs` exists but has ZERO non-comment lines, and what is commented
+	# out inside it is a stale copy of DetectableAddativeModifier, not a condition
+	# modifier at all. `grep -rn "ConditionModifierInfo\|class ConditionModifier" engine/`
+	# returns nothing. Rank-scaled suppression resistance needs C#, not a comment marker.
 	DetectableAddativeModifier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		VisionModifier: 1

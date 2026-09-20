@@ -572,7 +572,7 @@ Corollary that cost a real bug: **`Buildable.Description` strings are a consumer
 
 ### The vehicle ammo roster — every armed vehicle carries a live pool
 
-**There is no armed vehicle anywhere that shoots without drawing from a pool**, and the capacities are deliberately small. Audited across all four vehicle files (as of 2026-08):
+**There is no armed vehicle anywhere that shoots without drawing from a pool**, and the capacities are deliberately small. Audited across all four vehicle files (as of 2026-08). A `vehicles-ukraine.yaml` row stood here, `t72` at 40; it was dropped on 2026-09-20 when that file was deleted, never having been in `mod.yaml`'s `Rules:` list -- its `t72` never loaded and its pool was never live.
 
 | File | Actor | Live pool capacities |
 |---|---|---|
@@ -592,12 +592,11 @@ Corollary that cost a real bug: **`Buildable.Description` strings are a consumer
 | | `tos` | **24** |
 | | `tunguska` | 180 + 8 |
 | | `iskander` | **2** |
-| `vehicles-ukraine.yaml` | `t72` | **40** |
 | `vehicles.yaml` | `MNLY` | 10 (`mines-ammo`, feeds `Minelayer`, not an armament) |
 
 The only pool-less vehicles are the ones with **no gun**: `MSAR`, `TRUK`, `LCCV` (unarmed support), the shared `^Vehicle`/`^WheeledVehicle`/`^TrackedVehicle`/`^Walker` templates, and the two projectile-carrier actors `HIMARSMissile`/`IskanderMissile`. At 40 rounds for a main battle tank and 2 for `iskander`/`HIMARS`, **a vehicle running dry mid-battle is the normal course of a fight, not an edge case.**
 
-**`vehicles.yaml` is the least representative member of its own category — do not read it as "the vehicles".** It holds the shared templates plus a handful of unarmed support units; every actual combat vehicle lives in `vehicles-america.yaml`, `vehicles-russia.yaml` or `vehicles-ukraine.yaml`. Grepping `vehicles.yaml` alone for `AmmoPool` returns one live block and several commented-out ones, which reads as "vehicles used to have ammo and it was disabled" — the exact opposite of the truth. The commented blocks are not disabled pools on live units; they are fragments of two **entirely commented-out actors** (`SandBagLayer` ~`:650`, `timberwolf` ~`:709`, disabled in `296a529c`, 2023-06-20), and a commented `AmmoPool@1:` line looks identical either way. **General rule: before concluding anything about "all vehicles", grep every file under `mods/ww3mod/rules/` rather than the file whose name matches the concept.** The per-faction split means the category-named file is frequently the least representative one.
+**`vehicles.yaml` is the least representative member of its own category — do not read it as "the vehicles".** It holds the shared templates plus a handful of unarmed support units; every actual combat vehicle lives in `vehicles-america.yaml` or `vehicles-russia.yaml`. Grepping `vehicles.yaml` alone for `AmmoPool` returns one live block and several commented-out ones, which reads as "vehicles used to have ammo and it was disabled" — the exact opposite of the truth. The commented blocks are not disabled pools on live units; they are fragments of two **entirely commented-out actors** (`SandBagLayer` ~`:650`, `timberwolf` ~`:709`, disabled in `296a529c`, 2023-06-20), and a commented `AmmoPool@1:` line looks identical either way. **General rule: before concluding anything about "all vehicles", grep every file under `mods/ww3mod/rules/` rather than the file whose name matches the concept.** The per-faction split means the category-named file is frequently the least representative one.
 
 **Two structural splits inside that roster**, both easy to get wrong by generalising from the tanks:
 

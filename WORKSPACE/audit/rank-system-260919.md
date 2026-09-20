@@ -677,3 +677,80 @@ does not exist in a static dump. Rank effects have to be measured in-engine. A
     accrual-vs-kill comparison in §4.2 or the resolved `DroneJammer`/zero-XP finding in §5.4.
     **Recommend superseding it with this file** rather than leaving two audits disagreeing on the
     roster.
+
+---
+
+## §8 — Rulings (2026-09-20)
+
+Two questions §7 left open were put to the user and answered. A first batch of §6 items was then
+implemented on `wt/rank-retune-batch`, forked from `main @ 1c806add`. Everything below that is not
+in the "implemented" list is still an open recommendation.
+
+### The two rulings
+
+**§6 #5 / §7.3 — the crew `ExperienceModifier: 1` outlier is NOT intentional.** §7.3 listed this as
+the one item it would not action without asking. Ruled a defect and fixed in this batch: the
+override is removed, so crew thresholds scale by `Valued.Cost: 100` like every other actor's.
+
+**§6 #15 / §7.12 — ally-only rank chevrons ARE deliberate.** The commented-out `Enemy, Neutral` on
+the four `WithDecoration@Rank_N` entries (`defaults.yaml:379-421`) is an intentional information
+asymmetry, not an oversight: you are not meant to know whether the tank bearing down on you is a
+veteran. §6 #15 is **withdrawn**, not deferred. Do not "fix" it. §7.12's listing of ally-only
+chevrons as possibly-deliberate is now settled as deliberate.
+
+### Implemented in this batch (YAML only, no C#)
+
+| § | What landed |
+|---|---|
+| #5 | `ExperienceModifier: 1` removed from `^CrewMember`. All ten crew actors go from thresholds `x1` (100/200/400/800 XP absolute, rank 4 on one kill worth ≥8 credits) to `x100` (10000/20000/40000/80000 XP = the standard 1×/2×/4×/8× own cost). |
+| #6 | `quadcopterdrone` given `Valued: Cost: 25` — the mod's own price for one drone, from `^DR`'s `SupplyValue: 25` (`infantry.yaml:2553-2555`), which is denominated in the same credits as `Valued.Cost` (`economy.md:452`). Drone kills now award 2500 XP instead of zero, and the drone's own thresholds stop falling back to ×1. |
+| #7 | The dead `ConditionModifier@Rank_1` block replaced with a comment recording that no such trait exists and that uncommenting it would fail the rules load. |
+| #10 | `disable-player-experience.yaml` and `ingame/vehicles-ukraine.yaml` deleted. Wiring either in is a design change, not a repair: the first would *define* five nonexistent RA actors rather than override them, the second would add a second buildable Russian MBT. Two now-dangling citations in `DOCS/reference/economy.md` fixed in the same commit. |
+| #11 | `^UnarmedHelicopter` added; `TRAN`/`HALO` inherit it instead of `^Helicopter`, dropping the eight armament-scaling rank traits they have no weapon to apply. The three axes that work on a hauler are untouched. |
+
+### Deliberately NOT done here — these are design/tuning calls for the user
+
+Each is live and unchanged. The line says what taking it would change *in play*, not what it would
+change in the file.
+
+- **#1 — split the flat profile into per-class templates.** Nothing changes on its own; it is the
+  seam that makes every other numeric item below addressable per class instead of roster-wide.
+  #11 above is the first concrete instance of that seam and can be generalised from.
+- **#2 — fix the concealment cap.** Today ranks 2–4 buy a dug-in infantryman *zero* extra
+  concealment and ranks 1–4 buy a sniper or special-forces operator zero, because both already clamp
+  at the ceiling. Fixing it makes veteran infantry meaningfully harder to spot; it also makes snipers
+  harder to counter, which is the reason it is a judgement call and not a bug fix.
+- **#3 — flatten the thresholds** (e.g. `100/250/450/700`). Rank 4 currently costs 8× own cost and
+  cannot be purchased, so in practice it is infantry-only: a 6000-credit MBT needs 960 conscript
+  kills. Flattening puts rank 4 within reach of expensive units and makes elite armour a thing that
+  happens in a match.
+- **#4 — bend the reward curve to match the cost curve** (e.g. firepower `105/112/121/132`). Cost
+  doubles per rank while reward adds a flat +5%, so rank 4 is worth half as much per credit as rank
+  1. Bending it makes the later ranks feel like a payoff rather than a formality — and makes veteran
+  units hit distinctly harder, which is a balance shift across the whole roster.
+- **#8 — remove the rank block from unarmed civilians.** Twelve scenery actors currently carry 24
+  rank nodes each and can draw rank chevrons. Removing it stops a civilian from ever showing a
+  chevron. Cosmetic in effect, but it is the user's call whether ranked civilians are a bug or a
+  joke worth keeping.
+- **#9 — give `TRUK`/`MNLY`/`MSAR`/`LCCV` a support template.** Four buildable vehicles gain nothing
+  from rank and bank no purchase stock. Adding one would make veteran logistics faster and harder to
+  kill, and would put four more actors into the rank-purchase economy — which changes what the
+  accrual stock gets spent on.
+- **#12 — add a non-kill XP path** for `MEDI`, `TRAN`/`HALO` and `TECN`. These three classes have
+  well-shaped bonuses they can never earn. A trickle or a heal/deliver-triggered grant would let
+  support units veteran up from doing their job. The biggest behavioural change on this list, and
+  the only one that likely needs C#.
+- **#13 — add `InaccuracyMultiplier` as a rank axis.** Veterans would shoot straighter as well as
+  harder. Unlike firepower it is not already double-counted, so it adds a genuinely new dimension to
+  what a rank means — and it disproportionately helps long-range and burst weapons.
+- **#14 — give `SAM` a structure template.** The only armed structure that ships buildable currently
+  gains nothing from its kills. Adding it would make an established SAM site progressively harder to
+  saturate. §5.10 argues both sides; it is not obvious that static defences *should* veteran.
+
+### Still open from §7
+
+**§7.13 — supersede `WORKSPACE/audits/rank-system-audit.md` with this file.** Unactioned. Two audit
+documents still disagree on the roster (71 ranking actors against 113, and 20 buildable structures
+against 1), because the older one counted only buildables and was written 504 commits back. Note
+that this file is now itself out of date in the five places §8 lists as implemented — anything
+superseding it should be read together with this section.

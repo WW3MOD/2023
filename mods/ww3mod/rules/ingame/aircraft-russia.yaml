@@ -1,7 +1,10 @@
 # PITFALL: Cost values are real budget allocations, not test placeholders. Test values (Cost: 1) have shipped to main before — verify every Cost: line after any change to this file.
 
 HALO:
-	Inherits@Type: ^Helicopter
+	# ^UnarmedHelicopter, not ^Helicopter: identical except that it drops the eight
+	# armament-scaling rank traits, which this actor has no Armament to apply to.
+	# See ^UnarmedHelicopter in aircraft.yaml. Audit §6 #11 / §5.2.
+	Inherits@Type: ^UnarmedHelicopter
 	Inherits@CargoPips: ^CargoPips
 	AIHelicopterRole:
 		Role: Transport
