@@ -1061,7 +1061,41 @@ namespace OpenRA.Mods.Common.Traits
 		/// <see cref="ArmGameEnders"/> as it walks world.Players, so the earliest-seated unplaced side
 		/// takes the earlier cascade slots — identically on every client.</para>
 		/// </summary>
+		// True only while FireUnplacedPackages is on the stack. An auto-fired warhead reaches
+		// MissileStrikePower from inside this trait's own ITick rather than through order
+		// resolution, and the two paths differ by one tick of accounting -- see
+		// FinalExchangeCascade.AutoFireIssueLagTicks for the measurement.
+		bool autoFiring;
+
+		/// <summary>
+		/// Ticks to take OFF an exchange warhead's pipeline because it is being auto-fired rather
+		/// than placed. Zero for a player's own order. See
+		/// <see cref="FinalExchangeCascade.AutoFireIssueLagTicks"/>.
+		/// </summary>
+		public static int AutoFireIssueLag(World world)
+		{
+			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			return dd != null && dd.autoFiring ? FinalExchangeCascade.AutoFireIssueLagTicks : 0;
+		}
+
 		void FireUnplacedPackages()
+		{
+			autoFiring = true;
+			try
+			{
+				FireUnplacedPackagesInner();
+			}
+			finally
+			{
+				// FINALLY, because instance.Activate reaches a great deal of mod code -- the
+				// escalation veto, the approach geometry, every warhead's own Activate -- and a
+				// throw anywhere in there must not leave every LATER launch in the match counting
+				// itself as an auto-fire.
+				autoFiring = false;
+			}
+		}
+
+		void FireUnplacedPackagesInner()
 		{
 			foreach (var (player, key) in autoFire)
 			{

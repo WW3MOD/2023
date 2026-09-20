@@ -225,6 +225,50 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void BothIssuePathsLandOnTheirSlot()
+		{
+			// ==== THE TWO MEASURED RELATIONS, run 260920_171756 ====
+			// Eight warheads, every physical term identical -- hDist 92408/92407 (same remainder
+			// class), speed 1600, estimate 57, preLaunch 0, flight 57, ceiling 1. The only field
+			// that differed was the tick the launch was ISSUED on, and the two paths came out one
+			// tick apart:
+			//
+			//   placed     (SupportPowerManager.ResolveOrder)  observed = issue + delay + flight + 4
+			//   auto-fire  (DoomsdayStrike's own ITick)        observed = issue + delay + flight + 3
+			//
+			// A WORLD-FREE FIXTURE CANNOT ISSUE AN ORDER, so this pins the ARITHMETIC of both paths
+			// against those relations; test-final-exchange-autofire is what verifies them end to
+			// end, and it fires one warhead through each path in the same run by construction.
+			const int Flight = 57;
+			const int Ceiling = 1;
+
+			var placed = FinalExchangeCascade.DetonationPipelineTicks + Ceiling;
+			var autoFire = placed - FinalExchangeCascade.AutoFireIssueLagTicks;
+
+			Assert.That(placed, Is.EqualTo(4), "the placed relation measured 4");
+			Assert.That(autoFire, Is.EqualTo(3), "the auto-fire relation measured 3");
+
+			// USA: issued 135, slots 610/625/640/655. Russia: issued 350, slots 670/685/700/715.
+			foreach (var slot in new[] { 610, 625, 640, 655 })
+			{
+				var delay = FinalExchangeCascade.LaunchDelayFor(135, slot, Flight, placed);
+				Assert.That(135 + delay + Flight + placed, Is.EqualTo(slot), $"placed, slot {slot}");
+			}
+
+			foreach (var slot in new[] { 670, 685, 700, 715 })
+			{
+				var delay = FinalExchangeCascade.LaunchDelayFor(350, slot, Flight, autoFire);
+				Assert.That(350 + delay + Flight + autoFire, Is.EqualTo(slot), $"auto-fire, slot {slot}");
+			}
+
+			// AND THE DELAYS THE RUN ACTUALLY LOGGED, so a change to either constant that still
+			// satisfies the identity above is still caught.
+			Assert.That(FinalExchangeCascade.LaunchDelayFor(135, 610, Flight, placed), Is.EqualTo(414));
+			Assert.That(FinalExchangeCascade.LaunchDelayFor(350, 670, Flight, autoFire), Is.EqualTo(260),
+				"the auto-fire must launch ONE TICK LATER than the 259 that landed it a tick early");
+		}
+
+		[Test]
 		public void ALateWarheadLaunchesImmediatelyRatherThanNotAtAll()
 		{
 			// The clamp exists for the case the floor is supposed to prevent -- a scenario that set
