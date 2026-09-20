@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate the cameo caption table: complete, non-conflicting, renderable, and still inert.
+"""Gate the cameo caption table: complete, non-conflicting, renderable, and loaded last.
 
     python tools/cameo/check_captions.py        # exit 0 / 1, prints every failure
 
@@ -20,9 +20,9 @@ Six checks, each of which is a mistake somebody could actually make here:
   5. CASE          every key matches the defining actor's case exactly. MiniYaml merges
                    top-level keys case-sensitively and lower-cases afterwards, so `t90:` against
                    a defining `T90:` overrides nothing and reports nothing.
-  6. INERT         rules/cameo-captions.yaml is NOT listed in mod.yaml's Rules. This is the check
-                   that keeps the file a proposal. Delete it the day the file is meant to load,
-                   and change this to assert the opposite.
+  6. LOADED        rules/cameo-captions.yaml IS listed in mod.yaml's Rules, as the LAST entry.
+                   Until 2026-09-20 this check asserted the opposite (the table was a proposal);
+                   the user ruled it live, so a missing or non-final entry is now the mistake.
 
 WHAT THIS CANNOT CHECK. It reads the rules DIRECTORY, not mod.yaml's Rules list, so "already has
 a live caption" means "some file under mods/ww3mod/rules sets one". The table's own file is
@@ -171,13 +171,24 @@ def main():
     notes.append("widest caption: %r on %s at %dpx of %dpx"
                  % (widest[1], widest[0], width(widest[1]), pixelfont.BUDGET_PLAIN))
 
-    # 6 -- still inert.
-    listed = TABLE_REF in open(MOD_YAML, encoding="utf-8-sig").read()
-    if listed:
-        fails.append("mod.yaml lists %s under Rules, so the table is LIVE. That may be intended "
-                     "-- if so, this check is what needs changing, deliberately." % TABLE_REF)
+    # 6 -- loaded, and loaded LAST so its captions win over anything an earlier file sets.
+    mod_text = open(MOD_YAML, encoding="utf-8-sig").read()
+    mod_lines = mod_text.splitlines()
+    start = mod_lines.index("Rules:") + 1 if "Rules:" in mod_lines else len(mod_lines)
+    rules_entries = []
+    for ln in mod_lines[start:]:
+        if not ln[:1].isspace():
+            break          # first non-indented line ends the Rules: block
+        if ln.strip():
+            rules_entries.append(ln.strip())
+    if TABLE_REF not in rules_entries:
+        fails.append("mod.yaml does not list %s under Rules, so the table is INERT. It was ruled live "
+                     "on 2026-09-20: list it as the last Rules: entry, or revert that ruling here." % TABLE_REF)
+    elif rules_entries[-1] != TABLE_REF:
+        fails.append("mod.yaml lists %s but not LAST under Rules (last is %s); a later file could "
+                     "silently override a caption." % (TABLE_REF, rules_entries[-1]))
     else:
-        notes.append("INERT: mod.yaml does not list %s, so nothing renders differently" % TABLE_REF)
+        notes.append("LOADED: mod.yaml lists %s as the last Rules: entry" % TABLE_REF)
 
     for n in notes:
         print("  note:", n)

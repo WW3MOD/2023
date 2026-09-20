@@ -149,6 +149,7 @@ Rules:
 	ww3mod|rules/ingame/vehicles-russia.yaml
 	ww3mod|rules/doomsday.yaml
 	ww3mod|rules/ingame/nuclear-arsenal.yaml
+	ww3mod|rules/cameo-captions.yaml
 
 Sequences:
 	ww3mod|sequences/sequences.yaml
