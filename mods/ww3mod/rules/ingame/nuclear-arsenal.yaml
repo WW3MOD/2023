@@ -1345,12 +1345,39 @@ RuKalibrMissile:
 # fourth copy of the arsenal's hardest-to-verify block, kept in step by hand, for no caller.
 # IF THE BUS IS EVER RE-ARMED, its Warhead@Bus1/@Bus2 `Weapon:` fields are the second place to swap.
 
+# ==== THE IMAGE MUST BE POINTED AT THE BASE BY HAND, AND IT CRASHED THE GAME WHEN IT WAS NOT ====
+# RenderSprites.GetImage is `(Image ?? actor.Name).ToLowerInvariant()` (RenderSprites.cs:110-115),
+# so an actor with no Image resolves its sprite from its OWN NAME. The variants inherit
+# RenderSprites (for Scale) but the name is theirs, so they asked sequences.yaml for
+# `sarmatmissileexchange` -- which does not exist and never should, because the whole point is that
+# they look exactly like the bodies they inherit.
+#
+# THE FAILURE IS AT SPAWN, NOT AT LOAD. WithFacingSpriteBodyInfo.Create calls Animation.PlayRepeating,
+# which throws InvalidOperationException: "Image 'sarmatmissileexchange' does not have any sequences
+# defined" the first time the missile is CREATED -- i.e. inside SupportPowerManager.ResolveOrder, on
+# the synced order path, at the first launch of the final exchange. Every gate in the repo was green
+# through it: the mod loads, the YAML lints, the actor constructs, and nothing draws it until a
+# player fires. Observed on run 260920_174129_p39454.
+#
+# POINTED, NOT COPIED. Duplicating the four sequence lines into a `sarmatmissileexchange:` block
+# would make the bodies identical TODAY and silently divergent the day someone retunes the base's
+# Scale or its ZOffset. `Image:` makes "the variant looks exactly like its base" true by
+# construction, with one line and nothing to keep in step.
+#
+# BallisticMissileImageTest asserts this of EVERY BallisticMissile actor in the mod, because this is
+# the fifth hand-maintained coupling a new missile body touches and W3 hit the same class on
+# `tridentmissile` the same afternoon. It should not have been a thing to remember.
+
 SarmatMissileExchange:
 	Inherits: SarmatMissile
+	RenderSprites:
+		Image: sarmatmissile
 	Explodes:
 		Weapon: NukeSarmatRVExchange
 
 TridentMissileExchange:
 	Inherits: TridentMissile
+	RenderSprites:
+		Image: tridentmissile
 	Explodes:
 		Weapon: NukeW88Exchange
