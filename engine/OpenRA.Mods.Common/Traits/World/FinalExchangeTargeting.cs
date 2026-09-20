@@ -27,11 +27,17 @@
  *      side with two buildings left must still deliver all of it.
  *
  * ==== THE SIDE CLASSIFIER IS INJECTED, AND THAT IS NOT A TESTING CONVENIENCE ====
- * The real classifier is DefconWall's, which is being made public on a sibling branch. Taking it as
- * two delegates means this file can be written, reviewed and pinned by NUnit before that lands, and
- * it means the one thing this file must never do -- keep its own second copy of where the border is
- * -- is impossible by construction. HomeProximitySide below is the fallback for a map with no
- * border at all, and it is in this file rather than in the trait so that it is tested too.
+ * The real classifier is DefconWall's level-independent surface -- HasBorder / SideOf / IsInBand,
+ * added by 33201a86 -- and DoomsdayStrike.Classifier is what wraps it into the two delegates below.
+ * Taking it as delegates means the one thing this file must never do, keep its own second copy of
+ * where the border is, is impossible by construction; it also means every property here is pinned
+ * by NUnit without a World. HomeProximitySide below is the fallback for a map with no border at
+ * all, and it is in this file rather than in the trait so that it is tested too.
+ *
+ * WHAT THE CALLER MUST HAND IN, AND THE TRAP IT AVOIDS. The delegates are asked about CELLS, and
+ * the caller resolves a PLAYER to a side through an ANCHOR -- their Supply Route's centre -- rather
+ * than through Player.HomeLocation, which is CPos.Zero on every autotest scenario. See
+ * DoomsdayStrike.AnchorOf, and the same warning at the declaration of DefconWall.SideOf(Player).
  *
  * ==== DETERMINISM ====
  * Integer only, no RNG, no float, no dictionary or set enumeration. Every ordering decision has an

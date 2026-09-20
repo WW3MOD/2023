@@ -856,13 +856,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// <see cref="FinalExchangeTargeting"/>'s; everything here is the world lookup that feeds it.</para>
 		/// </summary>
 		// ==== THE SIDE CLASSIFIER IS BORROWED, NEVER COPIED ====
-		// DefconWall owns where the border is. Until its level-independent accessors are public (they
-		// are being added on a sibling branch) this uses the home-proximity fallback for every map,
-		// which is the perpendicular bisector of the spawns -- the same construction
-		// DefconWallGeometry.BisectorOfSides derives the real line from, so on a two-player map the
-		// two agree almost everywhere. When the accessor lands, the two delegates below become
-		// wall.SideOf / wall.IsInBand and the fallback stays as the answer for a map with no wall.
-		// Nothing else in this method changes.
+		// DefconWall owns where the border is, and since 33201a86 it exposes a LEVEL-INDEPENDENT
+		// surface -- HasBorder / SideOf / IsInBand -- that resolves in every mode, at every DEFCON
+		// level, because a border is a property of the map rather than of the escalation. That is
+		// what is asked here. This file keeps no second copy of where the line is, and the two
+		// delegates below are the whole of its knowledge of the subject.
+		//
+		// THE FALLBACK IS STILL REACHED, on a map with no border at all (HasBorder false) and on one
+		// where neither anchor classifies. It is the Voronoi split by spawn -- the same construction
+		// DefconWallGeometry.BisectorOfSides derives its LINE from, so where both exist they agree
+		// almost everywhere.
 		List<CPos> ChooseAimPoints(Player firer, SupportPowerInfo powerInfo)
 		{
 			var enemies = new List<Player>();
@@ -873,25 +876,6 @@ namespace OpenRA.Mods.Common.Traits
 			if (enemies.Count == 0)
 				return new List<CPos>();
 
-			// Homes, in seat order, with a parallel side label. Indices are what HomeProximitySide
-			// returns; the labels are what Choose compares against.
-			var homes = new List<CPos>();
-			var homeSides = new List<int>();
-			foreach (var p in world.Players)
-			{
-				if (!p.Playable || p.NonCombatant)
-					continue;
-
-				homes.Add(p.HomeLocation);
-				homeSides.Add(p.IsAlliedWith(firer) ? OwnSide : EnemySide);
-			}
-
-			int SideOf(CPos c)
-			{
-				var i = FinalExchangeTargeting.HomeProximitySide(homes, c);
-				return i < 0 ? OwnSide : homeSides[i];
-			}
-
 			var assets = EnemyAssets(firer, enemies);
 
 			// THE SEPARATION IS THE POWER'S OWN AimPointRadius, which is the ring the placement overlay
@@ -899,12 +883,127 @@ namespace OpenRA.Mods.Common.Traits
 			// buying nothing" (nuclear-arsenal.yaml). The machine obeys the rule the player is shown.
 			var separation = powerInfo is MissileStrikePowerInfo missile ? missile.AimPointRadius.Length / 1024 : 0;
 
+			var (sideOf, inBand) = Classifier(firer);
+
 			return FinalExchangeTargeting.Choose(
-				PackageSize, world.Map.Bounds, assets, SideOf, null, EnemySide, separation);
+				PackageSize, world.Map.Bounds, assets, sideOf, inBand, EnemySide, separation);
 		}
 
 		const int OwnSide = 0;
 		const int EnemySide = 1;
+
+		/// <summary>
+		/// <para>The two delegates <see cref="FinalExchangeTargeting.Choose"/> asks about a cell, built
+		/// for one firing side. Everything not on the firer's own side of the border is the enemy's —
+		/// which is the right reading for a region map with more than two components, and identical to
+		/// "the other player's half" on the two-component maps that ship.</para>
+		/// </summary>
+		// WHY BOTH DELEGATES WHEN SideOf ALREADY RETURNS NoSide IN THE BAND. It does, so `inBand` is
+		// redundant on the wall path and the targeting would reject a band cell either way. It is
+		// passed anyway because it is NOT redundant on the FALLBACK path, where there is no band at
+		// all and nothing else would exclude one -- so the pair is the same shape whichever
+		// classifier is in use, and a future caller cannot be caught out by the difference.
+		(Func<CPos, int> SideOf, Func<CPos, bool> InBand) Classifier(Player firer)
+		{
+			var wall = world.WorldActor.TraitOrDefault<DefconWall>();
+			if (wall != null && wall.HasBorder)
+			{
+				var ownAnchor = AnchorOf(firer);
+				var ownSide = ownAnchor.HasValue ? wall.SideOf(ownAnchor.Value) : DefconWall.NoSide;
+
+				if (ownSide != DefconWall.NoSide)
+				{
+					int WallSideOf(CPos c)
+					{
+						var s = wall.SideOf(c);
+						if (s == DefconWall.NoSide)
+							return DefconWall.NoSide;
+
+						return s == ownSide ? OwnSide : EnemySide;
+					}
+
+					return (WallSideOf, wall.IsInBand);
+				}
+
+				Log.Write("debug", $"FINAL EXCHANGE: {firer.InternalName}'s anchor does not classify against the " +
+					"border; falling back to spawn proximity for the targeting.");
+			}
+
+			// Anchors, in seat order, with a parallel side label. Indices are what HomeProximitySide
+			// returns; the labels are what Choose compares against. A player with no anchor at all
+			// contributes nothing rather than dragging the whole split onto cell (0, 0).
+			var anchors = new List<CPos>();
+			var anchorSides = new List<int>();
+			foreach (var p in world.Players)
+			{
+				if (!p.Playable || p.NonCombatant)
+					continue;
+
+				var anchor = AnchorOf(p);
+				if (!anchor.HasValue)
+					continue;
+
+				anchors.Add(world.Map.CellContaining(anchor.Value));
+				anchorSides.Add(p.IsAlliedWith(firer) ? OwnSide : EnemySide);
+			}
+
+			// NOBODY HAS AN ANCHOR: no border, no Supply Routes, no spawn points. A classifier that
+			// answered NoSide for every cell would reject the whole map and deliver an empty package,
+			// so the honest answer is a null classifier -- the whole playable rectangle is in play.
+			// See FinalExchangeTargeting.Choose, which treats null exactly that way.
+			if (anchors.Count == 0)
+				return (null, null);
+
+			int ProximitySideOf(CPos c)
+			{
+				var i = FinalExchangeTargeting.HomeProximitySide(anchors, c);
+				return i < 0 ? DefconWall.NoSide : anchorSides[i];
+			}
+
+			return (ProximitySideOf, null);
+		}
+
+		/// <summary>
+		/// <para>Where a player IS, for the purpose of deciding which half of the map is theirs: the
+		/// centre of their lowest-ActorID <see cref="BaseBuilding"/> — their Supply Route — or the
+		/// centre of their HomeLocation cell when they have no structure left.</para>
+		/// </summary>
+		// ==== Player.HomeLocation IS A LIE ON EVERY AUTOTEST SCENARIO, AND THIS IS WHY THE ANCHOR
+		// ==== EXISTS RATHER THAN A DIRECT DefconWall.SideOf(Player) CALL.
+		// HomeLocation is CPos.Zero -- the FIELD DEFAULT of PlayerReference.HomeLocation -- for a map
+		// player, and ALSO for an ordinary lobby player on any map that strips MapStartingLocations,
+		// because Player.cs:213 falls back to the PlayerReference when there is no IAssignSpawnPoints
+		// trait to ask. Every scenario under tools/autotest/scenarios strips it. So SideOf(Player)
+		// there reads cell (0, 0) for BOTH sides, answers the same value twice, and this method's
+		// caller would classify the entire map as the firer's own -- an empty asset list and a
+		// package made entirely of padding. The same trap is documented at the declaration of
+		// DefconWall.SideOf(Player), which says in terms that a caller with a better home should pass
+		// that instead. This is that caller.
+		//
+		// ON EVERY SHIPPED MAP THE TWO AGREE: the Supply Route's CenterPosition sits exactly on the
+		// centre of its owner's spawn cell, so the anchor IS CenterOfCell(HomeLocation) there. The
+		// anchor is only DIFFERENT where HomeLocation is absent, which is where it is also the only
+		// one of the two that is right.
+		//
+		// NULL RATHER THAN CPos.Zero when neither exists, so a caller cannot mistake the coordinate
+		// default for a position a second time.
+		WPos? AnchorOf(Player player)
+		{
+			if (player == null)
+				return null;
+
+			// Lowest ActorID: assigned in world-creation order and identical on every client, so a
+			// player with two BaseBuildings anchors on the same one everywhere.
+			var baseBuilding = world.Actors
+				.Where(a => a.IsInWorld && !a.Disposed && a.Owner == player && a.Info.HasTraitInfo<BaseBuildingInfo>())
+				.OrderBy(a => a.ActorID)
+				.FirstOrDefault();
+
+			if (baseBuilding != null)
+				return baseBuilding.CenterPosition;
+
+			return player.HomeLocation != CPos.Zero ? world.Map.CenterOfCell(player.HomeLocation) : null;
+		}
 
 		/// <summary>
 		/// <para>Everything on the map worth a warhead, from <paramref name="firer"/>'s point of view, in
