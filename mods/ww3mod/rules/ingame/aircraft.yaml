@@ -437,6 +437,25 @@ quadcopterdrone:
 	Inherits: ^Drone
 	Tooltip:
 		Name: Drone scout
+	# Not buildable and has no purchase path -- the ONLY thing that produces a
+	# quadcopter is ^DR's CarrierMaster (infantry.yaml:2519-2531), and the pool that
+	# pays for each release prices one at `SupplyValue: 25` (infantry.yaml:2553-2555,
+	# "1 batch x 1 drone x 25 supply = 25 (~17% of cost 150)"). SupplyValue is
+	# denominated in the same credits as Valued.Cost -- it is subtracted straight from
+	# Cost in the evac/sell math (DOCS/reference/economy.md:452, :462) -- so 25 is the
+	# mod's own declared price for one drone, not a new number.
+	# Without it this actor was broken at BOTH ends of the XP system:
+	#   1. GivesExperience computes `exp = valued.Cost` and returns early when it is 0
+	#      (GivesExperience.cs:50-52, :61-62), so killing a drone awarded ZERO XP to
+	#      anyone -- which left `DR` with no kill path at all, its only damaging
+	#      armament (DroneJammer) being `ValidTargets: Drone`.
+	#   2. Its OWN thresholds fell back to 1, not Cost (GainsExperience.cs:88-89), so
+	#      had it ever earned XP it would have ranked ~100x too fast -- the same trap
+	#      as the crew override removed in the preceding commit.
+	# Still not buildable, so RankAccumulation.Accrues stays false (:349-357) and it
+	# banks no purchase stock. This fixes the earn RATE, not the earn PATH.
+	Valued:
+		Cost: 25
 	Selectable:
 		Bounds: 760,760
 		Priority: 1
