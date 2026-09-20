@@ -22,7 +22,6 @@ here is what the widget would load.
 
 import argparse
 import os
-import re
 import sys
 
 from PIL import Image, ImageDraw, ImageFont
@@ -74,36 +73,19 @@ def powers_roster():
 
 
 def distinct_art():
-    """{art file: [actor, ...]} across every buildable actor, via rollout_survey's resolver."""
-    import rollout_survey as rs
-    rules = rs.merge(rs.walk(os.path.join(ROOT, "mods/ww3mod/rules")))
-    seqs = rs.merge(rs.walk(os.path.join(ROOT, "mods/ww3mod/sequences")))
-    low = {k.lower(): v for k, v in seqs.items()}
+    """{art file: [actor, ...]} for every buildable actor IN THE LOADED MOD.
 
-    def seq_art(image, icon):
-        node, guard = low.get(image.lower()), 0
-        while node is not None and guard < 8:
-            guard += 1
-            for key in node:
-                m = re.match(rf"{re.escape(icon)}:\s*(\S+)", key)
-                if m:
-                    return m.group(1)
-            parent = next((re.match(r"Inherits(?:@\w+)?:\s*(\S+)", k).group(1)
-                           for k in node if re.match(r"Inherits(?:@\w+)?:\s*(\S+)", k)), None)
-            node = low.get(parent.lower()) if parent else None
-        return None
+    Universe and resolver both come from captions_table.survey(), which takes its files from
+    mod.yaml's `Rules:` list. This used to os.walk mods/ww3mod/rules with a third private copy of
+    the resolver, so the subtitle drawn on the --all sheet counted actors that are not in the game
+    (115 where the roster is 111) and disagreed with check_captions.py. Same universe bug that put
+    five phantom captions in a shipped rules file on 2026-09-20.
+    """
+    import captions_table  # noqa: E402
 
     out = {}
-    for name in rules:
-        if name.startswith("^") or name in ("Player", "World", "Defaults"):
-            continue
-        t = rs.resolve(name, rules)
-        if "Buildable" not in t:
-            continue
-        icon = (rs.field(t.get("Buildable"), "Icon") or "icon").split()[0]
-        image = rs.field(t.get("RenderSprites"), "Image") or name
-        art = (seq_art(image, icon) or seq_art(name, icon) or "?").split("|")[-1]
-        out.setdefault(art, []).append(name)
+    for name, info in captions_table.survey().items():
+        out.setdefault(info["art"], []).append(name)
     return out
 
 

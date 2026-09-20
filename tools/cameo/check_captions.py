@@ -29,9 +29,11 @@ Six checks, each of which is a mistake somebody could actually make here:
                    loudly -- MiniYaml creates a bare actor from it, which then trips two lints on
                    every map in the mod. Added 2026-09-20, after exactly that shipped.
 
-THE ACTOR UNIVERSE IS mod.yaml's `Rules:` LIST, not the rules directory. The two differ by 20
-files. captions_table.loaded_rules_paths() resolves it and is shared with the generator, so a
-table entry the generator would not emit is one this gate rejects.
+THE ACTOR UNIVERSE IS mod.yaml's `Rules:` LIST, not the rules directory. The two differed by 18
+files on 2026-09-20 and the count moves; captions_table.unloaded_rules_paths() is the authority.
+captions_table.loaded_rules_paths() resolves the loaded half and is shared with the generator AND
+with rollout_survey.py, so a table entry the generator would not emit is one this gate rejects,
+and all three tools report the same roster size.
 """
 
 import os
@@ -54,8 +56,8 @@ def survey_excluding_table():
     """Every buildable actor with a cameo, from the rules files mod.yaml LOADS, table excluded.
 
     Both halves matter and both used to be wrong here. This walked the rules DIRECTORY, so an
-    actor defined only in a file mod.yaml never loads (ingame/old.yaml, ingame/vehicles-ukraine
-    .yaml, all of weapons/ and sound/ and campaign/) counted as real and a table entry on it
+    actor defined only in a file mod.yaml never loads (ingame/old.yaml, all of weapons/ and
+    sound/ and campaign/) counted as real and a table entry on it
     looked legitimate -- check 7 below is the check that state needed. captions_table.survey()
     now owns both the universe and the exclusion, so the generator and this gate cannot drift.
     """

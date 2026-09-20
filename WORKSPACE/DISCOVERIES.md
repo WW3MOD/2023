@@ -3,6 +3,52 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
+
+**Symptom.** `tools/cameo/README.md:265` said **116 buildable actors have a cameo** and
+`check_captions.py` printed **111**, for the same quantity, in the same repo, on the same day. Run
+today the first tool actually said 115 — the README was stale by one on top of being wrong by
+four, which is the second tell: nobody can keep a hand-copied count honest when the tool that
+produces it is counting the wrong thing.
+
+**Mechanism.** The 2026-09-20 fix for phantom captions moved `captions_table.py` and
+`check_captions.py` off `os.walk(mods/ww3mod/rules)` and onto mod.yaml's `Rules:` list
+(`captions_table.loaded_rules_paths()`, `captions_table.py:67`). It did not move
+`rollout_survey.py`, which still walked the directory, nor `contact_sheet.distinct_art()`, which
+carried a **third private copy** of the same resolver and drew its actor count into the `--all`
+sheet's subtitle. So the fix landed in the two tools that *write* rules and skipped the two that
+*report* on them. The gap is exactly the actors defined only in unloaded files: `MCV`, `MCV.ai`,
+`MCV2`, `MCV2.ai` from `rules/ingame/old.yaml` — four today, not the five of the original
+incident, because `rules/ingame/vehicles-ukraine.yaml` (which defined `t72`) has since been
+deleted as an orphan.
+
+**The general rule: a universe bug is not fixed until every tool that reports a number from that
+universe shares ONE resolver.** Three copies of a resolver is three chances to fix two. The fix
+here is delegation, not a second call site of the same helper: `rollout_survey.main()` and
+`contact_sheet.distinct_art()` now both call `captions_table.survey()`
+(`rollout_survey.py:180`, `contact_sheet.py:87`), which owns the universe *and* the resolver, so
+disagreement is no longer expressible. Default output went 115 → 111 and reconciles with
+`check_captions.py` exactly (111 = 97 in `rules/cameo-captions.yaml` + 14 live in
+`rules/powers.yaml`).
+
+**Two secondary lessons.**
+
+- **Keep the wrong view, behind a flag that says it is wrong.** The on-disk count is genuinely
+  useful as an upper bound on *art* work, so it survives as `rollout_survey.py --all-on-disk`
+  (`rollout_survey.py:159,167`), which prints a one-line warning to stdout before any figure.
+  Deleting it would have traded one silent wrong number for a missing right one. It reproduces
+  the old output byte-for-byte (115 actors, 102 decodable, 87 lettered), which is also how the
+  change was verified not to have moved anything but the universe.
+- **A count of something that grows is a dated observation, not a fact — so don't write it where
+  it cannot be recounted.** Both the README figure and the "20 unloaded .yaml files" repeated in
+  three docstrings had rotted (18 today) within days of being written. Every one of them now
+  names the function that recounts in a second (`captions_table.unloaded_rules_paths()`,
+  `captions_table.py:101`) and labels its integer with a date. Same failure mode as the scenario
+  counts in CLAUDE.md, which have gone stale twice.
+
+**No YAML changed.** `captions_table.py` regenerates `rules/cameo-captions.yaml` byte-identically
+— `survey()` itself was not touched, only its callers.
+
 ## 2026-09-20 - A pixel glyph can be FOUR pixels from every other letter and still read as one of them: for a 3x5 font the screen is the SILHOUETTE, not the pixel count (`wt/caption-n-glyph`, base `main @ 6d70f6f8`)
 
 **Symptom.** With the caption font finally drawing all five of its glyph rows, every `N` in the

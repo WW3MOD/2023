@@ -11,9 +11,10 @@ two (`E1`, `MCV`, `SUPPLYROUTE` but `abrams`, `t90`, `power.b83`). Taking the ke
 own resolution means the case is never typed by hand.
 
 AND THE SURVEY'S UNIVERSE IS mod.yaml's `Rules:` LIST, NOT `os.walk` OVER THE RULES DIRECTORY.
-Twenty .yaml files under mods/ww3mod/rules/ are never loaded by the mod, and an override on an
-actor only they define creates a bare actor instead of overriding one -- see loaded_rules_paths()
-for what that cost on 2026-09-20.
+Some .yaml files under mods/ww3mod/rules/ are never loaded by the mod (18 of them on 2026-09-20;
+unloaded_rules_paths() is the authority, and the number moves), and an override on an actor only
+they define creates a bare actor instead of overriding one -- see loaded_rules_paths() for what
+that cost on 2026-09-20.
 
 WHERE THE WORDING COMES FROM. Every caption whose cameo has legible baked lettering is that
 lettering, verbatim -- read off tools/cameo/contact_sheet.py --all at 4x. That is deliberate: the
@@ -67,9 +68,10 @@ def loaded_rules_paths(include_table=False, mod_yaml=MOD_YAML):
     """Absolute paths of the rules files mod.yaml ACTUALLY loads, in load order.
 
     THE ACTOR UNIVERSE COMES FROM HERE AND NOT FROM os.walk, and that distinction is the whole
-    reason this function exists. `mods/ww3mod/rules/` holds 20 .yaml files mod.yaml never loads --
-    every weapons/ and sound/ file, the campaign/ tree, `ingame/old.yaml`, `ingame/vehicles-
-    ukraine.yaml`. An actor defined only in one of those is NOT in the game, so a caption override
+    reason this function exists. `mods/ww3mod/rules/` holds .yaml files mod.yaml never loads --
+    every weapons/ and sound/ file, the campaign/ tree, `ingame/old.yaml`; 18 of them on
+    2026-09-20, and unloaded_rules_paths() recounts in a second rather than being quoted from
+    here. An actor defined only in one of those is NOT in the game, so a caption override
     on it does not override anything: MiniYaml creates a NEW top-level actor carrying only
     `Buildable: CameoCaption`, which then fails `Actor type `x` does not define a default
     visibility type` and `The following buildable actor has no (enabled) Tooltip` on every map in
