@@ -183,6 +183,12 @@ WorldLoaded = function()
 		.. "Russia's two should still be inbound, arriving 28 and 43 ticks later. FAIL if the map "
 		.. "is already cratered at this tick: something is flying on its own schedule.")
 
+	-- CAMERA CAVEAT, and it is worth stating rather than discovering from a frame: the camera sits
+	-- at 40,19 to hold USA's own aim point at 49,22, while Russia's package is aimed at USA's HALF
+	-- of the map -- west of the derived bisector between 26,18 and 56,13, i.e. left of about x=41.
+	-- Russia's two craters may therefore sit at or past the western frame edge. That is the
+	-- targeting working; if the frame needs all four in shot, move the camera west rather than
+	-- moving the aim point east.
 	LateFrame(637, "05-cascade-complete", function()
 		return "Two ticks after the LAST slot of the cascade. expects: four craters -- USA's two "
 			.. "around the eastern city, and Russia's two on USA's half of the map, which is the "

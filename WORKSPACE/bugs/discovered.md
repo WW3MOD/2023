@@ -418,6 +418,32 @@
   appears in the 2026-09-02 `wt/tooltip-owner` DISCOVERIES entry, citing these same lines — is stale
   and must not be promoted.
   ~~`Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which~~
+## 2026-09-20 - TestMode records screenshots it never wrote, under `--hidden`
+
+**Symptom, from run `260920_154610_p32287` (`demo-doomsday-deadhand --hidden --speed 4`).** The
+harness logged
+
+    [TestMode] result written: skip (5 screenshot(s))
+
+and `result.json` listed **five** screenshot paths, each with its own `captured_at` timestamp. The
+run directory contains **zero PNGs**. The `--hidden` profile never maps a window, so rendering is
+suspended and nothing can be captured -- but the record is made anyway, so a reader (or a tool
+parsing `result.json`) is told five frames exist and can go looking for them.
+
+**Where the record is made:** `TestMode.cs` / `TestModeScreenshots.cs`, at the point the capture is
+enqueued rather than at the point a file lands on disk. Not traced further than that.
+
+**Why it matters beyond the tidiness.** It is the same *shape* as two traps CLAUDE.md already
+records -- the zero-byte log and the exit-127 launcher -- where an artefact that looks like evidence
+is really the absence of one. A demo whose whole verdict is "the frames are on disk, a person
+decides" is exactly the case where a phantom frame count is worst: `SKIP (5 screenshots)` reads as
+success.
+
+**Deliberately NOT fixed here.** It is not a one-line guard: the honest fix has to decide whether
+`--hidden` should refuse a capture request, record it as skipped, or keep the record and have the
+runner warn -- and that is a harness ruling rather than a scenario fix. Filed from `wt/final-exchange`
+while fixing an unrelated defect in the same run.
+
 ## TRIAGE LEDGER — 2026-09-02, `wt/bug-triage`, against `main @ 26f9cec0`
 
 **Read this before you pick anything up.** All 157 entries were re-checked against the code as it is
