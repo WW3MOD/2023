@@ -286,9 +286,55 @@ RUN_ID="(not started)"
 RESULT_FILE=""
 LOCK_DIR=""
 LOCK_HELD=0
+SETTINGS_FILE=""
+SETTINGS_BACKUP=""
+
+# Put the user's settings.yaml back exactly as it was. Idempotent: the backup is
+# moved, so a second call finds nothing and does nothing.
+#
+# WAITS FOR THE GAME FIRST, because the write we are undoing happens INSIDE the
+# game and the last one can land during shutdown. Restoring while the process is
+# still alive would put the clean file back and then let the engine overwrite it
+# again -- the same end state, reached more confusingly. Bounded at ~5 s so a
+# wedged process cannot hang the runner; if it is still alive after that the
+# restore happens anyway, which is no worse than not restoring at all.
+restore_settings() {
+	if [ -z "${SETTINGS_BACKUP}" ] || [ ! -f "${SETTINGS_BACKUP}" ]; then
+		return 0
+	fi
+
+	if [ -n "${LAUNCH_PID:-}" ]; then
+		_wait=0
+		while kill -0 "${LAUNCH_PID}" 2>/dev/null && [ "${_wait}" -lt 10 ]; do
+			sleep 0.5
+			_wait=$((_wait + 1))
+		done
+	fi
+
+	mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}" 2>/dev/null || true
+}
 
 emit_verdict() {
 	_code=$?
+
+	# SETTINGS FIRST, BEFORE ANY OTHER TEARDOWN. The engine PERSISTS the launch
+	# arguments this runner passes: Settings.cs:409-412 loads every `Section.Field`
+	# override into the live section objects, and Game.Settings.Save() in
+	# UnitOrders.cs:266 -- the HandshakeRequest handler, i.e. every local client
+	# join -- writes every section straight back out, overrides included. So a run
+	# carrying Debug.EnableSimulationPerfLogging=true leaves that flag TRUE in the
+	# user's settings.yaml, and every launch afterwards, including their real game,
+	# pays the perf-logging tax until somebody notices. Observed on 2026-09-20:
+	# `EnableSimulationPerfLogging: True` on line 28 with the file's mtime at the
+	# exact exit second of a perf run.
+	#
+	# The backup/restore pair existed already. What did not was this: the restore
+	# was a plain statement near the end of the happy path, so it was skipped by
+	# every early exit -- Ctrl-C, the HARNESS-ERROR branch, LAUNCH-FAIL, and any
+	# `set -e` abort -- and those are exactly the runs a human then forgets about.
+	# Running it from the trap is the only placement that covers them all.
+	restore_settings
+
 	if [ "${LOCK_HELD}" = "1" ] && [ -n "${LOCK_DIR}" ]; then
 		rm -rf "${LOCK_DIR}" 2>/dev/null || true
 	fi
@@ -803,8 +849,9 @@ fi
 # settings during normal flow (the launch-game.sh comment about Graphics.Mode
 # pollution alludes to this), and a saved Sound.Mute=true would carry over to
 # normal launches. Restoring the file post-run sidesteps the risk entirely.
-SETTINGS_FILE=""
-SETTINGS_BACKUP=""
+# NOT re-initialised here: both are declared in the preamble above so that
+# restore_settings, which runs from the EXIT trap, can see them even if this
+# script aborts before reaching this point.
 case "$(uname -s)" in
 	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
 	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
@@ -999,9 +1046,9 @@ fi
 # Reap the launcher (returns immediately if already gone or just killed).
 wait "${LAUNCH_PID}" 2>/dev/null || true
 
-if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
-	mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
-fi
+# Same moment in the happy path as before; the EXIT trap is the backstop for
+# every path that does not reach here.
+restore_settings
 
 # Reap the watchdog if it's still alive (game exited before window appeared).
 if [ -n "${RESTORE_PID}" ]; then

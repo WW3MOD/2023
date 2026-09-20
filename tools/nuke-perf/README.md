@@ -123,6 +123,24 @@ silently taxes everything afterwards — `EnableSimulationPerfLogging` puts thre
 `GC.CollectionCount` calls and a `Stopwatch.GetTimestamp` around every trait tick
 (`PerfTickLogger.cs:36-50`).
 
+**CORRECTED 2026-09-20 — a launch argument does NOT leave `settings.yaml` alone, and this
+section used to imply it did.** `Settings.cs:409-412` loads every `Section.Field` override
+into the live section objects, and `Game.Settings.Save()` at
+`engine/OpenRA.Game/Network/UnitOrders.cs:266` — the `HandshakeRequest` handler, which runs
+on *every local client join* — writes every section straight back out, overrides included.
+So `Debug.EnableSimulationPerfLogging=true` on the command line is **persisted**, and every
+launch afterwards on that machine, including the user's real game, carries the tax until
+somebody notices. This was observed rather than deduced: `EnableSimulationPerfLogging: True`
+on line 28 of `%APPDATA%\OpenRA\settings.yaml`, with the file's mtime at the exact exit
+second of a perf run.
+
+`run-test.sh` snapshots `settings.yaml` before the launch and restores it afterwards, and
+since 2026-09-20 that restore runs from the **EXIT trap** rather than from the happy path,
+so Ctrl-C, `LAUNCH-FAIL`, `HARNESS-ERROR` and a `set -e` abort all restore it too. The
+argument for using launch arguments over editing the file by hand still stands — the runner
+undoes them for you — but if you ever launch the engine directly with these arguments,
+outside the runner, **you will have to reset the flag yourself.**
+
 ### Choosing `LongTickThresholdMs`
 
 `1` is the recommended floor. The `ms` column is an **integer** format
