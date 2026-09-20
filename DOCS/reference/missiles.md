@@ -218,6 +218,12 @@ indefinitely**. This is what made the littlebird's Hellfire rack read as "the
 missiles never do damage". Narrowing one weapon's `ValidTargets` so the pair no
 longer overlaps is enough to restore the standoff (`weapons-missiles.yaml:306-332`).
 
+### A `MinRange` is not consulted at ORDER time — the attack activity enforces it by pathing back out
+
+*(Promoted 2026-09-20 from a 2026-08-22 entry.)* `AttackOrderTargeter`'s `CanTargetActor`/`CanTargetLocation` test **`MaxRange` only**, so a target well inside `MinRange` accepts the order and shows the ordinary attack cursor. Enforcement is one layer down: the attack activity requires `IsInRange(pos, maxRange) && !IsInRange(pos, minRange)` and otherwise queues a `MoveWithinRange(target, minRange, maxRange)`, which builds its candidate cells from the annulus `minRange..maxRange` **around the target** — so a unit standing inside the minimum finds a non-empty search set *outward*, drives away to gain separation, and then fires. **Reversing out is the designed behaviour**; do not "fix" a min-range unit that appears to walk the wrong way.
+
+**The configuration that really does stall is an IMMOBILE actor with a minimum range.** The activity gives up only when there is no mover, or `maxRange` is zero, or `maxRange < minRange` — so an immobile min-range actor ordered at something too close refuses with no feedback at all.
+
 ## 5. Tracking loss that is INTENDED — do not "fix" these
 
 Rare, situational tracking loss is desired realism. The following are correct:
@@ -606,6 +612,8 @@ vertical screen displacement. That offset — 5700 after the warhead's own `Scal
 (`weapons-superweapons.yaml:58-59`) — lifts the scaled mushroom-cloud sprite off its anchor, and it applied
 identically to the ground burst. Which is why the ground-burst nuke looked *low* rather than looking
 *broken*.
+
+**Consequence beyond the nuke's own appearance, and it is a standing negative for the renderer.** Because the cloud's apparent altitude is carried entirely by a screen-Y offset and a render-only `ZOffset`, with the world-space Z component literally zero, **a Z-based altitude test cannot distinguish the mushroom cloud from a tree even in principle** — which is stronger than "Z is approximately 0 in practice". Any proposal to partition renderables into a clipped ground pass and an unclipped airborne pass (to stop sprites overflowing a map edge, say) founders on exactly this: the discriminator everyone reaches for does not exist. The only surviving partition is by *source* rather than by altitude, and its cost is global — every effect would draw above all ground regardless of Y, and aircraft shadows land in the wrong pass.
 
 ## 10. A warhead delivered by `Explodes` is a different weapon: three defaults change meaning
 
