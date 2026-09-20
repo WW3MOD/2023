@@ -17,14 +17,31 @@ World:
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true
 
-	# Explored + no fog. Not cosmetic here: shroud and fog are themselves per-cell work that would
-	# land inside the same tick window as the detonation and be attributed to it. Pre-explored, the
-	# MapLayers cost is paid once at load and the detonation window measures the detonation.
-	MapLayers:
-		ExploredMapCheckboxEnabled: true
-		ExploredMapCheckboxLocked: true
-		FogCheckboxEnabled: false
-		FogCheckboxLocked: true
+
+	# THE UNLOCK CLOCK, PINNED TO "NO WAIT" -- and this is what the rig fires AT ALL.
+	#
+	# The Sarmat carries `RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender`
+	# (nuclear-arsenal.yaml:241). Outside DEFCON Escalation that condition comes from
+	# GrantConditionOnNuclearRelease, whose rung is `unlockClock?.ReleasedRung ?? Highest`
+	# (GrantConditionOnNuclearRelease.cs:212-214) -- and ReleasedRung is
+	# `Active ? RungAt(..., CapRung) : NuclearReleaseLadder.Highest` (NuclearUnlockClock.cs:328-330).
+	#
+	# THE CEILING IS INSIDE THE ACTIVE BRANCH. NuclearUnlockSchedule.HighestPurchasableRung is
+	# HundredKiloton, one rung BELOW GameEnder, and it is not host-overridable (decision 17.3). So a
+	# running clock NEVER releases a game-ender, at any interval and after any elapsed time -- the
+	# rig could run for an hour and the Sarmat would stay hidden. Only a SUSPENDED clock hands back
+	# the top of the ladder, and `Active = IntervalTicks > 0 && !sandbox && mode != Escalation`
+	# (:320) gives three ways to suspend it.
+	#
+	# The sandbox switch above is one of them and should be enough on its own. This block is the
+	# second, stated independently, because the first run of this rig spent 1000 ticks with the
+	# power hidden and a magazine that never banked, and a rig whose firing depends on one lobby
+	# option resolving the way its author expects is a rig that reports an empty map as a cheap
+	# detonation. 0 is the first entry of IntervalOptions and the documented no-wait opt-out;
+	# Locked keeps a host (or a future default change) out of it.
+	NuclearUnlockClock:
+		IntervalDefault: 0
+		IntervalLocked: true
 
 	-StartGameNotification:
 	-SpawnStartingUnits:
@@ -57,6 +74,25 @@ Player:
 	MissileStrikePower@Sarmat:
 		MissileDelay: 60
 		AimPointFallbackSpread: 40c0
+
+	# Explored + no fog. Not cosmetic here: shroud and fog are themselves per-cell work that would
+	# land inside the same tick window as the detonation and be attributed to it. Pre-explored, the
+	# MapLayers cost is paid once at load and the detonation window measures the detonation.
+	#
+	# IT IS A PLAYER TRAIT AND IT MUST BE IN THIS NODE. MapLayers is
+	# [TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)] (MapLayers.cs:18) and the mod
+	# declares it on Player (player.yaml:3). This block sat under `World:` until 2026-09-20 and the
+	# consequence was not "the override is ignored" -- MiniYaml added a SECOND MapLayers, to the
+	# World actor, and MapLayers implements ILobbyOptions, so the session then offered the option id
+	# `explored` twice (MapLayers.cs:63). LobbySettingsNotification.ClientJoined builds a dictionary
+	# keyed on that id, threw ArgumentException, and the server DROPPED THE JOINING CLIENT -- which
+	# presents as the game sitting on the main menu until the watchdog kills it, with no lua.log and
+	# a twelve-line debug.log. See WORKSPACE/DISCOVERIES.md, 2026-09-20.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
 
 	# 448 Russian actors die here. Without this the match ends on elimination partway through the
 	# window and the world stops ticking while the effects that cost the most are still running.

@@ -50,6 +50,85 @@ describe the guarded path, and none of them is where the value actually comes fr
 Unlock to "No wait" -- one dropdown, default Skirmish, no sandbox -- buys and fires a Sarmat that
 would have silently lost its thermal radiation, all ten fire warheads, its EMP and all five
 suppression warheads.
+## 2026-09-20 - On a QUIET map with nothing fired, the most expensive single trait is `DangerFieldLayer` — and this machine's `tick_time` varies 3x with background load, so only back-to-back pairs compare (`wt/nuke-perf`, base `main @ 20ae9548`)
+
+**Measured, not modelled.** Two runs of the nuke perf rig in which the salvo never fired, so both
+are pure EMPTY-MAP baselines: 128x128, 665 static actors, no production, no bots, no combat,
+nothing detonating. Instruments were `Launch.Benchmark` plus `Debug.EnableSimulationPerfLogging`
+with `Debug.LongTickThresholdMs=1`, under `--hidden`.
+
+    tick_time                p50 8.0 ms   p95 18 ms   max 23 ms
+    DangerFieldLayer         40 hits, 1281 ms total, max 85 ms   <- largest single trait
+
+**The finding.** ~32 ms average per long tick on a map where nothing is happening puts the
+influence stack, not the nuclear arsenal, at the head of the quiet-map profile — and 85 ms in one
+tick is past the 60 ms the simulation has to deliver in, i.e. a tick a player would feel. This was
+found while looking for something else entirely and is NOT a nuke cost; the rig had not fired.
+It has not been investigated, and nothing here says the work is wasted or wrong — only that it is
+the biggest single number on an idle map and nobody was looking at it.
+
+**The caveat that has to travel with those numbers.** They were taken while the merge gate and a
+sibling build were running. Between the two arms of the same rig — same map, same actors, nothing
+fired in either — a YAML lint started, and the EMPTY-map figures moved:
+
+    salvo arm     tick_time p50  8.0 ms   p95 18 ms
+    single arm    tick_time p50 23.1 ms   p95 56 ms
+
+**Same code, same scenario, no detonation: a 2.9x swing in p50 and 3.1x in p95, entirely from
+background load.** So: absolute per-tick timings from this machine are comparable ONLY within a
+back-to-back pair taken while no build, lint or merge gate is running, and a before/after pair
+split across a build is not evidence of anything. ATTRIBUTIONS -- which trait or effect dominates,
+and in what ratio to the others in the same run -- survive the noise, because every item in a run
+is taxed by the same contention. Prefer them, and prefer p50 over max.
+
+## 2026-09-20 - A trait under the wrong system actor does not get IGNORED, it gets ADDED — and if it carries a lobby option the SERVER refuses the client, which the harness reports as a 15-minute hang (`wt/nuke-perf`, base `main @ 20ae9548`)
+
+**Symptom, and every part of it points the wrong way.** A new scenario ran to the watchdog and
+reported `TIMEOUT-FAIL`. No `result.json`. **No `lua.log` at all.** A twelve-line `debug.log`
+holding nothing but the four benign stock-mod `` `FileSystem` section is not defined `` lines for
+`all`/`cnc`/`d2k`/`ts`. **No exception file.** Every one of those is the signature of "the rules
+failed to load and the game fell back to the main menu", which is what the runner's own timeout
+branch greps for — and it is not what happened. The rules loaded fine.
+
+**Cause.** The scenario's `rules.yaml` declared
+
+    World:
+        MapLayers:
+            ExploredMapCheckboxEnabled: true
+
+`MapLayers` is `[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]`
+(`MapLayers.cs:18`) and the mod declares it on `Player:` (`player.yaml:3`). MiniYaml does not
+validate `TraitLocation` at merge time, so this did **not** override the Player one and was **not**
+ignored: it created a SECOND `MapLayers`, on the World actor. `MapLayers` implements
+`ILobbyOptions` and yields the option id `explored` (`MapLayers.cs:63`), so the session then
+offered `explored` twice.
+
+**Where it actually fails is three layers away from the edit.**
+`LobbySettingsNotification.ClientJoined` builds a dictionary keyed on the option id, threw
+`ArgumentException: An item with the same key has already been added. Key: explored`, and the
+server dropped the joining client (`Server.cs:617`). The client logged
+`Attempted to read past the end of the stream`, stayed on the main menu, and never built a world —
+hence no Lua, no verdict, no exception file on the client side, and a short `debug.log`.
+
+**The general rule: when a run produces TIMEOUT-FAIL with no `lua.log` and a tiny `debug.log`, read
+`server.log`.** The failure was on the server, and the client-side logs the harness *does* read
+cannot contain it. `server.log` had the whole answer in three lines, and nothing in the harness
+looked at it — so the fault cost a full watchdog timeout (15 minutes at the timeout a heavy
+scenario needs), twice, and then reported the wrong finding.
+
+**Two consequences carried.** `run-test.sh` now polls `server.log` for `Dropping connection` (and
+`client.log` for `Connection to ... failed`) while waiting for a verdict, kills the game and
+reports `outcome=LAUNCH-FAIL exit=3` with the server's exception echoed — the same "nothing ran, so
+this is not a test result" family as the exit-127 and zero-byte-log traps already recorded in
+CLAUDE.md. `tools/autotest/selftest-launch-failure.sh` pins the detector against synthetic logs
+(no build, no launch), because the failure mode of a detector is silence and silence reads exactly
+like the fault never happening.
+
+**And the cheap check that would have caught it at authoring time:** every trait a scenario
+declares must sit under the system actor its `TraitLocation` names. Grepping the trait's `.cs` for
+`[TraitLocation(` takes seconds and is the whole of the test. The lint in `--check-yaml` also
+catches it; this scenario was authored under an instruction not to run that gate, which is exactly
+the gap the worker had to cover by reading and did not.
 
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 

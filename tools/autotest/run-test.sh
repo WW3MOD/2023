@@ -138,9 +138,25 @@
 #
 #       AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
 #
-#   OUTCOME is one of: PASS, FAIL, SKIP, TIMEOUT-FAIL, CRASH, NO-RESULT,
-#   BAD-VERDICT, INTERRUPTED, HARNESS-ERROR. It is strictly more informative
-#   than the exit code, which collapses the last five onto 3.
+#   OUTCOME is one of: PASS, FAIL, SKIP, TIMEOUT-FAIL, LAUNCH-FAIL, CRASH,
+#   NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR. It is strictly more
+#   informative than the exit code, which collapses the last six onto 3.
+#
+#   LAUNCH-FAIL means the local server REFUSED THE CLIENT AT JOIN and no world
+#   was ever built - nothing ran, nothing was evaluated, and the scenario made
+#   no claim either way. It is detected from server.log's "Dropping connection"
+#   (or client.log's "Connection to ... failed") while waiting for a verdict,
+#   and it exists because that failure is otherwise INVISIBLE from the client:
+#   no exception file, a twelve-line debug.log, no lua.log, and a full watchdog
+#   timeout misreported as TIMEOUT-FAIL. Same family as the exit-127 and
+#   zero-byte-log traps: a non-zero exit that is not a test result.
+#
+#   The detector is exercised by tools/autotest/selftest-launch-failure.sh
+#   (no build, no launch): it extracts find_engine_log and check_launch_failure
+#   from this file and runs them against synthetic logs, including both log-
+#   rotation directions. Run it after touching either function -- the failure
+#   mode of a detector is SILENCE, which reads exactly like the fault never
+#   happening.
 #
 #   The banner is emitted from an EXIT trap, so there is NO exit path that
 #   prints nothing — not a crash, not Ctrl-C, not an internal `set -e` abort.
@@ -391,21 +407,103 @@ kill_game() {
 	kill "${_pid}" 2>/dev/null || true
 }
 
-# Best-effort locate of the engine's debug.log, mirroring the settings.yaml
-# candidate search below. Echoes a path (may not exist) or nothing.
-find_debug_log() {
+# Best-effort locate of an engine log BY BASENAME, mirroring the settings.yaml
+# candidate search below. Echoes a path or nothing.
+#
+# NEWEST MATCH WINS, and that is not cosmetic: Log.AddChannel falls through to
+# <name>.1, .2 ... when the bare name is still held open by a living instance
+# (Log.cs:145-160), so under fleet contention the bare name can be a STALE log
+# from an earlier run. Reading it would diagnose the wrong game.
+find_engine_log() {
+	_base="$1"
+	_dir=""
 	case "$(uname -s)" in
-		Darwin) echo "${HOME}/Library/Application Support/OpenRA/Logs/debug.log" ;;
-		Linux)  echo "${HOME}/.config/openra/Logs/debug.log" ;;
+		Darwin) _dir="${HOME}/Library/Application Support/OpenRA/Logs" ;;
+		Linux)  _dir="${HOME}/.config/openra/Logs" ;;
 		MINGW*|MSYS*|CYGWIN*|Windows_NT)
 			for _c in \
-				"${REPO_ROOT}/engine/Support/Logs/debug.log" \
-				"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/Logs/debug.log" \
-				"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/Logs/debug.log"; do
-				if [ -f "${_c}" ]; then echo "${_c}"; return; fi
+				"${REPO_ROOT}/engine/Support/Logs" \
+				"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/Logs" \
+				"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/Logs"; do
+				if [ -f "${_c}/${_base}" ]; then _dir="${_c}"; break; fi
 			done
 			;;
 	esac
+	[ -n "${_dir}" ] || return 0
+	ls -t "${_dir}/${_base}" "${_dir}/${_base}."* 2>/dev/null | head -1
+}
+
+find_debug_log() { find_engine_log "debug.log"; }
+
+# --- Launch-failure detection ----------------------------------------------
+# A SERVER-SIDE REFUSAL AT JOIN IS NOT A HANG, BUT IT LOOKS EXACTLY LIKE ONE.
+# The local server can reject the connecting client before a world is ever
+# built -- e.g. two traits in the resolved rules registering the same
+# ILobbyOptions id, which makes LobbySettingsNotification.ClientJoined throw
+# while building its dictionary. The client then sits on the main menu forever:
+# no world, no Lua, no verdict, and the watchdog eventually kills it and calls
+# it a TIMEOUT-FAIL.
+#
+# NOTHING ON THE CLIENT SIDE SAYS SO. There is no exception file, because the
+# throw was on the server; debug.log holds only the four benign stock-mod
+# "`FileSystem` section is not defined" lines; and lua.log is absent because the
+# script never ran. The one place the cause is written is server.log, and until
+# 2026-09-20 nothing in this harness read it -- so this class of failure cost a
+# full watchdog timeout (15 minutes at the timeouts a heavy scenario needs) and
+# then reported the wrong finding. See WORKSPACE/DISCOVERIES.md, 2026-09-20.
+#
+# Sets LAUNCH_FAIL_SRC / LAUNCH_FAIL_DETAIL and returns 0 when it trips.
+#
+# ONLY BEFORE A WORLD EXISTS, and that latch is load-bearing rather than an
+# optimisation. The server ALSO logs "Dropping connection" when the client
+# disconnects during an ORDINARY teardown, so a watch with no latch reports a
+# completed run as a launch failure -- which it did on 2026-09-20, turning a
+# correct SKIP (exit 2) into LAUNCH-FAIL (exit 3) when the teardown drop won a
+# race against the verdict read. The loop's result-file test alone is not enough
+# to prevent that: it polls once a second, and the drop can be written inside the
+# same second as the verdict.
+#
+# lua.log is the latch because its channel is created by ScriptContext when the
+# world's LuaScript initialises (ScriptContext.cs:166) -- so its existence proves
+# a world was built, which is exactly what a JOIN refusal prevents. Every
+# scenario under tools/autotest/scenarios runs Lua, so this is general here.
+# WORLD_SEEN is sticky: once set the watch never re-arms for the rest of the run.
+check_launch_failure() {
+	if [ "${WORLD_SEEN}" = "1" ]; then
+		return 1
+	fi
+
+	# NEWER THAN THE LAUNCH STAMP, not merely present. A lua.log left behind by a
+	# PREVIOUS run would otherwise latch the watch off before this game had even
+	# connected, silently disarming the detector -- a false negative, which is the
+	# safe direction but also a detector that has quietly stopped detecting. The
+	# engine truncates the channel only when a world's LuaScript initialises, so
+	# "newer than launch" is exactly "this run built a world".
+	_ll=$(find_engine_log "lua.log")
+	if [ -n "${_ll}" ] && [ -n "${LAUNCH_STAMP}" ] && [ "${_ll}" -nt "${LAUNCH_STAMP}" ]; then
+		WORLD_SEEN=1
+		return 1
+	fi
+
+	_sl=$(find_engine_log "server.log")
+	# "because an error occurred" narrows it further: the refusal we care about is
+	# an EXCEPTION at join, not a peer that simply went away.
+	if [ -n "${_sl}" ] && grep -q "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null; then
+		LAUNCH_FAIL_SRC="${_sl}"
+		# The refusal line plus the lines under it -- the exception is the part
+		# that names the actual fault, and it is written after the refusal.
+		LAUNCH_FAIL_DETAIL=$(grep -A 3 -m 1 "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null || true)
+		return 0
+	fi
+
+	_cl=$(find_engine_log "client.log")
+	if [ -n "${_cl}" ] && grep -q "Connection to .* failed" "${_cl}" 2>/dev/null; then
+		LAUNCH_FAIL_SRC="${_cl}"
+		LAUNCH_FAIL_DETAIL=$(grep -m 1 "Connection to .* failed" "${_cl}" 2>/dev/null || true)
+		return 0
+	fi
+
+	return 1
 }
 
 MAP_DIR="tools/autotest/scenarios/${TEST_NAME}"
@@ -811,6 +909,14 @@ trap 'echo; echo "==> interrupted — killing the game."; OUTCOME="INTERRUPTED";
 # neither happens within TIMEOUT_SECS, kill the game and synthesize a FAIL so
 # the runner (and run-batch) always get a definite result.
 TIMED_OUT=0
+LAUNCH_FAILED=0
+LAUNCH_FAIL_SRC=""
+LAUNCH_FAIL_DETAIL=""
+WORLD_SEEN=0
+# Reference mtime for "did THIS run build a world" — see check_launch_failure.
+# Created after the launch above, so any log older than it is a leftover.
+LAUNCH_STAMP="${RESULT_FILE%.json}.launchstamp"
+: > "${LAUNCH_STAMP}"
 _elapsed=0
 while :; do
 	if ! kill -0 "${LAUNCH_PID}" 2>/dev/null; then
@@ -819,6 +925,13 @@ while :; do
 	if [ -f "${RESULT_FILE}" ]; then
 		break            # verdict written; let the game exit itself
 	fi
+	# CHECKED AFTER the verdict test on purpose: a connection is also dropped
+	# during an ORDINARY shutdown, and a run that has already written its verdict
+	# must never be reclassified as a launch failure on the way out.
+	if check_launch_failure; then
+		LAUNCH_FAILED=1
+		break
+	fi
 	if [ "${_elapsed}" -ge "${TIMEOUT_SECS}" ]; then
 		TIMED_OUT=1
 		break
@@ -826,6 +939,29 @@ while :; do
 	sleep 1
 	_elapsed=$((_elapsed + 1))
 done
+
+if [ "${LAUNCH_FAILED}" = "1" ]; then
+	echo
+	echo "==> LAUNCH FAILURE: the local server refused the client at join - NOTHING RAN."
+	echo "==> ${LAUNCH_FAIL_SRC}:"
+	printf "%s\n" "${LAUNCH_FAIL_DETAIL}" | sed "s/^/    /"
+	echo "==> This is NOT a test result: no world was constructed and no scenario was"
+	echo "==> evaluated. Do not read it as the scenario failing."
+	echo "==> Most common cause: two traits in the RESOLVED rules registering the same"
+	echo "==> ILobbyOptions id - typically a trait placed under the wrong system actor,"
+	echo "==> which ADDS a second instance rather than overriding the first."
+	kill_game "${LAUNCH_PID}"
+
+	# Synthetic verdict so the STATUS read below has a file. The notes are a FIXED
+	# string rather than the captured exception: that text is quote-rich and this
+	# is hand-rolled JSON.
+	if [ ! -f "${RESULT_FILE}" ]; then
+		NOW_ISO=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+		NOTES="launch-fail: server refused the client at join; nothing ran - see server.log"
+		printf "{\"name\":\"%s\",\"status\":\"fail\",\"notes\":\"%s\",\"timestamp\":\"%s\"}\n" \
+			"${TEST_NAME}" "${NOTES}" "${NOW_ISO}" > "${RESULT_FILE}"
+	fi
+fi
 
 if [ "${TIMED_OUT}" = "1" ]; then
 	echo
@@ -1010,6 +1146,15 @@ if [ -d "${SCREENSHOT_DIR}" ]; then
 fi
 
 STATUS=$(grep -o '"status":"[^"]*"' "${RESULT_FILE}" | head -1 | sed 's/"status":"\(.*\)"/\1/')
+
+# BEFORE the status read is consulted: the synthetic verdict above says "fail",
+# and a launch failure is not a failing test. Exit 3 puts it in the error family
+# with the other "nothing ran" outcomes, which is also what keeps run-batch from
+# grading it against a scenario's declared `fail`.
+if [ "${LAUNCH_FAILED}" = "1" ]; then
+	OUTCOME="LAUNCH-FAIL"
+	exit 3
+fi
 
 case "${STATUS}" in
 	pass) OUTCOME="PASS"; exit 0 ;;
