@@ -47,6 +47,7 @@ def write_run(root: Path, *, fired: bool = True, benchmark: bool = True,
         lua += [
             "NUKEPERF order tick=60 arm=salvo warheads=6 groundzero=64,64",
             "NUKEPERF expect first_impact tick=246 last_impact tick=306",
+            "NUKEPERF endtick tick=1000",
         ]
     else:
         lua += ["NUKEPERF NOT-FIRED status=refused magazine=refused -- every number "
@@ -133,6 +134,20 @@ def main() -> int:
               f"got {det}")
         check("detonation window runs to the end of the run, not the last impact",
               det[1] == analyse.END_TICK, f"got {det}")
+        check("the end tick is read from lua.log", run.end_tick == 1000,
+              f"got {run.end_tick}")
+
+        # A LATE order must not be windowed against the default end tick.
+        late = tmp / "late"
+        write_run(late)
+        lua = (late / "lua.log").read_text(encoding="utf-8")
+        lua = lua.replace("tick=246 last_impact tick=306", "tick=500 last_impact tick=560")
+        lua = lua.replace("endtick tick=1000", "endtick tick=1254")
+        (late / "lua.log").write_text(lua, encoding="utf-8")
+        run_late = analyse.load_run(late, "nukeperf-", "late")
+        _, det_late = analyse.windows_for(run_late)
+        check("a late order widens the window instead of being clipped",
+              det_late == (500, 1254), f"got {det_late}")
 
         b = analyse.stats(analyse.window(run.series["tick_time"], *base))
         d = analyse.stats(analyse.window(run.series["tick_time"], *det))

@@ -3,6 +3,37 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - On a QUIET map with nothing fired, the most expensive single trait is `DangerFieldLayer` — and this machine's `tick_time` varies 3x with background load, so only back-to-back pairs compare (`wt/nuke-perf`, base `main @ 20ae9548`)
+
+**Measured, not modelled.** Two runs of the nuke perf rig in which the salvo never fired, so both
+are pure EMPTY-MAP baselines: 128x128, 665 static actors, no production, no bots, no combat,
+nothing detonating. Instruments were `Launch.Benchmark` plus `Debug.EnableSimulationPerfLogging`
+with `Debug.LongTickThresholdMs=1`, under `--hidden`.
+
+    tick_time                p50 8.0 ms   p95 18 ms   max 23 ms
+    DangerFieldLayer         40 hits, 1281 ms total, max 85 ms   <- largest single trait
+
+**The finding.** ~32 ms average per long tick on a map where nothing is happening puts the
+influence stack, not the nuclear arsenal, at the head of the quiet-map profile — and 85 ms in one
+tick is past the 60 ms the simulation has to deliver in, i.e. a tick a player would feel. This was
+found while looking for something else entirely and is NOT a nuke cost; the rig had not fired.
+It has not been investigated, and nothing here says the work is wasted or wrong — only that it is
+the biggest single number on an idle map and nobody was looking at it.
+
+**The caveat that has to travel with those numbers.** They were taken while the merge gate and a
+sibling build were running. Between the two arms of the same rig — same map, same actors, nothing
+fired in either — a YAML lint started, and the EMPTY-map figures moved:
+
+    salvo arm     tick_time p50  8.0 ms   p95 18 ms
+    single arm    tick_time p50 23.1 ms   p95 56 ms
+
+**Same code, same scenario, no detonation: a 2.9x swing in p50 and 3.1x in p95, entirely from
+background load.** So: absolute per-tick timings from this machine are comparable ONLY within a
+back-to-back pair taken while no build, lint or merge gate is running, and a before/after pair
+split across a build is not evidence of anything. ATTRIBUTIONS -- which trait or effect dominates,
+and in what ratio to the others in the same run -- survive the noise, because every item in a run
+is taxed by the same contention. Prefer them, and prefer p50 over max.
+
 ## 2026-09-20 - A trait under the wrong system actor does not get IGNORED, it gets ADDED — and if it carries a lobby option the SERVER refuses the client, which the harness reports as a 15-minute hang (`wt/nuke-perf`, base `main @ 20ae9548`)
 
 **Symptom, and every part of it points the wrong way.** A new scenario ran to the watchdog and

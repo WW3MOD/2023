@@ -115,6 +115,7 @@ class Run:
     order_tick: int | None = None
     first_impact: int | None = None
     last_impact: int | None = None
+    end_tick: int | None = None
     threshold_note: str = ""
 
 
@@ -138,6 +139,12 @@ def load_lua_markers(run: Run) -> None:
             ticks = [int(t[5:]) for t in rest.split() if t.startswith("tick=")]
             if len(ticks) == 2:
                 run.first_impact, run.last_impact = ticks
+        elif rest.startswith("endtick "):
+            # The scenario moves its own end tick to keep a full measurement window
+            # after a LATE order, so the window must be read rather than assumed.
+            for tok in rest.split():
+                if tok.startswith("tick="):
+                    run.end_tick = int(tok[5:])
         elif rest.startswith("NOT-FIRED"):
             run.fired = False
 
@@ -217,11 +224,15 @@ def stats(vals: list[float]) -> tuple[float, float, float, float]:
 
 def windows_for(run: Run) -> tuple[tuple[int, int], tuple[int, int]]:
     first = run.first_impact or FIRST_IMPACT
+    # END TICK FROM THE RUN, not from the constant: the scenario extends its own run when the
+    # order lands late, so a late shot still gets a full measurement window. Assuming the
+    # constant would clip that window and under-report the detonation.
+    last = run.end_tick or END_TICK
     # The detonation window runs from the first impact to the END OF THE RUN, not to the
     # last impact: the longest thing a warhead starts (ShockwaveEffect, ~400 ticks) outlives
     # the impacts by a wide margin, and clipping at the last impact would measure the flash
     # and miss the sweep that is the point of the exercise.
-    return BASELINE_WINDOW, (first, END_TICK)
+    return BASELINE_WINDOW, (first, last)
 
 
 def report(run: Run, top: int) -> None:
