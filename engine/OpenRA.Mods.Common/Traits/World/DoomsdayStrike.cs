@@ -617,8 +617,8 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static int ScheduleExchangeImpact(World world, Player firer, int naturalImpactTick, SupportPowerInfo powerInfo)
 		{
-			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
-			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
+			var dd = ExchangeLaunchOrNull(world, powerInfo);
+			if (dd == null)
 				return naturalImpactTick;
 
 			var scheduled = dd.cascade.Reserve(naturalImpactTick);
@@ -657,11 +657,48 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static int ExchangeLaunchDelay(World world, SupportPowerInfo powerInfo)
 		{
-			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
-			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
+			var dd = ExchangeLaunchOrNull(world, powerInfo);
+			if (dd == null)
 				return -1;
 
 			return dd.info.FinalExchangeMissileDelay > 0 ? dd.info.FinalExchangeMissileDelay : -1;
+		}
+
+		/// <summary>
+		/// <para>THE ONE DEFINITION OF "THIS LAUNCH IS PART OF THE CASCADE", and the trait handle to act
+		/// on it with, or null when it is not. Three separate consequences hang off this question --
+		/// the impact is given a cascade slot (<see cref="ScheduleExchangeImpact"/>), the pre-launch
+		/// countdown is shortened (<see cref="ExchangeLaunchDelay"/>), and since 2026-09-20 the
+		/// EXCHANGE VARIANT of the missile is flown instead of the ordinary one
+		/// (<see cref="MissileStrikePowerInfo.EscalationMissileActor"/>) -- and all three have to agree
+		/// on every launch, so they ask once here rather than each carrying its own copy of the gate.</para>
+		///
+		/// <para>The two halves are not interchangeable and neither alone is the answer:</para>
+		/// <list type="bullet">
+		///   <item><description>A RUNNING EXCHANGE. Not the game MODE: a game-ender bought at
+		///   <see cref="NuclearRung.GameEnder"/> and fired before the window opens is an ordinary strike
+		///   in Escalation, and Skirmish's no-wait unlock hands out game-enders with no exchange in
+		///   sight. A player who places their OWN package during the window IS in, because that launch
+		///   really is slotted into the one cascade.</description></item>
+		///   <item><description>A GAME-ENDER. The exchange grants the top rung; it does not revoke the
+		///   lower ones, and a 1 kt shot fired inside the window is not part of the ending.</description></item>
+		/// </list>
+		///
+		/// <para>TraitOrDefault, not Trait: a scenario or map that strips this trait from the World actor
+		/// must leave every caller inert rather than throw. Same rule as DefconCasualtyObserver.</para>
+		/// </summary>
+		public static bool IsExchangeLaunch(World world, SupportPowerInfo powerInfo)
+		{
+			return ExchangeLaunchOrNull(world, powerInfo) != null;
+		}
+
+		static DoomsdayStrike ExchangeLaunchOrNull(World world, SupportPowerInfo powerInfo)
+		{
+			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
+				return null;
+
+			return dd;
 		}
 
 		/// <summary>The last impact of the cascade, or -1 before anything is reserved.</summary>

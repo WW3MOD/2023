@@ -455,6 +455,16 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return detectable == null ? -1 : detectable.CurrentVisibility;
 		}
 
+		[Desc("The perf rig's ARM: 'exchange' when the process was launched with " +
+			"Test.ForceEscalationVariant=true, otherwise 'salvo'. A scenario prints this into its own " +
+			"markers so a run's numbers can never be read as the other arm's -- the two arms share a " +
+			"tick schedule by design, so the log line is the ONLY thing that tells them apart. " +
+			"Returns 'salvo' outside test mode.")]
+		public string GetEscalationArm()
+		{
+			return TestMode.IsActive && TestMode.ForceEscalationVariant ? "exchange" : "salvo";
+		}
+
 		[Desc("Number of actors currently selected. Test mode only.")]
 		public int GetSelectedCount()
 		{

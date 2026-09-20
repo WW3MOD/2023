@@ -34,6 +34,28 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Actor to spawn off-map on the approach vector. Must carry the " + nameof(BallisticMissile) + " trait.")]
 		public readonly string MissileActor = null;
 
+		[ActorReference(typeof(BallisticMissileInfo))]
+		[Desc("OPTIONAL. The actor to fly INSTEAD of " + nameof(MissileActor) + " when this launch is",
+			"part of the final-exchange cascade — i.e. when " + nameof(DoomsdayStrike) + " would give",
+			"its warheads a cascade slot. Unset (the default) means there is no variant and every",
+			"launch flies " + nameof(MissileActor) + ", which is byte-identical to the behaviour",
+			"before this field existed.",
+			"",
+			"WHY A SELECTOR IN CODE RATHER THAN A SECOND POWER IN YAML. The exchange variants exist",
+			"so the ENDING can drop the warheads nothing survives to experience — thermal, fire, EMP",
+			"and infantry suppression — and slow the fireball's terrain relight cadence, without",
+			"changing the weapon a player fires in ordinary play. A YAML-only swap cannot express",
+			"that, because the distinction is not a property of the POWER or of the GAME MODE: a",
+			"game-ender bought at nuclear release level 5 and fired before the window opens is an",
+			"ordinary strike in Escalation mode, and Skirmish's `Nuclear Unlock = No wait` hands out",
+			"game-enders with no exchange anywhere in sight. The only honest question is \"is this",
+			"particular launch part of the cascade\", and only the cascade can answer it.",
+			"",
+			"It is answered by " + nameof(DoomsdayStrike) + "." + nameof(DoomsdayStrike.IsExchangeLaunch) + ",",
+			"which is the SAME predicate that decides whether a warhead is given a cascade slot — so",
+			"the variant flies exactly when the impact is slotted, and the two cannot drift apart.")]
+		public readonly string EscalationMissileActor = null;
+
 		[Desc("Height above the terrain at which the missile is spawned. Note this is the altitude at",
 			"the OFF-MAP spawn, not at the map boundary: the missile descends linearly from here to",
 			"the aim point across the whole standoff, so it crosses the boundary already part-way",
@@ -601,7 +623,44 @@ namespace OpenRA.Mods.Common.Traits
 			if (exchangeDelay >= 0)
 				missileDelay = exchangeDelay;
 
-			var missileRules = world.Map.Rules.Actors[info.MissileActor].TraitInfo<BallisticMissileInfo>();
+			// ==== WHICH BODY FLIES: THE ORDINARY ONE, OR THE EXCHANGE VARIANT ====
+			// Asked ONCE, here, and the answer is used for BOTH the flight arithmetic below and the
+			// CreateActor further down -- so a variant that ever differed in Speed, LaunchAngle or
+			// PreLaunchTicks would still have its own flight time computed, rather than the base
+			// missile's numbers flown by a different actor. The two shipped variants inherit their
+			// base bodies unchanged, so today the two names resolve to identical BallisticMissileInfo;
+			// reading the rules once is what keeps that a fact about the YAML instead of an
+			// assumption baked into this method.
+			//
+			// BYTE-IDENTICAL WHEN THE FIELD IS UNSET, by construction rather than by the branch
+			// happening to cancel: EscalationMissileActor is null on every power in the mod except
+			// the two national game-enders, so `missileActor` is `info.MissileActor` and
+			// DoomsdayStrike is not even consulted.
+			//
+			// THE PREDICATE IS THE CASCADE'S OWN. IsExchangeLaunch is the same call
+			// ScheduleExchangeImpact makes to decide whether to reserve a slot, so "flew the variant"
+			// and "landed on the cascade" are the same condition read twice rather than two rules
+			// that have to be kept in step. See EscalationMissileActor's [Desc] for why neither the
+			// game mode nor the power's identity can stand in for it.
+			//
+			// TestMode.ForceEscalationVariant IS THE PERF RIG'S `exchange` ARM AND NOTHING ELSE. It
+			// is inert unless the process was launched with Test.Mode=true (TestMode.Initialize
+			// returns before reading anything otherwise), so it cannot be reached from a shipped
+			// game. It is deliberately OR'd in HERE, at the actor choice, and not folded into
+			// IsExchangeLaunch: forcing that predicate would also reschedule the impacts onto a
+			// cascade and change the very tick schedule the rig's two arms have to share.
+			//
+			// SINGLE-CLIENT ONLY, and stated because this line sits on the synced order-resolution
+			// path. A launch argument is client-local, so two clients launched with different values
+			// would create different actors on the same tick and desync. Every TestMode consumer has
+			// that property (Test.RandomSeed and Test.SpeedMultiplier are the same shape) and the
+			// autotest harness runs one client; do not reach for this from anything a human plays.
+			var missileActor = info.EscalationMissileActor != null
+				&& (TestMode.ForceEscalationVariant || DoomsdayStrike.IsExchangeLaunch(world, info))
+				? info.EscalationMissileActor
+				: info.MissileActor;
+
+			var missileRules = world.Map.Rules.Actors[missileActor].TraitInfo<BallisticMissileInfo>();
 
 			// THE VISIBLE APPROACH. Same bearing, shorter walk-back -- built by handing
 			// approach.Facing straight to the struct's own constructor, so there is no second copy
@@ -690,7 +749,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (scheduledImpactTick != naturalImpactTick)
 				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, scheduledImpactTick, flightTicks);
 
-			var missile = world.CreateActor(false, info.MissileActor, new TypeDictionary
+			var missile = world.CreateActor(false, missileActor, new TypeDictionary
 			{
 				new CenterPositionInit(spawnPos),
 				new OwnerInit(self.Owner),
