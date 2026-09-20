@@ -806,7 +806,7 @@ namespace OpenRA.Mods.Common.Traits
 				//
 				// So this logs what actually went in. One run now says which of hDist, the estimate
 				// or the ceiling differs between the nations, instead of a fourth guessed constant.
-				Log.Write("debug", $"FINAL EXCHANGE launch: {self.Owner.InternalName} `{info.MissileActor}` " +
+				Log.Write("debug", $"FINAL EXCHANGE launch: {self.Owner.InternalName} `{missileActor}` " +
 					$"slot {slot} at tick {world.WorldTick}; hDist {hDist}, speed {missileRules.Speed}, " +
 					$"hDist%speed {hDist % Math.Max(1, missileRules.Speed)}, " +
 					$"estimate {BallisticMissileFly.EstimateArcTicks(missileRules, hDist)}, " +
