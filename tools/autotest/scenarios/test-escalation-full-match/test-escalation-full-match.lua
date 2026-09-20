@@ -52,15 +52,26 @@ local NORUSH_TICKS  = 5000   -- DefconEscalationInfo.NoRushDefault = 5 min; 5*60
 local RELEASE_TICKS = 10000  -- DefconEscalationInfo.FirstWarheadsDefault = 10 min, after DEFCON 1
 local TIME_LIMIT    = 22000  -- rules.yaml TimeLimitManager.TimeLimitTicks
 
--- The poller's own deadline. 2000 ticks past the time limit: the final-exchange window is 500
--- (world.yaml, raised from 250 on 2026-09-16 -- see DoomsdayStrikeInfo.FinalExchangeWindowTicks for
--- why) and the salvo adds an outlier wave, a 40-tick pause (OutlierToCityPauseTicks) and a city wave
--- on top, so ~2000 still leaves a comfortable margin past the close. Reaching this tick at all means
+-- The poller's own deadline. 2000 ticks past the time limit, and as of 2026-09-20 that is TIGHTER
+-- than it looks, so the arithmetic is written out:
+--
+--     window                                  250   (world.yaml, back from the 2026-09-16 raise to 500)
+--     FinalExchangeFlightTicks                800   the cascade's anchor, measured from the close
+--     cascade span, (2N-1) * ImpactSpacingTicks 105  this map's Bounds are 96x96 = 9216 playable
+--                                                    cells, so N is 4 and the span is 7 * 15
+--     AnnihilationDelayTicks                   90
+--     ResolutionDelayTicks                     30
+--                                            ----
+--                                            1275 + slack
+--
+-- THE THIRD LINE IS THE ONE THAT MOVES WITH THE MAP. At the shipped CellsPerImpact 2400 no map
+-- gives an N above MaxPackage 6, so 165 is the ceiling and 1335 the worst-case tail whatever this
+-- scenario is pointed at. ~2000 still leaves a comfortable margin. Reaching this tick at all means
 -- the ending never resolved, which is itself the finding.
 --
--- IF THE WINDOW IS EVER LENGTHENED AGAIN, RAISE THIS WITH IT. The 4b check below faults when the
--- window has not CLOSED by the deadline, so a window longer than (DEADLINE - TIME_LIMIT) would make
--- that check report a defect that is really a budget.
+-- IF THE WINDOW OR FinalExchangeFlightTicks IS EVER LENGTHENED, RAISE THIS WITH IT. The 4b check
+-- below faults when the window has not CLOSED by the deadline, so a tail longer than
+-- (DEADLINE - TIME_LIMIT) would make that check report a defect that is really a budget.
 local DEADLINE      = 24000
 
 -- ==== SLACK, AND WHY THE TWO EARLY BOUNDS DIFFER ====
@@ -147,6 +158,11 @@ WorldLoaded = function()
 	-- Hand firing for everyone and the match ending anyway -- which is EXACTLY the defect the
 	-- user reported ("I could not place my strikes. The timer ran out and the dead hand
 	-- activated"). The reading was there all along in DoomsdayState(); nothing read it.
+	--
+	-- DEAD HAND IS GONE AS OF 2026-09-20 and the shape of that bug is not: a window that opens,
+	-- does nothing and closes is still the failure, it is just that what SHOULD happen at the
+	-- close is now each side's own package rather than a map-wide salvo. Check 4c below is the
+	-- half that was not assertable before.
 	--
 	-- WHAT IS ASSERTABLE HERE AND WHAT IS NOT. This is bot-vs-bot on the TIME LIMIT path, so
 	-- placements=0 is a legitimate outcome -- no bot is obliged to fire inside the window --
@@ -436,13 +452,42 @@ WorldLoaded = function()
 
 			if phaseMax < 2 then
 				fault("the final exchange opened at tick %d but never CLOSED: the highest phase "
-					.. "seen was %d and FinalExchangePhase.Closed is 2, so Dead Hand never placed "
-					.. "and the staged salvo never ran. The window is only bookkeeping -- "
+					.. "seen was %d and FinalExchangePhase.Closed is 2, so nothing was auto-fired "
+					.. "and no cascade ran. The window is only bookkeeping -- "
 					.. "FinalExchangeWindow.Tick reports the closing edge exactly once and "
-					.. "DoomsdayStrike.Tick hangs PlaceDeadHandSalvo off it -- so a window that "
-					.. "opens and does not close means DoomsdayStrike stopped ticking. READ "
-					.. "debug.log for `DEAD HAND placing at tick`; absent means exactly this. "
-					.. "Last reading %q", endingAt, phaseMax, endingState)
+					.. "DoomsdayStrike.Tick hangs FirePackagesAndScheduleTheTail off it -- so a "
+					.. "window that opens and does not close means DoomsdayStrike stopped ticking. "
+					.. "READ debug.log for `FINAL EXCHANGE closing at tick`; absent means exactly "
+					.. "this. Last reading %q", endingAt, phaseMax, endingState)
+			end
+
+			-- ---- 4c. WARHEADS ACTUALLY FLEW, AND THAT IS NEW ON 2026-09-20 ----
+			-- Before the redesign this was unassertable and deliberately unasserted: Dead Hand
+			-- fired a map-wide salvo with no owner, so "the ending produced warheads" said nothing
+			-- about whether either SIDE had one. Now every surviving side either places its own
+			-- package or has its own fired for it, so a closed window with ZERO warheads means
+			-- something swallowed both -- an arsenal checkbox, a missing national ender, a power
+			-- that never became Ready. Each is a real defect and none of them shows up anywhere
+			-- else in this scenario's readings.
+			--
+			-- NOT AN ASSERTION ON THE COUNT. The package is derived from the map
+			-- (FinalExchangePackage) and this scenario does not pin which map it runs on, so the
+			-- expected number is 2N for two sides and N is 2..6. Zero is the defect; the count is
+			-- a reading.
+			if phaseMax >= 2 then
+				local warheads = tonumber(endingState:match("warheads=(%-?%d+)") or "")
+				if warheads ~= nil and warheads == 0 then
+					fault("the final exchange closed but NOT ONE WARHEAD was scheduled: "
+						.. "warheads=0 in %q. Every surviving side should either place its own "
+						.. "package or have its own fired for it at the close, so zero means both "
+						.. "sides were skipped. READ debug.log for `is not ready at the close` "
+						.. "(the arsenal checkbox, or the banked shot was spent) and for `holds no "
+						.. "game-ender at all` (no national ender on that faction)", endingState)
+				elseif warheads ~= nil then
+					note("final exchange warheads=%d anchor=%s package=%s", warheads,
+						tostring(endingState:match("anchor=(%-?%d+)")),
+						tostring(endingState:match("package=(%d+)")))
+				end
 			end
 		end
 

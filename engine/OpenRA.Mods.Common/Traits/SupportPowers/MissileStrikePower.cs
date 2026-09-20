@@ -630,7 +630,7 @@ namespace OpenRA.Mods.Common.Traits
 			// THE LAUNCH MOVES, THE AIM POINT DOES NOT. Only the wait before the missile enters the
 			// world changes; the geometry above is already fixed and is not recomputed.
 			var naturalImpactTick = world.WorldTick + missileDelay + flightTicks;
-			var scheduledImpactTick = DoomsdayStrike.ScheduleExchangeImpact(world, naturalImpactTick, info);
+			var scheduledImpactTick = DoomsdayStrike.ScheduleExchangeImpact(world, self.Owner, naturalImpactTick, info);
 			if (scheduledImpactTick != naturalImpactTick)
 				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, scheduledImpactTick, flightTicks);
 

@@ -9,23 +9,27 @@ Player:
 		ExploredMapCheckboxEnabled: true
 		FogCheckboxEnabled: true
 
-	# THE PLAYER-PLACED WARHEAD'S WAIT, SHORTENED FROM THE SHIPPED 500 TO 260 TICKS, for two
-	# reasons at once. It has to land AFTER the Dead Hand salvo -- with the player's warhead last,
-	# the annihilation and the verdict are visibly HELD for it, which is the resolution-timing
-	# behaviour this demo exists to show -- and every tick above that minimum is DEAD AIR:
-	# SpawnActorEffect holds the actor out of the world and renders nothing while it waits
-	# (SpawnActorEffect.cs:44-49), so the viewer is watching an empty sky with a beacon on it.
+	# DEAD AIR, SHORTENED FROM THE SHIPPED 500 TO 120 TICKS ON BOTH GAME-ENDERS. SpawnActorEffect
+	# holds the actor out of the world and renders nothing while it waits (SpawnActorEffect.cs:44-49),
+	# so every one of those ticks is an empty sky with a beacon on it.
 	#
-	# 260 IS THE FLOOR, not a taste setting. Ordered at tick 95, impact is 95 + 260 + 0
-	# PreLaunchTicks + ~132 flight = ~487, against a last Dead Hand impact at ~432. Lower it and the
-	# warhead lands inside the salvo and the hold becomes invisible; the arithmetic is written out
-	# in demo-doomsday-deadhand.lua's schedule block. Delete the line entirely to see the real
-	# approach time at the cost of ~240 ticks.
+	# BOTH, NOT JUST THE B83, AND THAT IS NEW AS OF 2026-09-20. Russia's Sarmat is no longer a
+	# weapon this demo can ignore: the side that places nothing is now AUTO-FIRED with its own
+	# national ender, so the Sarmat's 500 ticks would sit inside the cascade's flight budget and
+	# push FinalExchangeFlightTicks (World node, below) back up with it.
 	#
-	# IT IS IN THIS `Player:` NODE rather than a second one at the foot of the file: MiniYaml treats
-	# two top-level entries with the same key as a duplicate, not a merge, within one file.
+	# 120 AGAINST A FLIGHT OF ~128 on this 64x32 map: b83missile is Speed 700, Acceleration 0, so
+	# EstimateArcTicks is hDist/speed and hDist is the standoff, sqrt(64^2+32^2) + 16 = ~88 cells.
+	# sarmatmissile at Speed 1600 is roughly half that. FinalExchangeFlightTicks must cover the
+	# larger of the two sums; see its note below.
+	#
+	# THESE ARE IN THIS `Player:` NODE rather than a second one at the foot of the file: MiniYaml
+	# treats two top-level entries with the same key as a duplicate, not a merge, within one file.
 	MissileStrikePower@B83:
-		MissileDelay: 260
+		MissileDelay: 120
+
+	MissileStrikePower@Sarmat:
+		MissileDelay: 120
 
 	# NOT SET, ON PURPOSE: PowersLobbyOptions' sandbox switch. demo-nuke-arsenal needs it because
 	# powers.event is otherwise provided by nobody -- and the whole point HERE is that the final
@@ -62,17 +66,26 @@ World:
 		Scripts: test-helpers.lua, demo-doomsday-deadhand.lua
 
 	# Demo timings are COMPRESSED against the shipped values in mods/ww3mod/rules/world.yaml, so the
-	# whole sequence fits in one sitting. The two that are NOT compressed are the ones that carry the
-	# user's intent — OutlierToCityPauseTicks (the pause that makes the city wave read as a separate
-	# event) and WithinWaveTicks (the tightness of a wave) — because compressing those would demo a
-	# rhythm nobody is going to ship.
+	# whole sequence fits in one sitting. The two that are NOT compressed are the ones a viewer is
+	# actually looking at: the window itself, and ImpactSpacingTicks, which is the rhythm of the
+	# cascade.
+	#
+	# THREE KNOBS THIS BLOCK USED TO SET NO LONGER EXIST (2026-09-20): LeadInTicks,
+	# OutlierToCityPauseTicks and WithinWaveTicks all described the map-wide Dead Hand salvo's wave
+	# structure, and there is no salvo. Leaving any of them here would fail the map load outright
+	# with "unknown field", which is the intended way a stale override announces itself.
 	DoomsdayStrike:
-		# Required: a demo runs under TestMode, where the salvo is off by default so that the existing
-		# timed tournament and autotest configurations keep ending the way they always did.
+		# Required: a demo runs under TestMode, where the ending is off by default so that the
+		# existing timed tournament and autotest configurations keep ending the way they always did.
 		RunInTestMode: true
-		LeadInTicks: 10
-		OutlierToCityPauseTicks: 40
-		WithinWaveTicks: 2
+		# 260, DOWN FROM THE SHIPPED 800, and it is the compressed MissileDelay above that makes
+		# this correct rather than merely convenient. It must cover MissileDelay plus the slowest
+		# game-ender's flight, or a warhead placed on the window's last tick would be scheduled
+		# into the past and would arrive outside the cascade: 120 + ~128 = 248, so 260.
+		#
+		# IT IS ALSO THE DEMO'S PACING KNOB. The window closes at 330 and the anchor is therefore
+		# at 590; every frame after 03 is derived from that number.
+		FinalExchangeFlightTicks: 260
 		AnnihilationDelayTicks: 30
 		ResolutionDelayTicks: 15
 		# THE WINDOW AT FULL LENGTH, deliberately NOT compressed WHILE EVERYTHING AROUND IT WAS.

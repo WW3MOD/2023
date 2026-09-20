@@ -312,9 +312,32 @@ namespace OpenRA.Mods.Common.Traits
 		// enumerated in decides which side's warheads take the earlier cascade slots.
 		readonly List<(Player Player, string Key)> autoFire = new();
 
+		// ==== THE LEDGER. WHAT ACTUALLY FLEW, PER SIDE, FOR A SCENARIO TO ASSERT ON ====
+		// Neither of these decides anything -- they are appended to on the same synced path they
+		// record, and nothing reads them but the Test bindings and the log. They exist because the
+		// two properties this redesign turns on are otherwise UNOBSERVABLE from a scenario: a
+		// missile spends its whole MissileDelay held OUT of the world by SpawnActorEffect
+		// (SpawnActorEffect.cs:44-49), so counting actors cannot tell "eight warheads are in the
+		// air on one cascade" from "nothing was fired", and an aim point is consumed by
+		// BallisticMissileFly and never stored anywhere a script can reach.
+		//
+		// Lists, not Dictionaries: they are enumerated, and by a reader that wants them in the order
+		// things happened.
+		readonly List<(Player Player, int Tick)> exchangeImpacts = new();
+		readonly List<(Player Player, CPos Cell)> autoFiredAimPoints = new();
+
 		// The latest tick at which a PLAYER-PLACED game-ender is due to detonate. The resolution is
 		// held past it, so the verdict never lands while the player's own warhead is still in the air.
 		int playerImpactTick;
+
+		// THE TRIGGER, ON THE ZERO-WINDOW PATH ONLY, AND IT IS A RE-ENTRANCY GUARD RATHER THAN
+		// BOOKKEEPING. With FinalExchangeWindowTicks <= 0 the packages fire on the trigger tick --
+		// and on door (b) that call arrives from inside MissileStrikePower.Activate, i.e. from
+		// inside SupportPowerInstance.Activate for the trigger's OWN power, BEFORE bank.Consume has
+		// run. The instance is therefore still Ready, and auto-firing it here would re-enter it and
+		// put the trigger's package up TWICE. FinalExchangeWindow cannot answer this: RecordPlacement
+		// is a no-op outside an open window, and on this path the window never opened.
+		string zeroWindowTrigger;
 
 		// A launch reported on a tick the exchange had not yet begun, kept for exactly that tick. See
 		// NotifyExchangeLaunch for why one tick of lookback is the whole of what is needed.
@@ -528,7 +551,9 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 			}
 
-			// FinalExchangeWindowTicks <= 0: no window, everybody's package fires on this tick.
+			// FinalExchangeWindowTicks <= 0: no window, everybody's package fires on this tick --
+			// except the trigger's, which is already being fired by the caller. See zeroWindowTrigger.
+			zeroWindowTrigger = trigger?.InternalName;
 			cascade.SetFloor(world.WorldTick + info.FinalExchangeFlightTicks);
 			ArmGameEnders();
 			FirePackagesAndScheduleTheTail();
@@ -551,14 +576,38 @@ namespace OpenRA.Mods.Common.Traits
 		/// <see cref="FinalExchangeCascade"/> for why the slots are sequential rather than interleaved
 		/// by side.</para>
 		/// </summary>
-		public static int ScheduleExchangeImpact(World world, int naturalImpactTick, SupportPowerInfo powerInfo)
+		public static int ScheduleExchangeImpact(World world, Player firer, int naturalImpactTick, SupportPowerInfo powerInfo)
 		{
 			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
 			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
 				return naturalImpactTick;
 
-			return dd.cascade.Reserve(naturalImpactTick);
+			var scheduled = dd.cascade.Reserve(naturalImpactTick);
+			dd.exchangeImpacts.Add((firer, scheduled));
+			return scheduled;
 		}
+
+		/// <summary>Ticks this side's warheads are due to detonate on, in launch order. Test reader.</summary>
+		public IEnumerable<int> ExchangeImpactTicksFor(Player player)
+		{
+			foreach (var (p, tick) in exchangeImpacts)
+				if (p == player)
+					yield return tick;
+		}
+
+		/// <summary>Cells the machine aimed this side's package at, or empty if it placed its own. Test reader.</summary>
+		public IEnumerable<CPos> AutoFiredAimPointsFor(Player player)
+		{
+			foreach (var (p, cell) in autoFiredAimPoints)
+				if (p == player)
+					yield return cell;
+		}
+
+		/// <summary>Slot pitch of the cascade, so a reader can state the span rather than guess it.</summary>
+		public int ImpactSpacingTicks => info.ImpactSpacingTicks;
+
+		/// <summary>The last impact of the cascade, or -1 before anything is reserved.</summary>
+		public int FinalExchangeLastImpactTick => cascade.LastImpactTick;
 
 		/// <summary>
 		/// <para>A game-ender has been put in the air by a player, and is due to detonate at
@@ -815,6 +864,10 @@ namespace OpenRA.Mods.Common.Traits
 				if (player.WinState == WinState.Lost || window.HasPlaced(player.InternalName))
 					continue;
 
+				// The zero-window path's trigger is mid-launch further up this very call stack.
+				if (player.InternalName == zeroWindowTrigger)
+					continue;
+
 				var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
 				if (manager == null || !manager.Powers.TryGetValue(key, out var instance))
 					continue;
@@ -846,6 +899,9 @@ namespace OpenRA.Mods.Common.Traits
 
 				Log.Write("debug", $"FINAL EXCHANGE: auto-firing `{key}` for {player.InternalName} at " +
 					$"{cells.Count} aim point(s) [{cells.Select(c => c.ToString()).JoinWith(" ")}].");
+
+				foreach (var c in cells)
+					autoFiredAimPoints.Add((player, c));
 
 				instance.Activate(order);
 			}

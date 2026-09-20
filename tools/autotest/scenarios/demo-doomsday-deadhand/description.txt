@@ -1,5 +1,11 @@
-DEMO: Doomsday / the FINAL EXCHANGE -- the clock runs out, both sides get fifteen seconds to place
-their own game-enders, Dead Hand places the rest, and the map is annihilated.
+DEMO: the FINAL EXCHANGE -- the clock runs out, both sides get fifteen seconds to place their own
+game-enders, an unplaced package fires at the enemy anyway, and the map is annihilated.
+
+RETIMED 2026-09-20 WITH THE REDESIGN. The map-wide "Dead Hand" salvo this demo used to show is
+gone: it was side-blind and it always landed before the player's own warhead. What is shown now is
+TWO PACKAGES ON ONE CASCADE -- USA's, placed, and Russia's, fired for it at USA's half of the map
+-- with nothing landing until the window has shut. The directory keeps its name because a scenario
+directory name is its run identifier.
 
 IT CAPTURES FIVE FRAMES AND ENDS ITSELF on Test.Skip once they have flushed, so run-test.sh returns
 a verdict (SKIP, exit 2) rather than killing the game at its watchdog. It is still a DEMO: nothing
@@ -7,11 +13,16 @@ is asserted, and `skip` is the run saying "I finished, the frames are on disk, a
 not a claim that anything passed. The two runs before 2026-09-13 took no screenshots and never
 ended, which is why they came back TIMEOUT-FAIL with an empty lua.log and no PNGs.
 
-Watch for, in order: the countdown band ("FINAL EXCHANGE -- PLACE YOUR WARHEADS -- 0:15") and a B83
-cameo appearing in a bin that was empty; USA's own 1.2 Mt going up inside the window with a beacon
-on the eastern city; the band clearing at zero and "Dead Hand placed for: Russia."; four small
-warheads on the oil derricks; a distinct pause; two large ones on the two cities; USA's B83 arriving
-LAST; then everything still standing is destroyed. All Dead Hand impacts are near-vertical.
+Watch for, in order: the countdown band ("FINAL EXCHANGE -- PLACE YOUR STRIKE PACKAGE -- UNPLACED
+FIRES AT THE ENEMY -- 0:15") and a B83 cameo appearing in a bin that was empty; USA's own two 1.2 Mt
+bombs going up inside the window with beacons around the eastern city; the band clearing at zero and
+"Fired automatically for: Russia."; then a long quiet while everything flies; then FOUR impacts
+fifteen ticks apart -- USA's two first, Russia's two after -- and then everything still standing is
+destroyed.
+
+THE PACKAGE HERE IS TWO PER SIDE, and that is the MinPackage floor doing its work: 64x32 is 2048
+playable cells, which rounds to 1 at the shipped CellsPerImpact 2400 and is lifted to 2. A bigger
+map gets a bigger package from the same arithmetic; see FinalExchangePackageTest for the table.
 
 TICK SCHEDULE at Timestep 60 (16.67 ticks/s). Ticks are exact where they are derived from tunables;
 the ones marked ~ carry a flight term and are stated with their derivation so a drift can be read
@@ -33,41 +44,36 @@ rather than guessed at. Seconds are ticks/16.67.
       95    5.7s   USA PLACES. Its B83 is ordered onto the eastern city at 49,22
                    through the real support-power order path; the on-screen line
                    reads "issued". Russia places nothing, on purpose.
-     250   15.0s   Band at ~0:05 and RED, USA's beacon planted.                        02
-     330   19.8s   WINDOW CLOSES. Dead Hand places everything nobody claimed.
-     336   20.2s   "DEAD HAND ACTIVATED. Incoming." + "Dead Hand placed for:           03
-                   Russia." -- the placed-vs-placed-for split, said out loud.
-     340   20.4s   First outlier missile appears, 38 cells up and 5 cells from its
-                   aim point. The four launch on ticks 340/342/344/346.
-    ~384   23.0s   WAVE 1 -- derrick impacts, 2 ticks apart. (330 + LeadInTicks 10
-                   + the deadhandtacticalmissile's ~44-tick flight over
-                   ApproachDistance 5c0.)
-    ~390   23.4s   Last outlier impact. THE PAUSE begins -- OutlierToCityPauseTicks
-                   40, deliberately NOT compressed.
-    ~392   23.5s   Derricks down, city missiles in the air.                            04
-    ~430   25.8s   WAVE 2 -- city impacts. ONE warhead per city, not two:
-                   WarheadsPerCity is 1 since the 2026-09-07 retune, and this map
-                   clusters into exactly two cities.
-    ~432   25.9s   Last Dead Hand impact.
-    ~487   29.2s   USA'S B83 ARRIVES, and it is LAST ON PURPOSE. 95 + MissileDelay
-                   260 (shortened from the shipped 500 in rules.yaml) + 0
-                   PreLaunchTicks + ~132 ticks of flight: B83Missile has
-                   Acceleration 0 and Speed 700, so EstimateArcTicks is simply
-                   hDist/speed, and hDist is the standoff -- sqrt(66^2+34^2) + 16
-                   = ~90 cells.
-    ~490   29.4s   The player's own 1.2 Mt, on a map already cratered.                 05
-    ~517   31.0s   ANNIHILATION, held 30 ticks past the B83 rather than past the
-                   Dead Hand salvo. THAT HOLD IS THE POINT: without it the sweep
-                   would have run at ~462 while the player's own warhead was still
-                   in the air. "Total strategic annihilation."
-    ~532   31.9s   Resolution point. See the caveat below.
-     545   32.7s   Test.Skip. Verdict SKIP, exit 2, five PNGs in the run directory.
+     250   15.0s   Band at ~0:05 and RED, USA's two beacons planted.                   02
+     330   19.8s   WINDOW CLOSES. Russia's own Sarmat is fired FOR it, aimed at
+                   USA's half of the map -- its Supply Route first, then whatever
+                   concentration is left, padded out by farthest-point spread.
+     336   20.2s   "The packages are in the air." + "Fired automatically for:          03
+                   Russia." -- the placed-vs-fired-for split, said out loud.
+     590   35.4s   THE ANCHOR. 330 + FinalExchangeFlightTicks 260 (shortened from
+                   the shipped 800 in rules.yaml, alongside both game-enders'
+                   MissileDelay). USA slot 0 detonates.
+     592   35.5s   The first of USA's two going off; Russia's still inbound.           04
+     605   36.3s   USA slot 1.
+     620   37.2s   Russia slot 2, on USA's ground.
+     635   38.1s   Russia slot 3 -- the LAST impact of the cascade,
+                   anchor + (2*2-1) * ImpactSpacingTicks 15.
+     637   38.2s   All four craters, both packages down.                               05
+     665   39.9s   ANNIHILATION, 30 ticks past the LAST impact of the CASCADE rather
+                   than past any one warhead. That is the simplification the cascade
+                   bought: there is no longer a salvo and a player warhead on two
+                   schedules to hold the sweep past. "Total strategic annihilation."
+     680   40.8s   Resolution point. See the caveat below.
+     700   42.0s   Test.Skip. Verdict SKIP, exit 2, five PNGs in the run directory.
 
-RUN LENGTH IS ~545 TICKS, down from ~780 (2026-09-13). Two runs were CPU-starved by sibling builds
-and reached under 100 ticks in 300 s, which nothing in this scenario can fix -- but the run-up was
-cut from 250 ticks to 80, the B83's dead air from 500 to 260, and the lead-in and the two tail
-delays roughly halved. THE WINDOW ITSELF WAS NOT CUT and must not be: 250 ticks is the shipped
-fifteen seconds and is the thing being demonstrated. On a loaded machine, prefer
+RUN LENGTH IS ~700 TICKS, up from ~545 (2026-09-13) and still well down on the ~780 before that.
+The extra 155 is the cascade's anchor: nothing of the exchange may land until the window has shut
+AND a full flight has been flown, which is the property the redesign exists to guarantee, so it
+cannot be compressed away -- only the flight it waits for can be, and it has been (MissileDelay 500
+-> 120 on both game-enders, FinalExchangeFlightTicks 800 -> 260). Two runs were once CPU-starved by
+sibling builds and reached under 100 ticks in 300 s, which nothing in this scenario can fix. THE
+WINDOW ITSELF WAS NOT CUT and must not be: 250 ticks is the shipped fifteen seconds and is the
+thing being demonstrated. On a loaded machine, prefer
 `--speed 4` (run-test.sh divides the timestep, so the band still honestly reads 0:15 while the
 wall clock shrinks -- it converts with GameSpeed.Timestep, which --speed does not touch) and
 `--timeout 600`.
@@ -85,12 +91,12 @@ was never armed (the window did not grant it), "hidden" means the bin never drew
 "unknown-power:B83Strike" means the arsenal is not loaded. Nothing is asserted here, so that
 printout is the only thing standing between a silent miss and a wasted launch slot.
 
-NO FILL WARHEADS. The fill pass -- which used to top the salvo up until every cell of the map was
-inside some lethal radius -- was REMOVED in the 2026-09-07 retune, together with the 20-cell lethal
-radius that fed it (now 14c0). There is no third wave and there never will be one on this map; a
-previous version of this file described both and was wrong from that commit onward. Ground between
-the aim points is uncovered on purpose, and the sweep at the end is what makes "nothing survives"
-true.
+NO WAVES AT ALL ANY MORE. This paragraph used to explain the missing third wave (the fill pass,
+removed in the 2026-09-07 retune). The other two went on 2026-09-20 with the salvo itself: there is
+no outlier wave, no pause and no city wave, because there is no map-wide salvo to structure. What
+replaced them is ONE cascade of evenly-spaced slots, and what decides its length is how many
+warheads the two packages carry. Ground between the aim points is uncovered on purpose, and the
+sweep at the end is what makes "nothing survives" true.
 
 CAVEAT -- THE VERDICT IS NOT SHOWN HERE. A demo runs under TestMode, where ConquestVictoryConditions
 deliberately never assigns an objective (ConquestVictoryConditions.cs, the TestMode guard in Tick),
