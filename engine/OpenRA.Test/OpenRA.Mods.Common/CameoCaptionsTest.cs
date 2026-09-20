@@ -275,7 +275,7 @@ namespace OpenRA.Test
 		{
 			// The property that actually matters, asserted directly rather than inferred from the
 			// arithmetic, over every caption the arsenal ships.
-			var shipped = new[] { "0.3 KT", "1 KT", "10 KT", "20 KT", "50 KT", "100 KT", "750 KT", "1.2 MT", "6 MT", "50 MT" };
+			var shipped = new[] { "0.3 KT", "1 KT", "10 KT", "20 KT", "50 KT", "100 KT", "455 KT", "750 KT", "1.2 MT", "6 MT", "50 MT" };
 			foreach (var text in shipped)
 			{
 				var caption = Cache().Get(text, Badge);

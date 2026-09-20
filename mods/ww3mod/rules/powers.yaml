@@ -592,6 +592,30 @@ power.sarmat:
 	ProvidesSupportPowerCharge:
 		Power: SarmatStrike
 
+power.trident:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 30000, the Sarmat's price. The two powers deliver the same map-derived number of
+		# independently-placed warheads and differ only in per-RV yield (455 kt against 750), so a
+		# price difference here would be pricing the tonnage asymmetry the user chose deliberately.
+		# Repricing is a balance change (DOCS/recipes/BALANCE.md) and is not this item.
+		Cost: 30000
+	Tooltip:
+		Name: UGM-133A Trident II D5 (455 kt per RV)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 75
+		# PLACEHOLDER ART, shared with the 100 kt Kalibr until a Trident cameo exists. Logged on
+		# the standing art list; see MissileStrikePower@TridentW88 in rules/ingame/nuclear-arsenal.yaml.
+		Icon: cmissicon
+		CameoCaption: 455 KT
+		CameoBadge: nuclear
+		# 2500 ticks = 150 s, the Sarmat's.
+		BuildDuration: 2500
+		Description: Submarine-launched ICBM carrying independently-targeted re-entry vehicles.\n455 kt per warhead, and you pick where each one lands.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: TridentStrike
+
 power.b83:
 	Inherits: ^PurchasableSupportPower
 	Valued:

@@ -237,8 +237,28 @@ Player:
 	# game-enders. See DoomsdayStrikeInfo.OverriddenPrerequisites.
 	MissileStrikePower@Sarmat:
 		Prerequisites: powers.event, player.russia
-	MissileStrikePower@B83:
+	# AMERICA'S NATIONAL GAME-ENDER SINCE 2026-09-20, symmetric to the Sarmat above: a MIRV ICBM
+	# whose warhead count is the same map-derived package Russia gets.
+	MissileStrikePower@TridentW88:
 		Prerequisites: powers.event, player.america
+	# ==== THE B83 IS RETIRED FROM ESCALATION, NOT FROM THE ARSENAL (2026-09-20) ====
+	# `player.america` is GONE from this line and that absence is the whole of the change. It is
+	# what NuclearGameEnders.NamesAnOwner reads: with only the licensed event tier left, the owner
+	# list is EMPTY, so ArmableBy refuses it and NEITHER the final exchange NOR the retaliation
+	# window can hand it to anybody. That is exactly the shape MissileStrikePower@HighYieldNuke has
+	# carried since the 2026-09-14 "national ender only" ruling, and it is now the B83's too.
+	#
+	# WHY THE WEAPON AND THE MISSILE SURVIVE. NukeB83 and B83Missile have five consumers that are
+	# nothing to do with Escalation: NuclearYieldTest's table, both nuke generators' hard-coded
+	# YIELDS dicts, tools/cameo/captions_table.py, tools/impact-scar/contact_sheet.py, and
+	# demo-nuke-arsenal, which tours all eight warheads and fires this one at tick 1480. The
+	# arsenal file's own scaling-law header also uses B83-1 as the landmark just below the 2.4 Mt
+	# blast/thermal crossover. It remains buyable under `powers-sandbox` like any event-tier power.
+	#
+	# DO NOT RE-ATTRIBUTE IT. Putting `player.america` back does not "restore a rung" -- it gives
+	# America TWO national enders and the final exchange would arm both.
+	MissileStrikePower@B83:
+		Prerequisites: powers.event
 	MissileStrikePower@TsarBomba:
 		Prerequisites: powers.event, player.russia
 	# Russia's four buy rungs, added by the manager at merge. Neither worker could write these:

@@ -169,6 +169,10 @@ namespace OpenRA.Test
 			("NukeB61Mod12Y10", 10.0),
 			("NukeB61Mod12Y50", 50.0),
 			("NukeW76", 100.0),
+			// America's national game-ender since 2026-09-20, and the W76's heavy counterpart on the
+			// same Trident D5 bus in reality as well as in this file: the block is NukeW76's shape
+			// with every number re-evaluated at 455 kt on the exponents the 100/750 pair implies.
+			("NukeW88", 455.0),
 			("NukeSarmatRV", 750.0),
 			("NukeB83", 1200.0),
 			("NukeTsarBomba", 50000.0),

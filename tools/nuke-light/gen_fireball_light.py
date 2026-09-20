@@ -180,7 +180,11 @@ WEAPON_FILES = ('weapons-superweapons.yaml', 'weapons-nuclear-arsenal.yaml')
 YIELDS = {
     'Atomic': 20.0, 'AtomicHighYield': 6000.0,
     'NukeB61Mod12Y003': 0.3, 'NukeB61Mod12Y015': 1.5, 'NukeB61Mod12Y10': 10.0,
-    'NukeB61Mod12Y50': 50.0, 'NukeW76': 100.0, 'NukeSarmatRV': 750.0,
+    'NukeB61Mod12Y50': 50.0, 'NukeW76': 100.0,
+    # America's national game-ender since 2026-09-20. This dict is a HARD-CODED ROSTER: a
+    # weapon absent from it gets no Light block written and no --check coverage, so adding a
+    # nuclear warhead means adding it here AND to tools/nuke-shake/gen_shake.py's own YIELDS.
+    'NukeW88': 455.0, 'NukeSarmatRV': 750.0,
     'NukeB83': 1200.0, 'NukeTsarBomba': 50000.0,
     'NukeRu9M729': 1.0, 'NukeRuIskander': 10.0, 'NukeRuKinzhalN': 50.0, 'NukeRuKalibr': 100.0,
 }

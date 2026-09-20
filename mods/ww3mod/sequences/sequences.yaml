@@ -450,6 +450,14 @@ sarmatmissile:
 		ZOffset: 1023
 		Scale: 1.3
 
+# The Sarmat body reused for the Trident (rules/ingame/nuclear-arsenal.yaml) -- same sprite, same
+# facings. A Trident sprite of its own is on the standing art list.
+tridentmissile:
+	idle: iskander-missile
+		Facings: 32
+		ZOffset: 1023
+		Scale: 1.3
+
 b83missile:
 	idle: iskander-missile
 		Facings: 32
