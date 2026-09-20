@@ -245,20 +245,24 @@ BarrelExplode:
 ATMine:
 	BottomAttack: true
 	Inherits@HitEffects: ^HugeExplosionEffects
-	Warhead@Spread: TargetDamage
-		Damage: 10000
-		Spread: 512
+	# NOTE: until 2026-09-20 this block had a twin, also keyed Warhead@Spread, directly
+	# above it: `TargetDamage` with Damage: 10000, Spread: 512, Penetration: 500. MiniYaml
+	# merges same-key siblings into ONE node, second-wins on the value and on every leaf
+	# (MiniYaml.cs:439/:538/:587), so the mine has only ever fired the SpreadDamage node
+	# below -- 4000 damage at spread 256, carrying Penetration: 500 inherited from the
+	# dead twin. Written out here exactly as the engine was already resolving it, so
+	# nothing a player sees changes. Splitting it back into Warhead@Target + Warhead@Spread
+	# (the shape every other weapon in this file uses, and evidently what was meant) would
+	# add a 10000-damage direct-hit warhead the mine has never had: a BALANCE change, not a
+	# cleanup -- see WORKSPACE/bugs/discovered.md.
+	Warhead@Spread: SpreadDamage
+		Damage: 4000
+		Spread: 256
 		Penetration: 500
 		AffectsParent: true
 		InvalidTargets: Mine
 		DamageTypes: ExplosionDeath
-	Warhead@Spread: SpreadDamage
-		Spread: 256
-		Damage: 4000
 		Delay: 1
-		AffectsParent: true
-		InvalidTargets: Mine
-		DamageTypes: ExplosionDeath
 
 OreExplosion:
 	Warhead@Spread: SpreadDamage

@@ -5,6 +5,25 @@
 
 ---
 
+- [2026-09-20] [MEDIUM] **The AT mine's 10000-damage direct-hit warhead has never detonated, because
+  a paste typo made its two warheads `Warhead@Spread` twice instead of `@Target`/`@Spread`.** In
+  `rules/weapons/weapons-explosions.yaml` the `ATMine` block carried `Warhead@Spread` twice — first
+  `TargetDamage` (Damage 10000, Spread 512, Penetration 500), then `SpreadDamage` (Spread 256,
+  Damage 4000, Delay 1). MiniYaml merges same-key siblings into ONE node, second-wins on the node's
+  own value and on every leaf (`MiniYaml.cs:439`/`:538`), so the mine has only ever fired a single
+  `SpreadDamage` warhead doing **4000** at spread 256 — and carrying `Penetration: 500` inherited
+  from the dead twin, which is legal because `Penetration` sits on the abstract `DamageWarhead`
+  (`Warheads/DamageWarhead.cs:25`) and so loads silently onto either subclass. **Every other weapon
+  in the file writes the pair as `Warhead@Target` + `Warhead@Spread`** (`OreExplosion` immediately
+  below it, and `RocketPods`/`SurfaceToAirMissile` in the sibling files), so `@Target` is almost
+  certainly what was meant. **It was NOT changed to `@Target`** while fixing the load-time
+  duplicate: restoring it roughly triples the mine's output against a direct-hit target and adds a
+  512-spread 10000-damage component that nothing has ever been balanced against, on a weapon whose
+  whole role is an ambush one-shot. That is a balance change needing a combat-sim pass per
+  `DOCS/recipes/BALANCE.md`, not a cleanup. The surviving block is written out exactly as the engine
+  was already resolving it and is commented in place.
+  (found while working on: sweeping the duplicate-child-key class out of the loaded YAML)
+
 - [2026-09-20] [LOW] **The A-10's 30mm GAU-8 has never reloaded while docked, because a paste typo
   made its reloader `@1` twice instead of `@1`/`@2`.** In `rules/ingame/aircraft-america.yaml` the
   A10 block carried `ReloadAmmoPool@1` twice — `AmmoPool: primary-ammo` in the primary group and
