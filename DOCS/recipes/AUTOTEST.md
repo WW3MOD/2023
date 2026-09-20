@@ -142,6 +142,7 @@ duration sources: `TimeLimitTicks` in `rules.yaml`, `TimeLimitSeconds` in `tourn
 | Scenario | Configured budget | Wall-clock @ 1× | Run it as |
 |---|---|---|---|
 | `test-escalation-full-match` | `TimeLimitTicks: 22000` (`rules.yaml:72`), outer `DEADLINE = 24000` (`.lua:64`) | **1320–1440 s (22–24 min)** | `--speed 8 --timeout 900` |
+| `test-rank-accumulation` | `DeadlineTicks = PhaseBTick + 4300` = 11016 (`.lua:147`); the abrams rank-1 interval alone is 6666 ticks under the shipped curve (`rules.yaml` header comment). Lengthened by `ab4347fc`, AFTER the audit above | 660 s (11 min). Measured 2026-09-20 on main @ 2de1dc78: `--hidden` at 1x reached t=4799 when the 300 s watchdog fired, ticking normally the whole way | `--speed 8 --timeout 900` (PASS in ~75 s) |
 | `test-experimental-buys-special-forces` | `DEADLINE_TICKS = 9000` (`.lua:37`) | 540 s (9 min) | `--speed 4 --timeout 600` |
 | `test-experimental-msar-deploy` | `DEADLINE_TICKS = 6000` (`.lua:25`) | 360 s (6 min) | `--speed 4 --timeout 600` |
 | `test-combined-arms-rendezvous` | `DeadlineSeconds = 200` (`.lua:39`) = 5000 ticks | 300 s — **exactly the watchdog** | `--speed 4 --timeout 600` |
