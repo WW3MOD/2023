@@ -341,6 +341,12 @@ WorldLoaded = function()
 			for i, d in ipairs(detonations(str)) do
 				allDet[#allDet + 1] = d
 				local drift = d.O - d.S
+				-- A UNIFORM PER-NATION DRIFT IS THE SHAPE TO LOOK FOR, and it is why the fault
+				-- names the side. Run 260920_170610 had USA at 0 on all four and Russia at -1 on
+				-- all four: not noise, not a flight-length effect, but something that differs
+				-- between two salvos using the same missile body at the same speed. debug.log's
+				-- `FINAL EXCHANGE launch` lines carry hDist, the estimate, the ceiling and the
+				-- applied pipeline per warhead, which is what tells the two apart.
 				if drift > TOLERANCE or drift < -TOLERANCE then
 					fault("%s's warhead %d was scheduled to detonate at tick %d and went off at %d "
 						.. "(%+d). The launch delay is solved backwards from the reserved slot through "

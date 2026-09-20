@@ -704,6 +704,24 @@ namespace OpenRA.Mods.Common.Traits
 					+ FinalExchangeCascade.ArcCeilingTicks(hDist, missileRules.Speed, missileRules.Acceleration);
 
 				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, slot, flightTicks, pipeline);
+
+				// ==== THE INPUTS, NOT JUST THE OUTCOME (2026-09-20) ====
+				// Run 260920_170610 put America on its slots exactly and Russia one tick early, and
+				// no amount of reasoning from the outside settled which term differs: the two use
+				// the same missile body, the same speed and the same standoff formula. Worse, the
+				// arithmetic predicts that if ArcCeilingTicks had answered differently for the two
+				// salvos, Russia's observed tick would have MOVED between runs -- and it did not,
+				// which falsifies the assumption that the ceiling is what separates them.
+				//
+				// So this logs what actually went in. One run now says which of hDist, the estimate
+				// or the ceiling differs between the nations, instead of a fourth guessed constant.
+				Log.Write("debug", $"FINAL EXCHANGE launch: {self.Owner.InternalName} `{info.MissileActor}` " +
+					$"slot {slot} at tick {world.WorldTick}; hDist {hDist}, speed {missileRules.Speed}, " +
+					$"hDist%speed {hDist % Math.Max(1, missileRules.Speed)}, " +
+					$"estimate {BallisticMissileFly.EstimateArcTicks(missileRules, hDist)}, " +
+					$"preLaunch {missileRules.PreLaunchTicks}, flight {flightTicks}, " +
+					$"ceiling {FinalExchangeCascade.ArcCeilingTicks(hDist, missileRules.Speed, missileRules.Acceleration)}, " +
+					$"pipeline {pipeline}, launch delay {missileDelay}.");
 			}
 
 			var missile = world.CreateActor(false, info.MissileActor, new TypeDictionary
