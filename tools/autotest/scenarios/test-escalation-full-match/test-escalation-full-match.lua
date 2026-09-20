@@ -56,17 +56,19 @@ local TIME_LIMIT    = 22000  -- rules.yaml TimeLimitManager.TimeLimitTicks
 -- than it looks, so the arithmetic is written out:
 --
 --     window                                  250   (world.yaml, back from the 2026-09-16 raise to 500)
---     FinalExchangeFlightTicks                800   the cascade's anchor, measured from the close
+--     FinalExchangeFlightTicks                350   the cascade's anchor, measured from the close
+--                                                   (was 800 until 2026-09-20; the exchange's own
+--                                                   100-tick pre-launch countdown paid for the cut)
 --     cascade span, (2N-1) * ImpactSpacingTicks 105  this map's Bounds are 96x96 = 9216 playable
 --                                                    cells, so N is 4 and the span is 7 * 15
 --     AnnihilationDelayTicks                   90
 --     ResolutionDelayTicks                     30
 --                                            ----
---                                            1275 + slack
+--                                             825 + slack
 --
 -- THE THIRD LINE IS THE ONE THAT MOVES WITH THE MAP. At the shipped CellsPerImpact 2400 no map
--- gives an N above MaxPackage 6, so 165 is the ceiling and 1335 the worst-case tail whatever this
--- scenario is pointed at. ~2000 still leaves a comfortable margin. Reaching this tick at all means
+-- gives an N above MaxPackage 6, so 165 is the ceiling and 885 the worst-case tail whatever this
+-- scenario is pointed at. ~2000 leaves a very comfortable margin. Reaching this tick at all means
 -- the ending never resolved, which is itself the finding.
 --
 -- IF THE WINDOW OR FinalExchangeFlightTicks IS EVER LENGTHENED, RAISE THIS WITH IT. The 4b check

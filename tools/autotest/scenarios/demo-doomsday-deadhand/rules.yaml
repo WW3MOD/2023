@@ -85,6 +85,11 @@ World:
 		#
 		# IT IS ALSO THE DEMO'S PACING KNOB. The window closes at 330 and the anchor is therefore
 		# at 590; every frame after 03 is derived from that number.
+		#
+		# THE PRE-LAUNCH COUNTDOWN IS THE MOD-WIDE FinalExchangeMissileDelay 100 AS OF 2026-09-20,
+		# so the MissileDelay overrides in the Player node above are now INERT INSIDE THE EXCHANGE
+		# and are kept only for a launch outside one (there is none here). The anchor was already
+		# this floor rather than any natural tick, so every asserted tick below is unchanged.
 		FinalExchangeFlightTicks: 260
 		AnnihilationDelayTicks: 30
 		ResolutionDelayTicks: 15

@@ -783,12 +783,34 @@ World:
 		# eight seconds before the player's own, every time. Neither number was wrong; they were two
 		# clocks. See FinalExchangeCascade.
 		ImpactSpacingTicks: 15
+		# THE PRE-LAUNCH COUNTDOWN FOR AN EXCHANGE LAUNCH, replacing the powers' own MissileDelay
+		# 500 for any game-ender fired inside the window. That 500 exists so a target has thirty
+		# seconds of beacon to react to; inside the exchange there is nothing to react with --
+		# production is halted, the score is frozen, the map is revealed and Annihilate is seconds
+		# away -- so warning time is a property of a weapon IN PLAY and this is exactly where there
+		# is no play left. Lowering MissileDelay on the powers themselves would change every
+		# ordinary match instead.
+		FinalExchangeMissileDelay: 100
 		# THE FLOOR ON THE ANCHOR: no warhead of the exchange lands until this long after the window
-		# shuts. It must cover the game-enders' own MissileDelay (500 on both) plus the slowest one's
-		# flight on the largest map — b83missile at Speed 700 crosses x-lake's standoff in about 290
-		# ticks, so 790, and 800 is that with the rounding left in. A warhead placed on the LAST tick
-		# of the window has to fit inside it or it would be scheduled into the past.
-		FinalExchangeFlightTicks: 800
+		# shuts, so a warhead placed on the LAST tick still has its whole countdown and flight ahead
+		# of it rather than being scheduled into the past.
+		#
+		# 350, DOWN FROM 800 ON 2026-09-20, and the knob above is what paid for it. The floor exists
+		# for exactly one case -- a warhead placed on the LAST tick of the window must be able to
+		# REACH the anchor -- so the requirement is the longest ARC in the arsenal on the largest
+		# shipped map, b83missile at Speed 700 across x-lake's standoff, about 292 ticks. 350 carries
+		# 20% of headroom over it.
+		#
+		# THE COUNTDOWN ABOVE DOES NOT ENTER THIS NUMBER, and assuming it did is the mistake this
+		# line has now carried twice. A warhead the cascade MOVES has its launch delay solved
+		# backwards from its reserved slot, so its countdown is discarded; the one warhead the cascade
+		# does not move is the one that SET the anchor from its own natural tick. The old 800 assumed
+		# the floor had to carry the powers' own MissileDelay 500 as well.
+		#
+		# WHAT IT BUYS, on river-zeta: the first impact moves from 63 s after the trigger to 36 s and
+		# the verdict from 75 s to 48 s, with the quiet gap between the band clearing and the first
+		# missile appearing cut from 35 s to about 8 s.
+		FinalExchangeFlightTicks: 350
 
 		# ---- WHAT AN UNPLACED PACKAGE IS AIMED AT ---------------------------------------------
 		# Was CityLinkDistance. Same 8c0 and the same single-linkage algorithm; the input is one

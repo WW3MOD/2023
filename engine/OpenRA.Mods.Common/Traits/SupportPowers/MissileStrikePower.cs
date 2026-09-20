@@ -583,6 +583,24 @@ namespace OpenRA.Mods.Common.Traits
 			var missileDelay = baseMissileDelay + extraDelay;
 
 			var world = self.World;
+
+			// ==== AN EXCHANGE LAUNCH GETS ITS OWN, SHORT, PRE-LAUNCH COUNTDOWN ====
+			// The powers carry MissileDelay 500 so a target has thirty seconds of beacon to react to.
+			// Inside the final exchange there is nothing to react with, and that 500 was the whole of
+			// why the cascade floor had to be 800 ticks -- 48 s of dead air after the window shut.
+			// See DoomsdayStrikeInfo.FinalExchangeMissileDelay for why this is a clean boundary
+			// rather than a rebalance of the weapon.
+			//
+			// extraDelay IS DROPPED WITH IT. AimPointInterval staggers LAUNCHES, and inside the
+			// cascade the launch times are derived from the impact times instead -- so keeping it
+			// would only perturb which warhead happens to set the anchor.
+			//
+			// -1 OUTSIDE THE EXCHANGE, so every other strike in the mod is untouched and
+			// MissileStrikeArrivalTest's conventional schedules are unmoved.
+			var exchangeDelay = DoomsdayStrike.ExchangeLaunchDelay(world, info);
+			if (exchangeDelay >= 0)
+				missileDelay = exchangeDelay;
+
 			var missileRules = world.Map.Rules.Actors[info.MissileActor].TraitInfo<BallisticMissileInfo>();
 
 			// THE VISIBLE APPROACH. Same bearing, shorter walk-back -- built by handing

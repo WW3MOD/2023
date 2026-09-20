@@ -40,10 +40,13 @@ namespace OpenRA.Test
 		// The shipped configuration (mods/ww3mod/rules/world.yaml, DoomsdayStrike).
 		const int Spacing = 15;
 		const int WindowTicks = 250;
-		const int FlightFloorTicks = 800;
+		const int FlightFloorTicks = 350;
 
-		// MissileDelay on both game-enders (rules/ingame/nuclear-arsenal.yaml).
-		const int MissileDelay = 500;
+		// DoomsdayStrikeInfo.FinalExchangeMissileDelay -- the pre-launch countdown an EXCHANGE launch
+		// uses INSTEAD of the powers' own MissileDelay 500. Using 500 here would not merely be
+		// pessimistic, it would stop exercising the anchor: every natural tick would clear the floor
+		// and the max() would never bind.
+		const int ExchangeDelay = 100;
 
 		// Flight = PreLaunchTicks + EstimateArcTicks(standoff). sarmatmissile is Speed 1600 and
 		// b83missile is Speed 700 over the same standoff, so the B83 is the slow one by better than
@@ -73,12 +76,12 @@ namespace OpenRA.Test
 							// The trigger fires on the tick the window opens: one order, N warheads,
 							// reserved in launch order.
 							for (var i = 0; i < n; i++)
-								impacts.Add((cascade.Reserve(Open + MissileDelay + triggerFlight), Open, triggerFlight));
+								impacts.Add((cascade.Reserve(Open + ExchangeDelay + triggerFlight), Open, triggerFlight));
 
 							// The responder places somewhere inside the window -- or, at placedAt ==
 							// Close, is auto-fired on the closing tick, which is the same arithmetic.
 							for (var i = 0; i < n; i++)
-								impacts.Add((cascade.Reserve(placedAt + MissileDelay + responderFlight), placedAt, responderFlight));
+								impacts.Add((cascade.Reserve(placedAt + ExchangeDelay + responderFlight), placedAt, responderFlight));
 
 							var anchor = cascade.AnchorTick;
 							var span = (2 * n) - 1;
@@ -195,12 +198,39 @@ namespace OpenRA.Test
 			// THE ARITHMETIC THE YAML COMMENT CLAIMS, checked rather than asserted in prose. A warhead
 			// ordered on the LAST tick of the window must still be able to reach the anchor.
 			//
-			// The flight term is the b83missile's crossing of x-lake's standoff: the 128x128 diagonal
-			// (about 185,363 WDist) plus ApproachMargin 16c0, at Speed 700, is roughly 290 ticks.
-			const int SlowestFlight = 290;
-			Assert.That(FlightFloorTicks, Is.GreaterThanOrEqualTo(MissileDelay + SlowestFlight),
-				"FinalExchangeFlightTicks must cover MissileDelay plus the slowest game-ender's flight, "
-				+ "or a warhead placed on the window's last tick is scheduled into the past.");
+			// The flight term is the b83missile crossing x-lake's standoff: the 128x128 diagonal plus
+			// ApproachMargin 16c0, about 204,600 WDist, at Speed 700 with Acceleration 0 -- so
+			// EstimateArcTicks is hDist/Speed and the answer is ~292 ticks. That is the longest arc
+			// in the arsenal on the largest shipped map.
+			const int SlowestArc = 292;
+
+			// ==== THE REQUIREMENT IS THE ARC ALONE, AND THIS LINE GOT IT WRONG TWICE ====
+			// Until 2026-09-20 it read `>= MissileDelay + SlowestArc` (790), which is what kept the
+			// shipped floor at 800 and cost every match 27 s of dead air. The first attempt at the
+			// fix read `>= FinalExchangeMissileDelay + SlowestArc` (392) -- smaller, and wrong the
+			// same way, because it still assumes the floor has to cover a pre-launch countdown.
+			//
+			// IT DOES NOT, AND THE REASON IS THE CASCADE. The floor exists for exactly one case: a
+			// warhead placed on the LAST tick of the window must be able to REACH the anchor, i.e.
+			// anchor >= close + its flight. The anchor is at least close + this floor, so the
+			// requirement is `this >= the longest arc` and nothing else. The countdown never enters
+			// it, because a warhead the cascade MOVES has its launch delay solved backwards from the
+			// reserved slot -- the countdown is discarded -- and the one warhead the cascade does
+			// NOT move is the one that SET the anchor from its own natural tick, which is reachable
+			// by construction.
+			//
+			// BothPackagesLandInsideOneBoundedSpanFromAnyPlacementTime is the real proof: it sweeps
+			// every placement tick against both missile speeds and asserts reachability directly.
+			// This line is the cheap restatement, and it must not claim more than that sweep does.
+			Assert.That(FlightFloorTicks, Is.GreaterThanOrEqualTo(SlowestArc),
+				"FinalExchangeFlightTicks must cover the slowest game-ender's arc on the largest "
+				+ "map, or a warhead placed on the window's last tick cannot reach the anchor.");
+
+			// AND IT MUST NOT BE MUCH LARGER THAN IT NEEDS TO BE, because every tick of slack is a
+			// tick of empty sky between the window shutting and the first warhead arriving. 50% of
+			// headroom covers PreLaunchTicks and a map half again larger than any that ships.
+			Assert.That(FlightFloorTicks, Is.LessThanOrEqualTo(SlowestArc * 150 / 100),
+				"the floor has grown well past what the arithmetic needs; that slack is dead air.");
 		}
 	}
 }

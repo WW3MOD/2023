@@ -127,23 +127,56 @@ namespace OpenRA.Mods.Common.Traits
 			"60 ms timestep -- NOT 25 tps, which would read this as 0.6 s (see conventions.md).")]
 		public readonly int ImpactSpacingTicks = 15;
 
+		[Desc("Pre-launch countdown for an EXCHANGE launch, replacing the power's own",
+			nameof(MissileStrikePowerInfo.MissileDelay) + " for any game-ender fired while the",
+			"window is open or at its close.",
+			"",
+			"WHY THE WEAPONS' OWN 500 IS WRONG HERE AND ONLY HERE. MissileDelay exists so a target",
+			"has thirty seconds of beacon to react to. Inside the exchange there is nothing to react",
+			"with: production is halted, statistics are frozen, the map is revealed, and Annihilate",
+			"kills everything standing a few seconds later. Warning time is a balance property of a",
+			"weapon IN PLAY, and the exchange is exactly where there is no play left -- so this is a",
+			"clean boundary rather than a rebalance. Lowering MissileDelay on the powers themselves",
+			"would change every ordinary match.",
+			"",
+			"IT IS WHAT LETS " + nameof(FinalExchangeFlightTicks) + " BE SMALL. The floor has to cover",
+			"the longest order-to-impact interval a last-tick placement can need, and before this",
+			"existed that interval carried the full 500: 800 ticks of floor meant the first warhead",
+			"landed 63 s after the trigger, with 48 s of dead air after the window shut.",
+			"",
+			"SUBSTITUTED BEFORE THE IMPACT TICK IS COMPUTED, not after. The cascade already discards",
+			"MissileDelay for every warhead it MOVES -- it solves the launch delay backwards from the",
+			"reserved slot -- but the warhead that SETS the anchor takes the anchor from its own",
+			"natural tick, and that is where the 500 leaked back in.",
+			"",
+			"ZERO OR LESS DISABLES THE SUBSTITUTION and restores the powers' own MissileDelay inside",
+			"the exchange, which is the pre-2026-09-20 behaviour.")]
+		public readonly int FinalExchangeMissileDelay = 100;
+
 		[Desc("Ticks from the window CLOSING to the earliest tick the cascade may start on.",
 			"",
 			"IT IS A FLOOR ON THE ANCHOR AND IT IS WHAT MAKES THE CASCADE POSSIBLE AT ALL. A warhead",
-			"ordered on the very last tick of the window still has its whole MissileDelay and its",
-			"whole flight ahead of it; if the cascade started earlier than that, the last placement",
-			"would be scheduled into the past and would arrive outside the sequence. So this must be",
-			"at least (the game-enders' " + nameof(MissileStrikePowerInfo.MissileDelay) + ") plus (the",
-			"slowest game-ender's flight on the largest map).",
+			"ordered on the very last tick of the window still has its whole pre-launch countdown and",
+			"its whole flight ahead of it; if the cascade started earlier than that, the last",
+			"placement would be scheduled into the past and would arrive outside the sequence. So",
+			"this must be at least the slowest game-ender's ARC on the largest map -- and NOT that",
+			"plus " + nameof(FinalExchangeMissileDelay) + ", which is the mistake this line carried",
+			"twice. A warhead the cascade MOVES has its launch delay solved backwards from its",
+			"reserved slot, so the countdown is discarded; the one warhead the cascade does not move",
+			"is the one that SET the anchor from its own natural tick, which is reachable by",
+			"construction. The countdown therefore never enters this bound.",
 			"",
-			"800 FOR THE SHIPPED PAIR: both carry MissileDelay 500, and the B83's b83missile at Speed",
-			"700 crosses x-lake's standoff (the 128x128 diagonal plus " +
-			nameof(MissileStrikePowerInfo.ApproachMargin) + " 16c0, about 202k WDist) in roughly 290",
-			"ticks. 500 + 290 = 790, and 800 is that with the rounding left in.",
+			"350 FOR THE SHIPPED PAIR, DOWN FROM 800 ON 2026-09-20. The b83missile at Speed 700",
+			"crosses x-lake's standoff (the 128x128 diagonal plus " +
+			nameof(MissileStrikePowerInfo.ApproachMargin) + " 16c0, about 202k WDist) in roughly 292",
+			"ticks, the longest arc in the arsenal on the largest shipped map -- so 350 carries 20%",
+			"of headroom over the requirement. The old 800 assumed the floor had to cover the powers'",
+			"own MissileDelay 500 as well, which stopped being true the moment the cascade began",
+			"solving launch delays backwards from a reserved slot.",
 			"",
-			"A SCENARIO THAT SHORTENS MissileDelay MUST SHORTEN THIS TOO, or the whole ending waits",
-			"for a flight nobody is flying. demo-doomsday-deadhand is the shipped example.")]
-		public readonly int FinalExchangeFlightTicks = 800;
+			"A SCENARIO THAT SHORTENS " + nameof(FinalExchangeMissileDelay) + " MAY SHORTEN THIS TOO;",
+			"one that lengthens it MUST. demo-doomsday-deadhand is the shipped example.")]
+		public readonly int FinalExchangeFlightTicks = 350;
 
 		// ==== WHAT AN UNPLACED PACKAGE IS AIMED AT ===============================================
 		[Desc("Two enemy actors within this distance of each other belong to the same CONCENTRATION.",
@@ -611,6 +644,25 @@ namespace OpenRA.Mods.Common.Traits
 
 		/// <summary>Slot pitch of the cascade, so a reader can state the span rather than guess it.</summary>
 		public int ImpactSpacingTicks => info.ImpactSpacingTicks;
+
+		/// <summary>
+		/// <para>The pre-launch countdown an EXCHANGE launch uses instead of the power's own
+		/// <see cref="MissileStrikePowerInfo.MissileDelay"/>, or -1 when this launch is not one and
+		/// the power's own value stands.</para>
+		///
+		/// <para>INERT EVERYWHERE BUT THE EXCHANGE, by the same gate
+		/// <see cref="ScheduleExchangeImpact"/> uses and for the same byte-identity reason: outside a
+		/// running exchange, for a non-game-ender, or with the knob at zero, this returns -1 and
+		/// <see cref="MissileStrikePower"/> computes exactly the numbers it computed before.</para>
+		/// </summary>
+		public static int ExchangeLaunchDelay(World world, SupportPowerInfo powerInfo)
+		{
+			var dd = world.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (dd == null || !dd.SalvoInProgress || !NuclearGameEnders.Is(powerInfo))
+				return -1;
+
+			return dd.info.FinalExchangeMissileDelay > 0 ? dd.info.FinalExchangeMissileDelay : -1;
+		}
 
 		/// <summary>The last impact of the cascade, or -1 before anything is reserved.</summary>
 		public int FinalExchangeLastImpactTick => cascade.LastImpactTick;

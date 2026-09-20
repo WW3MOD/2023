@@ -1,4 +1,4 @@
-﻿# The auto-fire autotest's overrides. Every departure from shipped is listed with what it costs.
+# The auto-fire autotest's overrides. Every departure from shipped is listed with what it costs.
 
 World:
 	-StartGameNotification:
@@ -63,6 +63,11 @@ World:
 		#
 		# EVERY TICK IN THIS FILE'S SCHEDULE DERIVES FROM IT: the window closes at 350 and the
 		# anchor is therefore 610.
+		#
+		# THE PRE-LAUNCH COUNTDOWN IS THE MOD-WIDE FinalExchangeMissileDelay 100 AS OF 2026-09-20,
+		# so the MissileDelay overrides in the Player node above are now INERT INSIDE THE EXCHANGE
+		# and are kept only for a launch outside one (there is none here). The anchor was already
+		# this floor rather than any natural tick, so every asserted tick below is unchanged.
 		FinalExchangeFlightTicks: 260
 		# Shipped. It is the thing being measured, so it is not compressed.
 		ImpactSpacingTicks: 15
