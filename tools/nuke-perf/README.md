@@ -25,7 +25,14 @@ Three ways to get an empty result, all of which have a specific cause:
 1. **`Launch.Benchmark` not passed** → no CSVs. Per-tick totals are unavailable.
 2. **`Debug.EnableSimulationPerfLogging` not passed** → `perf.log` holds load timings only.
    No attribution: you will not know *which* effect cost the time.
-3. **The run did not exit cleanly.** The CSVs are written from `World.Dispose` →
+3. **The server refused the client at join.** Since 2026-09-20 the runner catches this and
+   reports `outcome=LAUNCH-FAIL exit=3` within a second or two, echoing the server's own
+   exception. If you see it, the answer is in `server.log` — the two most likely causes are
+   two traits registering the same `ILobbyOptions` id, and a trait declared under the wrong
+   system actor (which *adds* a second instance rather than overriding the first). Before
+   that fail-fast existed this cost a full watchdog timeout and reported as `TIMEOUT-FAIL`,
+   i.e. as a hang. See `WORKSPACE/DISCOVERIES.md`, 2026-09-20.
+4. **The run did not exit cleanly.** The CSVs are written from `World.Dispose` →
    `Game.FinishBenchmark` (`World.cs:726`), reached only on a normal shutdown. A watchdog
    kill writes nothing, and a killed process does not flush `Log`'s buffered writers either.
    **This is why the rig ends on `Test.Skip` at a pinned tick** rather than on no verdict —
@@ -76,7 +83,8 @@ From the repository root. One scenario per launch; these are heavy.
 # and Log.AddChannel falls through to perf.log.1 / .2 when a file is still locked by a
 # living instance (Log.cs:145-160), which is how a stale log gets read as a fresh result
 rm -f "$APPDATA/OpenRA/Logs/"nukeperf-*.csv "$APPDATA/OpenRA/Logs/"perf.log* \
-      "$APPDATA/OpenRA/Logs/"lua.log*
+      "$APPDATA/OpenRA/Logs/"lua.log* "$APPDATA/OpenRA/Logs/"server.log* \
+      "$APPDATA/OpenRA/Logs/"client.log* "$APPDATA/OpenRA/Logs/"debug.log*
 
 AUTOTEST_EXTRA_ARGS="Launch.Benchmark=nukeperf- Debug.EnableSimulationPerfLogging=true Debug.LongTickThresholdMs=1" \
   ./tools/autotest/run-test.sh --hidden --timeout 900 demo-nuke-perf
