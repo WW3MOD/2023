@@ -1360,7 +1360,12 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   `background-iconrow` composites over the palette. Decoding that region — `uibits/sidebar.png` at
   `0, 116, 238, 47`, named at `mods/ww3mod/chrome.yaml:32` — gives **fully opaque columns at x 0–40 and
   x 229–237**, 1 px opaque dividers at x 103 and x 166 that overdraw each icon's last pixel column, and
-  transparency only inside the three cut-outs. Arithmetic over the icon grid alone says those strips are
+  transparency only inside the three cut-outs. **Its row 46 is 238 opaque pixels — a full-width rule that
+  overdraws each icon's LAST PIXEL ROW** (slot row 45, given the palette's `Y: 1`), and the power bin's
+  `background-supportoverlay` (`12, 324, 64, 48`, drawn at `-2,-2`) does the same with its row 47. The frame
+  is a later sibling of the palette widget, so that lands on top of anything the widget drew there: on
+  2026-09-20 it was found eating the bottom glyph row of every runtime cameo caption.
+  Arithmetic over the icon grid alone says those strips are
   empty; they are not. **Worse for design purposes, both strips are outside the columns** — a mark drawn in
   either belongs to a whole row of three different units and cannot name one of them, so a *per-icon* status
   rail there is not buildable at any price. That is geometry, not cost. Cheaper than expected, though: a
@@ -1368,8 +1373,12 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   the same region of the same file (`chrome.yaml:32`, `:90`).
 - **Every cameo BAKES ITS NAME into the art — a production icon is not a blank canvas.** *(Promoted
   2026-09-04 from DISCOVERIES.)* 204 shipped icons are 64x48 and 40 are 60x48 against a 62x46 cell, and all
-  of them carry the unit's caption in art rows 41–46 (= cell rows 38–45), full width — which matches the
-  generator at `tools/cameo/convert.py:133-147` and was confirmed by decoding ten shipped files. An overlay
+  of them carry the unit's caption in art rows 41–46, its **ink** on art rows 42–46 (= cell rows 39–44 and
+  40–44 — corrected 2026-09-20 from "cell rows 38–45", which read `IconSpriteOffset` as an offset to the
+  sprite's top-left when it moves the sprite's CENTRE: a 48-row cameo in a 46-row cell starts at cell row
+  −2), full width — which matches the generator at `tools/cameo/convert.py:133-147` to within a row
+  (`convert.py` places a newly generated caption one row higher, on art rows 41–45) and was confirmed by
+  decoding ten shipped files. An overlay
   enumerating "corners nothing else claims" from the widget's own draw calls **misses the caption, because
   the caption is pixels in the `.shp` rather than a draw call**. Decode before placing anything;
   `WORKSPACE/mockups/buymenu_shp_dump.py` does it without launching.

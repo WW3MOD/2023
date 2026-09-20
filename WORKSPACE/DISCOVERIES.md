@@ -3,6 +3,68 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - `IconSpriteOffset` moves the cameo's CENTRE, and the sidebar frame owns the slot's last row: two reasons every cameo caption lost its bottom glyph row (`wt/caption-rows`, base `main @ 2f94dad1`)
+
+Every cameo caption in the game showed **4 of its 5 glyph rows** — `I` read as `T`, `L` as `I`, `E` as
+`F`, `RIFLEMAN` as `RTFLEMAS`. Measured on an in-game capture (`005_captions-infantry.png` of
+`260920_031815_p6349_demo-defcon-readout`, 1728x918, UI scale 1). Not the font: `pixelfont.py --verify`
+passes through the engine's own `freetype6` with every glyph at ink box `(0, 0, 4, 5)`.
+
+**FACT 1 — `IconSpriteOffset` is an offset to the sprite's CENTRE, not to its top-left.** Both cameo
+widgets precompute `iconOffset = 0.5f * IconSize.ToFloat2() + IconSpriteOffset`
+(`ProductionPaletteWidget.cs:291`, `SupportPowersWidget.cs:160`) and hand it to
+`WidgetUtils.DrawSpriteCentered`, which draws at `pos - 0.5f * scale * s.Size`
+(`WidgetUtils.cs:86-89`). So the art's top-left row is `(IconSize.Y - spriteHeight) / 2 +
+IconSpriteOffset.Y`, **not** `IconSpriteOffset.Y`. Every shipped cameo is 48 rows tall against a
+46-row slot, so with `IconSpriteOffset: -1, -1` the art starts at **slot row −2** and sprite row R is
+slot row R−2. The canvas is centred whatever the sprite's own trim: for a TS SHP,
+`ShpTSLoader.cs:47-49` sets `Offset = (x + (dataWidth - frameSize.Width) / 2, …)` and
+`SpriteRenderer.DrawSprite` (`SpriteRenderer.cs:132-137`) adds it back, which cancels to "the full
+canvas, centred". Width is not uniform — 64 wide and 60 wide cameos both ship, landing at slot column
+−2 and 0 — but the 48-row height is, so the VERTICAL mapping holds for all of them.
+
+Consequence: the baked lettering on **sprite** rows 42–46 sits on **slot rows 40–44**, not 41–45.
+Re-measured 2026-09-20 by decoding `e1americaicon`, `t90icon`, `abramsicon`, `e4americaicon`,
+`apcicon` and `mediamericaicon`. Four of those six are antialiased rather than 1-bit, so a
+bright-pixel threshold tight enough for `e4americaicon` reports the span as 42–44 and silently loses
+the bottom two rows — loosen it before concluding the art has moved.
+
+**FACT 2 — SLOT ROW 45 AND SLOT COLUMN 61 CANNOT BE DRAWN ON AT ALL.** `Container@PALETTE_FOREGROUND`
+is declared *after* the palette widget in `chrome/ingame-player.yaml` (`:123` for the power bin, `:1493`
+for the production palette) and `ClassicProductionLogic.cs:118` / `SupportPowerBinLogic.cs:34` clone its
+template once per row or icon, so its image composites **on top of everything the palette widget drew**.
+Decoding the two regions of `uibits/sidebar.png`:
+
+- `background-iconrow` (`0, 116, 238, 47`, `chrome.yaml:32`) — **row 46 is 238 opaque pixels**, 190 of
+  them `(2,2,2)`; opaque columns at 103 and 166. With the palette at `Y: 1` and a 63px column pitch
+  that is slot row 45 and slot column 61 of each cell.
+- `background-supportoverlay` drawn at `-2,-2` — **row 47 is 64 opaque pixels**, columns 0 and 63
+  likewise. Same slot row 45, same slot column 61. Per faction: `sidebar-nato` at `12, 324, 64, 48`
+  (`chrome.yaml:34`) in `(29,29,29)`, `sidebar-brics` at `77, 324, 64, 48` (`:92`) in `(28,28,28)`.
+
+So a caption anchored with `CaptionBottomMargin: 0` puts its fifth glyph row on slot row 45, where it
+is written and then painted over. **The band loses its last row and last column the same way** — and
+that is why the capture's band measured 8 rows and 61 columns against the 9 and 62 the code computes.
+
+**HOW THE TWO FACTS HID EACH OTHER.** Fact 1 alone says the anchor should have been 1, not 0. Fact 2
+alone says the same. The shipped `0` came from a note that measured the art correctly in sprite rows
+and then mapped them with Fact 1 got wrong; the resulting slot row 45 also happened to be the row Fact
+2 forbids, so no amount of re-reading the art could have found it. **The discriminating evidence was
+the LAST cameo in a tab**, with no neighbour below it: its bottom row still showed the frame colour,
+which rules out "the next cameo's sprite overpainted it" and leaves only a later sibling widget.
+`ProductionPaletteWidget.Draw` draws every sprite before any caption, so no sprite can be the culprit.
+
+**FIXED** by `CaptionBottomMargin: 0 -> 1` in both palettes, putting the ink on slot rows 40–44 — the
+baked rows exactly, and clear of the frame. `CameoCaptionBandTest` now derives the sprite placement
+from `IconSize` and `IconSpriteOffset` instead of carrying a constant, and asserts the frame-covered
+row separately. `tools/cameo/binmock.py` and `caption_proof.py` now composite the real frame image so
+the offline mockups stop showing five rows where the game shows four.
+
+**NOT FIXED, FLAGGED.** `tools/cameo/convert.py:147` places a newly generated baked caption at
+`y0 = h - 2 - GLYPH_H` = art rows **41–45**, one row above the 42–46 the shipped art uses, and its
+docstring claims the shipped cameos are at 41–45. Changing it changes generated art, so it is left
+alone here; anyone regenerating cameos should decide deliberately which row the house style is on.
+
 ## 2026-09-20 - A latent duplicate key inside ONE actor is inert until ANOTHER file overrides that actor; the first override is what detonates it (`wt/caption-load`, base `main @ 1c806add`)
 
 Loading `rules/cameo-captions.yaml` (102 `ACTOR: -> Buildable: -> CameoCaption:` overrides) broke rule
