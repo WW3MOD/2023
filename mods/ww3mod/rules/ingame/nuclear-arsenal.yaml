@@ -220,7 +220,7 @@ Player:
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 7
 
-	# ---- RS-28 Sarmat: 6 x 750 kt MIRV --------------------------------------------------------
+	# ---- RS-28 Sarmat: 750 kt per re-entry vehicle ---------------------------------------------
 	# PLAYER-AIMED SINCE 2026-09-07, and this is the entry that changed shape. It used to be one
 	# click: one missile carrying NukeSarmatMIRV, whose FireCluster warheads scattered six RVs at
 	# random inside a 21-cell footprint. The user fired it and reported "the MIRV lands all nukes
@@ -246,10 +246,15 @@ Player:
 		NuclearYieldTons: 750000
 		OrderName: SarmatStrike
 		Icon: v2bdgricon
-		CameoCaption: 6x750 KT
+		# 750 KT, NOT 6x750, SINCE 2026-09-20. The count is no longer a property of the weapon: it
+		# is DoomsdayStrike.PackageSize, derived from the map, and it is 2 on arena-tank-duel and 6
+		# on x-lake. A caption naming one number would be wrong on seven of the ten shipped maps.
+		# The per-RV yield is what every other arsenal caption states anyway.
+		# CameoCaptionsTest.CaptionNeverReachesUnderTheBadge carries the shipped list; keep it in step.
+		CameoCaption: 750 KT
 		CameoBadge: nuclear
-		Name: RS-28 Sarmat MIRV (6 x 750 kt)
-		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nClick SIX aim points; one 750 kt warhead goes to each.\nRight-click or Escape while placing cancels without firing.
+		Name: RS-28 Sarmat MIRV (750 kt per RV)
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nOne click per warhead; the count is set by the size of the map.\nRight-click or Escape while placing cancels without firing.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -307,7 +312,7 @@ Player:
 		CameoCaption: 1.2 MT
 		CameoBadge: nuclear
 		Name: B83-1 (1.2 Mt)
-		Description: The largest weapon in the current US stockpile.\nA free-fall bomb: slow, and visible for its whole approach.\nComes in from off-map over your own back line.
+		Description: The largest weapon in the current US stockpile.\nOne click per bomb; the count is set by the size of the map.\nSlow, and visible for its whole approach.
 		# BOUGHT, NOT CHARGED (2026-09-06). The user asked for every power to be purchased from a
 		# build tab rather than charged on a timer, and this arrived the same day as the arsenal.
 		# ChargeInterval IS GONE rather than set high: SupportPowerInstance forces TotalTicks to 0
@@ -324,6 +329,37 @@ Player:
 		DetonationAltitude: 15c256
 		MissileDelay: 500
 		CameraRange: 47c0
+		# ==== MULTI-AIM-POINT AS OF 2026-09-20, AND AimPoints IS DELIBERATELY ABSENT ====
+		# The B83 used to leave AimPoints at its default 1 -- one click, one bomb -- against the
+		# Sarmat's six. That was the asymmetry the final-exchange redesign removed: a game-ender's
+		# warhead count is now DoomsdayStrike.PackageSize, read from the map by
+		# MissileStrikePower.EffectiveAimPoints, and it is the SAME number for both nations.
+		#
+		# SETTING AimPoints HERE WOULD BE INERT AND MISLEADING. EffectiveAimPoints ignores this
+		# field entirely for any power NuclearGameEnders.Is() accepts, so a number written here
+		# would read like a live one and decide nothing. The three fields below are the ones that
+		# still matter, because they govern HOW the points are placed rather than how many.
+		#
+		# 8 TICKS, NOT THE SARMAT'S 12. This is the launch stagger for a salvo that is NOT under
+		# cascade control -- a B83 fired OUTSIDE a final exchange, which in a normal match never
+		# happens and under Sandbox is the only way it does. Tighter than the Sarmat because a
+		# free-fall bomb's whole approach is drawn and a long stagger reads as a queue.
+		AimPointInterval: 8
+		# OVERLAY ONLY. 35 cells against the Sarmat's 30: NukeB83's blast wave runs to 70.9c against
+		# an RV's 60.8c, and the ring is deliberately HALF the outer extent on both -- it answers
+		# "put a second bomb closer than this and it is buying nothing", not "this is the reach".
+		#
+		# IT IS ALSO WHAT THE AUTO-FIRE OBEYS: DoomsdayStrike.ChooseAimPoints passes this very
+		# number to FinalExchangeTargeting as the minimum separation, so the machine spaces its
+		# bombs by the rule the player is shown.
+		AimPointRadius: 35c0
+		# Only read for a SINGLE-target order, i.e. one from a bot or a Lua binding, which knows
+		# nothing about placement mode. First bomb on the chosen point, the rest on a 28-cell ring
+		# around it -- scaled from the Sarmat's 24 by the same 70.9/60.8 blast ratio as the radius
+		# above. WITHOUT THIS A BOT'S WHOLE PACKAGE WOULD STACK ON ONE CELL, which is what the
+		# field's zero default means and what NuclearBotModule would otherwise have produced the
+		# moment the B83 stopped being a one-warhead weapon.
+		AimPointFallbackSpread: 28c0
 		CameraSpawnAdvance: 70
 		CameraRemoveDelay: 1250
 		BeaconRemoveAdvance: 5

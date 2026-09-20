@@ -240,15 +240,39 @@ namespace OpenRA.Mods.Common.Traits
 			this.info = info;
 		}
 
+		/// <summary>
+		/// <para>How many warheads THIS activation delivers. <see cref="MissileStrikePowerInfo.AimPoints"/>
+		/// for an ordinary power; for a GAME-ENDER it is the map-derived package size instead
+		/// (<see cref="FinalExchangePackage"/>, held by <see cref="DoomsdayStrike"/>).</para>
+		///
+		/// <para>WHY THE GAME-ENDERS AND ONLY THEM. Decision 20 retired the host-facing count on the
+		/// grounds that it "was arithmetic … one per ~1340 cells of map, split between sides", and
+		/// decision 17 section 4 listed the PARTIAL SALVO as the one piece of firing behaviour that
+		/// ruling still needed built. This is it. Every other multi-point power in the mod — the
+		/// Oreshnik's six conventional RVs — is a weapon with a fixed payload and keeps its number.</para>
+		///
+		/// <para>IT IS ASKED PER CALL RATHER THAN CACHED because a MissileStrikePower is constructed
+		/// before the world actor's traits are all built; reading it lazily costs one trait lookup on
+		/// paths that run at most a handful of times per match.</para>
+		/// </summary>
+		int EffectiveAimPoints(World world)
+		{
+			if (!NuclearGameEnders.Is(info))
+				return info.AimPoints;
+
+			return DoomsdayStrike.PackageSizeFor(world, info.AimPoints);
+		}
+
 		public override void SelectTarget(Actor self, string order, SupportPowerManager manager)
 		{
-			if (info.AimPoints <= 1)
+			var aimPoints = EffectiveAimPoints(self.World);
+			if (aimPoints <= 1)
 			{
 				base.SelectTarget(self, order, manager);
 				return;
 			}
 
-			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, info.AimPoints, info.AimPointRadius,
+			self.World.OrderGenerator = new SelectMultiPowerTarget(order, manager, info, aimPoints, info.AimPointRadius,
 				info.MaxAimPointSpread, info.AimPointRejectedSpeechNotification, info.AimPointRejectedTextNotification);
 		}
 
@@ -343,12 +367,14 @@ namespace OpenRA.Mods.Common.Traits
 		/// the cell list it put on the wire.</para>
 		///
 		/// <para>BOUNDED against a malformed or hostile order: the decoded list is clamped to the
-		/// map and truncated to <see cref="MissileStrikePowerInfo.AimPoints"/>, so no order can
-		/// spawn more missiles than the power is rated for or aim one off the map.</para>
+		/// map and truncated to <see cref="EffectiveAimPoints"/>, so no order can spawn more
+		/// missiles than the power is rated for on this map, or aim one off it. A game-ender order
+		/// carrying six aim points on a map whose package is three therefore fires three — which is
+		/// also what a replay from before the package existed does, rather than being rejected.</para>
 		/// </remarks>
 		WPos[] ResolveAimPoints(World world, Order order)
 		{
-			var count = Math.Max(1, info.AimPoints);
+			var count = Math.Max(1, EffectiveAimPoints(world));
 			var placed = MultiAimPointOrder.Deserialize(order.TargetString);
 
 			if (placed != null && placed.Length > 0)
@@ -519,6 +545,7 @@ namespace OpenRA.Mods.Common.Traits
 			var missileDelay = baseMissileDelay + extraDelay;
 
 			var world = self.World;
+			var missileRules = world.Map.Rules.Actors[info.MissileActor].TraitInfo<BallisticMissileInfo>();
 
 			// THE VISIBLE APPROACH. Same bearing, shorter walk-back -- built by handing
 			// approach.Facing straight to the struct's own constructor, so there is no second copy
@@ -533,24 +560,14 @@ namespace OpenRA.Mods.Common.Traits
 				? new MissileStrikeApproach(approach.Facing, info.ApproachDistance.Length)
 				: approach;
 
-			// FLIGHT TIME IS CONSERVED, and this is the line that does it. Whatever the shortened
-			// flight no longer spends in the air is spent waiting instead, so the order-to-impact
-			// interval -- the warning the target gets, and the number the weapon is balanced on --
-			// is bit-identical to what it was before ApproachDistance was set. Computed rather than
-			// written into YAML because the full standoff is the map diagonal: the compensation is a
-			// different number on every map, and a constant here would silently rebalance the
-			// weapon per map size.
+			// ==== THE SPAWN GEOMETRY IS RESOLVED BEFORE THE DELAY, AND THE ORDER MATTERS ====
+			// It used to sit below, after the missile was created. Nothing here reads `missileDelay`
+			// -- the facing, the birth point and the horizontal distance flown are all functions of
+			// the approach and the aim point alone -- so moving it up changes no value whatsoever,
+			// and it is what lets the two branches underneath know the FLIGHT TIME before deciding
+			// how long to wait. The cascade cannot be written any other way: "launch so as to arrive
+			// at tick T" is `T - now - flight`, and the flight is this.
 			//
-			// Both terms go through BallisticMissileFly's own arithmetic, the same call the
-			// impactDelay below makes, so they cannot drift apart.
-			if (info.ApproachDistance.Length > 0)
-			{
-				var bm0 = world.Map.Rules.Actors[info.MissileActor].TraitInfo<BallisticMissileInfo>();
-				missileDelay += Math.Max(0,
-					BallisticMissileFly.EstimateArcTicks(bm0, approach.Standoff)
-					- BallisticMissileFly.EstimateArcTicks(bm0, visualApproach.Standoff));
-			}
-
 			// Same rule as the airstrike -- the strike comes in over the player's own back line, not
 			// from a bearing the player picks (AirstrikePower.cs:79, established by a20c8a82) -- but
 			// NOT the same construction, and the difference is why this no longer calls
@@ -570,6 +587,52 @@ namespace OpenRA.Mods.Common.Traits
 				spawnPos += new WVec(offset.Y, -offset.X, 0).Rotate(WRot.FromYaw(facing)) + new WVec(0, 0, offset.Z);
 
 			spawnPos += new WVec(0, 0, info.SpawnAltitude.Length);
+
+			// hDist IS THE STANDOFF, and therefore the same for every aim point and every warhead
+			// in the salvo (SpawnOffset aside, and nothing ships one). It used to be the distance from
+			// the owner's nearest map-edge cell to wherever they clicked, which made the warning time
+			// SHORTEST for a strike next to your own base -- exactly backwards. It is read off the
+			// real spawn rather than from approach.Standoff so that the beacon stays honest if a
+			// SpawnOffset ever moves the birth point.
+			//
+			// BallisticMissileFly.EstimateArcTicks is the activity's own arithmetic, so this is the
+			// flight the missile will actually fly rather than a second number kept in step by hand.
+			var hDist = (targetPosition - spawnPos).HorizontalLength;
+			var flightTicks = missileRules.PreLaunchTicks + BallisticMissileFly.EstimateArcTicks(missileRules, hDist);
+
+			// FLIGHT TIME IS CONSERVED, and this is the line that does it. Whatever the shortened
+			// flight no longer spends in the air is spent waiting instead, so the order-to-impact
+			// interval -- the warning the target gets, and the number the weapon is balanced on --
+			// is bit-identical to what it was before ApproachDistance was set. Computed rather than
+			// written into YAML because the full standoff is the map diagonal: the compensation is a
+			// different number on every map, and a constant here would silently rebalance the
+			// weapon per map size.
+			//
+			// Both terms go through BallisticMissileFly's own arithmetic, the same call `flightTicks`
+			// above makes, so they cannot drift apart.
+			if (info.ApproachDistance.Length > 0)
+				missileDelay += Math.Max(0,
+					BallisticMissileFly.EstimateArcTicks(missileRules, approach.Standoff)
+					- BallisticMissileFly.EstimateArcTicks(missileRules, visualApproach.Standoff));
+
+			// ==== THE ONE IMPACT CASCADE ==========================================================
+			// Inside the final exchange, and for a GAME-ENDER only, the arrival tick is not this
+			// warhead's own business: it is a slot in one shared sequence, so both sides' packages
+			// land as a single event instead of as two unrelated schedules. See
+			// DoomsdayStrike.ScheduleExchangeImpact and FinalExchangeCascade.
+			//
+			// BYTE-IDENTICAL EVERYWHERE ELSE, BY CONSTRUCTION RATHER THAN BY THE ARITHMETIC HAPPENING
+			// TO CANCEL: outside an exchange, and for every power that is not a game-ender, the hook
+			// returns its argument and the branch is not taken at all. `missileDelay` therefore still
+			// holds exactly the value the previous line left it with, which is what
+			// MissileStrikeArrivalTest's conventional-strike schedules are pinned on.
+			//
+			// THE LAUNCH MOVES, THE AIM POINT DOES NOT. Only the wait before the missile enters the
+			// world changes; the geometry above is already fixed and is not recomputed.
+			var naturalImpactTick = world.WorldTick + missileDelay + flightTicks;
+			var scheduledImpactTick = DoomsdayStrike.ScheduleExchangeImpact(world, naturalImpactTick, info);
+			if (scheduledImpactTick != naturalImpactTick)
+				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, scheduledImpactTick, flightTicks);
 
 			var missile = world.CreateActor(false, info.MissileActor, new TypeDictionary
 			{
@@ -605,19 +668,11 @@ namespace OpenRA.Mods.Common.Traits
 			else
 				world.AddFrameEndTask(w => w.Add(new SpawnActorEffect(missile, missileDelay)));
 
-			// Ticks from the order to the detonation. BallisticMissileFly.EstimateArcTicks is the
-			// activity's own arithmetic, so this is the flight the missile will actually fly rather
-			// than a second number that has to be kept in step by hand.
-			//
-			// hDist IS NOW THE STANDOFF, and therefore the same for every aim point and every warhead
-			// in the salvo (SpawnOffset aside, and nothing ships one). It used to be the distance from
-			// the owner's nearest map-edge cell to wherever they clicked, which made the warning time
-			// SHORTEST for a strike next to your own base -- exactly backwards. It is still read off
-			// the real spawn rather than from approach.Standoff so that the beacon stays honest if a
-			// SpawnOffset ever moves the birth point.
-			var hDist = (targetPosition - spawnPos).HorizontalLength;
-			var impactDelay = missileDelay + bm.Info.PreLaunchTicks
-				+ BallisticMissileFly.EstimateArcTicks(bm.Info, hDist);
+			// Ticks from the order to the detonation. `flightTicks` was measured above off the real
+			// spawn position, so this is the flight the missile will actually fly rather than a
+			// second number that has to be kept in step by hand -- and inside the exchange it
+			// reproduces the reserved slot exactly, because `missileDelay` was solved for it.
+			var impactDelay = missileDelay + flightTicks;
 
 			// THE FINAL EXCHANGE HOLDS ITS RESOLUTION OPEN FOR THIS WARHEAD. Reported here rather than
 			// at the order, because impactDelay is the number that matters and it is only known now —
