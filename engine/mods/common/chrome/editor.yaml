@@ -208,6 +208,7 @@ Container@EDITOR_WORLD_ROOT:
 		ToggleGridOverlayKey: EditorToggleGridOverlay
 		ToggleBuildableOverlayKey: EditorToggleBuildableOverlay
 		ToggleMarkerOverlayKey: EditorToggleMarkerOverlay
+		ToggleZoneOverlayKey: EditorToggleZoneOverlay
 	Children:
 		LogicKeyListener@OVERLAY_KEYHANDLER:
 		Container@PERF_ROOT:
@@ -542,6 +543,74 @@ Container@EDITOR_WORLD_ROOT:
 							Height: 25
 							Align: Left
 							Visible: false
+				Background@ZONE_TOOL_PANEL:
+					X: 10
+					Y: 35
+					Width: PARENT_WIDTH - 20
+					Height: WINDOW_HEIGHT - 490
+					Background: scrollpanel-bg
+					Visible: false
+					Logic: MapZonesLogic
+					Children:
+						LogicKeyListener@ZONE_KEYHANDLER:
+						ScrollPanel@ZONE_LIST:
+							X: 6
+							Y: 6
+							Width: PARENT_WIDTH - 19
+							Height: 56
+							TopBottomSpacing: 2
+							ItemSpacing: 1
+							Children:
+								ScrollItem@ZONE_TEMPLATE:
+									Visible: false
+									Height: 24
+									Width: PARENT_WIDTH - 24
+									IgnoreChildMouseOver: true
+									Children:
+										ColorBlock@ZONE_COLOR:
+											X: 5
+											Y: 4
+											Width: 16
+											Height: 16
+										Label@ZONE_LABEL:
+											X: 28
+											Y: 0
+											Width: PARENT_WIDTH - 32
+											Height: 24
+											Align: Left
+											Font: Bold
+						Button@CLEAR_ZONE_BUTTON:
+							X: 6
+							Y: 68
+							Width: 110
+							Height: 25
+							Text: button-zone-clear
+							Font: Bold
+						Label@BRUSH_SIZE_LABEL:
+							X: 6
+							Y: 98
+							Width: 120
+							Height: 25
+							Align: Left
+							Text: label-zone-brush-size
+						Slider@BRUSH_SIZE_SLIDER:
+							X: 130
+							Y: 98
+							Width: 128
+							Height: 25
+						Label@BRUSH_SIZE_VALUE:
+							X: 260
+							Y: 98
+							Width: 30
+							Height: 25
+							Align: Left
+						Label@ZONE_SPLIT_LABEL:
+							X: 6
+							Y: 126
+							Width: PARENT_WIDTH - 12
+							Height: 20
+							Align: Left
+							Font: TinyBold
 		Container@HISTORY_WIDGETS:
 			X: WINDOW_WIDTH - 320
 			Y: 354

@@ -598,6 +598,28 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			if (TestMode.IsActive && TestMode.OpenSkirmishLobby)
 				Game.RunAfterTick(StartSkirmishGame);
 
+			// WW3MOD: the same door into the MAP EDITOR. Test.OpenEditorMap=<map-id>
+			// resolves through ResolveLobbyMapId -- title, package directory name, or
+			// UID, exactly as Test.LaunchLobbyMap does -- and hands the result to
+			// Game.LoadEditor.
+			//
+			// A MISS IS LOGGED WITH A GREPPABLE MARKER AND DOES NOT FALL BACK. The
+			// lobby hook can fall back to ChooseInitialMap because any map makes a
+			// lobby screenshot; an editor driver asked for ONE map and a different one
+			// silently opened is a capture of the wrong thing reported as a success.
+			// tools/autotest/screenshot-editor-zones.sh greps for both lines.
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.OpenEditorMap))
+			{
+				var editorUid = ResolveLobbyMapId(TestMode.OpenEditorMap);
+				if (!string.IsNullOrEmpty(editorUid))
+				{
+					Log.Write("debug", $"[TestMode] editor opened: {TestMode.OpenEditorMap} -> {editorUid}");
+					Game.RunAfterTick(() => Game.LoadEditor(editorUid));
+				}
+				else
+					Log.Write("debug", $"[TestMode] OpenEditorMap NO SUCH MAP: '{TestMode.OpenEditorMap}'");
+			}
+
 			DiscordService.UpdateStatus(DiscordState.InMenu);
 		}
 

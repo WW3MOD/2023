@@ -18,7 +18,7 @@ using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
 {
-	[ChromeLogicArgsHotkeys("ToggleGridOverlayKey", "ToggleBuildableOverlayKey", "ToggleMarkerOverlayKey")]
+	[ChromeLogicArgsHotkeys("ToggleGridOverlayKey", "ToggleBuildableOverlayKey", "ToggleMarkerOverlayKey", "ToggleZoneOverlayKey")]
 	public class MapOverlaysLogic : ChromeLogic
 	{
 		[Flags]
@@ -28,11 +28,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			Grid = 1,
 			Buildable = 2,
 			Marker = 4,
+			Zone = 8,
 		}
 
 		readonly TerrainGeometryOverlay terrainGeometryTrait;
 		readonly BuildableTerrainOverlay buildableTerrainTrait;
 		readonly MarkerLayerOverlay markerLayerTrait;
+		readonly ZoneLayerOverlay zoneLayerTrait;
 
 		[ObjectCreator.UseCtor]
 		public MapOverlaysLogic(Widget widget, World world, ModData modData, WorldRenderer worldRenderer, Dictionary<string, MiniYaml> logicArgs)
@@ -40,6 +42,9 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			terrainGeometryTrait = world.WorldActor.Trait<TerrainGeometryOverlay>();
 			buildableTerrainTrait = world.WorldActor.Trait<BuildableTerrainOverlay>();
 			markerLayerTrait = world.WorldActor.Trait<MarkerLayerOverlay>();
+			// TraitOrDefault: this logic runs for every mod that loads the shared editor chrome, and
+			// only ww3mod declares the zone layer. Null here simply means no Zone overlay entry.
+			zoneLayerTrait = world.WorldActor.TraitOrDefault<ZoneLayerOverlay>();
 
 			var toggleGridKey = new HotkeyReference();
 			if (logicArgs.TryGetValue("ToggleGridOverlayKey", out var yaml))
@@ -52,6 +57,10 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var toggleMarkerKey = new HotkeyReference();
 			if (logicArgs.TryGetValue("ToggleMarkerOverlayKey", out yaml))
 				toggleMarkerKey = modData.Hotkeys[yaml.Value];
+
+			var toggleZoneKey = new HotkeyReference();
+			if (logicArgs.TryGetValue("ToggleZoneOverlayKey", out yaml))
+				toggleZoneKey = modData.Hotkeys[yaml.Value];
 
 			var keyhandler = widget.Get<LogicKeyListenerWidget>("OVERLAY_KEYHANDLER");
 			keyhandler.AddHandler(e =>
@@ -77,6 +86,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 					return true;
 				}
 
+				if (zoneLayerTrait != null && toggleZoneKey.IsActivatedBy(e))
+				{
+					zoneLayerTrait.Enabled ^= true;
+					return true;
+				}
+
 				return false;
 			});
 
@@ -98,9 +113,12 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var categoriesPanel = Ui.LoadWidget("OVERLAY_PANEL", null, new WidgetArgs());
 			var categoryTemplate = categoriesPanel.Get<CheckboxWidget>("CATEGORY_TEMPLATE");
 
-			MapOverlays[] allCategories = { MapOverlays.Grid, MapOverlays.Buildable, MapOverlays.Marker };
+			MapOverlays[] allCategories = { MapOverlays.Grid, MapOverlays.Buildable, MapOverlays.Marker, MapOverlays.Zone };
 			foreach (var cat in allCategories)
 			{
+				if (cat == MapOverlays.Zone && zoneLayerTrait == null)
+					continue;
+
 				var category = (CheckboxWidget)categoryTemplate.Clone();
 				category.GetText = () => cat.ToString();
 				category.IsVisible = () => true;
@@ -119,6 +137,11 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				{
 					category.IsChecked = () => markerLayerTrait.Enabled;
 					category.OnClick = () => markerLayerTrait.Enabled ^= true;
+				}
+				else if (cat.HasFlag(MapOverlays.Zone))
+				{
+					category.IsChecked = () => zoneLayerTrait.Enabled;
+					category.OnClick = () => zoneLayerTrait.Enabled ^= true;
 				}
 
 				categoriesPanel.AddChild(category);

@@ -55,6 +55,11 @@ EditorToggleMarkerOverlay: F3
 	Types: Editor
 	Contexts: Editor
 
+EditorToggleZoneOverlay: F4
+	Description: Zone Overlay
+	Types: Editor
+	Contexts: Editor
+
 EditorDeleteSelection: Delete
 	Description: Delete Selection
 	Types: Editor

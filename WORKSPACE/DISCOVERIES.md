@@ -119,6 +119,99 @@ that one is about the SR actor's top-left LOCATION cell being at x=0, whereas it
 is `CenterOfCell(HomeLocation)` exactly (the `(-1,-1)` placement offset and a 3x3's `(+1,+1)`
 CenterOffset cancel) and is safely in Bounds. All 26 spawns across the eight bordered maps that
 have any label cleanly; the script reports none unlabelled.
+## 2026-09-20 - A capture driver's evidence has to come from the thing that would be IN THE PHOTOGRAPH (`wt/dmz-zones`, base `main @ 20ae9548`)
+
+**Symptom.** `tools/autotest/screenshot-editor-zones.sh` reported **PASS** with two frames of the
+map editor's **Tiles** tab, while claiming to have photographed the **Zones** panel. Every check it
+ran was green and every check was true. `debug.log` really did contain `editor tool: Zones` and
+`editor zone selected: DMZ`; the scripted `zone-erase` really did cut the band; the two frames
+really were distinct and both over 120 KB. The panel under test was never on screen.
+
+**Mechanism.** The editor's right-hand area is six containers gated by `MapEditorTabsLogic`
+(`container.IsVisible = () => menuType == tabType`, `MapEditorTabsLogic.SetupTab`), and `menuType`
+initialises to `Tiles`. `Test.EditorTool=Zones` was handled in `MapToolsLogic`, which lives
+*inside* `TOOLS_WIDGETS` — so it correctly selected a tool within a container that was never
+visible. **Selecting a thing and showing the tab it lives in are two different facts, and the
+driver only ever asserted the first.**
+
+**The general rule: a capture driver's markers must be about the thing that would appear in the
+image, not about the mechanism you were exercising.** Construction, selection, state changes and
+command consumption all happen identically whether or not the widget is on screen, so every marker
+of that kind is evidence about the engine and none of it is evidence about the photograph. The
+driver had four such markers and they bought nothing. This is the same family as the
+`NO SUCH VISIBLE WIDGET` trap already recorded for `click` — a driver that does not check for the
+miss photographs whatever was there instead — but one level further out: here nothing missed, and
+the frame was still of the wrong thing.
+
+**The fix worth reusing: log from inside the widget's own `GetText` delegate.**
+`LabelWidget.Draw` is that delegate's only caller on a label nothing resizes, and
+`Widget.DrawOuter` early-returns on `!IsVisible()` (`Widget.cs:500-508`). So a line written from
+there **cannot exist unless that label was rendered, with that text, in a real frame** — which is
+exactly the proposition a screenshot driver needs and cannot get any other way without reading
+pixels. `MapZonesLogic.LoggedSplitText` does this, and emits a machine-readable
+`components=<n>` beside the text so the driver greps a number rather than a Fluent string that a
+reword or a translation would move.
+
+**And note which half of the run was sound.** The capture verified the whole data path --
+`map.yaml` → `Map.Zones` → overlay → scripted stroke → undo history -- because those were visible
+IN the frames (the band rendered, the hole appeared, Undo lit). Only the claim about the panel was
+wrong. A driver can be simultaneously right about everything it photographed and wrong about what
+it says it photographed.
+
+## 2026-09-20 - Map data belongs in the map package, and the thing that tells you a border is wrong has to be the SAME flood the engine runs (`wt/dmz-zones`, base `main @ 20ae9548`)
+
+**What was built.** A `Zones:` node in `map.yaml` (row-ranges by Y), an editor tool that paints it,
+and `DefconWall` reading `Zones: DMZ` as a third region source unioned with `RegionTerrainTypes`
+and `RegionCells`. The nine shipped DEFCON borders moved out of their `rules.yaml` and into their
+own `map.yaml`. Four findings worth carrying.
+
+**1. THE EDITOR CANNOT WRITE `rules.yaml`, AND THAT IS WHY THE BORDERS WERE DRAWN BY A PYTHON
+SCRIPT.** `DefconWallInfo.RegionCells` is a flat `X,Y, X,Y` `CPos[]` in the map's rules file. The
+map editor has no path that writes a map's rules, so every one of the nine borders was routed by
+`tools/nav-guard/defcon_border_designer.py` and pasted in by hand. The lesson generalises past this
+feature: **if a piece of map geometry lives in `rules.yaml`, it is permanently un-editable, and the
+cost shows up as a bespoke authoring tool.** The fix is `Map.YamlFields` — a new entry there is one
+line plus a member, and `Map.Save` then persists it for free.
+
+**2. THE MARKER-TILES LAYER IS THE RIGHT SHAPE AND THE WRONG PERSISTENCE, AND THE DIFFERENCE IS
+EASY TO MISS.** `MarkerLayerOverlay` looks like a painted map layer: `CellLayer<int?>`, per-type
+`HashSet<CPos>`, `IRenderAnnotations`, an undo action per drag. It serialises to **JSON under
+`Platform.SupportDir`** (`MarkerLayerOverlay.WorldLoaded`), i.e. outside the map package — correct
+for a mapper's private scratch layer, and useless for anything a second client has to see. Copy the
+shape; never copy the persistence.
+
+**3. A BORDER THAT DOES NOT SPLIT THE MAP IS NOT A WEAK BORDER, IT IS NO BORDER — AND THE ONLY
+REPORT IS ONE DEBUG-LOG LINE.** `DefconWallRegion.IsDegenerate` is `ComponentCount < 2`;
+`BuildRegion` logs and leaves the wall DOWN for the whole match. So the editor grew a live readout
+— *"DMZ splits the map into N areas"* — and the load-bearing decision was to compute it by
+**constructing `DefconWallRegion` itself** (`ZoneLayerOverlay.ComponentCount`) with the same
+`Map.Contains` passability predicate `BuildRegion` passes, rather than writing a second flood. A
+lookalike flood differing in any of 4-vs-8-connectivity, `Bounds` vs `AllCells`, or the passability
+predicate would tell the mapper their border is fine and then not raise it — which is the exact
+failure the readout exists to prevent. **Generalise: a validity readout must be the production
+predicate, not a reimplementation of it; a readout that can disagree with the runtime is worse than
+none, because it is trusted.**
+
+**4. FOUR ENCODERS OF ONE FORMAT, AND THE CHEAP WAY TO PROVE THEY AGREE.** The row-range form is
+written by C# (`MapZones.EncodeRows`), by the migration script, and by the designer's `emit_zone`,
+and read by `defcon_wall_audit.py`. Rather than trust three hand-kept copies, each was pinned
+against something independent: the migration script round-trips through its own inverse before it
+writes anything; `defcon_border_designer.emit_zone` was diffed against all nine migrated
+`map.yaml` blocks (identical); and `ShippedMapZonesTest` reads the nine shipped files with **the
+engine's own codec** and asserts they re-encode byte-identically. That last one is the one that
+matters — it is the only encoder the game actually runs, and it also catches the separate hazard
+that a non-canonical file rewrites itself wholesale the first time anyone saves the map.
+
+**The equivalence proof for the migration was a byte diff of a tool's output, not an argument.**
+`defcon_wall_audit.py --region-from-map --quiet` was captured before the change, again after the
+audit tool learned to read `Zones:` (identical — the tool change alone is inert), and again after
+the nine maps moved (**identical**: every map, every one of 15 locomotors, every component count
+and every sealed-cell count). Where a tool already measures the property you are preserving,
+capturing its output on both sides is stronger and cheaper than reasoning about the data.
+
+**Cost to be aware of: all nine shipped map UIDs change.** `Map.ComputeUID` hashes every `.yaml`
+in the package, so editing `map.yaml` and `rules.yaml` moves the UID. Nothing in-tree pins one
+(checked), but a client carrying an older copy will not match these in a lobby.
 
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 

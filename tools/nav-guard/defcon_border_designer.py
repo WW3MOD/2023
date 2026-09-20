@@ -33,10 +33,14 @@ Capturables are forbidden to the router by default (`forbid_caps`, margin 2 cell
 route cannot be chosen that buries an Oil Derrick inside the band -- the woodland-warfare
 failure the derived bisector already produces.
 
-NOT YET DONE (see WORKSPACE/audit/positioning-borders-260919.md): the emitted RegionCells
-are not yet written into any map's rules.yaml, defcon_wall_audit.py cannot yet READ an
-authored region back out of a map's rules.yaml, and there is no PNG/ASCII render of a
-finished band.
+WHERE THE OUTPUT GOES, and this changed: a border is now MAP data, not rule data. All nine
+authored borders live in their map's own map.yaml as `Zones: DMZ` (row-ranges by Y), which is
+what the editor's Zones tool paints and what DefconWall unions into its region path. Use
+`emit_zone` for that block; `emit` still produces the legacy RegionCells form for a border
+authored by a mod rule instead of by the map. defcon_wall_audit.py reads BOTH back out of a map
+(`--region-from-map`) and is the check to run on anything this tool produces.
+
+STILL NOT DONE: there is no PNG/ASCII render of a finished band beyond `show`.
 """
 import sys, json
 from pathlib import Path
@@ -212,7 +216,37 @@ def build(name, anchors, types=(), r=1, cost=None, forbid=(), verbose=True, bias
     return mp, ts, chain, band, tcells, blocked, hand
 
 def emit(hand):
+    """The LEGACY form: DefconWallInfo.RegionCells, a flat X,Y list for a map's rules.yaml.
+
+    Still read by the engine and still correct for a border authored by a mod rule rather than by
+    the map. For a border that belongs to the MAP, prefer emit_zone -- the editor can paint that
+    one back, and this one it cannot.
+    """
     return ", ".join(f"{x},{y}" for x,y in hand)
+
+def emit_zone(hand, zone="DMZ"):
+    """The CURRENT form: a `Zones:` block for the map's own map.yaml, row-ranges by Y.
+
+    Paste the whole thing into map.yaml between the `Actors:` and `Rules:` blocks -- that is where
+    Map.YamlFields orders it, so putting it there means the first editor save is not a huge diff.
+    Byte-identical to what MapZones.EncodeRows writes, which is what the editor will write over it
+    the first time anyone adjusts the band with the Zones tool.
+    """
+    by_row = {}
+    for x, y in hand:
+        by_row.setdefault(y, set()).add(x)
+
+    out = ["Zones:", "	" + zone + ":"]
+    for y in sorted(by_row):
+        xs = sorted(by_row[y]); runs = []; lo = hi = xs[0]
+        for x in xs[1:]:
+            if x == hi + 1:
+                hi = x; continue
+            runs.append((lo, hi)); lo = hi = x
+        runs.append((lo, hi))
+        out.append("		" + str(y) + ": " + ", ".join(str(a) if a == b else f"{a}-{b}" for a, b in runs))
+
+    return chr(10).join(out)
 
 def gap_path(mp, blocked, a, b):
     """Shortest 8-connected route through the OPEN graph from a to b, avoiding `blocked`."""

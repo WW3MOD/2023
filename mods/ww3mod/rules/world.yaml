@@ -1067,5 +1067,9 @@ EditorWorld:
 	LoadWidgetAtGameStart:
 	EditorActionManager:
 	MarkerLayerOverlay:
+	# The Zones tool's painted layer. Editor-only: this trait is on EditorWorld and nothing reads it
+	# in a match. What the MATCH reads is map.yaml's own `Zones:` node, straight off the Map --
+	# DefconWall unions `Zones: DMZ` into its region path (DefconWall.BuildRegion).
+	ZoneLayerOverlay:
 	BuildableTerrainOverlay:
 		AllowedTerrainTypes: Clear, Road
