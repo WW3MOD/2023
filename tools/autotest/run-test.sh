@@ -453,13 +453,46 @@ find_debug_log() { find_engine_log "debug.log"; }
 # then reported the wrong finding. See WORKSPACE/DISCOVERIES.md, 2026-09-20.
 #
 # Sets LAUNCH_FAIL_SRC / LAUNCH_FAIL_DETAIL and returns 0 when it trips.
+#
+# ONLY BEFORE A WORLD EXISTS, and that latch is load-bearing rather than an
+# optimisation. The server ALSO logs "Dropping connection" when the client
+# disconnects during an ORDINARY teardown, so a watch with no latch reports a
+# completed run as a launch failure -- which it did on 2026-09-20, turning a
+# correct SKIP (exit 2) into LAUNCH-FAIL (exit 3) when the teardown drop won a
+# race against the verdict read. The loop's result-file test alone is not enough
+# to prevent that: it polls once a second, and the drop can be written inside the
+# same second as the verdict.
+#
+# lua.log is the latch because its channel is created by ScriptContext when the
+# world's LuaScript initialises (ScriptContext.cs:166) -- so its existence proves
+# a world was built, which is exactly what a JOIN refusal prevents. Every
+# scenario under tools/autotest/scenarios runs Lua, so this is general here.
+# WORLD_SEEN is sticky: once set the watch never re-arms for the rest of the run.
 check_launch_failure() {
+	if [ "${WORLD_SEEN}" = "1" ]; then
+		return 1
+	fi
+
+	# NEWER THAN THE LAUNCH STAMP, not merely present. A lua.log left behind by a
+	# PREVIOUS run would otherwise latch the watch off before this game had even
+	# connected, silently disarming the detector -- a false negative, which is the
+	# safe direction but also a detector that has quietly stopped detecting. The
+	# engine truncates the channel only when a world's LuaScript initialises, so
+	# "newer than launch" is exactly "this run built a world".
+	_ll=$(find_engine_log "lua.log")
+	if [ -n "${_ll}" ] && [ -n "${LAUNCH_STAMP}" ] && [ "${_ll}" -nt "${LAUNCH_STAMP}" ]; then
+		WORLD_SEEN=1
+		return 1
+	fi
+
 	_sl=$(find_engine_log "server.log")
-	if [ -n "${_sl}" ] && grep -q "Dropping connection" "${_sl}" 2>/dev/null; then
+	# "because an error occurred" narrows it further: the refusal we care about is
+	# an EXCEPTION at join, not a peer that simply went away.
+	if [ -n "${_sl}" ] && grep -q "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null; then
 		LAUNCH_FAIL_SRC="${_sl}"
 		# The refusal line plus the lines under it -- the exception is the part
 		# that names the actual fault, and it is written after the refusal.
-		LAUNCH_FAIL_DETAIL=$(grep -A 3 -m 1 "Dropping connection" "${_sl}" 2>/dev/null || true)
+		LAUNCH_FAIL_DETAIL=$(grep -A 3 -m 1 "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null || true)
 		return 0
 	fi
 
@@ -879,6 +912,11 @@ TIMED_OUT=0
 LAUNCH_FAILED=0
 LAUNCH_FAIL_SRC=""
 LAUNCH_FAIL_DETAIL=""
+WORLD_SEEN=0
+# Reference mtime for "did THIS run build a world" — see check_launch_failure.
+# Created after the launch above, so any log older than it is a leftover.
+LAUNCH_STAMP="${RESULT_FILE%.json}.launchstamp"
+: > "${LAUNCH_STAMP}"
 _elapsed=0
 while :; do
 	if ! kill -0 "${LAUNCH_PID}" 2>/dev/null; then
