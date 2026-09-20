@@ -162,6 +162,182 @@ capturing its output on both sides is stronger and cheaper than reasoning about 
 **Cost to be aware of: all nine shipped map UIDs change.** `Map.ComputeUID` hashes every `.yaml`
 in the package, so editing `map.yaml` and `rules.yaml` moves the UID. Nothing in-tree pins one
 (checked), but a client carrying an older copy will not match these in a lobby.
+## 2026-09-20 - A staleness bound derived from a THRESHOLD is far stricter than the behaviour that threshold actually preserves, so it never fires — and the curve that would have shown it is a static table (`wt/nuke-perf-levers`, base `main @ 20ae9548`)
+
+**What was built.** `LightEventManager` refreshes the terrain tint on one fixed cadence
+(`TerrainRefreshInterval`, 5 for the nuclear lights) for a light's whole life. That cadence has to
+be short enough for the opening flash, so it then also pays for the long decay tail where almost
+nothing moves. The fix looked obvious: a second, longer interval used only while the envelope is
+slow. To make it invisible rather than merely cheap, the switch was *derived* instead of tuned —
+the gate already tolerates the tint being stale by up to `TerrainRefreshThreshold` (0.04)
+indefinitely, since that is exactly what happens on a plateau where `|ΔI|` never reaches the
+threshold and no refresh is ever issued. So stretch only while the extra staleness stays inside
+that same budget:
+
+    rate × TerrainRefreshTailInterval ≤ TerrainRefreshThreshold
+    ⇒  rate ≤ 0.04 / 20 = 0.002 intensity per tick
+
+**It never fired once.** A clean A/B across three trees showed the refresh tick SETS byte-identical
+— same counts and the same gap histograms (`5:14 6:8 9:1 10:4` on the single arm in all three
+trees), so the cadence never changed. The reason is arithmetic against a table that was sitting in
+the repo the whole time. `NukeSarmatRV`'s `Warhead@FireballLight`
+(`rules/weapons/weapons-nuclear-arsenal.yaml`) is
+
+    Times:       0, 2, 4, 5, 7, 20, 25, 53, 87, 125, 141, 166, 210, 258, 307
+    Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.48, 4.33, 3.51, 2.64, 1.8, 1.5, 1.08, 0.51, 0.13, 0
+    Interpolations: Linear
+
+whose **slowest segment is the last one**, ticks 258→307, at `0.13 / 49 = 0.00265` intensity/tick.
+That is above the 0.002 limit. Every other segment is 3× to 200× above it. The envelope never goes
+flat enough to qualify, anywhere, including the moment before it ends.
+
+**The general rule, and it is the reusable part: a bound derived from a threshold preserves the
+threshold, not the behaviour — and those can be orders of magnitude apart.** The premise "the gate
+tolerates `threshold` of staleness" is true only on a plateau. In the *moving* regime the staleness
+the shipped code actually accepts is `interval × rate`: at the peak of this envelope that is
+`5 × 0.515 = 2.6` intensity units, **65× the threshold**. So the shipped configuration routinely
+tolerates staleness the derived bound would forbid outright, and any stretch admissible under that
+bound is so small it is not worth having. The derivation was sound as a *sufficient* condition and
+useless as a *practical* one. When deriving a safety bound from a constant, check what the code
+already does at runtime before assuming the constant describes it.
+
+**And the cheap check that was skipped.** The eligibility condition is a pure function of a static
+YAML table. Evaluating it against that table takes minutes, needs no build and no launch, and would
+have shown the lever inert before it consumed a serial A/B slot on a machine where launches are the
+scarce resource. The bound was derived and never once tested against the curve it had to fire on.
+**Before shipping a gate whose predicate depends on authored data, evaluate the predicate against
+that data by hand.**
+
+Reverted in full. What it was aimed at is real and unchanged — the decay tail is 61% of the
+remaining relight cost on a six-RV salvo — but reaching it needs a lever that does not depend on
+the envelope flattening out.
+
+## 2026-09-20 - "Game-enders are never purchasable in Skirmish" is true only while the unlock CLOCK is running, and the lobby ships a dropdown that stops it (`wt/nuke-perf-fixes`, base `main @ 20ae9548`)
+
+**The question it came from.** Whether `SarmatMissile`/`B83Missile` could have their
+`Explodes: Weapon:` pointed at a cheaper final-exchange variant without a player ever seeing the
+difference. That reduces to: is there any match in which a game-ender detonates and the final
+exchange is NOT running? Three rulings say no -- in Escalation firing one OPENS the exchange, in
+Skirmish they are never purchasable (decision 17.3), and Sandbox is free play. Two of the three
+hold. The middle one has a hole.
+
+**The hole.** `NuclearUnlockClock.ReleasedRung` (`NuclearUnlockClock.cs:328-330`) is
+
+    Active ? NuclearUnlockSchedule.RungAt(world.WorldTick, IntervalTicks, CapRung)
+           : NuclearReleaseLadder.Highest
+
+The Skirmish ceiling everyone quotes -- `HighestPurchasableRung = HundredKiloton`,
+`NuclearUnlockSchedule.cs:54`, one rung below `GameEnder` and deliberately not host-overridable --
+is applied **inside the `Active` branch only**. And
+
+    Active = IntervalTicks > 0 && !sandbox && mode != DefconGameMode.Escalation     (:320)
+
+so `IntervalTicks == 0` suspends the clock and the ceiling with it, handing back the TOP of the
+ladder. `IsBandPurchasable` likewise returns true for every band when `!Active` (`:347-349`). An
+interval of 0 is not a degenerate value: it is the first entry of
+`IntervalOptions = { 0, 5, 7, 10, 15, 20 }` (`:123`), labelled the host's own opt-out, and
+`world.yaml:893` registers `NuclearUnlockClock:` bare -- no `IntervalLocked`, no override -- so the
+dropdown ships visible and unlocked. **Skirmish + "No wait" grants `nuclear-release-gameender` from
+the first tick.**
+
+**And nothing catches the launch on the way out.** `NuclearExchange` is a strict no-op outside
+Escalation by its own `[Desc]` (`NuclearExchange.cs:123-124`); `ReportNuclearRelease` returns at
+`:1170` on `Mode != DefconGameMode.Escalation` before `outcome.FinalExchange` is ever computed, and
+`ReportNuclearImpact` returns at `:922` on the same test. So the launch opens no exchange and the
+warhead detonates in an ordinary match.
+
+**The general rule: a ceiling enforced inside the active branch of a feature is not a ceiling, it
+is a property of the feature being switched on.** The comment at `NuclearUnlockSchedule.cs:34-40`
+is precise about what it guarantees -- "no lobby value, no interval and no elapsed time reaches the
+200 kt+ band" -- and every word of that is true *of the schedule*. The rung does not come from the
+schedule when the clock is suspended; it comes from the `: NuclearReleaseLadder.Highest` on the
+other side of a ternary three files away. Three separate correct-looking reads of decision 17.3
+(`NuclearUnlockSchedule.cs`, `NuclearUnlockClock.IsBandPurchasable`, and the file header) all
+describe the guarded path, and none of them is where the value actually comes from in this case.
+
+**Consequence carried.** The YAML-only `Explodes:` swap was NOT taken. A player who sets Nuclear
+Unlock to "No wait" -- one dropdown, default Skirmish, no sandbox -- buys and fires a Sarmat that
+would have silently lost its thermal radiation, all ten fire warheads, its EMP and all five
+suppression warheads.
+## 2026-09-20 - On a QUIET map with nothing fired, the most expensive single trait is `DangerFieldLayer` — and this machine's `tick_time` varies 3x with background load, so only back-to-back pairs compare (`wt/nuke-perf`, base `main @ 20ae9548`)
+
+**Measured, not modelled.** Two runs of the nuke perf rig in which the salvo never fired, so both
+are pure EMPTY-MAP baselines: 128x128, 665 static actors, no production, no bots, no combat,
+nothing detonating. Instruments were `Launch.Benchmark` plus `Debug.EnableSimulationPerfLogging`
+with `Debug.LongTickThresholdMs=1`, under `--hidden`.
+
+    tick_time                p50 8.0 ms   p95 18 ms   max 23 ms
+    DangerFieldLayer         40 hits, 1281 ms total, max 85 ms   <- largest single trait
+
+**The finding.** ~32 ms average per long tick on a map where nothing is happening puts the
+influence stack, not the nuclear arsenal, at the head of the quiet-map profile — and 85 ms in one
+tick is past the 60 ms the simulation has to deliver in, i.e. a tick a player would feel. This was
+found while looking for something else entirely and is NOT a nuke cost; the rig had not fired.
+It has not been investigated, and nothing here says the work is wasted or wrong — only that it is
+the biggest single number on an idle map and nobody was looking at it.
+
+**The caveat that has to travel with those numbers.** They were taken while the merge gate and a
+sibling build were running. Between the two arms of the same rig — same map, same actors, nothing
+fired in either — a YAML lint started, and the EMPTY-map figures moved:
+
+    salvo arm     tick_time p50  8.0 ms   p95 18 ms
+    single arm    tick_time p50 23.1 ms   p95 56 ms
+
+**Same code, same scenario, no detonation: a 2.9x swing in p50 and 3.1x in p95, entirely from
+background load.** So: absolute per-tick timings from this machine are comparable ONLY within a
+back-to-back pair taken while no build, lint or merge gate is running, and a before/after pair
+split across a build is not evidence of anything. ATTRIBUTIONS -- which trait or effect dominates,
+and in what ratio to the others in the same run -- survive the noise, because every item in a run
+is taxed by the same contention. Prefer them, and prefer p50 over max.
+
+## 2026-09-20 - A trait under the wrong system actor does not get IGNORED, it gets ADDED — and if it carries a lobby option the SERVER refuses the client, which the harness reports as a 15-minute hang (`wt/nuke-perf`, base `main @ 20ae9548`)
+
+**Symptom, and every part of it points the wrong way.** A new scenario ran to the watchdog and
+reported `TIMEOUT-FAIL`. No `result.json`. **No `lua.log` at all.** A twelve-line `debug.log`
+holding nothing but the four benign stock-mod `` `FileSystem` section is not defined `` lines for
+`all`/`cnc`/`d2k`/`ts`. **No exception file.** Every one of those is the signature of "the rules
+failed to load and the game fell back to the main menu", which is what the runner's own timeout
+branch greps for — and it is not what happened. The rules loaded fine.
+
+**Cause.** The scenario's `rules.yaml` declared
+
+    World:
+        MapLayers:
+            ExploredMapCheckboxEnabled: true
+
+`MapLayers` is `[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]`
+(`MapLayers.cs:18`) and the mod declares it on `Player:` (`player.yaml:3`). MiniYaml does not
+validate `TraitLocation` at merge time, so this did **not** override the Player one and was **not**
+ignored: it created a SECOND `MapLayers`, on the World actor. `MapLayers` implements
+`ILobbyOptions` and yields the option id `explored` (`MapLayers.cs:63`), so the session then
+offered `explored` twice.
+
+**Where it actually fails is three layers away from the edit.**
+`LobbySettingsNotification.ClientJoined` builds a dictionary keyed on the option id, threw
+`ArgumentException: An item with the same key has already been added. Key: explored`, and the
+server dropped the joining client (`Server.cs:617`). The client logged
+`Attempted to read past the end of the stream`, stayed on the main menu, and never built a world —
+hence no Lua, no verdict, no exception file on the client side, and a short `debug.log`.
+
+**The general rule: when a run produces TIMEOUT-FAIL with no `lua.log` and a tiny `debug.log`, read
+`server.log`.** The failure was on the server, and the client-side logs the harness *does* read
+cannot contain it. `server.log` had the whole answer in three lines, and nothing in the harness
+looked at it — so the fault cost a full watchdog timeout (15 minutes at the timeout a heavy
+scenario needs), twice, and then reported the wrong finding.
+
+**Two consequences carried.** `run-test.sh` now polls `server.log` for `Dropping connection` (and
+`client.log` for `Connection to ... failed`) while waiting for a verdict, kills the game and
+reports `outcome=LAUNCH-FAIL exit=3` with the server's exception echoed — the same "nothing ran, so
+this is not a test result" family as the exit-127 and zero-byte-log traps already recorded in
+CLAUDE.md. `tools/autotest/selftest-launch-failure.sh` pins the detector against synthetic logs
+(no build, no launch), because the failure mode of a detector is silence and silence reads exactly
+like the fault never happening.
+
+**And the cheap check that would have caught it at authoring time:** every trait a scenario
+declares must sit under the system actor its `TraitLocation` names. Grepping the trait's `.cs` for
+`[TraitLocation(` takes seconds and is the whole of the test. The lint in `--check-yaml` also
+catches it; this scenario was authored under an instruction not to run that gate, which is exactly
+the gap the worker had to cover by reading and did not.
 
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 
