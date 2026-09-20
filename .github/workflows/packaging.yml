@@ -82,6 +82,12 @@ jobs:
     # (MainMenuLogic.cs:598), and LobbyLogic writes Test.LobbyReadyFile once the map is
     # playable (LobbyLogic.cs:999-1003). Both of those are past the point v0.1.0 died.
     - name: Smoke test the AppImage
+      # NON-BLOCKING by decision (2026-09-20): this step fetches the RA freeware content from
+      # openra.net's mirrors, so an outage there must surface as a warning on the run, not as a
+      # failed release. The static mount-gate in `make test` remains the blocking guard for the
+      # v0.1.0 class (a mount that does not exist in the packaged tree); this launch is the only
+      # check that the SHIPPED tree can start at all, so read its annotations when it goes red.
+      continue-on-error: true
       run: |
         set -o errexit -o pipefail
         sudo apt-get install -y xvfb unzip
