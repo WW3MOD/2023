@@ -3,6 +3,61 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - Map data belongs in the map package, and the thing that tells you a border is wrong has to be the SAME flood the engine runs (`wt/dmz-zones`, base `main @ 20ae9548`)
+
+**What was built.** A `Zones:` node in `map.yaml` (row-ranges by Y), an editor tool that paints it,
+and `DefconWall` reading `Zones: DMZ` as a third region source unioned with `RegionTerrainTypes`
+and `RegionCells`. The nine shipped DEFCON borders moved out of their `rules.yaml` and into their
+own `map.yaml`. Four findings worth carrying.
+
+**1. THE EDITOR CANNOT WRITE `rules.yaml`, AND THAT IS WHY THE BORDERS WERE DRAWN BY A PYTHON
+SCRIPT.** `DefconWallInfo.RegionCells` is a flat `X,Y, X,Y` `CPos[]` in the map's rules file. The
+map editor has no path that writes a map's rules, so every one of the nine borders was routed by
+`tools/nav-guard/defcon_border_designer.py` and pasted in by hand. The lesson generalises past this
+feature: **if a piece of map geometry lives in `rules.yaml`, it is permanently un-editable, and the
+cost shows up as a bespoke authoring tool.** The fix is `Map.YamlFields` — a new entry there is one
+line plus a member, and `Map.Save` then persists it for free.
+
+**2. THE MARKER-TILES LAYER IS THE RIGHT SHAPE AND THE WRONG PERSISTENCE, AND THE DIFFERENCE IS
+EASY TO MISS.** `MarkerLayerOverlay` looks like a painted map layer: `CellLayer<int?>`, per-type
+`HashSet<CPos>`, `IRenderAnnotations`, an undo action per drag. It serialises to **JSON under
+`Platform.SupportDir`** (`MarkerLayerOverlay.WorldLoaded`), i.e. outside the map package — correct
+for a mapper's private scratch layer, and useless for anything a second client has to see. Copy the
+shape; never copy the persistence.
+
+**3. A BORDER THAT DOES NOT SPLIT THE MAP IS NOT A WEAK BORDER, IT IS NO BORDER — AND THE ONLY
+REPORT IS ONE DEBUG-LOG LINE.** `DefconWallRegion.IsDegenerate` is `ComponentCount < 2`;
+`BuildRegion` logs and leaves the wall DOWN for the whole match. So the editor grew a live readout
+— *"DMZ splits the map into N areas"* — and the load-bearing decision was to compute it by
+**constructing `DefconWallRegion` itself** (`ZoneLayerOverlay.ComponentCount`) with the same
+`Map.Contains` passability predicate `BuildRegion` passes, rather than writing a second flood. A
+lookalike flood differing in any of 4-vs-8-connectivity, `Bounds` vs `AllCells`, or the passability
+predicate would tell the mapper their border is fine and then not raise it — which is the exact
+failure the readout exists to prevent. **Generalise: a validity readout must be the production
+predicate, not a reimplementation of it; a readout that can disagree with the runtime is worse than
+none, because it is trusted.**
+
+**4. FOUR ENCODERS OF ONE FORMAT, AND THE CHEAP WAY TO PROVE THEY AGREE.** The row-range form is
+written by C# (`MapZones.EncodeRows`), by the migration script, and by the designer's `emit_zone`,
+and read by `defcon_wall_audit.py`. Rather than trust three hand-kept copies, each was pinned
+against something independent: the migration script round-trips through its own inverse before it
+writes anything; `defcon_border_designer.emit_zone` was diffed against all nine migrated
+`map.yaml` blocks (identical); and `ShippedMapZonesTest` reads the nine shipped files with **the
+engine's own codec** and asserts they re-encode byte-identically. That last one is the one that
+matters — it is the only encoder the game actually runs, and it also catches the separate hazard
+that a non-canonical file rewrites itself wholesale the first time anyone saves the map.
+
+**The equivalence proof for the migration was a byte diff of a tool's output, not an argument.**
+`defcon_wall_audit.py --region-from-map --quiet` was captured before the change, again after the
+audit tool learned to read `Zones:` (identical — the tool change alone is inert), and again after
+the nine maps moved (**identical**: every map, every one of 15 locomotors, every component count
+and every sealed-cell count). Where a tool already measures the property you are preserving,
+capturing its output on both sides is stronger and cheaper than reasoning about the data.
+
+**Cost to be aware of: all nine shipped map UIDs change.** `Map.ComputeUID` hashes every `.yaml`
+in the package, so editing `map.yaml` and `rules.yaml` moves the UID. Nothing in-tree pins one
+(checked), but a client carrying an older copy will not match these in a lobby.
+
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 
 **Symptom.** `tools/cameo/README.md:265` said **116 buildable actors have a cameo** and
