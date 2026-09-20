@@ -34,8 +34,81 @@ namespace OpenRA.Mods.Common.Traits
 	// edge-midpoint derricks sit at a 0.0% margin between two spawn points that are teammates in the
 	// obvious 2v2, and 110 cells from either enemy. In a free-for-all, and in every 1v1 on every
 	// shipped map, this clause is inert and the rule reduces to "nearest player, unless it is a tie".
+	// THE BORDER RULE, WHICH IS WHAT ACTUALLY DECIDES OWNERSHIP ON EVERY MAP THAT HAS A BORDER.
+	//
+	// The ratio below is the ORIGINAL rule and is now the FALLBACK. It answers "is anybody
+	// meaningfully nearer" with a comparison of two distances, which is the best available answer
+	// when all you have is a set of anchors -- but it is an inference about where the middle of the
+	// map is, and nine of the ten shipped maps now STATE where the middle is: they author a
+	// `DefconWall: RegionCells:` border in their own rules.yaml
+	// (WORKSPACE/audit/positioning-borders-260919.md). A stated border beats an inferred one, so
+	// where one resolves this trait asks it instead:
+	//
+	//   - any footprint cell inside the band  -> Neutral. The band is the contested middle, said out
+	//     loud by the map rather than derived from a percentage.
+	//   - otherwise the structure's side is its location cell's side, and it goes to the NEAREST
+	//     contender whose own home is on that same side.
+	//   - a side with no contender on it      -> Neutral. Nobody is behind it to own it.
+	//   - footprint cells that disagree       -> Neutral. A building straddling the border belongs
+	//     to neither half, and this is the case the band test alone misses when the band is thin
+	//     enough for a 2x2 to step over it.
+	//
+	// THE TWO RULES DISAGREE, AND THEY ARE MEANT TO. The ratio hands a structure to whoever is
+	// nearest wherever it sits; the border rule refuses to hand anyone a structure standing behind
+	// the enemy's half of the line, however close they happen to be to it. The per-map table of
+	// every row where they differ is in WORKSPACE/DISCOVERIES.md (2026-09-20).
 	public static class PreCapturedOwnership
 	{
+		/// <summary>
+		/// Decides who owns one capturable structure on a map WITH a border: an index into
+		/// <paramref name="distances"/>, or -1 for "stays neutral". Pure, integer-only and free of
+		/// world state so it can be tested directly.
+		/// </summary>
+		/// <param name="structureSide">The structure's side id, or negative for "in the band / no side".</param>
+		/// <param name="distances">Distance from the structure to each contending player's anchor, in world units.</param>
+		/// <param name="contenderSides">Each contender's own side id, in the same order. Negative means no side.</param>
+		// NEGATIVE MEANS UNCLASSIFIED ON BOTH BACKENDS, which is the whole contract this borrows
+		// from DefconWall's level-independent surface: real side ids are >= 0 there (component ids
+		// for a region, 0/1 for a line) and DefconWall.NoSide is -1. So `< 0` is the only test this
+		// needs and it never has to know which geometry answered.
+		//
+		// NO ALLIANCE CLAUSE, unlike Resolve below, and the border is why it is not needed. The
+		// ratio's alliance test exists to stop a structure sitting between two TEAMMATES reading as
+		// contested; here "contested" is a property of the map, not of the distances, so two allies
+		// on one side simply race for it on distance and the nearer one takes it. Allies on OPPOSITE
+		// sides each take their own, which is the same answer the ratio gives and is correct: the
+		// border does not care who is allied with whom.
+		public static int ResolveOnSide(int structureSide, IReadOnlyList<long> distances, IReadOnlyList<int> contenderSides)
+		{
+			// In the band, off the map, or straddling: nobody owns it. This is the first test rather
+			// than a special case because it is the one the feature is FOR.
+			if (structureSide < 0)
+				return -1;
+
+			if (distances == null || contenderSides == null || distances.Count == 0 ||
+				contenderSides.Count != distances.Count)
+				return -1;
+
+			// Ties break on the lowest index, which is the player's position in World.Players and is
+			// therefore identical on every client -- the same rule Resolve uses, for the same reason.
+			// A contender with no side of their own (negative) never equals a non-negative
+			// structureSide, so they are excluded here without a second test.
+			var winner = -1;
+			for (var i = 0; i < distances.Count; i++)
+			{
+				if (contenderSides[i] != structureSide)
+					continue;
+
+				if (winner < 0 || distances[i] < distances[winner])
+					winner = i;
+			}
+
+			// Nobody lives on that side of the border. Neutral rather than "nearest anyway": handing
+			// it to a player who has to cross the border to reach it is exactly what the border rule
+			// exists to stop.
+			return winner;
+		}
+
 		/// <summary>
 		/// Decides who owns one capturable structure: an index into <paramref name="distances"/>, or -1
 		/// for "stays neutral". Pure, integer-only and free of world state so it can be tested directly.
@@ -83,8 +156,11 @@ namespace OpenRA.Mods.Common.Traits
 	}
 
 	[TraitLocation(SystemActors.World)]
-	[Desc("Hands every neutral capturable structure to the nearest player at world load, leaving the ones",
-		"nobody is meaningfully nearer to neutral. Adds a lobby checkbox, default OFF. Attach to the world actor.")]
+	[Desc("Hands every neutral capturable structure to the nearest player at world load, leaving the",
+		"contested ones neutral. On a map with a " + nameof(DefconWall) + " border, \"contested\" is",
+		"the border band and a structure only ever goes to a player on its OWN side of it; on a map",
+		"with no border it falls back to a distance ratio. Adds a lobby checkbox, default OFF.",
+		"Attach to the world actor.")]
 	public class PreCapturedStructuresInfo : TraitInfo, ILobbyOptions
 	{
 		public const string OptionId = "precapturedstructures";
@@ -93,8 +169,13 @@ namespace OpenRA.Mods.Common.Traits
 		public readonly string CheckboxLabel = "Pre-captured Structures";
 
 		[Desc("Tooltip description for the pre-captured structures option in the lobby.")]
+		// SAYS WHAT IT NOW DOES. The old wording ("the nearer player; ones in the middle stay
+		// neutral") described the ratio rule, which is now only what happens on a map with no
+		// border -- and on nine of the ten shipped maps there IS one, so the old sentence described
+		// the exception rather than the rule.
 		public readonly string CheckboxDescription =
-			"Capturable structures start owned by the nearer player; ones in the middle stay neutral";
+			"Capturable structures start owned by the nearest player on their side of the border; " +
+			"the border zone stays neutral";
 
 		[Desc("Whether the option starts enabled. OFF is the shipped default and is load-bearing: with it",
 			"off this trait returns before reading the actor list, the rules or the map, so a Skirmish",
@@ -110,7 +191,12 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the pre-captured structures option in the lobby.")]
 		public readonly int CheckboxDisplayOrder = 8;
 
-		[Desc("A structure stays neutral when the nearest player NOT allied with the nearest player is",
+		[Desc("FALLBACK ONLY -- read on a map where no " + nameof(DefconWall) + " border resolves.",
+			"Nine of the ten shipped maps author one, so on those this field is never consulted; what",
+			"reaches it is a map with no region and no derivable line, e.g. a three-way free-for-all",
+			"on the derived path.",
+			"",
+			"A structure stays neutral when the nearest player NOT allied with the nearest player is",
 			"within this percentage of the nearest player's distance.",
 			"",
 			"CALIBRATED, NOT PICKED. Across all ten shipped maps the margins fall into two clumps with an",
@@ -201,6 +287,49 @@ namespace OpenRA.Mods.Common.Traits
 			if (contenders.Count == 0)
 				return;
 
+			// THE BORDER, AND WHY ASKING FOR IT HERE IS SAFE DESPITE THE TRAIT ORDER.
+			//
+			// This trait is declared at world.yaml:688 and DefconWall at :971, so OUR IWorldLoaded
+			// runs FIRST and DefconWall has not resolved its border yet when we ask. That is fine
+			// rather than merely tolerable: DefconWall.ResolveBorder is lazy and idempotent, and was
+			// made so precisely because a trait declared earlier gets there first (SpawnStartingUnits
+			// at :674 already does). Asking here BUILDS the border; DefconWall's own WorldLoaded then
+			// finds it already built and does nothing. Every input ResolveBorder reads -- the map,
+			// its terrain, the players' HomeLocations -- exists before the first IWorldLoaded.
+			//
+			// HasBorder IS NOT GATED ON THE DEFCON LEVEL, which is the point of that surface: the
+			// DEFCON-3 gate governs BLOCKING, and the border's geometry resolves in every mode. This
+			// therefore works in Skirmish, where the wall will never stand. Nothing is mutated --
+			// no CustomTerrain byte is written until DefconWall raises the wall, which Skirmish never
+			// does.
+			var wall = world.WorldActor.TraitOrDefault<DefconWall>();
+			var useBorder = wall != null && wall.HasBorder;
+
+			// EACH CONTENDER'S SIDE COMES FROM THEIR ANCHOR, NOT FROM Player.HomeLocation, and the
+			// two are the same point on every shipped map: SpawnStartingUnits places the Supply Route
+			// at `HomeLocation + (-1,-1)` and a 3x3 building's CenterOffset is (+1,+1) cells, so the
+			// SR's CenterPosition IS CenterOfCell(HomeLocation) (MapStartingUnits.cs:37,
+			// Building.cs:207-211). Where they differ is a scenario: HomeLocation is CPos.Zero for a
+			// map player, and also for a lobby player on any map that strips MapStartingLocations
+			// (Player.cs:213 falls back to the PlayerReference when there is no IAssignSpawnPoints),
+			// which is every autotest scenario in this tree. Reading HomeLocation there would put
+			// both sides off the map at (0,0), read Unlabelled for both, and leave every structure
+			// neutral. The anchor is already the answer to "where does this player live" that
+			// AnchorFor spent its own comment getting right.
+			//
+			// Note for anyone auditing this against the border audit: that document records SUPPLY
+			// ROUTES landing outside Bounds on six shipped maps. That is the actor's LOCATION (its
+			// top-left cell at x=0 for a spawn at x=1), not its CenterPosition, which is the spawn
+			// cell centre and is safely inside Bounds. The sides read here are the spawns' own.
+			var contenderSides = new int[contenders.Count];
+			if (useBorder)
+				for (var i = 0; i < contenders.Count; i++)
+					contenderSides[i] = wall.SideOf(anchors[i]);
+
+			Log.Write("debug", "PreCapturedStructures: border = " + (!useBorder
+				? "(none -- falling back to the " + info.MiddleBandPercent + "% ratio rule)"
+				: string.Join(", ", contenders.Select((p, i) => $"{p.InternalName}:side{contenderSides[i]}"))));
+
 			// WHY THESE THREE FILTERS. `Capturable` is the engine's own answer to "can this be taken"
 			// -- most of the neutral scenery on a map inherits ^BasicBuilding and would be swept up by a
 			// looser test, and the three families that opt out (^CivBuilding, GTWR/PBOX/HBOX, and every
@@ -213,7 +342,14 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// Owner test is OwnsWorld rather than NonCombatant: `Creeps` is also non-combatant but is a
 			// hostile third party, and handing its buildings out at world load is not what "neutral"
-			// means to the player. No shipped map gives Creeps a capturable structure either way.
+			// means to the player.
+			//
+			// AND THAT DISTINCTION IS LOAD-BEARING ON A SHIPPED MAP, which this comment used to deny.
+			// nuclear-winter-ww3's map.yaml:1146-1148 places `Actor436: mslo` owned by **Creeps** at
+			// 50,35, and MSLO passes all three filters below -- it carries Capturable, Building and
+			// Selectable. A NonCombatant owner test would therefore hand a Missile Silo to whichever
+			// player is nearest, on the one shipped map that has one. Corrected 2026-09-20; it is the
+			// only non-Neutral capturable structure on any of the ten (WORKSPACE/DISCOVERIES.md).
 			var candidates = world.Actors.Where(a =>
 				a.Owner.PlayerReference != null && a.Owner.PlayerReference.OwnsWorld &&
 				a.Info.HasTraitInfo<CapturableInfo>() &&
@@ -226,7 +362,14 @@ namespace OpenRA.Mods.Common.Traits
 				for (var i = 0; i < contenders.Count; i++)
 					distances[i] = (a.CenterPosition - anchors[i]).HorizontalLength;
 
-				var winner = PreCapturedOwnership.Resolve(distances, (x, y) => contenders[x].IsAlliedWith(contenders[y]), info.MiddleBandPercent);
+				// SAME DISTANCES, SAME TIE RULE, DIFFERENT QUESTION. The border rule filters the
+				// contenders down to the ones on the structure's own side and then picks the nearest
+				// of those, so a structure deep in one half cannot be claimed from the other half by
+				// a player who merely happens to be closer to it.
+				var winner = useBorder
+					? PreCapturedOwnership.ResolveOnSide(SideOfFootprint(wall, a), distances, contenderSides)
+					: PreCapturedOwnership.Resolve(distances, (x, y) => contenders[x].IsAlliedWith(contenders[y]), info.MiddleBandPercent);
+
 				if (winner < 0)
 					continue;
 
@@ -237,6 +380,37 @@ namespace OpenRA.Mods.Common.Traits
 				// they just see it at the end of the first tick rather than during world load.
 				a.ChangeOwner(contenders[winner]);
 			}
+		}
+
+		/// <summary>
+		/// The side of the border a structure is on: <see cref="DefconWall.NoSide"/> when any of its
+		/// footprint cells is inside the band, when its footprint cells disagree, or when the cell it
+		/// stands on has no side at all.
+		/// </summary>
+		// THE WHOLE FOOTPRINT, NOT THE LOCATION CELL, AND THE TWO REALLY DO DIFFER. Every capturable
+		// structure on a shipped map is 2x2 or larger, and the authored bands are three cells thick
+		// (WORKSPACE/audit/positioning-borders-260919.md), so a building can have one corner in the
+		// band with its location cell clear of it -- and on a bend, one corner on each side with no
+		// cell in the band at all. A location-cell test would hand that building to one half of the
+		// map. Both cases collapse to Neutral here, which is the only defensible answer for a
+		// structure the border runs through.
+		//
+		// BuildingInfo.Tiles is the same footprint the engine occupies the world with, so a building
+		// whose Footprint declares Empty cells is judged on the cells it really covers.
+		static int SideOfFootprint(DefconWall wall, Actor a)
+		{
+			var side = wall.SideOf(a.Location);
+
+			foreach (var cell in a.Info.TraitInfo<BuildingInfo>().Tiles(a.Location))
+			{
+				if (wall.IsInBand(cell))
+					return DefconWall.NoSide;
+
+				if (wall.SideOf(cell) != side)
+					return DefconWall.NoSide;
+			}
+
+			return side;
 		}
 
 		// The player's Supply Route if they have one, else their spawn cell, else NOTHING -- they are
