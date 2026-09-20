@@ -357,6 +357,22 @@ namespace OpenRA.Mods.Common.Traits
 		// Lists, not Dictionaries: they are enumerated, and by a reader that wants them in the order
 		// things happened.
 		readonly List<(Player Player, int Tick)> exchangeImpacts = new();
+
+		// ==== SCHEDULED VERSUS OBSERVED, PER WARHEAD ====
+		// `exchangeImpacts` above is the cascade's PLAN. This is what actually happened, and the two
+		// were indistinguishable until 2026-09-20: the autofire test and the demo both printed
+		// `impacts=` from the plan, so a warhead scheduled for 590 and detonating at 594 read as
+		// though it had landed on time. Frames at 593 (nothing) and 615 (saturated) are what finally
+		// exposed it.
+		//
+		// THE MISSILE ACTOR'S DEATH IS THE AUTHORITATIVE EVENT, confirmed against
+		// BallisticMissileFly: its Tick sees `horizontalProgress >= 1f`, calls SetPosition onto the
+		// target and QUEUES a CallFunc that does self.Kill -- and Explodes fires the payload from
+		// that Kill (Explodes.cs). So the tick the actor becomes dead IS the tick the warhead goes
+		// off. Watching it from this trait's own ITick costs one bool per warhead per tick and needs
+		// no new trait on the missile.
+		readonly List<(Player Player, int Scheduled, Actor Missile)> watched = new();
+		readonly List<(Player Player, int Scheduled, int Observed)> detonations = new();
 		readonly List<(Player Player, CPos Cell)> autoFiredAimPoints = new();
 
 		// WHY EACH SIDE DID OR DID NOT FIRE AT THE CLOSE, one entry per PLAYER -- not per entry of
@@ -626,6 +642,51 @@ namespace OpenRA.Mods.Common.Traits
 			return scheduled;
 		}
 
+		/// <summary>
+		/// Stamp the tick each watched warhead actually went off on. Walks backwards so a completed
+		/// entry can be removed without disturbing the indices still to be checked.
+		/// </summary>
+		void WatchForDetonations()
+		{
+			for (var i = watched.Count - 1; i >= 0; i--)
+			{
+				var (player, scheduled, missile) = watched[i];
+				if (!missile.IsDead && !missile.Disposed)
+					continue;
+
+				detonations.Add((player, scheduled, world.WorldTick));
+				watched.RemoveAt(i);
+			}
+		}
+
+		/// <summary>
+		/// <para>`scheduled:observed` for every warhead that has gone off, in the order they did.
+		/// Test reader; empty until the first one lands.</para>
+		/// </summary>
+		public IEnumerable<string> DetonationRecord(Player player)
+		{
+			foreach (var (p, scheduled, observed) in detonations)
+				if (p == player)
+					yield return $"{scheduled}:{observed}";
+		}
+
+		/// <summary>The worst scheduled-to-observed overrun seen so far, or 0 before anything lands.</summary>
+		public int WorstDetonationOverrun
+		{
+			get
+			{
+				var worst = 0;
+				foreach (var (_, scheduled, observed) in detonations)
+				{
+					var d = observed - scheduled;
+					if (d > worst)
+						worst = d;
+				}
+
+				return worst;
+			}
+		}
+
 		/// <summary>Ticks this side's warheads are due to detonate on, in launch order. Test reader.</summary>
 		public IEnumerable<int> ExchangeImpactTicksFor(Player player)
 		{
@@ -682,12 +743,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>THE ONE-TICK LOOKBACK. A launch reported before the exchange exists is kept for exactly the
 		/// tick it was reported on, and <see cref="BeginFinalExchange"/> absorbs it.</para>
 		/// </summary>
-		public static void NotifyExchangeLaunch(World world, Player firer, int impactTick, SupportPowerInfo powerInfo)
+		public static void NotifyExchangeLaunch(World world, Player firer, int impactTick, SupportPowerInfo powerInfo, Actor missile = null)
 		{
-			world.WorldActor.TraitOrDefault<DoomsdayStrike>()?.ReportExchangeLaunch(firer, impactTick, powerInfo);
+			world.WorldActor.TraitOrDefault<DoomsdayStrike>()?.ReportExchangeLaunch(firer, impactTick, powerInfo, missile);
 		}
 
-		void ReportExchangeLaunch(Player firer, int impactTick, SupportPowerInfo powerInfo)
+		void ReportExchangeLaunch(Player firer, int impactTick, SupportPowerInfo powerInfo, Actor missile = null)
 		{
 			if (!SalvoInProgress)
 			{
@@ -714,6 +775,11 @@ namespace OpenRA.Mods.Common.Traits
 			// behalf is the other half of that partition rather than a placement.
 			if (IsGameEnder(powerInfo))
 				window.RecordPlacement(firer?.InternalName);
+
+			// WATCHED ONLY FOR A GAME-ENDER, matching the slot the cascade reserved: a tactical shot
+			// fired inside the window takes no slot, so it has no schedule to be measured against.
+			if (missile != null && IsGameEnder(powerInfo))
+				watched.Add((firer, impactTick, missile));
 
 			if (impactTick > playerImpactTick)
 				playerImpactTick = impactTick;
@@ -1338,6 +1404,8 @@ namespace OpenRA.Mods.Common.Traits
 			if (!triggered)
 				return;
 
+			WatchForDetonations();
+
 			// THE WINDOW. Tick reports the closing edge exactly once (FinalExchangeWindow.Tick), so the
 			// auto-fire hangs off it with no second flag here.
 			if (window.Phase == FinalExchangePhase.Open)
@@ -1380,6 +1448,19 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in doomed)
 				if (a.IsInWorld && !a.Disposed)
 					a.Kill(a, info.AnnihilationDamageTypes);
+
+			// SCHEDULED VERSUS OBSERVED, ONCE EVERY WARHEAD HAS LANDED. Written here rather than at
+			// the close because at the close not one of them has gone off yet -- the cascade's last
+			// slot is by construction later than the line that announces it.
+			if (detonations.Count > 0)
+				Log.Write("debug", $"FINAL EXCHANGE detonations (scheduled:observed): " +
+					string.Join(", ", detonations.Select(d => $"{d.Player.InternalName} {d.Scheduled}:{d.Observed} ({d.Observed - d.Scheduled:+0;-0;0})")) +
+					$"; worst overrun {WorstDetonationOverrun} tick(s) against a " +
+					$"{FinalExchangeCascade.DetonationPipelineTicks}-tick allowance.");
+
+			if (watched.Count > 0)
+				Log.Write("debug", $"FINAL EXCHANGE: {watched.Count} warhead(s) had not detonated when the " +
+					"sweep ran -- they were still in the air past the cascade's own last slot.");
 
 			Log.Write("debug", $"FINAL EXCHANGE annihilation at tick {world.WorldTick}: " +
 				$"{doomed.Count} actor(s) destroyed. Verdict due at tick {resolutionTick}.");

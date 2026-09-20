@@ -739,7 +739,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Inert outside the exchange: DoomsdayStrike is fetched with TraitOrDefault and drops the
 			// report unless a final exchange is in progress. Synced order-resolution path, so every
 			// client reports the same tick. See DoomsdayStrike.NotifyExchangeLaunch.
-			DoomsdayStrike.NotifyExchangeLaunch(world, self.Owner, world.WorldTick + impactDelay, info);
+			DoomsdayStrike.NotifyExchangeLaunch(world, self.Owner, world.WorldTick + impactDelay, info, missile);
 
 			// AND THE ESCALATION WAITS FOR IT TOO (user ruling, 2026-09-16): "it should happen when the
 			// nuke explodes, so we see the correlation between the explosion, and after only a few

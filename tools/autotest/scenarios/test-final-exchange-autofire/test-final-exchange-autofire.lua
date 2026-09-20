@@ -142,6 +142,16 @@ WorldLoaded = function()
 		return out
 	end
 
+	-- "590:594;605:609" -> { {S=590,O=594}, ... }. Empty until warheads start landing.
+	local function detonations(s)
+		local out = {}
+		local list = s:match("detonations=([^|]*)") or ""
+		for a, b in list:gmatch("(%-?%d+):(%-?%d+)") do
+			out[#out + 1] = { S = tonumber(a), O = tonumber(b) }
+		end
+		return out
+	end
+
 	local function ticks(s)
 		local out = {}
 		local list = s:match("impacts=([^|]*)") or ""
@@ -313,6 +323,44 @@ WorldLoaded = function()
 					end
 				end
 			end
+		end
+
+		-- ---- 4b. EVERY WARHEAD WENT OFF WHEN IT WAS SCHEDULED TO ----
+		-- THE READING THAT DID NOT EXIST UNTIL 2026-09-20, and the reason it had to: `impacts=` is
+		-- the cascade's PLAN, so a warhead scheduled for 590 and detonating at 594 read as on time.
+		-- What exposed it was two demo frames -- nothing at 593, a saturated screen at 615 -- which
+		-- is an expensive way to measure four ticks.
+		--
+		-- TOLERANCE 2, NOT 0. The pipeline between the arc completing and Explodes firing is a
+		-- fixed four ticks (FinalExchangeCascade.DetonationPipelineTicks) and the launch is solved
+		-- backwards through it, so the residual should be zero; two ticks of slack absorbs a
+		-- rounding step without absorbing a missing term.
+		local TOLERANCE = 2
+		local allDet = {}
+		for who, str in pairs({ USA = usa, Russia = rus }) do
+			for i, d in ipairs(detonations(str)) do
+				allDet[#allDet + 1] = d
+				local drift = d.O - d.S
+				if drift > TOLERANCE or drift < -TOLERANCE then
+					fault("%s's warhead %d was scheduled to detonate at tick %d and went off at %d "
+						.. "(%+d). The launch delay is solved backwards from the reserved slot through "
+						.. "FinalExchangeCascade.DetonationPipelineTicks, so a residual this size means "
+						.. "that constant is wrong -- read debug.log's `FINAL EXCHANGE detonations` "
+						.. "line for the whole spread. A CONSTANT drift across every warhead is a "
+						.. "missing term in the pipeline; one that GROWS with the flight means "
+						.. "EstimateArcTicks disagrees with what BallisticMissileFly integrates",
+						who, i, d.S, d.O, drift)
+				end
+			end
+		end
+
+		if #allDet == 0 then
+			fault("not one warhead was observed to detonate. DoomsdayStrike watches each missile "
+				.. "actor for death (which is what Explodes fires from), so an empty record means "
+				.. "either nothing flew or the missiles never died -- both of which every other "
+				.. "check here would have to have missed")
+		else
+			note("detonations observed=%d", #allDet)
 		end
 
 		-- ---- 5. THE MATCH ACTUALLY RESOLVED ----

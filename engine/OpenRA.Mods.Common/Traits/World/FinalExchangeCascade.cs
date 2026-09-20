@@ -119,6 +119,36 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>Ticks between the arrival <see cref="BallisticMissileFly.EstimateArcTicks"/> predicts
+		/// and the tick the warhead is OBSERVED to detonate on. The estimate is not wrong so much as
+		/// it is measuring a different thing, and the difference is a fixed pipeline rather than a
+		/// proportion of the flight -- so it is a constant here and not a percentage.</para>
+		///
+		/// <para>WHERE THE FOUR TICKS GO, read off the activity rather than guessed:
+		///   +1  SpawnActorEffect adds the missile at the end of a tick, so BallisticMissileFly
+		///       first runs on the FOLLOWING one.
+		///   +1  EstimateArcTicks' flat branch is `hDist / speed`, INTEGER division, while the
+		///       activity advances `horizontalProgress += speed / hDist` in float and stops at
+		///       `>= 1f` -- i.e. the ceiling. They differ by one whenever the division is not exact,
+		///       which is almost always.
+		///   +2  the termination itself: the `horizontalProgress >= 1f` test is at the TOP of Tick,
+		///       so it is seen the tick after progress completes, and it then QUEUES a CallFunc to
+		///       do the Kill -- which runs a tick later again. Explodes fires on that Kill.</para>
+		///
+		/// <para>DERIVED BY READING, NOT YET BY MEASURING, and the instrumentation that will settle it
+		/// is in the same commit: DoomsdayStrike now records observed-versus-scheduled per warhead
+		/// and prints the spread in its cascade log line and in the autofire test's readings. If a run
+		/// says something other than four, this is the one number to change.</para>
+		/// </summary>
+		// NOT FOLDED INTO EstimateArcTicks, deliberately, and this is the byte-identity argument the
+		// whole cascade has been built on: that method is read by every missile power in the mod for
+		// its camera and beacon timings, and correcting its truncation there would shift all of them
+		// by a tick. What is wrong is not the estimate, it is that the EXCHANGE needs a warhead to
+		// land on an exact tick and nothing else does. So the correction lives here, on the one path
+		// that has that requirement.
+		public const int DetonationPipelineTicks = 4;
+
+		/// <summary>
 		/// The launch delay that lands a warhead on <paramref name="impactTick"/> given a flight of
 		/// <paramref name="flightTicks"/> from <paramref name="now"/>. Never negative: a warhead that
 		/// is already late launches immediately and arrives when it arrives, which is strictly better
@@ -126,7 +156,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public static int LaunchDelayFor(int now, int impactTick, int flightTicks)
 		{
-			var delay = impactTick - now - flightTicks;
+			// THE PIPELINE COMES OUT OF THE WAIT. Solving backwards from a reserved slot means the
+			// launch has to be that much EARLIER, not the arrival later -- the arrival is the fixed
+			// point. See DetonationPipelineTicks.
+			var delay = impactTick - now - flightTicks - DetonationPipelineTicks;
 			return delay > 0 ? delay : 0;
 		}
 	}
