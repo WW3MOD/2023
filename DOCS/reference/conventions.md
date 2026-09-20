@@ -628,6 +628,99 @@ For a clean scenario that prints exactly one line: the header. **The general for
 
 **The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads every scenario' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
+### A duplicate child key is LATENT until another file overrides that actor — the override is the detonator
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, mechanism re-read at `main @ 554895ba`. Extends the section above, which says what the merge *does*; this says when it is *reported*.)*
+
+**Inside a single source, repeated child keys are folded together and nothing is reported.** `ResolveInherits` hands each child to `MergeIntoResolved` (`engine/OpenRA.Game/MiniYaml.cs:427`), which keys the list with a `HashSet` and, on the second sighting, replaces the first node **in place** with `MergePartial(existing, override)` (`:438`, stored at `:443-444`).
+
+**The conflict check that throws lives in the OTHER `MergePartial`** — the `MiniYaml`-pair overload at `:520-539` — and nothing calls it on an actor's trait list until a **second source defines the same top-level key** (`MergeNode`, `:587`). So the duplicate is the charge and an ordinary override is the detonator. The failure names neither the file that was edited nor the field that is wrong.
+
+Three details, each of which changes what you would conclude:
+
+- **`IntoDictionaryWithConflictLog` clears its output dictionary first** (`engine/OpenRA.Game/Exts.cs:454`). The two calls at `:525` and `:527` are therefore **two independent checks, one per side** — not one check over the union. An override redefining a key the base also defines is fine; only a list that repeats a key *within itself* throws. Read without `:454`, the code looks like it would reject every override ever written.
+- **`Inherits` is exempt from the fold but NOT from the check.** `ResolveInherits` branches on `Inherits`/`Inherits@` before reaching `MergeIntoResolved`, so two plain `Inherits:` lines both apply, in order — and are still two nodes with the same key, so they still throw under an override. This is the one shape where collapsing the duplicate would change behaviour; labelling it (`Inherits@X:`) is the only correct fix.
+- **The diagnostic is stricter than the merge it guards.** `:525-530` throws on a shape `:538-589` would then have merged deterministically (`overrideNodes.Value ?? existingNodes.Value` — **second wins, per key, with the union of children kept**). The exception is a correctness tripwire, not a failure of the merge algorithm — which is why the fix belongs in the *shipped actor*, not in the overriding file, and why turning the override off only re-hides the defect.
+
+**Operational consequence: every new override file is a detonator for whichever latent duplicates it happens to touch.** A 2026-09-20 sweep found ~20 blocks with duplicate direct children across the loaded manifest; one (`A10`) detonated the first time any file overrode it. The rest are live and waiting for their first overrider. The permanent guard is `engine/OpenRA.Test/DuplicateChildKeyTest.cs` (~90 ms, in the merge gate), which resolves the manifest lists plus every shipped map's declared rules and fails naming the actor and every `file:line`.
+
+### The set of actor names you may override is mod.yaml's `Rules:` LIST, not the rules DIRECTORY
+
+**A top-level key in a loaded file that matches nothing already present is not an error and not a no-op.** MiniYaml has no notion of "override an existing actor": `Merge` simply adds the node, and **the mod gains a NEW actor** whose entire definition is whatever the override file wrote. With no `Tooltip`, no `Interactable`/`RenderSprites`, such an actor fails `Actor type 'x' does not define a default visibility type` and `The following buildable actor has no (enabled) Tooltip` — **on every map, forever.** One override file naming five dead actors produced 3,650 unrecorded lint errors (ten messages × 365 maps) against a baseline of 22; the per-map multiplication is the tell that the defect is in one actor definition rather than in one map.
+
+`mods/ww3mod/rules/` and the manifest's `Rules:` list differ by ~20 files — all of `weapons/` and `sound/`, the `campaign/` tree, `ingame/old.yaml`, `ingame/vehicles-ukraine.yaml`. **Any tool that builds an actor universe with `os.walk` over the rules directory is counting actors that are not in the game**, and is simultaneously *missing* loaded ones: the manifest merges seven lists through `MiniYaml.Merge` — `Rules`, `Weapons`, `Voices`, `Notifications`, `Music`, `ModelSequences` (`engine/OpenRA.Game/GameRules/Ruleset.cs`) and `Sequences` (`SequenceSet.cs`) — so `weapons/` and `sequences/` are loaded and are not under `Rules:`. **Scanning by directory is wrong in both directions at once.**
+
+Two corollaries, both paid for:
+
+- **A generator and its checker that share a wrong universe agree with each other**, and no amount of running them proves anything. The checker must derive its universe from a *different* authority than the thing being tested, or both must be corrected together and the check must name what it rejects.
+- **An unloaded `rules/` file is still visible to every directory-walking NUnit fixture.** `VaporizeScopeTest` went red on a tree whose C# was byte-identical to the last green build, because a new unloaded file declared `SUPPLYROUTE` a second time and the fixture's first-match `Find` returned the wrong node. The walk **over-approximates** the loaded rules, so a fixture asking a per-actor question must union the declarations — and **a branch that changes anything under `mods/` still needs `dotnet test`**, because several fixtures assert on files rather than on code.
+
+### A MiniYaml template of PURE `-Key:` removals cannot exist, and the obvious workaround throws too
+
+Both failure modes are loud — an exception at rules load naming the exact key — so this costs minutes, not a session. It is recorded because the broken shape is the one anyone would try first.
+
+1. **Removal-only template.** `ResolveInherits` consumes a `-Key:` against the accumulator of the node it is *written in*, before that node's result is folded into the child (`MiniYaml.cs:478-484`). A template whose only children are removals runs them against an empty list and dies on the first: `There are no elements with key 'X' to remove` (`:482-483`).
+2. **Giving the mixin `Inherits: ^Parent` so the removals have something to bite** moves the throw to the *child*, which now reaches `^Parent` twice — once through its own chain, once through the mixin — and the duplicate-parent guard fires with `Parent type '^X' was already inherited by this yaml tree` (`:467-474`). **That guard is per TREE, not per node**, so it catches diamond inheritance however deep the two paths are.
+
+**The shape that works is a SUBCLASS, not a mixin**: `^UnarmedHelicopter: Inherits: ^Helicopter` with the removals below it, and actors naming *that* as their single parent. **MiniYaml inheritance is single-path subtyping, not composable mixins** — any "remove some of what my parent gave me" template must *be* a subtype of that parent; you cannot factor removals out sideways and apply them to several unrelated parents. `-Key:` is positional (see §"There is no 'own beats inherited' rule") **and** scoped to the node it appears in, which is the half that is easy to miss because only the positional half is documented.
+
+### A trait declared under the wrong system actor is not IGNORED, it is ADDED — and a lobby option then makes the SERVER reject the client
+
+**MiniYaml does not validate `TraitLocation` at merge time.** A scenario `rules.yaml` writing `World: MapLayers: ExploredMapCheckboxEnabled: true` does not override the Player-actor `MapLayers` (`mods/ww3mod/rules/player.yaml:3`) and is not ignored: it creates a **second** `MapLayers`, on the World actor. `MapLayers` is `[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:18`) and implements `ILobbyOptions` (`:20`), so the session then offered the option id `explored` **twice**.
+
+**Where it fails is three layers from the edit, and on the other side of the wire.** `LobbySettingsNotification.ClientJoined` builds a dictionary keyed on the option id, threw `ArgumentException: An item with the same key has already been added. Key: explored`, and the server dropped the joining client (`Server.cs:617`). The client logged `Attempted to read past the end of the stream`, stayed on the main menu and never built a world — so: **no `lua.log`, a twelve-line `debug.log`, no exception file, and a full watchdog timeout.** Every one of those is the signature of "the rules failed to load", which is what the runner's own timeout branch greps for, and none of it is what happened: the rules loaded fine.
+
+> **When a run produces `TIMEOUT-FAIL` with no `lua.log` and a tiny `debug.log`, read `server.log`.** The failure was on the server, and the client-side logs the harness reads cannot contain it. `run-test.sh` now polls `server.log` for `Dropping connection` and reports `outcome=LAUNCH-FAIL exit=3` — the same "nothing ran, so this is not a test result" family as the exit-127 and zero-byte-log traps in `CLAUDE.md`.
+
+**The authoring-time check is seconds:** every trait a scenario declares must sit under the system actor its `TraitLocation` names, and grepping the trait's `.cs` for `[TraitLocation(` is the whole of it. `--check-yaml` also catches it — this scenario was authored under an instruction not to run that gate.
+
+## Launch args and the autotest harness: five traps that produce a confident wrong answer
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; verified against code at `main @ 554895ba`.)* Each of these returns a clean-looking result that is about something other than what was asked.
+
+### `--hidden` autotest runs write NO screenshots, while `result.json` still lists them
+
+Observed at `main @ 442859aa` running `./tools/autotest/run-test.sh --hidden test-field-swallows-nuke`: the run reported `PASS (3 screenshot(s))`, `result.json` and `manifest.json` both listed three PNG paths with `captured_at` timestamps, and **the run directory contained no PNG at all** — only `debug.log`, `lua.log`, `manifest.json`, `result.json`. The identical run with `--background` wrote all three files.
+
+`--hidden` never maps a window (`SDL_WINDOW_HIDDEN`; `tools/autotest/run-test.sh:17` calls it the unattended/tournament profile), so the framebuffer grab has nothing to read — and the harness records the capture as successful anyway.
+
+**Consequence, and it cuts against a standing CLAUDE.md preference:** `--hidden` is right for an assertion scenario and **wrong for any scenario whose answer is a frame.** Use `--background` (the default) for captures. **Treat a `result.json` that lists screenshots as a claim, not as evidence, until `ls` shows the files.** [`DOCS/recipes/SCREENSHOT.md`](../recipes/SCREENSHOT.md) already warns that `--minimized` can give blank PNGs on macOS; this is the Windows sibling, one step worse — no file rather than a blank one. *Unverified half:* the leading hypothesis is that the screenshot writer swallows the failure of an unmapped surface and appends the manifest entry regardless; nobody has read the TestMode screenshot path in the engine to confirm it.
+
+### A single-client autotest launch seats ONE slot, so a second `Playable: True` side has no `Player` at all
+
+`CreateMapPlayers` builds a `Player` for every **non-playable** map player, then one per lobby slot — with `if (client == null) continue` (`CreateMapPlayers.cs:108-121`). `run-test.sh` launches a single local client (`Launch.Map=<scenario>`, `run-test.sh:924`), so it seats exactly one slot. A scenario authoring two `Playable: True` sides gets one `Player` and one empty slot, and `Player.GetPlayer("<the other one>")` returns **nil** — not a broken player, not a defaulted one, nothing. No bot fills it either: an autotest server is `ServerType.Local`, so `SkirmishLogic.ClientJoined` early-returns and **nothing is ever auto-seated.**
+
+Three consequences, in increasing order of expense:
+
+- **The shape every passing two-sided scenario already uses** is exactly ONE `Playable: True` seat, for the client, with the other side a bare map player or a `Bot:` map player. `Enemies:` on a map player still makes the relationship, so nothing about the match is weaker for it.
+- **A scenario that passes is not evidence its `Players` block is sound** — only that nothing read the part that is broken. `test-crate-rearm` and friends carry two `Playable: True` seats and are not counterexamples: nothing in them resolves the second player by name.
+- **The trap behind the trap.** The obvious fix — drop `Playable: True` from the second side — silently changes what any consumer filtering on `Player.Playable` can see, and can turn an assertion **vacuously green** rather than red. `Playable` is a lobby-slot fact (see [`architecture.md` §"`CountsAsASide`, NOT `Playable`"](architecture.md)); the honest filter for "who is in this match" is `CombatantSides.CountsAsASide`, or at minimum `!p.NonCombatant`, which also drops the synthetic `Everyone` player (`CreateMapPlayers.cs:124-132`). **When a scenario fix changes a player flag, grep the code under test for that flag before committing.**
+
+Also: a `Test.Fail` on the first line of `WorldLoaded` produces an **empty `lua.log`**, which is the documented tell for "the game never launched". One `print` above the guard costs nothing and separates the two.
+
+### A launch-arg setting is PERSISTED, not session-only — `Settings.Save()` runs on every server join
+
+`Settings.Save()` writes back every field differing from its *compiled* default and **deletes** nodes that match it (`Settings.cs:421`, the erase at `:436-438`), and it runs on ordinary paths — including on every server join (`engine/OpenRA.Game/Network/UnitOrders.cs:266`). Two consequences that bite in opposite directions:
+
+- A command-line override (`Section.Field=value`, applied at `Settings.cs:408-412`) is **written to `settings.yaml`** and sticks until explicitly turned off. `Debug.SyncCheckUnsyncedCode=true` passed once to a launcher is still true next week.
+- A hand-edited `settings.yaml` value that happens to equal the compiled default is **silently erased** on the next join.
+
+So hand-editing `settings.yaml` was never a workable substitute for a launch arg, and a launch arg was never a safe way to make a one-off measurement. A harness that changes settings for a run must back them up and restore them (`run-tournament.sh` does; `run-test.sh` gained the same on `4061796b`).
+
+### `Launch.Benchmark` forces the SERIAL relight path, so a benchmark does not measure the shipped one
+
+`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:879`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
+
+**So the three instruments that make a relight measurable are the same three that switch off the thing being measured.** Any profile with `Launch.Benchmark`, the perf graph, or the perf text overlay is timing the serial sweep. That is deliberate and it is also stable — a benchmark profile keeps measuring what it always measured — but **a figure taken under `Launch.Benchmark` is not a figure about shipped play**, and an A/B whose arms differ in whether sampling is on is comparing two different code paths rather than two configurations.
+
+### A staleness bound derived from a THRESHOLD preserves the threshold, not the behaviour — and they can be orders of magnitude apart
+
+A refresh gate that tolerates a quantity drifting by `Threshold` before it acts looks like a licence to be `Threshold`-stale in general. It is not. That tolerance is real only **on a plateau**, where the delta never reaches the threshold and no refresh is ever issued. In the *moving* regime the staleness the shipped code actually accepts is `interval × rate`, which on the nuclear fireball envelope is `5 × 0.515 = 2.6` intensity units against a `TerrainRefreshThreshold` of `0.04` (`engine/OpenRA.Mods.Common/Lighting/LightEventDefinition.cs:158`, consumed at `LightEventManager.cs:236`) — **65× the threshold.**
+
+The lever this was found on derived its eligibility condition as `rate × tailInterval ≤ Threshold`, i.e. `rate ≤ 0.002` intensity/tick, and **never fired once**: `NukeSarmatRV`'s `Warhead@FireballLight` table (`rules/weapons/weapons-nuclear-arsenal.yaml`) has its slowest segment at `0.13 / 49 = 0.00265`, and every other segment is 3× to 200× above the limit. The derivation was sound as a *sufficient* condition and useless as a *practical* one. Reverted in full.
+
+**Two rules, and the second is the cheap one.** *When deriving a safety bound from a constant, check what the code already does at runtime before assuming the constant describes it.* And: **before shipping a gate whose predicate depends on authored data, evaluate the predicate against that data by hand.** The eligibility condition here was a pure function of a static YAML table — minutes to check, no build, no launch — and it would have shown the lever inert before it consumed a serial A/B slot on a machine where launches are the scarce resource. This is the [§"A change believed made, documented as made, and inert"](#a-change-believed-made-documented-as-made-and-inert) shape, caught by arithmetic rather than by a run.
+
 ## A change believed made, documented as made, and inert
 
 **The most expensive defect shape in this codebase is not a missing mechanism. It is a mechanism that is present, documented, wired up, lint-clean — and evaluates to nothing.** Six separate defects fixed on 2026-08-22 were all this shape, and none of them was found by reading the code, because reading is exactly what these survive: the comment beside them is accurate about intent, the citation is real, the field is genuinely set, the trait is genuinely mounted. What is false is the *value the expression produces at the inputs the mod actually supplies*.
