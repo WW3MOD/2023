@@ -74,7 +74,6 @@ described already-merged work). The cost here was zero because the grep is one c
 not running it would have been a fourth copy of the arsenal's hardest-to-verify block, kept in step
 by hand, for no caller.
 
-## 2026-09-20 - Two clocks for one event: the ending's ordering bug could not be fixed by tuning either of them (`wt/final-exchange`, base `main @ 20ae9548`)
 ## 2026-09-20 - Two clocks for one event: the ending's ordering bug could not be fixed by tuning either of them (`wt/final-exchange`, base `main @ 20ae9548`) **[promoted -> `architecture.md` §"The Escalation endgame" (the two-clocks inversion, the floored cascade anchor, and the `Player.HomeLocation` trap; the table of measured tick figures stays here)]**
 
 **Symptom, as the user reported it.** In the Escalation endgame the machine's warheads always
@@ -2737,7 +2736,6 @@ The six mechanisms, all now checked statically by `tools/lua-gate`:
 **One transcription worth copying rather than re-deriving.** MiniYaml's indent arithmetic (`MiniYaml.cs:239-263`) is *not* `leading_whitespace // 4`: a tab is one level and does **not** reset the space counter, and a leftover run of 1–3 spaces is discarded contributing nothing. So `"\t  \t"` is two levels, `"      "` (six spaces) is one, and `"  "` is zero. Any tool reasoning about YAML structure by regex on leading tabs will silently return an empty result for a space-indented file — `lua_gate.map_actor_names` did exactly that, and would have turned off every actor-global check for such a scenario while still printing OK.
 
 
-## 2026-09-06 - Three of the four "missing" Lua presentation features already existed and were unfindable; the brief for them was wrong in both directions (`wt/lua-presentation`, base `main @ 1aea05dd`)
 ## 2026-09-06 - Three of the four "missing" Lua presentation features already existed and were unfindable; the brief for them was wrong in both directions (`wt/lua-presentation`, base `main @ 1aea05dd`) **[promoted -> `architecture.md` §"Key Lua APIs used"]** — every claim re-verified at `main @ 6e5721ae`: `Test.SetZoom` is `TestGlobal.cs:174` (Desc `:170`), `Test.Screenshot` `:97` (Desc `:89`), and `Trigger.OnTick`/`ClearOnTick` now ship at `TriggerGlobal.cs:49`/`:54` with the `git log -S` finding recorded in the comment at `:35`. The API table in `architecture.md` now lists the presentation bindings (the page an author reaches for and the one that did not have them), plus `lua_gate.py check` as the authority over grep and the "a scenario comment asserting an engine limitation is a DATED claim" rule.
 
 **A binding that exists but is documented nowhere an author will look is indistinguishable, in practice, from one that does not exist — and it is worse, because the workaround gets written into the artefact and then copied.** Four presentation gaps were reported. Checked against the tree:
@@ -3081,7 +3079,6 @@ if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatc
 
 **7. `DropMinStarvingUnits` ships at 1, and the stale `3` has now been found in a third place.** Recon §5(b) recorded two code comments quoting 3 (`a86e2fb6` set it; `63f2ec48` lowered it). The scenario's `map.yaml` quoted it too, and is corrected. `ai.yaml:1914` is the value.
 
-## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`)
 ## 2026-09-05 - Item 64 MEASURED, four arms: the free-pool gate is proven, the muster revert is inert and dropped, and the instrument's d1 clause passed for the wrong reason (`wt/item64 @ 6951b540`, base `main @ 62778af1`) **[promoted in part -> `architecture.md` §"Siting a measurement in a bot scenario" (finding 3, the filtered-population statistic) and §"The bot free pool self-heals" (finding 2, the inert `ImmediateReinforcementCommit`)]** — findings 1, 4 and 5 are the measured record of four runs of one scenario and stay here; they are a run log, not reference material. Finding 3's rule is the durable half and is promoted with the muster-line entry below. Finding 2's mechanism re-verified at `main @ 9cb423d4`: `DamperShouldHold` is now `:4475` (not `:4437`), `SpawnFlowMath.SuppressMassingHold` `:74`, `RetreatDamperMath.ShouldHold` `:149` reaching `FillIncomplete` `:101` at `:163`, and `AllocateProportional` `:1699`.
 
 Four runs of `test-push-departs-together` plus one of `test-combined-arms-rendezvous`, run by the manager. This
@@ -3171,7 +3168,6 @@ costs one grep — `[exp-offense] reeval ... pool=N`. **A `pool=0` on a player t
 somebody else owns them**, and the shared `PoiGoalGuard` ledger is the list of candidates. Grep the pool count
 before theorising about the stager.
 
-## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118) **[RETRACTED - see the retraction entry at the top of this file]**
 ## 2026-09-05 - A mission-committed axis reads as FREE POOL, so StageFreePool marches it back to the muster on the same eval it is being held forward (`wt/item64`, run 260905_183118) **[rejected: the stated mechanism is contradicted by the code at `main @ 9cb423d4`]** — `PartitionHeldAxes` does **not** leave a held axis's units unclaimed. It calls `goalGuard.Ledger.Commit(u, key, tick, Info.AxisCommitmentTicks)` for every unit of every held axis (`PoiOffensiveBotModule.cs:2189`) *before* `BuildFreePool` runs (`:1623` then `:1627`), and `BuildFreePool` excludes any ledger-committed actor (`:2273`). The comment at `:1620` states this as the intent, and `git log -S` puts that commit call in `1fec5070` — the mission-commitment feature itself — so the guard was present when this entry was written, not added since. The only way the described path opens is a null `goalGuard`, and `PartitionHeldAxes` early-returns on exactly that (`:2131`). **The observed behaviour (the axis<->staging beat, infantry parked on staging slots) is real and remains open** — it is recorded in-code at `:3375-3390` and in the item-64 dossier; what is rejected is this diagnosis of it. Do not promote a mechanism whose guard sits one line below the site it names.
 
 > **THE MECHANISM BELOW IS WRONG AND THE CODE FORBIDS IT.** `PartitionHeldAxes` ledger-commits every
@@ -3450,7 +3446,6 @@ wrong.
 Tool that produces all of the above in ~7 s with no build and no launch:
 [`tools/evac-edge-math/`](../tools/evac-edge-math/README.md).
 
-## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`)
 ## 2026-09-05 - `IOccupySpace.OccupiedCells` is a PATHFINDING index, not a presence index: a building is absent from it on its own passable cells (`wt/powers-aimpoint`, `main @ 055ef267`) **[promoted → `conventions.md` §"Footprint characters decide where a unit may STOP"]** — mechanism verified at `main @ 95bdffb2`; **the LOGISTICSCENTER illustration is STALE and was re-derived on promotion.** The 3x3 `=+= +++ =+=` footprint with four `=` corners is SUPPLYROUTE's (`structures.yaml:285-286`); LOGISTICSCENTER has been 2x2 `++ =+` with exactly ONE stoppable cell since `dd952225`, and `SupportPowerAimPointTest` now pins that shape. The `OccupiedCells`-vs-`Tiles` mechanism, the ranking fix and the generalisation all hold unchanged.
 
 `ActorMap.GetActorsAt(cell)` reads the influence layer, which is keyed on
