@@ -58,6 +58,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		/// <summary>How often the split readout may re-run its flood, in milliseconds.</summary>
 		const int RecomputeIntervalMs = 250;
 
+		/// <summary>
+		/// The value <c>Test.EditorTool</c> takes to mean this panel. Matches the name of
+		/// MapToolsLogic's own <c>MapTool.Zones</c>, which parses the same setting -- the enum is
+		/// private to that class, so this is a literal rather than a reference to it.
+		/// </summary>
+		const string ToolName = "Zones";
+
 		readonly EditorActionManager editorActionManager;
 		readonly ZoneLayerOverlay zoneLayerTrait;
 		readonly EditorViewportControllerWidget editor;
@@ -138,6 +145,22 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			splitLabel.GetText = SplitText;
 			splitLabel.GetColor = () => selectedZone != null && Components(selectedZone.Value) < 2 ? warningColor : normalColor;
+
+			// WW3MOD: with Test.EditorTool=Zones, arrive with the first zone already selected --
+			// otherwise the panel opens on "Select a zone to paint." and a capture shows a readout
+			// that has never run. Deferred because SetBrush reaches into EditorCursorLayer and this
+			// is still chrome construction. Read independently of MapToolsLogic rather than
+			// signalled by it, so neither depends on which logic object is built first.
+			if (TestMode.IsActive && string.Equals(TestMode.EditorTool, ToolName, StringComparison.OrdinalIgnoreCase)
+				&& zoneLayerTrait.ZoneIds.Length > 0)
+			{
+				Game.RunAfterTick(() =>
+				{
+					selectedZone = 0;
+					editor.SetBrush(new EditorZoneBrush(editor, zoneLayerTrait, 0, () => brushSize, worldRenderer));
+					Log.Write("debug", $"[TestMode] editor zone selected: {zoneLayerTrait.ZoneIds[0]}");
+				});
+			}
 
 			var keyhandler = widget.Get<LogicKeyListenerWidget>("ZONE_KEYHANDLER");
 			keyhandler.AddHandler(e =>

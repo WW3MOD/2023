@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using OpenRA.Graphics;
@@ -67,6 +68,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			// left here for. Every panel but the selected one starts hidden; the chrome ships
 			// ZONE_TOOL_PANEL with Visible: false and SelectTool does the rest.
 			toolsDropdown.Disabled = toolPanels.Count < 2;
+
+			// WW3MOD: Test.EditorTool=<name> selects a tool on load, for screenshot drivers.
+			//
+			// NOT DONE THROUGH THE cmd FILE'S `click` VERB, and this is the reason the setting
+			// exists at all: a dropdown's items are built inside ShowDropDown, so until a human
+			// opens the dropdown there is no "Zones" widget in the tree for `click` to match by id
+			// -- it would report NO SUCH VISIBLE WIDGET and the driver would photograph the marker
+			// panel while claiming to have photographed this one.
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.EditorTool))
+			{
+				if (Enum.TryParse<MapTool>(TestMode.EditorTool, true, out var wanted) && toolPanels.ContainsKey(wanted))
+				{
+					SelectTool(wanted);
+					Log.Write("debug", $"[TestMode] editor tool: {wanted}");
+				}
+				else
+					Log.Write("debug", $"[TestMode] editor tool NO SUCH TOOL: '{TestMode.EditorTool}'");
+			}
 		}
 
 		void ShowToolsDropDown(DropDownButtonWidget dropdown)

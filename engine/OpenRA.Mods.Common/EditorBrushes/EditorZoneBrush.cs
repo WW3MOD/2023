@@ -45,6 +45,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
@@ -139,8 +140,62 @@ namespace OpenRA.Mods.Common.Widgets
 
 		public void Tick()
 		{
+			ApplyPendingTestStroke();
+
 			if (!stroke.HasValue)
 				cursor = worldRenderer.Viewport.ViewToWorld(worldRenderer.Viewport.WorldToViewPx(Viewport.LastMousePos));
+		}
+
+		/// <summary>
+		/// Consume one stroke armed by the `zone-paint` / `zone-erase` cmd-file verbs, so a
+		/// screenshot driver can cut a hole in a band with no cursor and no human.
+		/// </summary>
+		// IT GOES THROUGH PaintZoneEditorAction, NOT THROUGH ZoneLayerOverlay.SetCell. A scripted
+		// stroke that wrote cells directly would paint the same pixels and be a different operation:
+		// not undoable, absent from the editor's history, and -- because it would skip the action --
+		// trivially divergent from what a dragged stroke does the next time either changes. The only
+		// thing this does that a drag does not is arrive in one tick instead of over several.
+		void ApplyPendingTestStroke()
+		{
+			if (!TestMode.IsActive)
+				return;
+
+			var pending = TestMode.ZoneStroke;
+			if (string.IsNullOrEmpty(pending))
+				return;
+
+			// Cleared whether or not it parses: a malformed stroke that stayed armed would be
+			// retried every tick for the rest of the session.
+			TestMode.ZoneStroke = null;
+
+			var space = pending.IndexOf(' ');
+			if (space < 0)
+			{
+				Log.Write("debug", $"[TestMode] zone stroke ignored, no argument: '{pending}'");
+				return;
+			}
+
+			var erasing = pending.StartsWith("erase", StringComparison.OrdinalIgnoreCase);
+			var parts = pending[(space + 1)..].Split(',');
+			if (parts.Length < 2 ||
+				!int.TryParse(parts[0].Trim(), NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out var x) ||
+				!int.TryParse(parts[1].Trim(), NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out var y))
+			{
+				Log.Write("debug", $"[TestMode] zone stroke ignored, expected <x>,<y>[,<size>]: '{pending}'");
+				return;
+			}
+
+			var size = getSize();
+			if (parts.Length > 2 && int.TryParse(parts[2].Trim(), NumberStyles.Integer, NumberFormatInfo.InvariantInfo, out var s))
+				size = s.Clamp(MinSize, MaxSize);
+
+			var scripted = new PaintZoneEditorAction(overlay, Zone, erasing);
+			scripted.Add(Footprint(new CPos(x, y), size));
+			if (scripted.DidChangeCells)
+				editorActionManager.Add(scripted);
+
+			Log.Write("debug", $"[TestMode] zone stroke applied: {(erasing ? "erase" : "paint")} " +
+				$"{x},{y} size {size} -> {(scripted.DidChangeCells ? "changed cells" : "CHANGED NOTHING")}");
 		}
 
 		void IEditorBrush.TickRender(WorldRenderer wr, Actor self) { }

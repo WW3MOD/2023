@@ -157,6 +157,8 @@ namespace OpenRA
 		//   screenshot <label>          — capture a screenshot tagged <label>
 		//   click <widget-id>           — invoke a visible widget's OnClick
 		//   hover <actor-name>          — hover that actor's sidebar production icon
+		//   zone-paint <x>,<y>[,<size>] — paint the editor's selected zone at that cell
+		//   zone-erase <x>,<y>[,<size>] — erase it there
 		//   quit                        — exit the game
 		//
 		// Anything else is ignored (logged to debug). Phase 3 would extend to
@@ -234,6 +236,25 @@ namespace OpenRA
 						var actor = line.Substring("hover ".Length).Trim();
 						TestMode.HoverProductionIcon = actor;
 						Log.Write("debug", $"[TestMode] external hover: {actor}");
+					}
+					// "zone-paint <x>,<y>[,<size>]" / "zone-erase ..." — arm one editor zone
+					// stroke. Applied by EditorZoneBrush on its next Tick, through its own
+					// PaintZoneEditorAction, so the stroke is undoable and moves the revision
+					// the split readout watches. Armed rather than executed for the reason
+					// `hover` is: the brush lives in OpenRA.Mods.Common, which OpenRA.Game does
+					// not reference, and a reflection call would bypass the action machinery
+					// that makes a scripted stroke equivalent to a dragged one.
+					//
+					// It is a NO-OP unless the zone brush is the current brush, which is what
+					// Test.EditorTool=Zones arranges. A stroke sent with any other brush
+					// selected simply sits in the field and is never consumed.
+					else if (line.StartsWith("zone-paint ", StringComparison.OrdinalIgnoreCase) ||
+						line.StartsWith("zone-erase ", StringComparison.OrdinalIgnoreCase))
+					{
+						var erasing = line.StartsWith("zone-erase ", StringComparison.OrdinalIgnoreCase);
+						var arg = line.Substring("zone-paint ".Length).Trim();
+						TestMode.ZoneStroke = (erasing ? "erase " : "paint ") + arg;
+						Log.Write("debug", $"[TestMode] external zone stroke: {TestMode.ZoneStroke}");
 					}
 					else if (string.Equals(line, "quit", StringComparison.OrdinalIgnoreCase))
 				{

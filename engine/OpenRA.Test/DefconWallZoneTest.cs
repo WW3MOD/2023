@@ -28,8 +28,10 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Mods.Common.Widgets;
 
 namespace OpenRA.Test
 {
@@ -154,6 +156,49 @@ namespace OpenRA.Test
 			var union = new List<CPos>(painted);
 			union.AddRange(closing);
 			Assert.That(RegionOf(union).ComponentCount, Is.EqualTo(2));
+		}
+
+		[Test]
+		public void TheBrushFootprintIsADiscWhoseSizeIsADiameter()
+		{
+			// Size is the diameter in cells, and size 3 must be exactly the 3x3 block -- that is the
+			// width every shipped border is drawn at, so it is the one size a mapper reaches for
+			// constantly and the one that must not be a lopsided blob.
+			Assert.That(EditorZoneBrush.Footprint(new CPos(10, 10), 1), Is.EquivalentTo(new[] { new CPos(10, 10) }));
+
+			var three = EditorZoneBrush.Footprint(new CPos(10, 10), 3).ToArray();
+			Assert.That(three.Length, Is.EqualTo(9));
+			Assert.That(three, Is.EquivalentTo(
+				Enumerable.Range(9, 3).SelectMany(x => Enumerable.Range(9, 3).Select(y => new CPos(x, y)))));
+
+			// Monotonic, and symmetric about the centre -- a brush that drifted off-cursor with size
+			// would be invisible in a screenshot and maddening in the hand.
+			var sizes = Enumerable.Range(EditorZoneBrush.MinSize, EditorZoneBrush.MaxSize)
+				.Select(s => EditorZoneBrush.Footprint(CPos.Zero, s).Count()).ToArray();
+			for (var i = 1; i < sizes.Length; i++)
+				Assert.That(sizes[i], Is.GreaterThanOrEqualTo(sizes[i - 1]));
+
+			foreach (var cell in EditorZoneBrush.Footprint(CPos.Zero, EditorZoneBrush.MaxSize))
+				Assert.That(EditorZoneBrush.Footprint(CPos.Zero, EditorZoneBrush.MaxSize),
+					Does.Contain(new CPos(-cell.X, -cell.Y)), $"footprint is not symmetric about {cell}");
+		}
+
+		[Test]
+		public void AMaxSizeEraseSeversAThreeCellBand()
+		{
+			// THE PREMISE tools/autotest/screenshot-editor-zones.sh RESTS ON. The driver cuts the
+			// band with one scripted `zone-erase x,y,9` and then photographs a readout it expects to
+			// have gone red. If a max-size disc could not sever a three-cell band, the driver would
+			// silently capture two green frames and call it a verification.
+			var band = DmzBand();
+			Assert.That(RegionOf(band).ComponentCount, Is.EqualTo(2));
+
+			var cut = EditorZoneBrush.Footprint(new CPos(10, Size / 2), EditorZoneBrush.MaxSize).ToHashSet();
+			var after = band.Where(c => !cut.Contains(c)).ToArray();
+
+			Assert.That(after.Length, Is.LessThan(band.Count), "the erase removed no band cells at all");
+			Assert.That(RegionOf(after).ComponentCount, Is.EqualTo(1),
+				"a max-size erase through the middle of a three-cell band left the map still divided");
 		}
 
 		[Test]
