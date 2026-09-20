@@ -4890,7 +4890,7 @@ into a brief. `CaptureReclaimMath` does not help either: its five public methods
 arithmetic (`CombinedCaptureDemand`, `ReclaimBudget`, …) and none of them ranks a target.
 
 
-## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`)
+## 2026-09-02 — R9's premise is half-wrong: the Supply Route defeat bar really DOES eliminate you, on exactly the maps most people play (`wt/howtoplay`, `main @ 26f9cec0`) **[rejected: already covered -- `supply-route.md` §"Contestation to zero ends the match" already carries the whole finding, including the `HasActiveTeamSupplyRoute` fork, the ruling that the gate must be the SAME expression that decides passive-versus-defeated, and the four-indistinguishable-cases list (lobby team of one, last survivor, only-ally-overrun, free-for-all). Re-verified in full at `a21583fd`. **That section's line cites had drifted by ~300 lines and are CORRECTED in this pass** -- `OnDefeatBarFull` `:409`/`:551` -> `:702`, `ResolveTeamElimination` `:478` -> `:810`, `HasActiveTeamSupplyRoute` `:433` -> `:745`, `HasRescuer` `:592` -> `:771`, `OnReinstated` `:325-345` -> `:992`, `IsPassive` `:221` -> `:262`, the `TestMode` early return `:427` -> `:814`; the zero-call-sites claim for `IsPassive` still holds. **The TECN `~disabled` half IS promoted separately** -> `conventions.md` §"Faction-specific files"]**
 
 Read-only verification while rewriting `chrome/ingame-info-howtoplay.yaml`. No launch, no build.
 
@@ -4918,7 +4918,7 @@ and `TECN.russia` (`infantry-russia.yaml:109-113`) each **replace** the whole `P
 with `~player.<faction>, ~techlevel.infonly`, and `techlevel.infonly` is granted at every tech level
 (`player.yaml:206-225`). Capturing neutral income buildings is live. Judging a `~disabled` template
 without checking whether the faction actor overrides the field reads the exact opposite of the truth.
-## 2026-09-02 — `Captures.CanTargetActor`'s blocked-cursor branch means "not a capture target", not "a capture target you cannot take" — so the proposed one-token fix would have swallowed every infantry right-click in the game (`wt/capture-affordance`, `main @ 26f9cec0`)
+## 2026-09-02 — `Captures.CanTargetActor`'s blocked-cursor branch means "not a capture target", not "a capture target you cannot take" — so the proposed one-token fix would have swallowed every infantry right-click in the game (`wt/capture-affordance`, `main @ 26f9cec0`) **[promoted -> `architecture.md` §"Order targeter precedence" (the load-bearing finding: `Captures.CanTargetActor` has ONE refusal branch meaning two different things, `EnterAlliedActorTargeter` is not the analogous pattern because it splits the kind test from the permission test, and the correct fix is that split rather than a changed return value). Every cite re-derived at `a21583fd`: `Captures.cs:144-149`, `:81`, `:137` and `EnterAlliedActorTargeter.cs:44-45`/`:56` are exact; `AttackBase.cs:475` -> `Attack/AttackBase.cs:519`, `UnitOrderGenerator.cs:323` -> `:361`, `Mobile.cs:1223` -> `:1258`, `civilian.yaml:11-15` -> `:12-16`. **Two pre-existing cites in `conventions.md` §"A right-click resolves through an `OrderPriority` contest" were wrong the same way and are FIXED in this pass.** NOT promoted: the 34/6-actor overlap counts (per the bank's rule on bare enumerations) and the proposal-sizing verdict, which is tracker material]**
 
 Static only. `make all` clean, `dotnet test` 2248 green; **NUnit does not reach any of this** and no
 launch was taken (embargo).
@@ -5246,7 +5246,7 @@ lists" — both are the scope-blindness version of this.
 
 ---
 
-## 2026-09-02 — Five corrections to the frozen-actor owner-change picture, and the leak under discussion has NO instrument (`wt/frozen-capture`, `main @ b83c21bb`)
+## 2026-09-02 — Five corrections to the frozen-actor owner-change picture, and the leak under discussion has NO instrument (`wt/frozen-capture`, `main @ b83c21bb`) **[promoted, in part -> `architecture.md` §"Fog visibility" (finding 1 in full: `RelationshipWith(null)` returns `Ally` for a combatant, `Owner` doubles as `IsValid`, and a separate liveness flag replaces the GUARD but not the DECISION INPUT -- which is why the whole freeze-`Owner` family is dead; finding 2: `RefreshState` touches no renderable and `NeedRenderables` has exactly three writers, so a plain capture leaks the TOOLTIP and not the sprite; plus the "validity is a PRODUCER-side invariant" ruling from the cleared item at the end, which is the reason NOT to harden a consumer). **Every cite re-derived at `a21583fd` and most had drifted**: `Player.cs:254-255` -> `:281-283` (self case `:250-251` -> `:278-279`), `RefreshState` `:122-141` -> `:135-155`, `NeedRenderables` writers `:93`/`:193`/`GPS :36` -> `:93`/`:207`/`:43`, read-and-cleared `:167,180` -> `:171,184`, `FrozenUnderFog.OnOwnerChanged` `:217-224` -> `:221`/`:243-244`; `FrozenActorLayer.cs:117` is exact. **The two pre-existing `Player.cs` cites in the receiving section were stale the same way and are FIXED in this pass.** NOT promoted: finding 3 (the `SUPPLYCACHE` `ProximityCapturable` path) -- already banked at `architecture.md` §"`ChangeOwnerInPlaceSync` skips the remove/re-add bracket"; finding 4 (the GPS refresh) -- inert in this mod and a dormant exemption, i.e. tracker material; the `SightingIntelOverlay.cs:187` line correction; and the "no scenario can observe the leak" gap, which is coverage state]**
 
 Static read plus one throwaway build; no launch. These re-derive and correct the 2026-09-01
 `wt/fog-snapshot` entry further down this file. **Four of the five survived; the line numbers did
@@ -7911,7 +7911,7 @@ target 42.4 cells away.
 armament any actor on it carries, not by the weapon you think is doing the work — and by the
 Euclidean distance, not the chessboard one a map-editor eye measures.
 
-## 2026-09-01 — Which dispatcher opens a resupply errand decides which ACTIVITY runs, and only one of the two contains `FindBest` (`wt/launch-prep`)
+## 2026-09-01 — Which dispatcher opens a resupply errand decides which ACTIVITY runs, and only one of the two contains `FindBest` (`wt/launch-prep`) **[promoted, in part -> `economy.md` §"Two host-discovery paths disagree about the same actor" (the two dispatchers queue DIFFERENT activities and `FindBest`/re-pick lives only in `SeekSupplyProvider`); verified at `a21583fd`, and the entry's `AmmoPool.cs:931` has drifted to `:1067`. NOT promoted: the 20<d<=30 band sizing and the 66x34-map geometry, which are scenario authoring -> `DOCS/recipes/AUTOTEST.md`]**
 
 Static, no launch. This is the constraint that sizes `test-repick-leash-refuses-far-host`, and
 getting it wrong yields a scenario that passes against a build with the leash ripped out.
@@ -7962,7 +7962,7 @@ both ends, a 66×34 map has no legal cell for it in any direction.
 >
 > **If you fix this, fix it by picking one direction and migrating the smaller region** — do not leave both conventions documented as equally valid, or the next writer will keep choosing at random.
 
-## 2026-09-01 — A curation pass is the only routine activity that re-reads the reference bank, so it is also a doc AUDIT — and the wrong statements it finds are never the ones it went looking for (`wt/docs-curation`)
+## 2026-09-01 — A curation pass is the only routine activity that re-reads the reference bank, so it is also a doc AUDIT — and the wrong statements it finds are never the ones it went looking for (`wt/docs-curation`) **[promoted -> `README.md` §"How knowledge gets in (curation flow)" (the pass is the bank's only routine reader, so it is also its only routine audit, plus both corollaries: grep the FILE not your diff, and an entry accusing a doc can be the wrong half of the pair). NOT promoted: the two `economy.md` instances themselves, which are fixed history rather than mechanism]**
 
 Method finding from the region-A 08-27/08-30 pass. **Two verifiably-wrong statements were found inside
 `DOCS/reference/economy.md` — the curated tier every worker is told to trust without re-verification —
@@ -8003,7 +8003,7 @@ above were within three lines of a paragraph already open.
    that finds a doc wrong should say so and stop; the standing fix-on-sight licence is for claims you
    have re-derived, not for claims you have merely failed to confirm.**
 
-## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`)
+## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`) **[promoted, in part -> `architecture.md` §"The black band at a map edge" (the `CheckMapCordon` lint, re-read at `Lint/CheckMapCordon.cs:20-21`, which is WHY every shipped map is `Bounds: 1,1,W-2,H-2` rather than coincidence). NOT promoted: the 63 = 40+6+17 census and the paydown costing, which are a worklist (`WORKSPACE/`); the nav-guard scope fact, already in `CLAUDE.md` and `tools/nav-guard/README.md`]**
 
 Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
 `map.yaml`; no run, no launch.
@@ -8044,7 +8044,7 @@ Costing, not a fix — the paydown is the user's call. Every count below was tak
   `spawnarea` markers sit one cell further OUT than the parent's. Diffing only the `MapSize`/`Bounds`
   lines makes them look one line apart, which is how that shortcut gets believed.
 
-## 2026-09-01 — `cmd.exe` parses redirection operators on `@REM` lines, so an angle bracket in a batch comment is a live redirect (`wt/tooling-truth`)
+## 2026-09-01 — `cmd.exe` parses redirection operators on `@REM` lines, so an angle bracket in a batch comment is a live redirect (`wt/tooling-truth`) **[rejected: already covered -- `conventions.md:952` carries this verbatim, including the "keep redirect, pipe and escape characters out of `.cmd` comments" rule. Re-checked at `a21583fd`: `utility.cmd` still greps clean for redirect characters in `REM` lines]**
 
 Found while rewriting `utility.cmd`. `REM` is not a comment in the sense the rest of the toolchain
 means it: the line is still tokenized, so `@REM ... --regen-shadows <path> ...` is parsed as an input
@@ -8053,7 +8053,7 @@ argument-passing branch. Unverified on Windows like the rest of that file — fi
 replacement comment spells `PATH` instead of bracketing it. Keep redirect, pipe and escape characters
 out of `.cmd` comments; the file now greps clean for them.
 
-## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`)
+## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (the durable half: a queued order boundary is a state boundary -- two queued `Move`s never produce a corner arc, because the first settles with `FromCell == ToCell` and the second turns in place (`Move.cs:213-216`), while the arc and its `ToCell` retarget live only in `MoveFirstHalf`'s chained branch `:709-722`, both re-read at `a21583fd`). NOT promoted: the "what observable proves the run entered the state I am testing?" rule -- wrong home, and the entry itself aims it at `DOCS/recipes/AUTOTEST.md` §"A green run is not evidence"]**
 
 Fourth instance in one day of a single shape: **work that passes its own check without exercising the
 thing it claims to check.** The other three were an inert drone contact bonus whose test asserted
@@ -8087,7 +8087,7 @@ Generalised: **a queued order boundary is a state boundary.** Anything that only
 activity — arc turning, carryover progress, mid-path retargeting — is destroyed by splitting the
 order in two, and splitting is the natural way to write the setup.
 
-## 2026-09-01 — A grep hit COUNT is not precedent; open one hit (`wt/death-slide`)
+## 2026-09-01 — A grep hit COUNT is not precedent; open one hit (`wt/death-slide`) **[rejected: already covered -- `conventions.md` §"A grep census is a SAMPLE whose recall nobody checks" (promoted 2026-09-02) carries the count-is-not-a-measurement rule and the recall-complete instrument. The sharpening here (a codebase good at leaving notes for itself is exactly the one whose hits are warnings, so prose about a trap and a use of it are indistinguishable to `grep -l`) is real but is one sentence inside a fact that already has a home; §"One home per fact" applies. The `CPos`-has-no-Lua-equality-binding claim was not verified this pass]**
 
 Cost a run slot. Checking whether `Trigger.OnTick` existed before using it in a scenario, I grepped
 the scenario corpus, got four matching files, and treated the count as confirmation that the API was
@@ -8106,7 +8106,7 @@ claims failed the same way when re-checked properly — `CPos` has no Lua equali
 implements `ILuaEqualityBinding`, `CPos` does not), so a `Location == someCPos` predicate compares
 nothing.
 
-## 2026-09-01 — A dying unit's `ToCell` is already PAST the corner, so "the direction it was travelling" is the wrong thing to face a husk (`wt/death-slide`)
+## 2026-09-01 — A dying unit's `ToCell` is already PAST the corner, so "the direction it was travelling" is the wrong thing to face a husk (`wt/death-slide`) **[promoted -> `conventions.md` §"Engine behaviors that surprise", as two corollaries under the order-boundary bullet promoted from the entry above: `self.Location` on a dying mobile is a RESERVATION not a position (`Mobile.TopLeft => ToCell`, `Mobile.cs:314`; husk spawn `SpawnActorOnDeath.cs:158`, drag `Husk.cs:263`), and `Turn` cannot be used on a husk (`Turn.cs:46-47` against `Husk.TurnSpeed => WAngle.Zero`, `Husk.cs:95`). Cites corrected: the entry's `SpawnActorOnDeath.cs:127` and `Husk.cs:257` have drifted; `Husk.cs:104`, `:95` and `Move.cs:709-722` are exact. The fix has SHIPPED and the doc says so -- `HuskSettleGeometry.SettleFacing`, `Husk.cs:108-121`]**
 
 Reported as a supply truck sliding sideways after death. The user's own diagnosis was *"the facing is
 locked as soon as it dies"*, and that is true — `Husk` reads `FacingInit` once in its constructor
@@ -8170,7 +8170,7 @@ A log tag that names the wrong module costs you a run, because the natural respo
 string.** A tag is a label someone typed, not a namespace the compiler checks, and there is nothing in
 the build that can notice it has drifted from the module it sits in.
 
-## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`)
+## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`) **[promoted, in part -> `influence-stack.md` §"Stage F" (the mechanism: `PoiMap` admits an income structure as a POI only if it carries `CaptureManagerInfo` (`PoiMap.cs:223`, exact at `a21583fd`), so POI-eligibility and capture-eligibility are the SAME predicate and adding scenery to satisfy the gate creates a capture target). NOT promoted: the priority-floor-request-bypasses-the-bank claim, not verified this pass; and the 28-cell guard geometry, which is scenario authoring -> `DOCS/recipes/AUTOTEST.md`]**
 
 The direct sequel to the entry below, and the sharper half: fixing the POI gate **created** the
 contamination it was meant to unblock, and the two are the same property seen twice.
@@ -22494,7 +22494,7 @@ map has a `spawnarea` on it. Scenarios that DO place one: `test-evac-prefers-aff
 
 ---
 
-## 2026-09-01 — The affordability "pool-set divergence" is not a defect, and unifying it would break 19 actors
+## 2026-09-01 — The affordability "pool-set divergence" is not a defect, and unifying it would break 19 actors **[promoted -> `economy.md` §"Two host-discovery paths disagree about the same actor" (the pool-set divergence is deliberate, the two readings answer different questions with different domains, and unifying would hand an empty pool set to actors carrying an `AmmoPool` and no `Rearmable`). Verified at `a21583fd`; `HIMARS` (`vehicles-america.yaml:1069`) and `iskander` (`vehicles-russia.yaml:987`) re-read including their load-bearing in-file comments. Cites corrected: `AutoSeekSupplies.cs:529` -> `:540`, `AmmoPool.cs:681,769` -> `:813,:901` via `ChooseAffordableResupplier` `:1141`, `SupplyProvider.cs:747` -> `:743`. **The 19- and 37-actor counts are NOT carried**, per the bank's own rule against publishing an enumeration as a bare number; the two deliberate instances are named instead. Both live traps (the `primary` default against this mod's `primary-ammo`, and `AmmoPools:` appearing on three other traits) are banked]**
 
 `AutoSeekSupplies.CanServe` (`AutoSeekSupplies.cs:529`) passes `rearmable.RearmableAmmoPools` to
 `AmmoPool.HostCanAffordSomethingWeNeed`, while the dispatch sites pass every pool:
@@ -22601,7 +22601,7 @@ The rendered frame corroborates the engine, independently of the assertion: the 
 slope is +0.082 at a 48-device-px cell pitch — three rows over thirty-seven columns — i.e. it is
 drawn to `1,13`, so this is not an artefact of the test's node query.
 
-## 2026-09-01 — Shading a saturated hue by HSL lightness collapses to ~1/3.7 separation below L=0.5, because only the red channel moves (`wt/milestone-note`, `main @ 9ef205c5`)
+## 2026-09-01 — Shading a saturated hue by HSL lightness collapses to ~1/3.7 separation below L=0.5, because only the red channel moves (`wt/milestone-note`, `main @ 9ef205c5`) **[promoted -> `architecture.md` §"Widget / chrome authoring gotchas" (the L=0.5 hinge, the 3.70 ratio, and the consequence that adding players costs separation twice over; plus the note that `RelationshipShadeTest` pins ramp SPACING, which is a different claim from perceptual separation). `RelationshipShade.Shade` re-read in full at `a21583fd`; the entry's `:39-60` is `:40-60`. NOT promoted: the measured 44.1/11.9 minimap gaps from run `260901_225047_p29299`, a dated measurement -- it is what corroborates the derivation, not reference material]**
 
 Explains the measured minimap shade gaps `44.1 / 44.1 / 11.9 / 11.9` in run
 `260901_225047_p29299` — derived from the code, and the derivation lands on the measurement, so the
@@ -22629,7 +22629,7 @@ worth 3.7× less. Perceptual separation is therefore markedly worse than the lig
 from how far apart the colours look. Biasing the ramp centre above 0.5, or varying saturation as
 well as lightness, would fix it locally in `Shade`.
 
-## 2026-09-01 — Two measurement errors that both produce confident, wrong brightness readings from a capture (`wt/milestone-note`)
+## 2026-09-01 — Two measurement errors that both produce confident, wrong brightness readings from a capture (`wt/milestone-note`) **[rejected: wrong home -- both are capture-measurement method (sample at DEVICE pixels, not logical ones; linearise sRGB before comparing brightness) and belong in `DOCS/recipes/SCREENSHOT.md`, which this pass did not open. Neither is a claim about the engine. The tell recorded with the first one -- distinct predicted bands coming back identical should be read as an instrument fault before it is read as a finding -- is the best line here and should travel with it]**
 
 Both were made and corrected while measuring the `FogDarkness` ladder. They are recorded because
 they are silent — each yields a plausible number rather than an obvious failure.
