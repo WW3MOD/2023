@@ -30,6 +30,11 @@ Two exceptions to the no-direct-writes rule:
 - **Corrections**: any agent that finds a verifiably wrong statement fixes it on sight (staleness is the enemy; this is how the "13 maps" class of rot dies).
 - **Mechanical updates**: renames/moves that break links or paths.
 
+**The curation pass is the bank's only routine READER, so it is also its only routine audit** *(promoted 2026-09-20 from a 2026-09-01 method entry)*. Every claim here is trusted by design — that is the point of the tier — which means nothing in the normal working day opens these files. Verifying a candidate entry against source is the one scheduled activity that does, and it opens them at exactly the paragraph most likely to have drifted, because the entry under verification is about the same mechanism. **So when a promotion check lands you in a reference doc, read the surrounding paragraph, not just the sentence you came for.** Two corollaries, both earned by passes that got them wrong first:
+
+- **A factual claim is usually repeated near itself — grep the FILE, never your diff.** A stale `^E6` claim sat in two places with three different wrong citations between them; fixing only the first would have left the doc still asserting it.
+- **An entry accusing a doc can be the wrong half of the pair.** One entry claimed `economy.md` documented a tooltip that does not exist; the tooltip existed, the doc was right, and the entry's grep had missed a literal string inside the directory it searched. It was rejected rather than acted on only because it said so itself and asked for a ruling instead of editing. **The standing fix-on-sight licence is for claims you have re-derived, not for claims you have merely failed to confirm** — a worker who finds a doc wrong and cannot re-derive it should say so and stop, or a correct section gets rewritten to match a false finding and the error enters the trusted tier wearing a fix's clothing.
+
 ## Standards for content
 
 - **Provenance** — claims that could drift cite where they're checkable: code paths, YAML keys, commit hashes. "The SR uses `ProductionFromMapEdge`" is verifiable; "production feels slow" is not reference material.
