@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A MiniYaml template of PURE `-Key:` removals cannot exist, and the obvious workaround throws too (`wt/rank-retune-batch`, base `main @ 1c806add`)
+
+Wanted a reusable "rank profile minus the armament axes" template to share between `TRAN` and `HALO`
+(rank audit §6 #11). The natural shape — a mixin holding only the eight `-FirepowerMultiplier@Rank_N:`
+/ `-ReloadDelayMultiplier@Rank_N:` lines, inherited alongside `^Helicopter` — **cannot be written in
+MiniYaml at all.** Neither can the fix you reach for next. Both throw at rules load:
+
+1. **Removal-only template.** `ResolveInherits` consumes a `-Key:` against the accumulator of the
+   node it is *written in*, before that node's result is folded into the child
+   (`engine/OpenRA.Game/MiniYaml.cs:479-484`). A template whose only children are removals therefore
+   runs them against an empty list and dies on the first one:
+   `There are no elements with key 'FirepowerMultiplier@Rank_1' to remove` (`:482-483`).
+   This reproduced identically in `tools/rank-audit/miniyaml.py`, the audit's port of the loader —
+   a useful confirmation that the port is faithful on this path.
+
+2. **Give the mixin `Inherits: ^GainsExperience` so the removals have something to bite.** The throw
+   moves to the *child*: `TRAN` would then reach `^GainsExperience` twice — once through
+   `^Helicopter -> ^Airborne`, once through the mixin — and the duplicate-parent guard fires with
+   `Parent type '^GainsExperience' was already inherited by this yaml tree`
+   (`MiniYaml.cs:467-474`). That guard is per *tree*, not per node, so it catches diamond
+   inheritance however deep the two paths are.
+
+**The shape that works is a SUBCLASS, not a mixin**: `^UnarmedHelicopter: Inherits: ^Helicopter` plus
+the eight removals below it, with the actors naming that as their single parent
+(`mods/ww3mod/rules/ingame/aircraft.yaml`, `^UnarmedHelicopter`). The removals then sit below an
+`Inherits:` that has already supplied the traits, and no actor names the same parent twice.
+
+**The generalisation worth carrying:** MiniYaml inheritance is single-path subtyping, not composable
+mixins. Any "remove some of what my parent gave me" template must *be* a subtype of that parent —
+you cannot factor the removals out sideways and apply them to several unrelated parents. `-Key:` is
+positional (`conventions.md` §"There is no 'own beats inherited' rule") **and** it is scoped to the
+node it appears in, which is the half that is easy to miss because the positional half is documented
+and this one is not.
+
+Both failure modes are LOUD — an exception at rules load naming the exact key — so this costs minutes,
+not a debugging session. It is recorded because the mixin is the shape anyone would try first.
+
 ## 2026-09-20 - Two traits answering "who are the sides" with different predicates: `Playable` is a lobby-slot fact, not a statement about the match (`wt/fwd-deploy-band`, base `main @ ee301478`)
 
 `test-forward-deploy-clears-band` failed its first ever run with **zero forward units** while every
