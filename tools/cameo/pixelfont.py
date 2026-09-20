@@ -115,8 +115,25 @@ BUDGET_BADGED = BUDGET_PLAIN - (BADGE_W + BADGE_GAP)           # 46
 # caption on the same row as the baked lettering it replaces.
 #
 # M/N/W/V/U are the five a 3px box makes ambiguous, so they are drawn as a deliberate set:
-# M fills rows 1-2, W fills rows 2-3, N is the diagonal, U closes at the bottom and V points.
-# 0 is the full box and O is the round one, for the same reason.
+# M fills rows 1-2, W fills rows 2-3, N keeps a full-height left stem under a shoulder, U closes
+# at the bottom and V points. 0 is the full box and O is the round one, for the same reason.
+#
+# N WAS `#.#|##.|#.#|.##|#.#` UNTIL 2026-09-20 -- a stepped diagonal that broke BOTH stems, the
+# left one at row 4 and the right one at row 2. What that cost is measurable and is not a matter
+# of taste: it left N as the only letter in this font whose canonical form is built from two
+# verticals but whose drawing has NO full-height column -- which is S's silhouette at this size.
+# Every N in the game read as an S: RIFLEMAN as RIFLEMAS, SNIPER as SSIPER, TECHNICIAN as
+# TECHSICIAS, at 1x and at 3x/8x nearest-neighbour zoom alike. It was NOT a rendering fault --
+# --verify passed, and ftprobe, Pillow and the game all drew exactly the pixels asked for.
+#
+# THE SCREEN THAT CATCHES THIS IS THE SILHOUETTE, NOT THE PIXEL COUNT, and that is the part worth
+# carrying away. Hamming distance ranks the BROKEN glyph as the safest N available: it was 4px
+# from its nearest neighbour, further than the replacement is (2px, from A/D/R/0), and it still
+# misread. Conversely the three shapes that look safest by pixel count all fail on sight --
+# `#.#|###|#.#|#.#|#.#` reads as H, `#.#|##.|#.#|#.#|#.#` as K, `###|#.#|#.#|#.#|#.#` as a
+# symmetric arch one pixel from zero. So when you change a glyph here, ask what its OUTLINE says
+# before you count pixels. The six candidates and their renders through the engine's own
+# freetype6 are at WORKSPACE/mockups/caption-n-candidates.png.
 GLYPHS = {
     " ": "...|...|...|...|...",
     "A": ".#.|#.#|###|#.#|#.#",
@@ -132,7 +149,7 @@ GLYPHS = {
     "K": "#.#|#.#|##.|#.#|#.#",
     "L": "#..|#..|#..|#..|###",
     "M": "#.#|###|###|#.#|#.#",
-    "N": "#.#|##.|#.#|.##|#.#",
+    "N": "##.|#.#|#.#|#.#|#.#",   # see the note above: a full-height stem, NOT a diagonal
     "O": ".#.|#.#|#.#|#.#|.#.",
     "P": "##.|#.#|##.|#..|#..",
     "Q": ".#.|#.#|#.#|##.|.##",

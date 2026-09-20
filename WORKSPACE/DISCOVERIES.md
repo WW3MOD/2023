@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A pixel glyph can be FOUR pixels from every other letter and still read as one of them: for a 3x5 font the screen is the SILHOUETTE, not the pixel count (`wt/caption-n-glyph`, base `main @ 6d70f6f8`)
+
+**Symptom.** With the caption font finally drawing all five of its glyph rows, every `N` in the
+game read as an `S`: RIFLEMAN as RIFLEMAS, SNIPER as SSIPER, DRONE OP as DROSE OP, ENGINEER as
+ESGISEER, TECHNICIAN as TECHSICIAS. Confirmed in-game at 1x and at 3x/8x nearest-neighbour zoom.
+The other 25 letters read correctly. **Not a rendering fault**, and worth being explicit about
+that because the font's whole design is a per-pixel claim: `pixelfont.py --verify` PASSED, and
+ftprobe (the engine's own freetype6), Pillow and the game all drew exactly the pixels the glyph
+table asked for. The defect was in the glyph table.
+
+**Mechanism.** `N` was `#.#|##.|#.#|.##|#.#` (`tools/cameo/pixelfont.py:125` as it was) — a
+stepped diagonal that breaks the LEFT stem at row 4 and the RIGHT stem at row 2 to make room for
+it. At 3 columns wide that is not a diagonal with two verticals beside it; it is a zigzag. Run
+the test over the whole table and the property is exact and binary: **`N` and `S` were the only
+two glyphs in the font with no full-height vertical column**, and `S` is *supposed* to be one.
+Every other stem-less glyph in the set (C G J O Q V X Y Z 2 3 5 6 7 8 9) is a letter whose
+canonical form has no stem either. So `N` was the single glyph drawn against its own skeleton,
+and the silhouette it landed on was already taken.
+
+**The trap, and the reason this is worth writing down.** The obvious screen — Hamming distance
+to every other glyph — **ranks the broken glyph as the safest N available.** It was 4px from its
+nearest neighbour (M and W); the replacement is 2px (A, D, R, 0). Measured, not asserted. Pixel
+distance cannot see this class of defect at all, and worse, the three shapes it *prefers* all
+fail on sight when rendered: `#.#|###|#.#|#.#|#.#` (full stems + one mid pixel) is one pixel
+from `M` and reads as **H**; `#.#|##.|#.#|#.#|#.#` reads as **K**; `###|#.#|#.#|#.#|#.#` is one
+pixel from zero, is a vertical mirror of `U`, and is symmetric where `N` is not. All six
+candidates rendered through the engine's freetype6, in the captions that ship them:
+`WORKSPACE/mockups/caption-n-candidates.png`, regenerable with `tools/cameo/n_candidates.py`.
+
+**Fix.** `N` is now `##.|#.#|#.#|#.#|#.#` (`tools/cameo/pixelfont.py:152`) — a full-height left
+stem under a shoulder, the lowercase-n skeleton at cap height. Its nearest neighbours are `A`,
+`D`, `R` and `0` at 2px and **all four of those differ at a CORNER**, which is a silhouette
+difference rather than an interior one; `SANDBAGS` (N beside D), `RIFLEMAN` and `TECHNICIAN` (N
+beside A) all read correctly. The design note at `tools/cameo/pixelfont.py:117-133` now carries
+the rule: **a letter built from verticals must keep one full-height column, and you ask what a
+glyph's outline says before you count its pixels.**
+
+**What was deliberately NOT changed.** The same sweep finds four 1px pairs — `H`/`K`, `H`/`M`,
+`H`/`W` (each of M, W and K is H with one middle-column pixel moved) and `K`/`X`, `U`/`0`,
+`Z`/`2` — plus a dozen 2px ones. None was touched: the manager's in-game reading reports all 25
+other letters legible, `M`/`H`/`A`/`U`/`W` named explicitly, so those pairs are **taste calls
+with contrary evidence, not defects**. `N` was the only glyph where the pixel table and the
+observation agreed. Re-run the sweep before reopening any of them.
+
 ## 2026-09-20 - A rules override on an actor no LOADED file defines does not fail; MiniYaml CREATES the actor, and the bare result breaks every map's lint (`wt/caption-load`, base `main @ 2f94dad1`)
 
 **Symptom.** The first complete `.\make.ps1 test` of the loaded caption table exited 1 with
