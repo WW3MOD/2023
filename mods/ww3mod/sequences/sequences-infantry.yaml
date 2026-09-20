@@ -1059,8 +1059,6 @@ aa.russia:
 		Length: 6
 		Facings: 8
 		Tick: 120
-	parachute: e1
-		Start: 377
 	idle1: sf
 		Start: 1
 		Facings: 8

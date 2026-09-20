@@ -48,6 +48,81 @@ disagreement is no longer expressible. Default output went 115 → 111 and recon
 
 **No YAML changed.** `captions_table.py` regenerates `rules/cameo-captions.yaml` byte-identically
 — `survey()` itself was not touched, only its callers.
+## 2026-09-20 - The duplicate-child-key bomb is not an A10 defect, it is a class of 20, and it does not live where an `os.walk` of `rules/` looks (`wt/dup-keys`, base `main @ da5a2a2a`)
+
+**Symptom (stated separately from the cause, because only one of them is visible).** There is no
+symptom. Every one of these loads, plays and passes every gate — until some unrelated file
+overrides the actor, and then the mod does not start at all, with an error that names neither the
+file that was edited nor the field that is wrong. That is the whole shape of the class: the visible
+event is always in the wrong place. `2f94dad1` fixed the one instance that had detonated (A10, when
+`rules/cameo-captions.yaml` became the first file ever to override `A10:`); this is the sweep for
+the rest.
+
+**Hypothesis, then mechanism, re-read at `da5a2a2a` rather than taken from the A10 note.** Inside a
+single source the repeats are folded together and nothing is reported: `ResolveInherits` hands each
+child to `MergeIntoResolved`, which keys the list with a `HashSet` and, on the second sighting of a
+key, replaces the first node **in place** with `MergePartial(existing, override)`
+(`MiniYaml.cs:427-446`). The conflict check that throws lives in the *other* `MergePartial`, the
+`MiniYaml`-pair one (`:520-539`), and it runs each side's own child list through
+`IntoDictionaryWithConflictLog` (`:525-528`, throwing at `Exts.cs:485-492`). Nothing calls it on an
+actor's trait list until a **second source defines the same top-level key** — `MergeNode`, `:587`.
+So the trigger is not the duplicate; the duplicate is the charge, and an ordinary override is the
+detonator.
+
+Two details worth having, because both change what you would conclude:
+
+- **`IntoDictionaryWithConflictLog` clears its output dictionary first (`Exts.cs:454`).** The two
+  calls at `:525` and `:527` are therefore two independent checks, one per side — not one check
+  over the union. An override that redefines a key the base also defines is fine; only a list that
+  repeats a key *within itself* throws. Read without `:454` the code looks like it would reject
+  every override ever written.
+- **`Inherits` is exempt from the fold but NOT from the check.** `ResolveInherits` branches on
+  `n.Key == "Inherits" || n.Key.StartsWith("Inherits@")` (`:529`) *before* reaching
+  `MergeIntoResolved`, so two plain `Inherits:` lines both apply, in order. They are still two
+  nodes with the same key, so they still throw under an override. This is the one shape where
+  collapsing the duplicate would change behaviour and labelling it is the only correct fix.
+
+**Merge direction: second-wins, on the node's own value and on every leaf, with the union of
+children kept.** Verified three ways rather than asserted: the code (`:538` takes
+`overrideNodes.Value ?? existingNodes.Value`); a new NUnit case that feeds the engine a two-child
+duplicate and reads the result back (`DuplicateChildKeyTest.RepeatedChildKeysMergeSecondWins`); and
+end-to-end, by diffing `--dump-balance-json` across the whole edit — **20146 lines, identical but
+for the `generated_at` timestamp.**
+
+**The scan has to come from mod.yaml, and from ALL of mod.yaml.** `tools/cameo/captions_table.py`'s
+`loaded_rules_paths()` parses the `Rules:` block, which is right for captions and wrong here: the
+manifest merges **seven** lists through the same `MiniYaml.Merge` — `Rules`, `Weapons`, `Voices`,
+`Notifications`, `Music`, `ModelSequences` (`Ruleset.cs:125-141`) and `Sequences`
+(`SequenceSet.cs:95`). Four of the twenty hits are in `rules/weapons/`, which `Rules:` does not list
+and `mod.yaml:251-259` does; one is in `sequences/`, which an `os.walk` of `mods/ww3mod/rules` never
+even visits. Scanning by directory gets this wrong in both directions at once — it counts
+`rules/ingame/old.yaml`, which is on disk and never loaded, and misses the weapons and sequences
+that are loaded and are not in `rules/`. **The authority is the manifest, and the unit is the
+manifest LIST, not the `Rules:` list.**
+
+**The twenty, with the ruling each one needed.** Fourteen are one copy-paste: every `*.Husk.EMP` in
+`rules/husks/husks-aircraft.yaml` writes `Inherits: <base>.Husk` + `Inherits: ^EmpVisualEffect`,
+where the upstream this file was derived from writes the second as `Inherits@EMP:`
+(`engine/mods/ts/rules/husks.yaml:24-26`) — so the label was dropped in the copy and restoring it is
+provably the original. `^CivField` (`rules/ingame/civilian.yaml`) had two `RenderSprites` with
+**disjoint** field sets (`Palette` / `Scale` + `XRenderOrder`), so the fold is a plain union with no
+conflict at all. `MP5`'s first `Projectile` block is a strict subset of its second. `RocketPods` and
+`SurfaceToAirMissile` each set `ValidTargets` twice, the later and wider value winning — the earlier
+line has never had any effect. `^sf`'s `parachute: e1 / Start: 377` loses outright to
+`parachute: sf / Start: 602` further down the same block. **`ATMine` is the only one that is a
+behaviour question rather than hygiene**, and it is A10's shape exactly: two `Warhead@Spread` nodes
+where every other weapon in the file writes `Warhead@Target` + `Warhead@Spread`, so the mine's
+10000-damage direct-hit warhead has never fired and its surviving spread warhead carries a
+`Penetration: 500` inherited from the dead twin. Resolved as today's merge resolves it and filed for
+a balance ruling in `WORKSPACE/bugs/discovered.md`; the surviving block carries the note in place.
+
+**The permanent guard is `engine/OpenRA.Test/DuplicateChildKeyTest.cs`** — ~90 ms, no build of the
+mod, in the merge gate. It resolves the seven manifest lists from `mod.yaml` plus every shipped
+map's declared rules, parses each with the engine's own `MiniYaml.FromFile`, and fails naming the
+actor and every `file:line`. It carries floors (>40 manifest files, >5 map files) because the one
+way this fixture fails silently is by scanning nothing, and two sibling cases pin the premise it
+rests on: that a lone source with a repeat loads clean, and that adding one trivial overriding
+source makes the identical tree throw.
 
 ## 2026-09-20 - A pixel glyph can be FOUR pixels from every other letter and still read as one of them: for a 3x5 font the screen is the SILHOUETTE, not the pixel count (`wt/caption-n-glyph`, base `main @ 6d70f6f8`)
 

@@ -75,8 +75,6 @@ MP5:
 	Report: gun11.aud
 	InvalidTargets: Vehicle, Ship, Structure, Wall, Husk
 	Projectile: Bullet
-		Inaccuracy: 256
-	Projectile: Bullet
 		Speed: 1c0
 		Inaccuracy: 256
 		LaunchAngle: 0,15
@@ -909,7 +907,7 @@ ArtilleryRound.Paladin:
 
 RocketPods:
 	Inherits@HitEffects: ^MediumExplosionEffects
-	ValidTargets: Ground
+	ValidTargets: Ground, Trees, Water
 	InvalidTargets: Infantry
 	Range: 25c0
 	MinRange: 4c0
@@ -928,7 +926,6 @@ RocketPods:
 		ContrailLength: 4
 		ContrailStartWidth: 20
 		TrailDeactivation: 6
-	ValidTargets: Ground, Trees, Water
 	Warhead@Target: TargetDamage
 		Damage: 5000
 		Penetration: 50
