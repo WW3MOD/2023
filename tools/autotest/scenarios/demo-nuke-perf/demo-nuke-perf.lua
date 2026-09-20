@@ -1,5 +1,9 @@
 -- PERF RIG -- ONE FULL SIX-RV SARMAT SALVO
 --
+-- TWO ARMS, ONE SCHEDULE. `salvo` (the default) fires the shipped NukeSarmatRV; `exchange`
+-- (Test.ForceEscalationVariant=true) fires NukeSarmatRVExchange, the final-exchange variant.
+-- See the `Arm` local below for the mechanism and for what this rig does NOT prove.
+--
 -- THIS IS A MEASUREMENT SCENARIO, NOT A DEMO TO LOOK AT. It fires one nuclear order as early as it
 -- can and then does nothing at all for the rest of the run, so that every millisecond after the
 -- impact is a millisecond the engine spent on the detonation. Nothing here asserts: there is no
@@ -101,6 +105,31 @@ local EmptyRunEndTick = 1000
 -- Tick from which the purchase is attempted. Must be >= TestHarness.ProductionWarmupTicks.
 local BuyTick = 5
 
+-- ==== THE ARM: WHICH PAYLOAD THE SIX RVs CARRY ====
+-- `salvo`    the shipped NukeSarmatRV -- thermal, ten fire rings, EMP, five suppression rings,
+--            and a fireball light that re-tints the terrain every 5 ticks.
+-- `exchange` NukeSarmatRVExchange, the variant that detonates during the final exchange: the
+--            seventeen aftermath warheads gone and the light's TerrainRefreshInterval at 16.
+--
+-- IT IS A LAUNCH ARGUMENT, NOT A SECOND SCENARIO, AND NOT A RULES OVERRIDE:
+--     AUTOTEST_EXTRA_ARGS="... Test.ForceEscalationVariant=true"
+-- so BOTH arms are the same map, the same 665 actors, the same aim points, the same order tick
+-- and the same impact ticks. Only the weapon differs, which is the only way the two per-tick
+-- distributions can be subtracted from one another.
+--
+-- WHY NOT DRIVE A REAL EXCHANGE. Production picks the variant from
+-- DoomsdayStrike.IsExchangeLaunch, and a running exchange reserves a CASCADE SLOT for every
+-- warhead -- which moves the impact ticks onto a shared sequence and destroys the one property
+-- the two arms have to share. Test.ForceEscalationVariant forces the ACTOR CHOICE alone
+-- (MissileStrikePower.cs, at the missileActor local) and leaves the cascade untouched. The
+-- consequence, stated so nobody reads more into a green run than is there: THIS RIG DOES NOT
+-- EXERCISE THE CASCADE WIRING. That is ExchangeVariantTest's job.
+--
+-- The arm is printed into every marker line because the two arms are otherwise INDISTINGUISHABLE
+-- in the logs -- same ticks, same counts, same everything but the milliseconds. A before/after
+-- pair that silently compared exchange against exchange would report a fix of exactly zero.
+local Arm = Test.GetEscalationArm()
+
 local tick = 0
 local Firer
 local fired = false
@@ -163,7 +192,7 @@ local function step()
 			if status == "issued" then
 				fired = true
 				end_tick = tick + DetonationWindowTicks
-				say("order tick=" .. tick .. " arm=salvo warheads=6 firer=" .. FirerName
+				say("order tick=" .. tick .. " arm=" .. Arm .. " warheads=6 firer=" .. FirerName
 					.. " groundzero=" .. GroundZero.X .. "," .. GroundZero.Y)
 				say("expect first_impact tick=" .. (tick + 186)
 					.. " last_impact tick=" .. (tick + 246))
@@ -196,8 +225,8 @@ WorldLoaded = function()
 	-- --hidden nothing is drawn and this costs nothing.
 	Camera.Zoom = Camera.MinZoom
 
-	UserInterface.SetMissionText("NUKE PERF RIG -- ONE FULL SIX-RV SARMAT SALVO")
-	say("loaded arm=salvo firer=" .. FirerName .. " firetick=" .. FireTick
+	UserInterface.SetMissionText("NUKE PERF RIG -- ONE FULL SIX-RV SARMAT SALVO [" .. Arm .. "]")
+	say("loaded arm=" .. Arm .. " firer=" .. FirerName .. " firetick=" .. FireTick
 		.. " deadline=" .. FireDeadline)
 
 	Trigger.AfterDelay(1, step)

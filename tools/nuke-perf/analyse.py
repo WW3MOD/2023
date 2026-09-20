@@ -112,6 +112,7 @@ class Run:
     markers: list[str] = field(default_factory=list)
     saw_marker: bool = False
     fired: bool = False
+    arm: str = "?"
     order_tick: int | None = None
     first_impact: int | None = None
     last_impact: int | None = None
@@ -130,11 +131,17 @@ def load_lua_markers(run: Run) -> None:
         rest = m.group("rest").strip()
         run.markers.append(rest)
         run.saw_marker = True
-        if rest.startswith("order "):
+        if rest.startswith("loaded "):
+            for tok in rest.split():
+                if tok.startswith("arm="):
+                    run.arm = tok[4:]
+        elif rest.startswith("order "):
             run.fired = True
             for tok in rest.split():
                 if tok.startswith("tick="):
                     run.order_tick = int(tok[5:])
+                elif tok.startswith("arm="):
+                    run.arm = tok[4:]
         elif rest.startswith("expect first_impact"):
             ticks = [int(t[5:]) for t in rest.split() if t.startswith("tick=")]
             if len(ticks) == 2:
@@ -248,6 +255,13 @@ def report(run: Run, top: int) -> None:
     if run.threshold_note:
         print(f"   note: {run.threshold_note}")
 
+    # THE ARM, ON ITS OWN LINE AND NOT ONLY INSIDE THE MARKER DUMP. The two arms of this rig
+    # share their schedule by design, so nothing else in this report distinguishes an `exchange`
+    # run from a `salvo` one -- same ticks, same warhead count, same window. A compare that
+    # silently put two runs of the SAME arm side by side would report a delta of zero and read
+    # as "the variant bought nothing", which is the one wrong answer this rig can give quietly.
+    print(f"   arm: {run.arm}")
+
     base, det = windows_for(run)
     print(f"   baseline ticks {base[0]}-{base[1]}    detonation ticks {det[0]}-{det[1]}")
     print()
@@ -300,11 +314,23 @@ def report(run: Run, top: int) -> None:
 
 def compare(before: Run, after: Run, top: int) -> None:
     print("== compare")
-    print(f"   before: {before.label}")
-    print(f"   after:  {after.label}")
+    print(f"   before: {before.label}   arm={before.arm}")
+    print(f"   after:  {after.label}   arm={after.arm}")
     for run, tag in ((before, "before"), (after, "after")):
         if run.saw_marker and not run.fired:
             print(f"   !! {tag} DID NOT FIRE -- the comparison is meaningless.")
+
+    # SAID OUT LOUD BECAUSE THE TWO MISREADINGS ARE OPPOSITE AND BOTH SILENT. Comparing two runs
+    # of the SAME arm across a code change is the ordinary before/after and is correct. Comparing
+    # `salvo` against `exchange` is the PAYLOAD A/B and is also correct. What is never a result is
+    # a pair where one side's arm is unknown, or where an arm difference is read as a code
+    # difference -- the arms share a tick schedule, so nothing else in this report would show it.
+    if before.arm != after.arm:
+        print(f"   note: ARMS DIFFER ({before.arm} -> {after.arm}). This measures the PAYLOAD, "
+              "not a code change.")
+    if "?" in (before.arm, after.arm):
+        print("   !! at least one side has no arm marker -- its lua.log is missing or predates "
+              "the arm being recorded. Do not read the delta as either kind of comparison.")
     print()
     _, det = windows_for(after)
 
