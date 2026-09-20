@@ -565,6 +565,29 @@ namespace OpenRA.Mods.Common.Traits
 			return cachedSandboxStandoffPercent;
 		}
 
+		/// <summary>
+		/// <para>Which missile body a launch flies: the ordinary <see cref="MissileStrikePowerInfo.MissileActor"/>,
+		/// or the <see cref="MissileStrikePowerInfo.EscalationMissileActor"/> variant.</para>
+		///
+		/// <para>PURE, AND SEPARATED FROM THE QUESTION IT ANSWERS SO BOTH CAN BE PINNED. The mapping
+		/// is here; whether this launch is on the cascade is
+		/// <see cref="DoomsdayStrike.IsExchangeLaunch"/>'s, and it takes a World. A fixture can reach
+		/// this one, and what it pins is the part that would be silently wrong: an unset variant must
+		/// fall back to the ordinary body EVEN ON A CASCADE LAUNCH, because every power in the mod
+		/// except the two national game-enders leaves the field null and none of them may change
+		/// behaviour because an exchange happens to be running.</para>
+		///
+		/// <para>IT TAKES NO MODE, NO PLAYER AND NO YIELD, and that is the design rather than an
+		/// omission. See <see cref="MissileStrikePowerInfo.EscalationMissileActor"/> for why the game
+		/// mode cannot stand in for the cascade.</para>
+		/// </summary>
+		public static string MissileActorFor(MissileStrikePowerInfo info, bool exchangeLaunch)
+		{
+			return exchangeLaunch && info.EscalationMissileActor != null
+				? info.EscalationMissileActor
+				: info.MissileActor;
+		}
+
 		public Actor Activate(Actor self, WPos targetPosition)
 		{
 			return Activate(self, targetPosition, 0);
@@ -655,10 +678,14 @@ namespace OpenRA.Mods.Common.Traits
 			// would create different actors on the same tick and desync. Every TestMode consumer has
 			// that property (Test.RandomSeed and Test.SpeedMultiplier are the same shape) and the
 			// autotest harness runs one client; do not reach for this from anything a human plays.
-			var missileActor = info.EscalationMissileActor != null
-				&& (TestMode.ForceEscalationVariant || DoomsdayStrike.IsExchangeLaunch(world, info))
-				? info.EscalationMissileActor
-				: info.MissileActor;
+			// THE SHORT-CIRCUIT IS PART OF THE BYTE-IDENTITY CLAIM, not an optimisation: with the
+			// field unset, DoomsdayStrike is never looked up at all, so no power in the mod except
+			// the two national game-enders does one extra trait lookup per warhead than it did
+			// before this existed.
+			var exchangeLaunch = info.EscalationMissileActor != null
+				&& (TestMode.ForceEscalationVariant || DoomsdayStrike.IsExchangeLaunch(world, info));
+
+			var missileActor = MissileActorFor(info, exchangeLaunch);
 
 			var missileRules = world.Map.Rules.Actors[missileActor].TraitInfo<BallisticMissileInfo>();
 
