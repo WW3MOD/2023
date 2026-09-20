@@ -58,6 +58,51 @@ The mechanism, for anyone who rediscovers it and assumes it is a bug: `VehicleCr
 
 **Binding consequence for tests:** an evacuation phase must assert **who got out**, never **who is still alive**. Post-ejection survival is not a property the game guarantees, so a survivor-count assertion is a coin flip that no threshold can stabilise (the 12 → 8 → 6 walk of 2026-05-09 was three attempts at exactly that). `test-evac-suite` is built this way — it counts a **peak** crew delta (`out = peak - before`), so later burn deaths cannot move the number.
 
+## The Escalation endgame — the rules a designer relies on
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; verified against code and shipped YAML at `main @ 554895ba`.)* Only reachable in the **Escalation** game mode. The default mode is still `Skirmish`, which is a strict no-op — no level, no conditions, no clock (`DefconEscalationInfo.ModeDefault`, guarded by `DefconEscalationTest.SkirmishIsAStrictNoOp`). The machinery is in [`architecture.md` §"The Escalation endgame"](architecture.md); what follows is what the rules *are*.
+
+**Both nations fire the SAME NUMBER of warheads, and the map decides it.** `N = round(playableCells / CellsPerImpact)`, clamped to `[MinPackage, MaxPackage]` — `SizeFor` is `(playableCells + cellsPerImpact / 2) / cellsPerImpact` then clamped (`engine/OpenRA.Mods.Common/Traits/World/FinalExchangePackage.cs:46-60`), so it **rounds half up, it does not truncate.** Shipped values are `CellsPerImpact: 2400`, `MinPackage: 2`, `MaxPackage: 6` (`mods/ww3mod/rules/world.yaml:769-775`), giving on the ten shipped maps:
+
+| N | maps |
+|---|---|
+| 2 | arena-tank-duel, shellmap |
+| 3 | nuclear-winter, river-zeta, siberian-pass |
+| 4 | polar-disorder, woodland-warfare |
+| 6 | seventh-woods, twin-rivers, x-lake |
+
+The floor is **2, not 1**: arena-tank-duel's 2048 playable cells round to 1, and a one-warhead "exchange" on a duelling map is a coin toss rather than an ending. The ceiling is **6** because that is what the Sarmat's re-entry bus carries. `FinalExchangePackageTest` pins the whole table, so a retune shows up as a table diff rather than as a moved number. **This replaced a static asymmetry**: `AimPoints` was 6 on the Sarmat and 1 on the B83, so Russia fired six warheads against America's one on every map from arena-tank-duel to x-lake.
+
+**The window is 250 ticks = 15.0 s**, not 10 s (`world.yaml:840`; the mod's timestep is 60 ms — see [`conventions.md` §"`Timestep` is MILLISECONDS PER TICK"](conventions.md)). It was raised to 500 on 2026-09-16 on the argument that Russia's ender asked for six clicks and America's for one; that asymmetry is gone with the map-derived package, so the raise was **reversed back to 250 on 2026-09-20** rather than overruled. Setting it to 0 fires every package on the trigger tick with no interaction at all.
+
+**Each nation has exactly one game-ender, and they are a matched pair.** America: **UGM-133A Trident II D5 / W88** (`MissileStrikePower@TridentW88`, `mods/ww3mod/rules/player.yaml:242`), which replaced the B83 at `165642f5`/`aebdbc95` — *the B83 is no longer America's ender and no longer appears in Escalation.* Russia: **RS-28 Sarmat**. **Ender-ness is decided by YIELD, not by name, condition string or order name**: `NuclearGameEnders.Is` reads `NuclearReleaseLadder.RungForYield(tons) == NuclearRung.GameEnder` (`NuclearGameEnders.cs:77-86`), so a new 2 Mt power is picked up with no edit to either caller. The Tsar Bomba is excluded by the ladder's own `SandboxOnlyAboveTons` constant rather than by name.
+
+**Inside the window a game-ender's own `MissileDelay` does not apply.** It is replaced by `FinalExchangeMissileDelay: 100` (`world.yaml:793`). The 500-tick delay on the powers exists so a target has thirty seconds of beacon to react to; inside the exchange there is nothing to react *with* — production is halted, the score frozen, the map revealed — so warning time is a property of a weapon **in play**, and this is exactly where there is no play left. Lowering `MissileDelay` on the powers themselves would change every ordinary match instead.
+
+### A game-ender IS reachable in Skirmish, through one lobby dropdown
+
+**"Game-enders are never purchasable in Skirmish" is true only while the unlock CLOCK is running**, and the lobby ships a dropdown that stops it. The Skirmish ceiling everyone quotes — `HighestPurchasableRung = HundredKiloton`, one rung below `GameEnder` and deliberately not host-overridable — is applied **inside the `Active` branch only**:
+
+```
+Active       = IntervalTicks > 0 && !sandbox && mode != DefconGameMode.Escalation
+ReleasedRung = Active ? NuclearUnlockSchedule.RungAt(...) : NuclearReleaseLadder.Highest
+```
+
+(`NuclearUnlockClock.cs:320`, `:328-330`; `IsBandPurchasable` likewise returns true for every band when `!Active`, `:347-349`.) An interval of **0 is not a degenerate value** — it is the first entry of `IntervalOptions = { 0, 5, 7, 10, 15, 20 }` (`:123`), labelled as the host's own opt-out, and `world.yaml:943` registers `NuclearUnlockClock:` bare, with no `IntervalLocked` and no override, so the dropdown ships visible and unlocked. **Skirmish + "No wait" grants `nuclear-release-gameender` from the first tick**, and nothing catches the launch on the way out: `NuclearExchange` is a strict no-op outside Escalation, so the warhead simply detonates in an ordinary match with no exchange opened.
+
+> **The general rule: a ceiling enforced inside the ACTIVE branch of a feature is not a ceiling — it is a property of the feature being switched on.** Three separate correct-looking reads of the design ruling (`NuclearUnlockSchedule.cs`, `NuclearUnlockClock.IsBandPurchasable`, and the file header) all describe the guarded path, and none of them is where the value comes from when the clock is suspended. **Practical consequence: do not assume a game-ender detonation implies a running final exchange** — any YAML-only swap of a game-ender's `Explodes: Weapon:` for an exchange-only variant is unsafe for exactly this reason.
+
+### Pre-captured structures: the border decides ownership, and today NOTHING stays neutral
+
+`PreCapturedStructures` no longer decides ownership by a distance ratio. On a map that has a DEFCON border it asks `DefconWall` where that border is and assigns each neutral capturable structure to the **nearest contender on its own side of the border**, leaving neutral only what the band itself touches (`PreCapturedStructures.cs:300-371`, `SideOfFootprint` at `:400-409`). The old `MiddleBandPercent: 10` ratio (`:214`) survives **only** as the fallback for a map where no border resolves.
+
+**The shipped consequence, measured rather than reasoned about: all 90 eligible structures across the nine bordered maps get an owner, and zero stay neutral.** The ratio rule left 19 of them neutral, including every headline case the design note was calibrated around — woodland-warfare's `bio` "Nuclear Reactor", x-lake's central `bio`, both river-zeta `LOGISTICSCENTER`s. **Neither layer is buggy.** The borders were authored to a stated acceptance criterion of "no capturable inside the band" (`WORKSPACE/audit/positioning-borders-260919.md`), so the two pieces of work were each correct in isolation and compose into "everything is claimed at world load". **If a structure staying neutral matters, the fix is in that MAP's band, not in the trait** — widen the band over the structure and it goes neutral again, by the rule rather than by a percentage.
+
+Two eligibility facts that are easy to get backwards, both swept for rather than assumed:
+
+- **Explosive barrels are capturable structures.** `BARL` and `BRL3` inherit `^TechBuilding` (`civilian.yaml:772, 793`), so they carry `CaptureManager` + `Capturable` like an oil derrick, and fifteen sit Neutral across `siberian-pass-ww3` and `seventh-woods-ww3`. The trait excludes them because they carry `-Selectable:` — *if a player cannot select it, it is not a structure they can own* — which is also the cheapest principled filter for anything else enumerating "capturable structures".
+- **`MSLO` on `nuclear-winter-ww3` is owned by `Creeps`, not `Neutral`** (`mods/ww3mod/maps/nuclear-winter-ww3/map.yaml:1146-1148`), and it is the **only** non-Neutral capturable structure on any of the ten maps. The trait's owner filter is `OwnsWorld`, so it is out of scope — but a `NonCombatant` owner test would hand a Missile Silo to whichever player is nearest. The choice between those two filters is therefore **not** academic, whatever a comment may say.
+
 ## Related reference
 
 - [`supply-route.md`](supply-route.md) — canonical Supply Route mental model
