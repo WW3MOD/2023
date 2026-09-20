@@ -157,6 +157,32 @@ namespace OpenRA.Mods.Common.Lighting
 			"cell, since the last terrain refresh. Suppresses uploads across a plateau or a flat tail.")]
 		public readonly float TerrainRefreshThreshold = 0.04f;
 
+		[Desc("Stretched refresh interval for the DECAY TAIL, where the envelope is barely moving.",
+			"Zero (the default) disables the stretch entirely and leaves " + nameof(TerrainRefreshInterval),
+			"governing every refresh, which is the behaviour every light had before this field existed.",
+			"",
+			"WHY A SECOND INTERVAL RATHER THAN A BIGGER FIRST ONE. The visible cost of refreshing less",
+			"often is that the ground tint STEPS, and how big that step looks depends entirely on how",
+			"fast the envelope is moving: during the opening flash a skipped refresh is a visible jump,",
+			"and 300 ms into an 18-second decay it is a change smaller than one 8-bit level. A single",
+			"interval cannot express that, so raising it far enough to matter on the tail visibly",
+			"coarsens the flash. This keeps " + nameof(TerrainRefreshInterval) + " while the envelope is",
+			"moving fast and only stretches once it is not -- and the tail is where almost all the ticks",
+			"are, so nearly all of the saving is available without touching the part anyone can see.",
+			"",
+			"The switch is RATE-BASED and the rate limit is DERIVED, not tuned: the stretch is taken",
+			"only while `rate * " + nameof(TerrainRefreshTailInterval) + " <= " + nameof(TerrainRefreshThreshold) + "`,",
+			"i.e. only while waiting the longer interval leaves the tint staler by no more than the",
+			"threshold. That matters because the existing gate ALREADY tolerates exactly that much",
+			"staleness for an unbounded number of ticks -- it is what happens on a plateau, where the",
+			"intensity never moves by the threshold and no refresh is ever issued. So the stretch",
+			"admits nothing the shipped configuration did not already accept, and a light whose",
+			"envelope is still genuinely moving keeps the base cadence untouched.",
+			"",
+			"Must be greater than " + nameof(TerrainRefreshInterval) + " when set, or it would be a",
+			"shortening rather than a stretch.")]
+		public readonly int TerrainRefreshTailInterval = 0;
+
 		[Desc("Also draw this light as an additive glow AFTER the fog layers, so it keeps its full",
 			"brightness over explored-but-unobserved ground instead of being attenuated by the fog",
 			"drawn over it. Off by default: a light this is set on is visible wherever the player has",
@@ -241,6 +267,12 @@ namespace OpenRA.Mods.Common.Lighting
 
 			if (TerrainRefreshInterval < 1)
 				throw new YamlException($"`{key}`: TerrainRefreshInterval must be at least 1.");
+
+			if (TerrainRefreshTailInterval != 0 && TerrainRefreshTailInterval <= TerrainRefreshInterval)
+				throw new YamlException(
+					$"`{key}`: TerrainRefreshTailInterval must be 0 (disabled) or greater than " +
+					"TerrainRefreshInterval; a smaller value would refresh the flat tail MORE often " +
+					"than the moving part, which is the opposite of what it is for.");
 
 			tints = new float3[Tints.Length];
 			for (var i = 0; i < Tints.Length; i++)

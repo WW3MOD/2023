@@ -229,7 +229,46 @@ namespace OpenRA.Mods.Common.Traits
 					continue;
 
 				e.TicksSinceRefresh++;
-				if (e.TicksSinceRefresh < e.Definition.TerrainRefreshInterval)
+
+				// THE EFFECTIVE INTERVAL, base while the envelope is moving and stretched once it is
+				// not. TerrainRefreshTailInterval is 0 on every light that has not opted in, which
+				// makes `interval` the base value and this block exactly the single comparison it
+				// replaced -- no shipped light changes behaviour by this edit alone.
+				//
+				// "Fast" is measured in the SAME UNITS the threshold below gates on: the intensity
+				// accumulated since the last refresh, expressed per base interval. A light still
+				// climbing or falling steeply clears it and refreshes on the base cadence; one on a
+				// flat tail does not and waits for the stretched one. That is why the two numbers
+				// cannot drift apart -- there is only one threshold, read twice.
+				var interval = e.Definition.TerrainRefreshInterval;
+				var stretched = e.Definition.TerrainRefreshTailInterval;
+				if (stretched > interval)
+				{
+					// THE BOUND THAT MAKES THIS INVISIBLE, and it is worth stating as an inequality
+					// rather than as a taste setting. The gate below ALREADY tolerates the terrain
+					// tint being stale by up to TerrainRefreshThreshold for an unbounded number of
+					// ticks -- that is exactly what it does on a plateau, where |dI| never reaches
+					// the threshold and no refresh is ever issued. So stretching the interval is
+					// invisible as long as the EXTRA staleness it admits stays inside that same
+					// budget:
+					//
+					//     rate * stretched <= threshold
+					//
+					// which, in the per-base-interval units used below, is a rate limit of
+					// threshold * interval / stretched. A light slower than that reaches the
+					// stretched interval having moved less than the threshold, i.e. less than the
+					// shipped configuration already accepts leaving on screen indefinitely.
+					// Anything faster keeps the base cadence untouched -- so the opening flash,
+					// where every tick of the envelope is visible, is not affected at all.
+					var rateLimit = e.Definition.TerrainRefreshThreshold * interval / stretched;
+					var movedPerBaseInterval =
+						Math.Abs(sample.Intensity - e.RefreshedIntensity) * interval / e.TicksSinceRefresh;
+
+					if (movedPerBaseInterval < rateLimit)
+						interval = stretched;
+				}
+
+				if (e.TicksSinceRefresh < interval)
 					continue;
 
 				var movedEnough =
