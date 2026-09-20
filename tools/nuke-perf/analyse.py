@@ -352,16 +352,32 @@ def compare(before: Run, after: Run, top: int) -> None:
 
     keys = set(before.attributions) | set(after.attributions)
     if keys:
-        print("   long-tick attributions, total ms over the whole run")
-        print("   kind     name                                 before      after      delta")
+        # HITS AND MAX, NOT TOTAL ALONE, AND THE SALVO-VS-EXCHANGE A/B IS WHY. What the exchange
+        # variant changes about the fireball light is its CADENCE -- TerrainRefreshInterval 5 -> 16
+        # -- so the reading that confirms it is `hits` falling by roughly the interval ratio while
+        # `max` stays put: one refresh still costs what one refresh costs, and the worst single one
+        # is still a full-map sweep. A total-only table cannot tell that apart from a refresh that
+        # got cheaper, which is a different (and here, wrong) claim about what the variant did.
+        #
+        # This is also the only view available under Profile A. Without Launch.Benchmark there are
+        # no CSVs and the per-tick series block above prints nothing at all -- and Launch.Benchmark
+        # cannot simply be added, because it sets PerfHistory.Sampling (Game.cs:879), which forces
+        # the terrain relight down its serial path and measures a build nobody ships.
+        print("   long-tick attributions over the whole run")
+        print("   kind     name                                 hits     total ms          max ms")
+        print("                                          before after   before after   before after")
         rows = []
         for k in keys:
             b = before.attributions.get(k)
             a = after.attributions.get(k)
-            rows.append((k, b.total_ms if b else 0.0, a.total_ms if a else 0.0))
-        rows.sort(key=lambda r: -max(r[1], r[2]))
-        for (kind, name), bt, at in rows[:top]:
-            print(f"   {kind:<8} {name:<34} {bt:10.0f} {at:10.0f} {at - bt:+10.0f}")
+            rows.append((
+                k,
+                (b.hits if b else 0, b.total_ms if b else 0.0, b.max_ms if b else 0.0),
+                (a.hits if a else 0, a.total_ms if a else 0.0, a.max_ms if a else 0.0)))
+        rows.sort(key=lambda r: -max(r[1][1], r[2][1]))
+        for (kind, name), b, a in rows[:top]:
+            print(f"   {kind:<8} {name:<30} {b[0]:6d}{a[0]:6d}  "
+                  f"{b[1]:7.0f}{a[1]:6.0f}  {b[2]:7.0f}{a[2]:6.0f}")
 
 
 def main(argv: list[str] | None = None) -> int:
