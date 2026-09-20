@@ -166,6 +166,30 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>THE ACCELERATING BRANCH NEEDS NOTHING: it integrates tick by tick until the
 		/// distance is covered, which already counts the partial tick.</para>
 		/// </summary>
+		/// <summary>
+		/// <para>The tick the AUTO-FIRE path loses relative to a player's placed order, subtracted
+		/// from its pipeline so both land on their slot.</para>
+		///
+		/// <para>MEASURED, AND DELIBERATELY NOT EXPLAINED. Run 260920_171756 logged every physical
+		/// term of all eight warheads and they are identical -- hDist 92408 against 92407 (the same
+		/// remainder class), speed 1600, estimate 57, preLaunch 0, flight 57, ceiling 1, pipeline 4.
+		/// The ONLY field that differs is the tick the launch was issued on: 135 for the placed
+		/// package, resolved through SupportPowerManager.ResolveOrder, against 350 for the auto-fire,
+		/// called straight from DoomsdayStrike's own ITick at the window's close. The two relations
+		/// that come out of it are exact and differ by one:</para>
+		///
+		/// <para>    placed     observed = issue + delay + flight + 4<br/>
+		///     auto-fire  observed = issue + delay + flight + 3</para>
+		///
+		/// <para>SO THE ORDER-RESOLUTION PATH COSTS ONE MORE TICK THAN A DIRECT CALL FROM A WORLD
+		/// TICK, and this is where that is paid. I could not identify WHICH queue it is from
+		/// reading, and three previous attempts to reason a number out of the source were each
+		/// wrong -- so this is the measurement, labelled as one. The `FINAL EXCHANGE launch` log
+		/// line is kept precisely so the next reader can find the mechanism with one run instead of
+		/// four; if they do, this constant should be replaced by it and not merely re-derived.</para>
+		/// </summary>
+		public const int AutoFireIssueLagTicks = 1;
+
 		public static int ArcCeilingTicks(int hDist, int speed, int acceleration)
 		{
 			if (acceleration > 0 || speed <= 0 || hDist <= 0)

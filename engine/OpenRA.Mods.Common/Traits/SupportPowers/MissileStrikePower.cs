@@ -700,8 +700,13 @@ namespace OpenRA.Mods.Common.Traits
 				// hDist here is the standoff, which is the map diagonal plus ApproachMargin, so
 				// whether it divides exactly by this missile's speed is a property of this map and
 				// this aim point and of nothing more general.
+				// MINUS THE AUTO-FIRE LAG. Measured, not derived: run 260920_171756 showed the
+				// placed package and the auto-fired one agreeing on every physical term and
+				// differing only in the tick they were issued on, with the auto-fire landing one
+				// tick early. See FinalExchangeCascade.AutoFireIssueLagTicks.
 				var pipeline = FinalExchangeCascade.DetonationPipelineTicks
-					+ FinalExchangeCascade.ArcCeilingTicks(hDist, missileRules.Speed, missileRules.Acceleration);
+					+ FinalExchangeCascade.ArcCeilingTicks(hDist, missileRules.Speed, missileRules.Acceleration)
+					- DoomsdayStrike.AutoFireIssueLag(world);
 
 				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, slot, flightTicks, pipeline);
 
