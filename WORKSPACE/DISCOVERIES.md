@@ -3,6 +3,54 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - "Game-enders are never purchasable in Skirmish" is true only while the unlock CLOCK is running, and the lobby ships a dropdown that stops it (`wt/nuke-perf-fixes`, base `main @ 20ae9548`)
+
+**The question it came from.** Whether `SarmatMissile`/`B83Missile` could have their
+`Explodes: Weapon:` pointed at a cheaper final-exchange variant without a player ever seeing the
+difference. That reduces to: is there any match in which a game-ender detonates and the final
+exchange is NOT running? Three rulings say no -- in Escalation firing one OPENS the exchange, in
+Skirmish they are never purchasable (decision 17.3), and Sandbox is free play. Two of the three
+hold. The middle one has a hole.
+
+**The hole.** `NuclearUnlockClock.ReleasedRung` (`NuclearUnlockClock.cs:328-330`) is
+
+    Active ? NuclearUnlockSchedule.RungAt(world.WorldTick, IntervalTicks, CapRung)
+           : NuclearReleaseLadder.Highest
+
+The Skirmish ceiling everyone quotes -- `HighestPurchasableRung = HundredKiloton`,
+`NuclearUnlockSchedule.cs:54`, one rung below `GameEnder` and deliberately not host-overridable --
+is applied **inside the `Active` branch only**. And
+
+    Active = IntervalTicks > 0 && !sandbox && mode != DefconGameMode.Escalation     (:320)
+
+so `IntervalTicks == 0` suspends the clock and the ceiling with it, handing back the TOP of the
+ladder. `IsBandPurchasable` likewise returns true for every band when `!Active` (`:347-349`). An
+interval of 0 is not a degenerate value: it is the first entry of
+`IntervalOptions = { 0, 5, 7, 10, 15, 20 }` (`:123`), labelled the host's own opt-out, and
+`world.yaml:893` registers `NuclearUnlockClock:` bare -- no `IntervalLocked`, no override -- so the
+dropdown ships visible and unlocked. **Skirmish + "No wait" grants `nuclear-release-gameender` from
+the first tick.**
+
+**And nothing catches the launch on the way out.** `NuclearExchange` is a strict no-op outside
+Escalation by its own `[Desc]` (`NuclearExchange.cs:123-124`); `ReportNuclearRelease` returns at
+`:1170` on `Mode != DefconGameMode.Escalation` before `outcome.FinalExchange` is ever computed, and
+`ReportNuclearImpact` returns at `:922` on the same test. So the launch opens no exchange and the
+warhead detonates in an ordinary match.
+
+**The general rule: a ceiling enforced inside the active branch of a feature is not a ceiling, it
+is a property of the feature being switched on.** The comment at `NuclearUnlockSchedule.cs:34-40`
+is precise about what it guarantees -- "no lobby value, no interval and no elapsed time reaches the
+200 kt+ band" -- and every word of that is true *of the schedule*. The rung does not come from the
+schedule when the clock is suspended; it comes from the `: NuclearReleaseLadder.Highest` on the
+other side of a ternary three files away. Three separate correct-looking reads of decision 17.3
+(`NuclearUnlockSchedule.cs`, `NuclearUnlockClock.IsBandPurchasable`, and the file header) all
+describe the guarded path, and none of them is where the value actually comes from in this case.
+
+**Consequence carried.** The YAML-only `Explodes:` swap was NOT taken. A player who sets Nuclear
+Unlock to "No wait" -- one dropdown, default Skirmish, no sandbox -- buys and fires a Sarmat that
+would have silently lost its thermal radiation, all ten fire warheads, its EMP and all five
+suppression warheads.
+
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 
 **Symptom.** `tools/cameo/README.md:265` said **116 buildable actors have a cameo** and

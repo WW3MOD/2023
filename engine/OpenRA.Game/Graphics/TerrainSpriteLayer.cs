@@ -38,6 +38,22 @@ namespace OpenRA.Graphics
 		readonly WorldRenderer worldRenderer;
 		readonly Map map;
 
+		// PERF: scratch for UpdateTint's four corner samples, hoisted out of the method so the
+		// sweep does not allocate. It used to be `var weights = new[] { ... }` INSIDE UpdateTint,
+		// i.e. one float3[4] on the heap per cell PER LAYER per refresh -- and a nuclear fireball
+		// is the case that makes that matter: its light radius exceeds every shipped map, so every
+		// refresh notifies every in-bounds cell, and WW3MOD's world.yaml carries ~20 of these
+		// layers (TerrainRenderer, ShroudRenderer x2, seven SmudgeLayers at two each,
+		// ResourceRenderer x2, BuildableTerrainOverlay). Order 16k cells x 20 layers x ~60
+		// refreshes per warhead is millions of short-lived arrays whose only job is to be indexed
+		// four times and dropped, and the gen0 collections they force are charged to whatever
+		// happens to be ticking.
+		//
+		// SAFE BECAUSE IT NEVER OUTLIVES THE CALL: the array is filled and fully consumed inside
+		// UpdateTint before anything else can reach it, it is per-instance rather than static, and
+		// TerrainLighting.CellChanged is raised from the simulation tick on the main thread.
+		readonly float3[] tintWeights = new float3[4];
+
 		readonly PaletteReference[] palettes;
 
 		public TerrainSpriteLayer(World world, WorldRenderer wr, Sprite emptySprite, BlendMode blendMode, bool restrictToBounds)
@@ -126,20 +142,20 @@ namespace OpenRA.Graphics
 			var tl = worldRenderer.TerrainLighting;
 			var pos = map.CenterOfCell(uv.ToCPos(map));
 			var step = map.Grid.TileScale / 2;
-			var weights = new[]
-			{
-				tl.TintAt(pos + new WVec(-step, -step, 0)),
-				tl.TintAt(pos + new WVec(step, -step, 0)),
-				tl.TintAt(pos + new WVec(step, step, 0)),
-				tl.TintAt(pos + new WVec(-step, step, 0))
-			};
+
+			// Same four samples, same order, same values -- written into a reused buffer instead of
+			// a fresh one. See the tintWeights declaration for why.
+			tintWeights[0] = tl.TintAt(pos + new WVec(-step, -step, 0));
+			tintWeights[1] = tl.TintAt(pos + new WVec(step, -step, 0));
+			tintWeights[2] = tl.TintAt(pos + new WVec(step, step, 0));
+			tintWeights[3] = tl.TintAt(pos + new WVec(-step, step, 0));
 
 			// Apply tint directly to the underlying vertices
 			// This saves us from having to re-query the sprite information, which has not changed
 			for (var i = 0; i < 4; i++)
 			{
 				var v = vertices[offset + i];
-				vertices[offset + i] = new Vertex(v.X, v.Y, v.Z, v.S, v.T, v.U, v.V, v.C, v.A * weights[i], v.A);
+				vertices[offset + i] = new Vertex(v.X, v.Y, v.Z, v.S, v.T, v.U, v.V, v.C, v.A * tintWeights[i], v.A);
 			}
 
 			dirtyRows.Add(uv.V);

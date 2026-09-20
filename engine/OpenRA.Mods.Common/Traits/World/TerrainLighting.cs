@@ -80,6 +80,35 @@ namespace OpenRA.Mods.Common.Traits
 		readonly float3 globalTint;
 		int nextLightSourceToken = 1;
 
+		// ==== THE SWEEP MEMO ====
+		// CellChanged is a MULTICAST delegate raised ONCE PER CELL, so every subscriber runs for
+		// cell A before the sweep moves to cell B -- and each subscriber is a TerrainSpriteLayer
+		// whose UpdateTint samples the SAME FOUR corner positions of that cell. WW3MOD's world.yaml
+		// carries ~20 of those layers (TerrainRenderer, ShroudRenderer x2, seven SmudgeLayers at
+		// two layers each, ResourceRenderer x2, BuildableTerrainOverlay), so one notified cell costs
+		// ~80 TintAt calls over four distinct arguments: the first layer computes the four, and the
+		// other nineteen recompute the identical numbers.
+		//
+		// Four slots is therefore exactly the working set, and the hit rate is (layers-1)/layers.
+		// What is avoided per hit is the real work in Tint: a SpatiallyPartitioned query at the
+		// sample point plus a falloff evaluation and a blend per light in range -- and during a
+		// nuclear salvo "per light in range" is up to six overlapping fireballs.
+		//
+		// CORRECTNESS. The memo is live ONLY between the entry and exit of NotifyCells, which is
+		// why it needs no invalidation hook on the six methods that mutate lightSources: none of
+		// them can run inside that window. Within one sweep nothing a Tint result depends on moves
+		// -- CellChanged subscribers write vertices and nothing else -- so a hit returns bit-for-bit
+		// what a recompute would have returned. OUTSIDE the sweep TintAt is untouched, which is what
+		// keeps the per-sprite-per-frame render path (SpriteRenderable.cs:116) exactly as it was.
+		//
+		// SINGLE-THREADED, and it has to be: NotifyCells is reached from the simulation tick and
+		// from AddLightSource/RemoveLightSource, all on the main thread. Rendering hands GL commands
+		// to another thread but does not call TintAt from it.
+		bool sweeping;
+		int sweepSlots;
+		readonly WPos[] sweepKeys = new WPos[4];
+		readonly float3[] sweepValues = new float3[4];
+
 		public event Action<MPos> CellChanged = null;
 
 		public TerrainLighting(World world, TerrainLightingInfo info)
@@ -218,26 +247,45 @@ namespace OpenRA.Mods.Common.Traits
 			var topLeft = map.CellContaining(pos - new WVec(search, search, 0));
 			var bottomRight = map.CellContaining(pos + new WVec(search, search, 0));
 
-			for (var y = topLeft.Y; y <= bottomRight.Y; y++)
+			// The memo is armed for the duration of the sweep and for nothing else. See its
+			// declaration. try/finally rather than a bare assignment because a subscriber is
+			// arbitrary code: one that throws must not leave TintAt memoising forever, which would
+			// freeze the terrain's lighting at whatever four samples were in the buffer.
+			sweeping = true;
+			sweepSlots = 0;
+			try
 			{
-				for (var x = topLeft.X; x <= bottomRight.X; x++)
+				for (var y = topLeft.Y; y <= bottomRight.Y; y++)
 				{
-					var cell = new CPos(x, y);
-					var uv = cell.ToMPos(map);
+					for (var x = topLeft.X; x <= bottomRight.X; x++)
+					{
+						var cell = new CPos(x, y);
+						var uv = cell.ToMPos(map);
 
-					// The vertex buffer only has geometry for cells inside MapSize, and TerrainSpriteLayer.UpdateTint
-					// indexes it without a bounds check of its own.
-					if (!map.Tiles.Contains(uv))
-						continue;
+						// The vertex buffer only has geometry for cells inside MapSize, and TerrainSpriteLayer.UpdateTint
+						// indexes it without a bounds check of its own.
+						if (!map.Tiles.Contains(uv))
+							continue;
 
-					// Ground cells are lit by horizontal distance; the light's altitude is irrelevant to which of
-					// them it reaches, and including Z here would shrink the footprint of an airburst to nothing.
-					var delta = map.CenterOfCell(cell) - pos;
-					if ((long)delta.X * delta.X + (long)delta.Y * delta.Y > searchSq)
-						continue;
+						// Ground cells are lit by horizontal distance; the light's altitude is irrelevant to which of
+						// them it reaches, and including Z here would shrink the footprint of an airburst to nothing.
+						var delta = map.CenterOfCell(cell) - pos;
+						if ((long)delta.X * delta.X + (long)delta.Y * delta.Y > searchSq)
+							continue;
 
-					CellChanged(uv);
+						// Each cell brings its own four sample points, so the previous cell's entries are
+						// dead the moment this one starts. Dropping them costs nothing and keeps the
+						// lookup below a scan of at most four live slots rather than four stale ones.
+						sweepSlots = 0;
+
+						CellChanged(uv);
+					}
 				}
+			}
+			finally
+			{
+				sweeping = false;
+				sweepSlots = 0;
 			}
 		}
 
@@ -271,9 +319,36 @@ namespace OpenRA.Mods.Common.Traits
 		// reading it, and costs ~1 ns otherwise.
 		float3 ITerrainLighting.TintAt(WPos pos)
 		{
-			if (!PerfHistory.Sampling)
-				return Tint(pos);
+			// The sweep memo, checked ahead of the sampling branch on purpose: a hit is the cheapest
+			// thing this method can do and there is nothing worth measuring about it. A MISS is still
+			// sampled exactly as before, so `terrain_lighting` keeps reporting real Tint work -- the
+			// trace gets smaller because the work got smaller, not because it stopped being counted.
+			if (sweeping)
+			{
+				for (var i = 0; i < sweepSlots; i++)
+					if (sweepKeys[i] == pos)
+						return sweepValues[i];
+			}
 
+			var tint = PerfHistory.Sampling ? Sampled(pos) : Tint(pos);
+
+			// Only ever four distinct sample points are live at once (the four corners of the cell
+			// currently being notified), and sweepSlots is reset per cell, so this cannot overflow in
+			// the shape NotifyCells produces. The guard is for any future caller that samples a fifth
+			// point inside a sweep: such a point is simply not memoised, which is correct but slow,
+			// rather than silently evicting one that is.
+			if (sweeping && sweepSlots < sweepKeys.Length)
+			{
+				sweepKeys[sweepSlots] = pos;
+				sweepValues[sweepSlots] = tint;
+				sweepSlots++;
+			}
+
+			return tint;
+		}
+
+		float3 Sampled(WPos pos)
+		{
 			using (new PerfSample("terrain_lighting"))
 				return Tint(pos);
 		}
