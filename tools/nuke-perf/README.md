@@ -108,6 +108,78 @@ python tools/nuke-perf/analyse.py compare --before /tmp/nukeperf/before --after 
 
 The single-warhead arm is the same command with `demo-nuke-perf-single`.
 
+---
+
+## The two payload arms of `demo-nuke-perf`
+
+`demo-nuke-perf` fires the same six RVs either way; the arm decides what each RV *is*.
+
+| arm | payload | what differs |
+|---|---|---|
+| `salvo` (default) | `NukeSarmatRV` | the shipped warhead: thermal, ten fire rings, EMP, five suppression rings, fireball light re-tinting the terrain every **5** ticks |
+| `exchange` | `NukeSarmatRVExchange` | the final-exchange variant: those seventeen warheads gone, `TerrainRefreshInterval` **16**. Flash, shake, fireball, light radii/curve/duration, Vaporize radius, blast wave, scars and scorched trees all unchanged |
+
+### Run this pair WITHOUT `Launch.Benchmark`
+
+**This is the one measurement in this rig that must drop the benchmark CSVs**, and it is not a
+preference. `Launch.Benchmark` sets `PerfHistory.Sampling` (`Game.cs:879`), and since lever 6
+that flag forces the terrain relight down its **serial** path — so a benchmarked run measures a
+build nobody ships and understates what the parallel sweep already bought. The general warning
+at the top of this file ("`Launch.Benchmark` not passed → the run told you nothing") is about
+the per-tick CSVs; for THIS pair the instrument is `perf.log`'s long-tick attributions, which
+`Debug.EnableSimulationPerfLogging` alone produces.
+
+```sh
+# arm=salvo
+AUTOTEST_EXTRA_ARGS="Debug.EnableSimulationPerfLogging=true Debug.LongTickThresholdMs=1"   ./tools/autotest/run-test.sh --hidden --timeout 900 demo-nuke-perf
+
+# arm=exchange -- identical but for the last argument
+AUTOTEST_EXTRA_ARGS="Debug.EnableSimulationPerfLogging=true Debug.LongTickThresholdMs=1 Test.ForceEscalationVariant=true"   ./tools/autotest/run-test.sh --hidden --timeout 900 demo-nuke-perf
+```
+
+`analyse.py` reads the arm out of `lua.log`, which is written either way, so `summary` still
+prints `arm:` and `compare` still refuses to let a mismatched pair pass unremarked. Expect the
+`!! no benchmark CSVs found` line: under this profile it is correct, not a failed run. The
+`long-tick attributions` table is the whole reading, and it now carries **hits, total and max**
+side by side for exactly this comparison.
+
+**One scenario, one schedule, one binary.** The arm is a launch argument, not a second
+scenario and not a rules override, so both arms run the same map, the same 665 actors, the
+same aim points, the same order tick and — this is the part that makes the pair subtractable
+— the same impact ticks. `analyse.py` prints `arm:` in every report and flags a `compare`
+whose two sides disagree, because the arms are otherwise indistinguishable in the logs and a
+pair that accidentally compared `exchange` against `exchange` would report a delta of zero.
+
+**What this arm does NOT prove.** In a real match the variant is selected by
+`DoomsdayStrike.IsExchangeLaunch` — is this launch on the final-exchange cascade. The rig
+cannot use that path: a running exchange reserves a cascade slot for every warhead, which
+moves the impact ticks onto a shared sequence and destroys the schedule the two arms must
+share. `Test.ForceEscalationVariant` therefore forces the **actor choice alone**
+(`MissileStrikePower.cs`, the `missileActor` local) and leaves the cascade untouched. The
+cascade wiring is pinned by `ExchangeVariantTest`, not by this rig.
+
+### What to expect from the pair
+
+The dropped warheads are **under 1% of the salvo's detonation cost** — they are dropped
+because nothing survives a cascade to be burned or suppressed, not for speed. The number
+that moves is the relight **cadence**: at interval 5 a 199-tick light refreshes the terrain
+~40 times, at 16 about 13. So on an A/B of `salvo` → `exchange`:
+
+- `Trait LightEventManager` **hits** should fall by roughly 3× (16/5);
+- its **max ms** should *not* move — the cost of one refresh is unchanged, only how often
+  one happens, and the worst single refresh is still a full-map sweep;
+- its **total ms** should fall with the hits;
+- `Effect ThermalRadiationEffect` should disappear entirely.
+
+Hits down with max flat is the signature to look for, and the two halves check each other:
+hits alone could be a run that fired fewer warheads, and max alone says nothing about
+cadence. A run where `max ms` fell too is measuring something else — most likely background
+load on the machine, which moves these numbers by 3× on its own
+(`WORKSPACE/DISCOVERIES.md`, 2026-09-20). Take the pair back to back.
+
+There is no `tick_time` row under this profile: that series comes from the benchmark CSVs,
+which this pair deliberately does not produce.
+
 ### Where the settings come from
 
 `Settings.cs:409-412` walks every settings section and loads any field named as

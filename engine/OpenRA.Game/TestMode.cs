@@ -160,6 +160,21 @@ namespace OpenRA
 		// engine/OpenRA.Mods.Common/Traits/World/SmokeTestExit.cs.
 		public static int SmokeTicks { get; private set; }
 
+		// PERF-RIG ARM SELECTOR. When true, MissileStrikePower flies a power's
+		// EscalationMissileActor -- the exchange variant of its warhead -- for EVERY launch,
+		// instead of only for a launch the final-exchange cascade has slotted. Set via
+		// Test.ForceEscalationVariant=true.
+		//
+		// It exists so tools/autotest/scenarios/demo-nuke-perf can measure the two payloads
+		// against ONE pinned schedule. The production selector needs a running exchange, and a
+		// running exchange reschedules every impact onto the cascade -- which would move the very
+		// impact ticks the rig's `salvo` and `exchange` arms have to share for their per-tick
+		// distributions to be comparable. So the rig forces the ACTOR CHOICE and nothing else;
+		// DoomsdayStrike.IsExchangeLaunch is untouched and still answers for the cascade.
+		//
+		// Inert outside test mode: Initialize returns before this is read unless Test.Mode=true.
+		public static bool ForceEscalationVariant { get; private set; }
+
 		// Arms sync reporting even with a single human client, and makes the GameSaved
 		// acknowledgement dump the recording side's sync state. Diagnostic scaffolding for
 		// saved-game restore desyncs, which are single-client by construction and therefore
@@ -257,6 +272,7 @@ namespace OpenRA
 			OpenEditorMap = args.GetValue("Test.OpenEditorMap", null);
 			EditorTool = args.GetValue("Test.EditorTool", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
+			ForceEscalationVariant = string.Equals(args.GetValue("Test.ForceEscalationVariant", ""), "true", StringComparison.OrdinalIgnoreCase);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
 			// file; anything else is an explicit output path. Left null (inert) when

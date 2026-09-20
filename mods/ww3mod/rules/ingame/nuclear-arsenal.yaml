@@ -264,6 +264,12 @@ Player:
 		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: sarmatmissile
+		# THE FINAL-EXCHANGE PAYLOAD, and ONLY for a launch the cascade has slotted. Not a mode
+		# switch: a Sarmat bought at the top rung and fired before the window, or under Skirmish's
+		# no-wait unlock, still flies `sarmatmissile` and still detonates NukeSarmatRV in full.
+		# MissileStrikePower asks DoomsdayStrike.IsExchangeLaunch -- the same predicate that decides
+		# whether the impact is given a cascade slot -- so the variant and the slot arrive together.
+		EscalationMissileActor: sarmatmissileexchange
 		SpawnAltitude: 27c0
 		# 13c0 = 2090 m. Every NukeSarmatRV and NukeSarmatMIRV warhead carries AirThreshold: 24c0.
 		DetonationAltitude: 13c0
@@ -349,6 +355,8 @@ Player:
 		RequiresPurchase: True
 		Cursor: nuke
 		MissileActor: tridentmissile
+		# The W88's half of the same pair. See the Sarmat's note above.
+		EscalationMissileActor: tridentmissileexchange
 		SpawnAltitude: 27c0
 		# 11c0 = 1770 m = 230 * 455^(1/3), the same burst-height law the Sarmat's 13c0 and the
 		# B83's 15c256 both come from. Every NukeW88 warhead carries AirThreshold: 22c0, so there
@@ -1311,3 +1319,65 @@ RuKalibrMissile:
 		Offsets: -600, 0, 190
 	Explodes:
 		Weapon: NukeRuKalibr
+
+# =====================================================================================================
+# THE EXCHANGE MISSILE BODIES -- the same two delivery vehicles, carrying the exchange payload
+# =====================================================================================================
+#
+# UNBUYABLE AND UNORDERABLE, exactly like the bodies they inherit: Cost 0, no Buildable, no queue,
+# no cameo. They are reached only through MissileStrikePowerInfo.EscalationMissileActor on the two
+# game-ender powers above, and only for a launch DoomsdayStrike.IsExchangeLaunch has slotted onto
+# the final-exchange cascade. See the header over NukeSarmatRVExchange in
+# rules/weapons/weapons-nuclear-arsenal.yaml for what the payload drops and what it keeps.
+#
+# ONLY Explodes.Weapon DIFFERS. The flight model, the hypersonic plasma, the trail, the scale, the
+# health and the Hypersonic retype are all inherited untouched -- which is load-bearing rather than
+# tidy: MissileStrikePower reads BallisticMissileInfo off the RESOLVED actor to compute the flight
+# time, so a variant that quietly flew faster would arrive at a different tick from the base and the
+# perf rig's two arms would stop being comparable.
+#
+# ==== THE BUS IS NOT IN THIS PATH, AND THE DESIGN NOTE SAYING IT IS IS STALE ====
+# NukeSarmatMIRV -- the FireCluster bus whose two warheads dispense NukeSarmatRV -- has been fired by
+# NOTHING since 2026-09-07, when SarmatMissile's Explodes moved to the single RV and the multiplicity
+# moved into the number of missiles (see the comment at SarmatMissile's Explodes, :998). So the place
+# the RV weapon is actually named for a shipped Sarmat is the Explodes line below and nowhere else,
+# and there is deliberately no NukeSarmatMIRVExchange: a variant of a weapon nothing fires would be a
+# fourth copy of the arsenal's hardest-to-verify block, kept in step by hand, for no caller.
+# IF THE BUS IS EVER RE-ARMED, its Warhead@Bus1/@Bus2 `Weapon:` fields are the second place to swap.
+
+# ==== THE IMAGE MUST BE POINTED AT THE BASE BY HAND, AND IT CRASHED THE GAME WHEN IT WAS NOT ====
+# RenderSprites.GetImage is `(Image ?? actor.Name).ToLowerInvariant()` (RenderSprites.cs:110-115),
+# so an actor with no Image resolves its sprite from its OWN NAME. The variants inherit
+# RenderSprites (for Scale) but the name is theirs, so they asked sequences.yaml for
+# `sarmatmissileexchange` -- which does not exist and never should, because the whole point is that
+# they look exactly like the bodies they inherit.
+#
+# THE FAILURE IS AT SPAWN, NOT AT LOAD. WithFacingSpriteBodyInfo.Create calls Animation.PlayRepeating,
+# which throws InvalidOperationException: "Image 'sarmatmissileexchange' does not have any sequences
+# defined" the first time the missile is CREATED -- i.e. inside SupportPowerManager.ResolveOrder, on
+# the synced order path, at the first launch of the final exchange. Every gate in the repo was green
+# through it: the mod loads, the YAML lints, the actor constructs, and nothing draws it until a
+# player fires. Observed on run 260920_174129_p39454.
+#
+# POINTED, NOT COPIED. Duplicating the four sequence lines into a `sarmatmissileexchange:` block
+# would make the bodies identical TODAY and silently divergent the day someone retunes the base's
+# Scale or its ZOffset. `Image:` makes "the variant looks exactly like its base" true by
+# construction, with one line and nothing to keep in step.
+#
+# BallisticMissileImageTest asserts this of EVERY BallisticMissile actor in the mod, because this is
+# the fifth hand-maintained coupling a new missile body touches and W3 hit the same class on
+# `tridentmissile` the same afternoon. It should not have been a thing to remember.
+
+SarmatMissileExchange:
+	Inherits: SarmatMissile
+	RenderSprites:
+		Image: sarmatmissile
+	Explodes:
+		Weapon: NukeSarmatRVExchange
+
+TridentMissileExchange:
+	Inherits: TridentMissile
+	RenderSprites:
+		Image: tridentmissile
+	Explodes:
+		Weapon: NukeW88Exchange

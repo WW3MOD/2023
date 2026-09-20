@@ -3,6 +3,78 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
+
+The arsenal's own instruction is that "anything added to either file has to be added here"
+(`engine/OpenRA.Test/OpenRA.Mods.Common/NuclearYieldTest.cs:153-162`), and the brief for this work
+repeated it: four hand-maintained rosters move when a nuclear warhead is added. Adding two --
+`NukeSarmatRVExchange` and `NukeW88Exchange` -- moved **none** of them, and the reason is mechanical
+rather than a judgement call.
+
+All four read the file, not the game:
+
+| roster | what it actually iterates |
+|---|---|
+| `NuclearYieldTest.AllNukes` | `MiniYaml.FromFile` per weapons file, `FirstOrDefault(n => n.Key == name)` (`NuclearYieldTest.cs:143-149`) |
+| `BurntTreeScopeTest` TreeBurn count | `weapon.Value.Nodes.Where(... "Warhead@TreeBurn")` over `MiniYaml.FromFile` (`BurntTreeScopeTest.cs:293-307`) |
+| `ScarUnderActorsTest` per-file smudge count | same shape, `MiniYaml.FromFile` (`ScarUnderActorsTest.cs:66-96`) |
+| `gen_fireball_light.py` / `gen_shake.py` `YIELDS` | each WRITES its block into the weapon it names (`tools/nuke-light/gen_fireball_light.py:180`, `tools/nuke-shake/gen_shake.py:62`) |
+
+So a weapon whose body is `Inherits:` plus removals plus one override declares no `Warhead@TreeBurn`
+node, no `LeaveSmudge` node and no physical quantity of its own -- and is invisible to every one of
+them. **Adding it to `AllNukes` would have made things worse, not better**: `Weapon(name)` returns the
+RAW node, so a variant listed there is a weapon with no `Warhead@BlastWave` in it and fails the
+supersonic-transition, monotone-Mach and smudge-annulus invariants on the first run.
+
+**The generalisation, which cuts both ways.** Raw-node scanning is a *feature* when you add a
+subclass -- the numbers stay where they are derived, checked once, at the base -- and a *trap* when
+you add a sibling, because a sibling that restates the same physics is exactly what the roster exists
+to catch and it looks identical from the outside. The question to ask of any roster before adding to
+it is not "is this a new weapon" but **"does this node STATE the quantity the roster checks, or
+inherit it?"** `ExchangeVariantTest.TheVariantsStateNoPhysicsOfTheirOwnAndSoJoinNoRoster` pins the
+inherit answer so a later edit that starts stating things is loud.
+
+**Two mechanics worth carrying separately.**
+
+1. **A child node written with no value keeps its parent's.** `MiniYaml.cs:538` is
+   `new MiniYaml(overrideNodes.Value ?? existingNodes.Value, ...)`, and `MiniYaml.FromLines` maps an
+   empty value to `null` (`MiniYaml.cs:333`). So `Warhead@FireballLight:` with only `Light:` under it
+   still resolves as `LightEvent`. This is what lets a variant re-point one leaf of a warhead without
+   restating the trait type -- and it is invisible in the file, so it is worth an assertion rather
+   than a comment.
+2. **The subclass shape is forced, not chosen.** A shared "minus the aftermath" mixin of pure `-Key:`
+   removals throws at rules load, and so does the obvious `Inherits:`-it workaround (recorded the same
+   day, §"A MiniYaml template of PURE `-Key:` removals cannot exist"). The seventeen removals are
+   therefore written out once per variant; there is no shape that shares them.
+
+## 2026-09-20 - The Sarmat's cluster bus has been dead code since 2026-09-07, and a design note still routes through it (`wt/exchange-variants`, base `main @ 554895ba`)
+
+The brief for the exchange variants said, in as many words, that "the Sarmat's cluster bus dispenses
+`NukeSarmatRV` -- swap where the RV weapon is named, not just the bus". That is a true statement about
+`NukeSarmatMIRV` and a **false statement about the shipped Sarmat**, and following it would have
+produced a variant of a weapon nothing fires while leaving the real path untouched.
+
+`SarmatMissile` carries `Explodes: Weapon: NukeSarmatRV` directly
+(`mods/ww3mod/rules/ingame/nuclear-arsenal.yaml:1001-1002`). The multiplicity moved out of the
+weapon's `FireCluster` footprint and into the NUMBER OF MISSILES on 2026-09-07, when the power went to
+one missile per aim point -- and the file says so at `:998`: "NukeSarmatMIRV is left defined in
+weapons-nuclear-arsenal.yaml but is NO LONGER FIRED by anything ... do not assume editing it changes
+the Sarmat." A `grep -rn NukeSarmatMIRV mods/` returns eight hits at `554895ba`, and **seven are
+prose**: the eighth is its own definition.
+
+**The check that settles this class of question in one command, and the reason it is worth running
+before touching any weapon: `grep -rn "<WeaponName>" mods/` and then ask which hits are `Weapon:`
+lines.** A weapon that appears only in comments and in its own definition is not in any path,
+however central the design note makes it sound. The same applies to an actor that appears only in
+`Tooltip`/`Description` text.
+
+This is the second time in a week a brief has carried a premise the tree had already moved past
+(see §"Working rules" in `WORKSPACE/pipeline/README.md`, and the five items to 2026-08-19 that
+described already-merged work). The cost here was zero because the grep is one command; the cost of
+not running it would have been a fourth copy of the arsenal's hardest-to-verify block, kept in step
+by hand, for no caller.
+
+## 2026-09-20 - Two clocks for one event: the ending's ordering bug could not be fixed by tuning either of them (`wt/final-exchange`, base `main @ 20ae9548`)
 ## 2026-09-20 - Two clocks for one event: the ending's ordering bug could not be fixed by tuning either of them (`wt/final-exchange`, base `main @ 20ae9548`) **[promoted -> `architecture.md` §"The Escalation endgame" (the two-clocks inversion, the floored cascade anchor, and the `Player.HomeLocation` trap; the table of measured tick figures stays here)]**
 
 **Symptom, as the user reported it.** In the Escalation endgame the machine's warheads always
