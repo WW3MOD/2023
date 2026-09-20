@@ -2175,7 +2175,13 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			var impacts = string.Join(";", strike.ExchangeImpactTicksFor(player));
 			var auto = string.Join(";", strike.AutoFiredAimPointsFor(player).Select(c => $"{c.X},{c.Y}"));
-			return $"impacts={impacts}|auto={auto}";
+
+			// `impacts` IS THE PLAN AND `detonations` IS WHAT HAPPENED. Until 2026-09-20 only the
+			// plan was readable, so a warhead scheduled for 590 and going off at 594 was
+			// indistinguishable from one that landed on time -- and the demo frames that bracketed
+			// the difference were the only evidence it existed.
+			var det = string.Join(";", strike.DetonationRecord(player));
+			return $"impacts={impacts}|auto={auto}|detonations={det}";
 		}
 
 		[Desc("Whether the DEFCON 3 dividing wall is STANDING right now. False in Skirmish, false " +

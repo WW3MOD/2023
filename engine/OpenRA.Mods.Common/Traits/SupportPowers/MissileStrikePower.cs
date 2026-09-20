@@ -686,9 +686,25 @@ namespace OpenRA.Mods.Common.Traits
 			// THE LAUNCH MOVES, THE AIM POINT DOES NOT. Only the wait before the missile enters the
 			// world changes; the geometry above is already fixed and is not recomputed.
 			var naturalImpactTick = world.WorldTick + missileDelay + flightTicks;
-			var scheduledImpactTick = DoomsdayStrike.ScheduleExchangeImpact(world, self.Owner, naturalImpactTick, info);
-			if (scheduledImpactTick != naturalImpactTick)
-				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, scheduledImpactTick, flightTicks);
+
+			// -1 WHEN THIS IS NOT AN EXCHANGE LAUNCH, which is what keeps every other strike in the
+			// mod byte-identical. It used to be `scheduled != natural`, and that heuristic was wrong
+			// in one case: the warhead that SETS the anchor gets a slot equal to its own natural
+			// tick, so the test failed to fire and that one warhead skipped the pipeline correction
+			// -- landing three or four ticks after its own slot while every other warhead landed on
+			// it. An explicit sentinel cannot have that hole.
+			var slot = DoomsdayStrike.ScheduleExchangeImpact(world, self.Owner, naturalImpactTick, info);
+			if (slot >= 0)
+			{
+				// THE ARC TERM IS PER MISSILE AND PER SALVO. See FinalExchangeCascade.ArcCeilingTicks:
+				// hDist here is the standoff, which is the map diagonal plus ApproachMargin, so
+				// whether it divides exactly by this missile's speed is a property of this map and
+				// this aim point and of nothing more general.
+				var pipeline = FinalExchangeCascade.DetonationPipelineTicks
+					+ FinalExchangeCascade.ArcCeilingTicks(hDist, missileRules.Speed, missileRules.Acceleration);
+
+				missileDelay = FinalExchangeCascade.LaunchDelayFor(world.WorldTick, slot, flightTicks, pipeline);
+			}
 
 			var missile = world.CreateActor(false, info.MissileActor, new TypeDictionary
 			{
@@ -740,6 +756,19 @@ namespace OpenRA.Mods.Common.Traits
 			// report unless a final exchange is in progress. Synced order-resolution path, so every
 			// client reports the same tick. See DoomsdayStrike.NotifyExchangeLaunch.
 			DoomsdayStrike.NotifyExchangeLaunch(world, self.Owner, world.WorldTick + impactDelay, info);
+
+			// WATCHED AGAINST THE SLOT, NOT AGAINST impactDelay, AND THAT DISTINCTION IS THE WHOLE
+			// OF THE 2026-09-20 MEASUREMENT BUG. Run 260920_165621 reported every warhead +3 or +4
+			// late when all eight had in fact landed exactly on their reserved slots. The watcher
+			// was being handed `world.WorldTick + impactDelay`, and impactDelay is
+			// missileDelay + flightTicks -- which LaunchDelayFor has already solved to be
+			// slot - now - pipeline. So the "scheduled" column printed slot MINUS the pipeline, and
+			// the residual it reported was the pipeline itself, measured against itself.
+			//
+			// HERE RATHER THAN BESIDE THE SOLVE, only because the missile actor does not exist yet
+			// at that point; `slot` is the same value either way.
+			if (slot >= 0)
+				DoomsdayStrike.WatchExchangeWarhead(world, self.Owner, slot, missile);
 
 			// AND THE ESCALATION WAITS FOR IT TOO (user ruling, 2026-09-16): "it should happen when the
 			// nuke explodes, so we see the correlation between the explosion, and after only a few

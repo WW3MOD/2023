@@ -102,9 +102,12 @@ namespace OpenRA.Test
 								// REACHABLE, not merely in range: the launch delay solved for this
 								// impact must be non-negative, or the warhead is late and the bound
 								// above is a fiction.
-								if (impact - launchedAt - flight < 0)
+								// REACHABLE THROUGH THE PIPELINE, not merely through the flight: the
+								// launch must clear the arc AND the four ticks between the activity
+								// completing and Explodes firing.
+								if (impact - launchedAt - flight - FinalExchangeCascade.DetonationPipelineTicks < 0)
 									Assert.Fail($"a warhead launched at {launchedAt} cannot reach {impact} on a {flight}-tick flight "
-										+ $"(N={n}, placedAt={placedAt})");
+										+ $"plus {FinalExchangeCascade.DetonationPipelineTicks} of pipeline (N={n}, placedAt={placedAt})");
 							}
 						}
 					}
@@ -182,12 +185,53 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheLaunchDelaySolvesBackwardsThroughTheDetonationPipeline()
+		{
+			// THE ARITHMETIC THE 2026-09-20 INSTRUMENTATION EXISTS TO CHECK. A warhead does not go
+			// off on the tick EstimateArcTicks predicts: SpawnActorEffect adds it a tick late, the
+			// estimate truncates where the activity ceilings, and the termination sees its own
+			// completion a tick late and then queues the Kill a tick later again. Four ticks of
+			// pipeline, so the launch has to be four ticks EARLIER -- the arrival is the fixed point.
+			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 1500, 200),
+				Is.EqualTo(500 - 200 - FinalExchangeCascade.DetonationPipelineTicks));
+
+			// THE ARC CEILING IS PER MISSILE, MEASURED 2026-09-20. Run 260920_165621 put America's
+			// four warheads a tick later than Russia's against the same slots, on the same map and
+			// the same missile body -- the whole difference being that one salvo's hDist divided
+			// exactly by the speed and the other's did not.
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3200, 1600, 0), Is.EqualTo(0), "exact division needs no ceiling");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3201, 1600, 0), Is.EqualTo(1), "a remainder costs one tick");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(900, 1600, 0), Is.EqualTo(0), "EstimateArcTicks already clamps a sub-tick flight up to 1");
+			Assert.That(FinalExchangeCascade.ArcCeilingTicks(3201, 1600, 5), Is.EqualTo(0), "the accelerating branch integrates and needs no correction");
+
+			// AND THE ROUND TRIP, which is the property rather than the formula: launch when this
+			// says, fly the flight, pay the pipeline, and land on the tick that was reserved.
+			// SLOTS THE FLIGHT CAN ACTUALLY REACH. The round trip only holds where the delay is
+			// POSITIVE: a slot closer than (flight + pipeline) is unreachable by construction and
+			// LaunchDelayFor clamps to zero on purpose, which ALateWarheadLaunchesImmediately covers.
+			// Asserting the identity across a clamped case would be asserting the clamp away.
+			foreach (var flight in Flights)
+			{
+				foreach (var slot in new[] { 1500, 2000, 5000 })
+				{
+					Assert.That(slot - 900, Is.GreaterThan(flight + FinalExchangeCascade.DetonationPipelineTicks),
+						"this case is meant to be reachable; pick a later slot");
+
+					var delay = FinalExchangeCascade.LaunchDelayFor(900, slot, flight);
+					Assert.That(900 + delay + flight + FinalExchangeCascade.DetonationPipelineTicks,
+						Is.EqualTo(slot), $"flight={flight} slot={slot}");
+				}
+			}
+		}
+
+		[Test]
 		public void ALateWarheadLaunchesImmediatelyRatherThanNotAtAll()
 		{
 			// The clamp exists for the case the floor is supposed to prevent -- a scenario that set
 			// FinalExchangeFlightTicks too low, or a placement the window should not have allowed.
 			// Arriving late beats not flying.
-			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 1500, 200), Is.EqualTo(300));
+			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 1500, 200),
+				Is.EqualTo(300 - FinalExchangeCascade.DetonationPipelineTicks));
 			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 1200, 200), Is.EqualTo(0));
 			Assert.That(FinalExchangeCascade.LaunchDelayFor(1000, 900, 200), Is.EqualTo(0));
 		}
@@ -222,9 +266,11 @@ namespace OpenRA.Test
 			// BothPackagesLandInsideOneBoundedSpanFromAnyPlacementTime is the real proof: it sweeps
 			// every placement tick against both missile speeds and asserts reachability directly.
 			// This line is the cheap restatement, and it must not claim more than that sweep does.
-			Assert.That(FlightFloorTicks, Is.GreaterThanOrEqualTo(SlowestArc),
+			Assert.That(FlightFloorTicks,
+				Is.GreaterThanOrEqualTo(SlowestArc + FinalExchangeCascade.DetonationPipelineTicks),
 				"FinalExchangeFlightTicks must cover the slowest game-ender's arc on the largest "
-				+ "map, or a warhead placed on the window's last tick cannot reach the anchor.");
+				+ "map PLUS the detonation pipeline, or a warhead placed on the window's last tick "
+				+ "cannot reach the anchor.");
 
 			// AND IT MUST NOT BE MUCH LARGER THAN IT NEEDS TO BE, because every tick of slack is a
 			// tick of empty sky between the window shutting and the first warhead arriving. 50% of

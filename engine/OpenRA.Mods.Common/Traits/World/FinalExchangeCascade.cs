@@ -119,14 +119,76 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// <para>Ticks between the arrival <see cref="BallisticMissileFly.EstimateArcTicks"/> predicts
+		/// and the tick the warhead is OBSERVED to detonate on. The estimate is not wrong so much as
+		/// it is measuring a different thing, and the difference is a fixed pipeline rather than a
+		/// proportion of the flight -- so it is a constant here and not a percentage.</para>
+		///
+		/// <para>WHERE THE THREE TICKS GO, read off the activity:
+		///   +1  SpawnActorEffect adds the missile at the end of a tick, so BallisticMissileFly
+		///       first runs on the FOLLOWING one.
+		///   +2  the termination: the `horizontalProgress >= 1f` test is at the TOP of Tick, so it is
+		///       seen the tick after progress completes, and it then QUEUES a CallFunc to do the
+		///       Kill -- which runs a tick later again. Explodes fires on that Kill.</para>
+		///
+		/// <para>THERE WAS A FOURTH TERM AND IT IS NOT A CONSTANT. Run 260920_165621 measured this
+		/// and split the two nations: America's warheads needed 4 ticks and Russia's 3. The
+		/// difference is <see cref="ArcCeilingTicks"/> -- EstimateArcTicks' flat branch truncates
+		/// where the activity ceilings, so it under-reports by one whenever hDist does not divide
+		/// exactly by the missile's speed, and by NOTHING when it does. It is a property of one
+		/// salvo's standoff, not of the pipeline, so it is computed per missile and added by the
+		/// caller.</para>
+		/// </summary>
+		// NOT FOLDED INTO EstimateArcTicks, deliberately, and this is the byte-identity argument the
+		// whole cascade has been built on: that method is read by every missile power in the mod for
+		// its camera and beacon timings, and correcting its truncation there would shift all of them
+		// by a tick. What is wrong is not the estimate, it is that the EXCHANGE needs a warhead to
+		// land on an exact tick and nothing else does. So the correction lives here, on the one path
+		// that has that requirement.
+		public const int DetonationPipelineTicks = 3;
+
+		/// <summary>
+		/// <para>The tick <see cref="BallisticMissileFly.EstimateArcTicks"/> loses to integer
+		/// division, or zero when it loses none.</para>
+		///
+		/// <para>The flat branch (Acceleration 0, which every nuclear delivery body in the mod uses)
+		/// returns `hDist / speed`, a FLOOR. The activity advances `horizontalProgress += speed /
+		/// hDist` in float and terminates at `>= 1f`, which is the CEILING. They agree only when the
+		/// division is exact -- and whether it is exact is a property of THIS salvo's standoff,
+		/// which is the map diagonal plus ApproachMargin and therefore different on every map and
+		/// for every aim point.</para>
+		///
+		/// <para>MEASURED, NOT ASSUMED. Run 260920_165621 landed America's four warheads a tick
+		/// later than Russia's four relative to the same reserved slots, on the same map, with the
+		/// same missile body and speed -- the whole of the difference being that one salvo's hDist
+		/// divided exactly and the other's did not.</para>
+		///
+		/// <para>THE ACCELERATING BRANCH NEEDS NOTHING: it integrates tick by tick until the
+		/// distance is covered, which already counts the partial tick.</para>
+		/// </summary>
+		public static int ArcCeilingTicks(int hDist, int speed, int acceleration)
+		{
+			if (acceleration > 0 || speed <= 0 || hDist <= 0)
+				return 0;
+
+			// EstimateArcTicks clamps its floor to a minimum of 1, so a flight shorter than one
+			// tick's travel is already rounded UP and must not be rounded again.
+			return hDist / speed >= 1 && hDist % speed != 0 ? 1 : 0;
+		}
+
+		/// <summary>
 		/// The launch delay that lands a warhead on <paramref name="impactTick"/> given a flight of
 		/// <paramref name="flightTicks"/> from <paramref name="now"/>. Never negative: a warhead that
 		/// is already late launches immediately and arrives when it arrives, which is strictly better
 		/// than not launching it.
 		/// </summary>
-		public static int LaunchDelayFor(int now, int impactTick, int flightTicks)
+		public static int LaunchDelayFor(int now, int impactTick, int flightTicks, int pipelineTicks = DetonationPipelineTicks)
 		{
-			var delay = impactTick - now - flightTicks;
+			// THE PIPELINE COMES OUT OF THE WAIT. Solving backwards from a reserved slot means the
+			// launch has to be that much EARLIER, not the arrival later -- the arrival is the fixed
+			// point. See DetonationPipelineTicks, and ArcCeilingTicks for the part of it the caller
+			// has to work out per missile.
+			var delay = impactTick - now - flightTicks - pipelineTicks;
 			return delay > 0 ? delay : 0;
 		}
 	}
