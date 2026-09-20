@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A terrain-relight row partition is disjoint by vertex row only on a RECTANGULAR grid; on RectangularIsometric `MPos.V = X + Y`, so partitioning by `CPos.Y` aliases vertex rows and tears a 48-byte `Vertex` (`wt/nuke-perf-parallel`, base `wt/nuke-perf-levers @ 41c5fb66`)
+
+**The premise the whole parallel sweep rests on.** `TerrainSpriteLayer.UpdateTint` writes exactly four
+consecutive vertices at `vertexRowStride * uv.V + 4 * uv.U`
+(`engine/OpenRA.Game/Graphics/TerrainSpriteLayer.cs:180`). Two cells therefore collide only if they share
+`V`, so splitting a relight into contiguous bands of `V` needs no locking at all — which is what makes
+`TerrainLighting.NotifyCells` parallelisable in the first place.
+
+**And `NotifyCells` does not iterate `V`. It iterates `CPos.Y`** (`TerrainLighting.cs`, the `topLeft.Y ..
+bottomRight.Y` loop), converting each cell with `cell.ToMPos(map)`. Those are the same number only on a
+Rectangular grid, where `ToMPos` returns `new MPos(X, Y)` verbatim (`engine/OpenRA.Game/CPos.cs:77-78`).
+On `RectangularIsometric` it is
+
+    var u = (X - Y) / 2;
+    var v = X + Y;                     // CPos.cs:90-91
+
+so **one CPos row is a diagonal across vertex rows**, and two different CPos rows (`x+1, y-1` and `x, y`)
+land on the *same* `v`. A `Y` partition there hands two threads the same vertex row. The failure is not a
+lost update: `Vertex` is a 48-byte `readonly struct` of twelve fields (`Vertex.cs:17-30`) and
+`vertices[offset + i] = new Vertex(...)` is a non-atomic 48-byte store, so two concurrent writers **tear**
+it — half of one cell's tint and half of another's in a single vertex, which draws as a bright or black
+speck rather than as anything that looks like a threading bug.
+
+**Why this is a live hazard and not a note about hypothetical mods.** `TerrainSpriteLayer` lives in
+`OpenRA.Game` and is shared by every mod the engine can load. WW3MOD is `Type: Rectangular`
+(`mods/ww3mod/mod.yaml:378-380`) and so is stock RA, so the parallel path is correct for everything this
+repo builds for — but `ts` and `d2k` are isometric and are in-tree. The parallel sweep is therefore gated
+on `map.Grid.Type == MapGridType.Rectangular` and isometric keeps the serial path. **Doing it properly for
+isometric means rewriting the sweep in MPos space, and that is not a free refactor**: `u = (X - Y) / 2` is
+integer division that truncates toward zero, so `CPos → MPos` is not injective there, and changing the
+iteration space risks changing which cells get notified on a grid type this branch has no map to test on.
+
+**The general rule: "these writes are disjoint by row" is a claim about the INDEX SPACE OF THE ARRAY, not
+about the loop variable that happens to be called a row.** Two coordinate systems named the same thing is
+exactly the shape that survives review — the loop says `y`, the array says `V`, and on the grid you happen
+to be testing they are equal, so every test passes and the bug ships to the mod nobody ran.
+
+**Second, unrelated hazard found in the same audit: `PerfSample` is not thread-safe, so any parallel path
+must refuse to run while `PerfHistory.Sampling` is true.** `PerfSample.Dispose` calls
+`PerfHistory.Increment`, which is `Items[item].Val += x` (`engine/OpenRA.Game/Support/PerfHistory.cs:59`) —
+a string-keyed `Cache` lookup over a plain `Dictionary` that **inserts on a miss**, plus a non-atomic
+`double` accumulate. Concurrent inserts corrupt a `Dictionary` outright (a lost count would be the benign
+version). `TerrainLighting.TintAt` takes that path whenever the perf graph, the perf text overlay or
+benchmark mode is live, which is precisely the nuke-perf rig's Profile B (`--visible`). The sweep therefore
+falls back to serial while sampling — which also keeps Profile B measuring the same thing it always did.
+**Profile A (`--hidden`, unsampled) is the profile the parallel path is measured in, and the rig's README
+already says it is the one to quote.**
+
+**Measured, on this machine (AMD Ryzen 7 8845HS, 8 physical / 16 logical).** A synthetic sweep over a
+128x128 grid with six large overlapping sources, run through the real `CellRowSweep`, `SweepMemo`,
+`TerrainSpriteLayer.ApplyCellTint` and `SpatiallyPartitioned`, buffers allocated once so GC stays out of
+the timer, best of seven after two warmups:
+
+    1 layer   (compute-dominated: 4 real Tint + 4 vertex writes per cell)      46.9 ms -> 8.1 ms   5.81x
+    20 layers (write-dominated: 4 Tint + 76 memo hits + 80 writes per cell)   123.7 ms -> 41.0 ms  3.01x
+
+**The spread between those two numbers is the whole forecast**, and it says the ceiling is set by how much
+of a refresh is vertex traffic rather than by core count: the twenty vertex arrays are 3.1 MB each, 63 MB
+in total against 16 MB of L3, so the write-heavy arm is streaming DRAM and stops scaling at 3x while the
+compute-heavy arm gets 5.8x. Which end a real refresh lands on depends on how many layers actually WRITE,
+and after lever 1 (skip cells a layer draws nothing in) most smudge layers skip most cells — so the real
+mix should sit above the 20-layer figure. This is a proxy and not the rig: it is not a substitute for a
+Profile A A/B on `demo-nuke-perf`.
+
 ## 2026-09-20 - A staleness bound derived from a THRESHOLD is far stricter than the behaviour that threshold actually preserves, so it never fires — and the curve that would have shown it is a static table (`wt/nuke-perf-levers`, base `main @ 20ae9548`)
 
 **What was built.** `LightEventManager` refreshes the terrain tint on one fixed cadence
