@@ -2391,19 +2391,6 @@ NukeSarmatRV:
 			# was 3 over a 66-tick event, i.e. ~22; the interval rose with the duration so the
 			# per-detonation upload cost stays in the same bracket.
 			TerrainRefreshInterval: 5
-			# THE DECAY TAIL ONLY. Base interval above is untouched, so the opening flash refreshes
-			# exactly as it always did. The stretch is taken only while the envelope is slow enough
-			# that waiting 20 ticks leaves the tint staler by less than TerrainRefreshThreshold --
-			# the amount the refresh gate already tolerates indefinitely on a plateau -- so it admits
-			# nothing the shipped configuration did not already accept. See
-			# LightEventManager.Tick and LightEventDefinition.TerrainRefreshTailInterval.
-			#
-			# WHY THIS LIGHT. Its radius exceeds every shipped map, so every refresh notifies every
-			# in-bounds cell; at 307 ticks of envelope against a 5-tick cadence that is ~60 full-map
-			# relights per warhead, and six of these fly per Sarmat salvo. The tail is where almost
-			# all of those ticks are. 20 rather than 25 only because the marginal saving past 4x is
-			# small and the staleness bound scales with it.
-			TerrainRefreshTailInterval: 20
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the
@@ -2826,19 +2813,6 @@ NukeB83:
 			# was 3 over an 81-tick event, i.e. ~27; the interval rose with the duration so the
 			# per-detonation upload cost stays in the same bracket.
 			TerrainRefreshInterval: 5
-			# THE DECAY TAIL ONLY. Base interval above is untouched, so the opening flash refreshes
-			# exactly as it always did. The stretch is taken only while the envelope is slow enough
-			# that waiting 20 ticks leaves the tint staler by less than TerrainRefreshThreshold --
-			# the amount the refresh gate already tolerates indefinitely on a plateau -- so it admits
-			# nothing the shipped configuration did not already accept. See
-			# LightEventManager.Tick and LightEventDefinition.TerrainRefreshTailInterval.
-			#
-			# WHY THIS LIGHT. Its radius exceeds every shipped map, so every refresh notifies every
-			# in-bounds cell; at 307 ticks of envelope against a 5-tick cadence that is ~60 full-map
-			# relights per warhead, and six of these fly per Sarmat salvo. The tail is where almost
-			# all of those ticks are. 20 rather than 25 only because the marginal saving past 4x is
-			# small and the staleness bound scales with it.
-			TerrainRefreshTailInterval: 20
 			# TerrainLighting tints the world BEFORE ShroudRenderer paints its fog quads, so under fog the
 			# flash is ATTENUATED rather than hidden. GlowAboveFog draws the missing fraction back in the
 			# slot between the fog layers and the opaque unexplored layer. This goes through exactly the

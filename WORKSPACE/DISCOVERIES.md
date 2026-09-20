@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-20 - A staleness bound derived from a THRESHOLD is far stricter than the behaviour that threshold actually preserves, so it never fires — and the curve that would have shown it is a static table (`wt/nuke-perf-levers`, base `main @ 20ae9548`)
+
+**What was built.** `LightEventManager` refreshes the terrain tint on one fixed cadence
+(`TerrainRefreshInterval`, 5 for the nuclear lights) for a light's whole life. That cadence has to
+be short enough for the opening flash, so it then also pays for the long decay tail where almost
+nothing moves. The fix looked obvious: a second, longer interval used only while the envelope is
+slow. To make it invisible rather than merely cheap, the switch was *derived* instead of tuned —
+the gate already tolerates the tint being stale by up to `TerrainRefreshThreshold` (0.04)
+indefinitely, since that is exactly what happens on a plateau where `|ΔI|` never reaches the
+threshold and no refresh is ever issued. So stretch only while the extra staleness stays inside
+that same budget:
+
+    rate × TerrainRefreshTailInterval ≤ TerrainRefreshThreshold
+    ⇒  rate ≤ 0.04 / 20 = 0.002 intensity per tick
+
+**It never fired once.** A clean A/B across three trees showed the refresh tick SETS byte-identical
+— same counts and the same gap histograms (`5:14 6:8 9:1 10:4` on the single arm in all three
+trees), so the cadence never changed. The reason is arithmetic against a table that was sitting in
+the repo the whole time. `NukeSarmatRV`'s `Warhead@FireballLight`
+(`rules/weapons/weapons-nuclear-arsenal.yaml`) is
+
+    Times:       0, 2, 4, 5, 7, 20, 25, 53, 87, 125, 141, 166, 210, 258, 307
+    Intensities: 7, 5.97, 5.29, 5.07, 4.9, 4.48, 4.33, 3.51, 2.64, 1.8, 1.5, 1.08, 0.51, 0.13, 0
+    Interpolations: Linear
+
+whose **slowest segment is the last one**, ticks 258→307, at `0.13 / 49 = 0.00265` intensity/tick.
+That is above the 0.002 limit. Every other segment is 3× to 200× above it. The envelope never goes
+flat enough to qualify, anywhere, including the moment before it ends.
+
+**The general rule, and it is the reusable part: a bound derived from a threshold preserves the
+threshold, not the behaviour — and those can be orders of magnitude apart.** The premise "the gate
+tolerates `threshold` of staleness" is true only on a plateau. In the *moving* regime the staleness
+the shipped code actually accepts is `interval × rate`: at the peak of this envelope that is
+`5 × 0.515 = 2.6` intensity units, **65× the threshold**. So the shipped configuration routinely
+tolerates staleness the derived bound would forbid outright, and any stretch admissible under that
+bound is so small it is not worth having. The derivation was sound as a *sufficient* condition and
+useless as a *practical* one. When deriving a safety bound from a constant, check what the code
+already does at runtime before assuming the constant describes it.
+
+**And the cheap check that was skipped.** The eligibility condition is a pure function of a static
+YAML table. Evaluating it against that table takes minutes, needs no build and no launch, and would
+have shown the lever inert before it consumed a serial A/B slot on a machine where launches are the
+scarce resource. The bound was derived and never once tested against the curve it had to fire on.
+**Before shipping a gate whose predicate depends on authored data, evaluate the predicate against
+that data by hand.**
+
+Reverted in full. What it was aimed at is real and unchanged — the decay tail is 61% of the
+remaining relight cost on a six-RV salvo — but reaching it needs a lever that does not depend on
+the envelope flattening out.
+
 ## 2026-09-20 - "Game-enders are never purchasable in Skirmish" is true only while the unlock CLOCK is running, and the lobby ships a dropdown that stops it (`wt/nuke-perf-fixes`, base `main @ 20ae9548`)
 
 **The question it came from.** Whether `SarmatMissile`/`B83Missile` could have their
