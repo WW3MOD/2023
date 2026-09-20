@@ -12,6 +12,40 @@ World:
 	-SpawnStartingUnits:
 	-MapStartingLocations:
 	-CrateSpawner:
+	# ---- THE BORDER THE OPTION NOW READS ----------------------------------------------------
+	#
+	# A two-cell vertical band at x=31,32 running the full height of Bounds (1,1,64,32). Authoring
+	# either region field switches this map off the derived bisector entirely, which matters here
+	# because the derivation produces NOTHING on this scenario: the `-MapStartingLocations:` above
+	# means no IAssignSpawnPoints trait exists, so Player.cs:213 falls back to the PlayerReference
+	# and BOTH sides read HomeLocation CPos.Zero. Two coincident homes derive no line
+	# (BisectorOfSides returns start == end), the geometry stays degenerate, and without this block
+	# PreCapturedStructures would see HasBorder == false and fall back to the ratio rule. This
+	# block is therefore what makes this scenario evidence about the BORDER rule rather than about
+	# the fallback.
+	#
+	# WHY TWO CELLS WIDE. An axis-aligned one-cell band would seal an 8-connected flood -- x=31
+	# alone is enough for a vertical line -- but the mod's own rule is that a hand-drawn band is
+	# two cells (DefconWallInfo.RegionCells), because a diagonal one leaks through its own corners.
+	# Two costs nothing here and keeps the scenario consistent with every shipped map's band.
+	#
+	# WHAT IT PUTS WHERE, all three checkable by eye against the geometry table in map.yaml:
+	#   NearUSA    at 11,15  cells 11-12 x 15-16  -- entirely WEST of the band
+	#   Middle     at 31,15  cells 31-32 x 15-16  -- entirely INSIDE it, so it stays Neutral
+	#   NearRussia at 51,15  cells 51-52 x 15-16  -- entirely EAST
+	#   UsaSR      at 3,15   centre cell 4,16     -- WEST, so USA's side is the western component
+	#   RussiaSR   at 59,15  centre cell 60,16    -- EAST
+	# So the expected verdict is unchanged -- USA / Neutral / Russia -- but it is now reached by
+	# the border rule. Middle is neutral because its whole footprint is band, not because its 3.6%
+	# margin is inside MiddleBandPercent; MiddleBandPercent is not consulted on this map at all.
+	#
+	# NO WALL IS EVER RAISED HERE. DefconWall writes CustomTerrain only while `active`, which needs
+	# DEFCON 3, which needs the Escalation game mode; the harness launches Skirmish and
+	# DefconEscalation pins NoLevel. The geometry resolves, the band blocks nothing, and the three
+	# derricks stay reachable.
+	DefconWall:
+		RegionCells: 31,1, 32,1, 31,2, 32,2, 31,3, 32,3, 31,4, 32,4, 31,5, 32,5, 31,6, 32,6, 31,7, 32,7, 31,8, 32,8, 31,9, 32,9, 31,10, 32,10, 31,11, 32,11, 31,12, 32,12, 31,13, 32,13, 31,14, 32,14, 31,15, 32,15, 31,16, 32,16, 31,17, 32,17, 31,18, 32,18, 31,19, 32,19, 31,20, 32,20, 31,21, 32,21, 31,22, 32,22, 31,23, 32,23, 31,24, 32,24, 31,25, 32,25, 31,26, 32,26, 31,27, 32,27, 31,28, 32,28, 31,29, 32,29, 31,30, 32,30, 31,31, 32,31, 31,32, 32,32
+
 	# THE OPTION UNDER TEST. Setting the trait's own default is how the lobby default is set, so
 	# a launch that never opens a lobby (which is every autotest run) reads true here through
 	# LobbyInfo.GlobalSettings.OptionOrDefault. The sibling scenario

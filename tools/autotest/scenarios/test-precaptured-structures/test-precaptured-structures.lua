@@ -5,13 +5,24 @@
 -- THE CLAIM UNDER TEST
 -- =====================================================================================
 -- PreCapturedStructures is an IWorldLoaded on the world actor. When the lobby option is on it
--- measures each neutral capturable structure against every playable player's anchor -- their
--- Supply Route, falling back to their spawn cell -- and hands it to the nearest, UNLESS the
--- nearest player they are not allied with is within MiddleBandPercent (10) of that distance.
+-- asks DefconWall where the border is; on a map that HAS one -- which this map now does, see the
+-- DefconWall block in rules.yaml -- a structure with any footprint cell inside the band stays
+-- Neutral, and every other structure goes to the nearest contender whose own home is on the same
+-- side of the border. On a map with no border it falls back to the original distance-ratio rule
+-- against MiddleBandPercent.
 --
--- The three derricks on this map are placed at 545%, 3.6% and 458% margins, so the expected
--- verdict is USA / Neutral / Russia. See map.yaml for the arithmetic; it is all right triangles
--- with a half-cell rise and can be checked without a calculator.
+-- THIS SCENARIO IS THE BORDER ARM. rules.yaml authors a two-cell vertical band at x=31,32, and
+-- the middle derrick at 31,15 is a 2x2 whose whole footprint sits inside it. So the expected
+-- verdict USA / Neutral / Russia is reached by the BORDER rule, and MiddleBandPercent is never
+-- consulted on this map. The distances still decide the two flanking derricks: each has exactly
+-- one contender on its side, and that contender is also the nearer one.
+--
+-- The three derricks are ALSO at 545%, 3.6% and 458% margins, so the ratio rule would reach the
+-- same verdict. That is deliberate belt-and-braces, not a weakness: it means a regression that
+-- silently reverted to the ratio would not red this scenario, and the thing that catches THAT is
+-- the debug.log line the trait writes -- `PreCapturedStructures: border = Russia:side1, USA:side0`
+-- on a working run, `border = (none -- falling back to the 10% ratio rule)` on a reverted one.
+-- See map.yaml for the distance arithmetic; it is all right triangles with a half-cell rise.
 --
 -- =====================================================================================
 -- WHY THE WAIT, AND WHY IT IS NOT A RACE
@@ -115,13 +126,15 @@ WorldLoaded = function()
 		end
 
 		if mid ~= "Neutral" then
-			return "fail: the derrick at 31,15 was handed to '" .. mid .. "'. It sits 27.5 cells from " ..
-				"USA's Supply Route and 28.5 from Russia's, a margin of 3.6%, which is inside " ..
-				"PreCapturedStructuresInfo.MiddleBandPercent (10) and must therefore stay Neutral. " ..
-				"Either the band shrank below 3.6 -- check the field, and re-run " ..
-				"tools/precaptured-calibration/precaptured_calibration.py before changing this " ..
-				"expectation -- or the middle test is not being applied at all, in which case the " ..
-				"woodland-warfare nuclear reactor is now owned by somebody too"
+			return "fail: the derrick at 31,15 was handed to '" .. mid .. "'. It is a 2x2 at 31,15, so " ..
+				"its footprint is exactly cells 31-32 x 15-16, and rules.yaml authors a DefconWall " ..
+				"band over x=31,32 for the whole height of Bounds -- every one of its four cells is " ..
+				"border. A structure with ANY footprint cell in the band must stay Neutral. Read the " ..
+				"`PreCapturedStructures: border = ...` line in debug.log first: if it says `(none)` " ..
+				"the region was rejected as degenerate or the RegionCells list was lost, and the " ..
+				"trait fell back to the ratio rule -- which on these distances (27.5 vs 28.5 cells, " ..
+				"a 3.6% margin, inside MiddleBandPercent) would ALSO say Neutral, so a wrong owner " ..
+				"here means neither rule ran. If it names two sides, the footprint test is broken"
 		end
 
 		return true
