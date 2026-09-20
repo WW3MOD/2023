@@ -257,6 +257,22 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		int EffectiveAimPoints(World world)
 		{
+			return AimPointsFor(world, info);
+		}
+
+		/// <summary>
+		/// <para>PUBLIC, AND THAT IS THE WHOLE POINT OF THE 2026-09-20 FIX. This was a private method
+		/// and <see cref="NuclearBotModule"/> sized its aim list from the raw
+		/// <see cref="MissileStrikePowerInfo.AimPoints"/> instead — so on a map whose package is 4 the
+		/// bot asked <see cref="NuclearPolicyMath.PickAimIndices"/> for the Sarmat's YAML 6, got 3
+		/// back after separation filtering, and <see cref="ResolveAimPoints"/> truncated to
+		/// min(3, 4) = 3. Run 260920_140551 read `warheads=7` for two full packages of 4.</para>
+		///
+		/// <para>Two layers disagreeing about N is the exact class of bug this redesign removes, so
+		/// there is now ONE definition and both callers ask it.</para>
+		/// </summary>
+		public static int AimPointsFor(World world, MissileStrikePowerInfo info)
+		{
 			if (!NuclearGameEnders.Is(info))
 				return info.AimPoints;
 
@@ -377,10 +393,16 @@ namespace OpenRA.Mods.Common.Traits
 			var count = Math.Max(1, EffectiveAimPoints(world));
 			var placed = MultiAimPointOrder.Deserialize(order.TargetString);
 
+			// Hoisted, because BOTH branches below need it now: the fallback ring builds a whole
+			// salvo from it, and the placed branch pads a short list with it.
+			var fallbackSpread = info.MaxAimPointSpread.Length > 0
+				? new WDist(Math.Min(info.AimPointFallbackSpread.Length, info.MaxAimPointSpread.Length))
+				: info.AimPointFallbackSpread;
+
 			if (placed != null && placed.Length > 0)
 			{
 				var used = Math.Min(placed.Length, count);
-				var points = new WPos[used];
+				var points = new WPos[count];
 
 				// THE AUTHORITATIVE SPREAD BOUND. The order generator refuses an out-of-range click,
 				// but it is client-local -- this is the only place a hostile or ancient order is
@@ -406,6 +428,24 @@ namespace OpenRA.Mods.Common.Traits
 					points[i] = ResolveCell(world, cell);
 				}
 
+				// ==== A SHORT LIST IS PADDED, NOT HONOURED ====
+				// The package size is a property of the MAP and every warhead of it must fly, so an
+				// order carrying fewer aim points than the power is rated for is topped up on a ring
+				// around its first point -- the same construction the single-target branch below uses
+				// for a bot that named one cell.
+				//
+				// UNREACHABLE FROM A HUMAN PLACEMENT, which is what bounds the blast radius of this:
+				// SelectMultiPowerTarget issues the order on the Nth click and not before, so a
+				// player's list is always exactly N. What this covers is a bot whose candidate
+				// filtering came up short, a Lua binding, and a replay recorded before the package
+				// was map-derived.
+				for (var i = used; i < count; i++)
+				{
+					var ring = MultiAimPointOrder.FallbackRingOffsets(count - used + 1, fallbackSpread);
+					var cell = world.Map.Clamp(world.Map.CellContaining(points[0] + ring[i - used + 1]));
+					points[i] = world.Map.CenterOfCell(cell);
+				}
+
 				return points;
 			}
 
@@ -413,13 +453,11 @@ namespace OpenRA.Mods.Common.Traits
 			// before this feature existed. order.Target has already been snapped to an actor centre
 			// by SupportPowerInstance.Activate, so it is used as-is for the first warhead.
 			var center = order.Target.CenterPosition;
-			// The bot/Lua ring obeys the same bound the player does. Inert wherever the fallback
-			// ring already fits inside the footprint (the shipped Oreshnik: 5c0 ring, 10c0 bound)
-			// and wherever no bound is set at all (the shipped Sarmat).
-			var fallbackSpread = info.MaxAimPointSpread.Length > 0
-				? new WDist(Math.Min(info.AimPointFallbackSpread.Length, info.MaxAimPointSpread.Length))
-				: info.AimPointFallbackSpread;
 
+			// `fallbackSpread` is computed above, once, because the placed branch pads with it too.
+			// The bot/Lua ring obeys the same bound the player does: inert wherever the ring already
+			// fits inside the footprint (the shipped Oreshnik: 5c0 ring, 10c0 bound) and wherever no
+			// bound is set at all (the shipped Sarmat).
 			var offsets = MultiAimPointOrder.FallbackRingOffsets(count, fallbackSpread);
 			var fallback = new WPos[offsets.Length];
 

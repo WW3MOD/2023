@@ -268,8 +268,12 @@ Player:
 		# 13c0 = 2090 m. Every NukeSarmatRV and NukeSarmatMIRV warhead carries AirThreshold: 24c0.
 		DetonationAltitude: 13c0
 		MissileDelay: 500
-		# SIX independently-aimed warheads, the number the bus was always described as carrying here.
-		AimPoints: 6
+		# AimPoints IS DELIBERATELY ABSENT, exactly as on the B83 below, and it was REMOVED on
+		# 2026-09-20 rather than merely ignored. MissileStrikePower.AimPointsFor overrides this
+		# field for any power NuclearGameEnders.Is() accepts, so a `6` here decided nothing about
+		# the salvo -- but NuclearBotModule was still reading it raw to size its aim list, which is
+		# how run 260920_140551 delivered 3 warheads of a 4-warhead package. Both callers now ask
+		# the one definition, and an inert number that reads like a live one is worse than none.
 		# 12 ticks between RVs, so 60 ticks across the salvo. The six tracks are PARALLEL as of
 		# 2026-09-07 -- one azimuth for the whole salvo, taken from its centroid -- so this stagger is
 		# now what separates them along the approach rather than what stops them overlapping: they
