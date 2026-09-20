@@ -22,9 +22,17 @@
  *      is that it is now run over one side's actors instead of over the whole map.
  *   3. Neutral HIGH-VALUE assets standing on the enemy's side. A derrick the enemy is drawing on is
  *      a target whoever nominally owns it.
- *   4. SPREAD points, by farthest-point sampling over the enemy's remaining ground. This tier is
- *      what makes "always full" true: a package is sized from the MAP (FinalExchangePackage) and a
- *      side with two buildings left must still deliver all of it.
+ *   4. The assets separation DROPPED, taken anyway, still in priority order. Reached when the
+ *      enemy's things are closer together than the warheads want to be -- which is what a base is.
+ *   5. A RING around the first aim point, at the separation radius, clipped to the enemy's ground.
+ *      Reached when the enemy has fewer distinct assets than the package has warheads.
+ *   6. SPREAD points, by farthest-point sampling over the enemy's remaining ground. Reached only
+ *      by a side with NOTHING STANDING.
+ *
+ * Tiers 4 to 6 are what make "always full" true: a package is sized from the MAP
+ * (FinalExchangePackage) and a side with two buildings left must still deliver all of it. Their
+ * ORDER is the 2026-09-20 fix -- 6 used to follow 3 directly, so a clustered enemy base emptied
+ * the list and the package went to the map corners. See the note on tier 4 in Choose.
  *
  * ==== THE SIDE CLASSIFIER IS INJECTED, AND THAT IS NOT A TESTING CONVENIENCE ====
  * The real classifier is DefconWall's level-independent surface -- HasBorder / SideOf / IsInBand,
@@ -84,17 +92,18 @@ namespace OpenRA.Mods.Common.Traits
 		/// <para>Aim points for one side's package: up to <paramref name="count"/> cells, all on the
 		/// enemy's side of the border and none inside the band.</para>
 		///
-		/// <para>THE SEPARATION RULE APPLIES TO THE ASSET TIERS AND NOT TO THE PADDING, and the
-		/// asymmetry is deliberate. An asset closer than <paramref name="minSeparationCells"/> to
-		/// something already aimed at is DROPPED, because a second warhead there buys nothing --
-		/// that is the same argument <see cref="MissileStrikePowerInfo.AimPointRadius"/> makes to the
-		/// player during placement, and the caller passes that very number. Padding cannot drop
-		/// anything, because its job is to fill the package; farthest-point sampling maximises the
-		/// separation it can achieve rather than refusing the points it cannot.</para>
+		/// <para>SEPARATION IS A PREFERENCE, NOT A VETO, and that distinction is the 2026-09-20
+		/// fix. An asset closer than <paramref name="minSeparationCells"/> to something already aimed
+		/// at is passed over on the FIRST walk, because a second warhead there buys nothing -- the same
+		/// argument <see cref="MissileStrikePowerInfo.AimPointRadius"/> makes to the player during
+		/// placement, and the caller passes that very number. But if the package is still short once
+		/// every asset has been considered, those passed-over assets are taken ANYWAY, in the same
+		/// priority order, before a single cell is invented: a warhead on the second-biggest
+		/// concentration at twenty cells beats one on an empty map corner at fifty.</para>
 		///
-		/// <para>Returns fewer than <paramref name="count"/> ONLY when the enemy side contains no
-		/// cells at all to spread over -- a degenerate classifier, or a border that put the whole
-		/// map on one side. The caller decides what to do about that; this does not invent cells.</para>
+		/// <para>Returns fewer than <paramref name="count"/> ONLY when the enemy side contains no cells
+		/// at all -- a degenerate classifier, or a border that put the whole map on one side. The caller
+		/// decides what to do about that; this does not invent cells.</para>
 		/// </summary>
 		/// <param name="count">Package size, from <see cref="FinalExchangePackage.SizeFor"/>.</param>
 		/// <param name="bounds">The playable rectangle. Padding is drawn from inside it and nowhere else.</param>
@@ -148,6 +157,7 @@ namespace OpenRA.Mods.Common.Traits
 			});
 
 			var minSq = (long)minSeparationCells * minSeparationCells;
+			var dropped = new List<int>();
 			foreach (var i in order)
 			{
 				if (chosen.Count >= count)
@@ -166,13 +176,64 @@ namespace OpenRA.Mods.Common.Traits
 
 				if (clear)
 					chosen.Add(cell);
+				else
+					dropped.Add(i);
 			}
 
 			if (chosen.Count >= count)
 				return chosen;
 
-			// ---- 4. PADDING. Row-major over the enemy's ground, so the candidate list is the same
+			// ==== 4. THE ASSETS SEPARATION DROPPED, TAKEN ANYWAY ====
+			// ADDED 2026-09-20, AND IT CLOSES A DEFECT A PLAYER WOULD HAVE SEEN. The separation
+			// rule is an efficiency argument -- a second warhead inside AimPointRadius is buying
+			// nothing -- and it is the RIGHT rule right up until it empties the list. Past that
+			// point the choice is not "this target or a better one", it is "this target or a cell
+			// picked for being far away", and a warhead on the enemy's second-biggest
+			// concentration at twenty cells beats one on an empty map corner at fifty.
+			//
+			// HOW IT WENT WRONG, run 260920_155623 on a 64x32 map: the Sarmat's AimPointRadius is
+			// 30 cells and the enemy half was about 40x32, so EVERY asset sat inside 30 cells of
+			// the first and was dropped. The package fell straight through to farthest-point
+			// padding, which did exactly its job and picked cell (1,1) -- the map corner, because
+			// that is genuinely the point furthest from the only thing chosen. arena-tank-duel is
+			// the same 64x32 and reproduces it directly, and no map is safe: it needs the enemy's
+			// assets CLUSTERED, which is what a base is.
+			//
+			// PRIORITY ORDER IS PRESERVED, so this walks Supply Routes before concentrations
+			// before neutral assets, exactly as the first pass did -- `dropped` is appended to in
+			// that order and is not re-sorted.
+			foreach (var i in dropped)
+			{
+				if (chosen.Count >= count)
+					break;
+
+				// Never the same cell twice: two warheads on one point is the one thing that is
+				// strictly worse than a corner shot.
+				var cell = assets[i].Cell;
+				if (!chosen.Contains(cell))
+					chosen.Add(cell);
+			}
+
+			if (chosen.Count >= count)
+				return chosen;
+
+			// ==== 5. A RING AROUND THE FIRST AIM POINT ====
+			// Reached only when the enemy has FEWER DISTINCT ASSETS than the package has warheads.
+			// The remaining warheads go on a circle at the separation radius around the first
+			// choice, which keeps the package reading as one strike on a real target instead of
+			// scattering it to the map edges. Same construction MultiAimPointOrder.FallbackRingOffsets
+			// uses for a bot's single-target order, and the same reason.
+			PadByRing(chosen, count, minSeparationCells, OnEnemyGround);
+
+			if (chosen.Count >= count)
+				return chosen;
+
+			// ---- 6. PADDING. Row-major over the enemy's ground, so the candidate list is the same
 			// list on every client before a single distance is measured.
+			//
+			// LAST RESORT, NOT THE FIRST ONE, SINCE 2026-09-20. This is now reached only by a side
+			// with NOTHING STANDING -- no assets at all, so no ring to hang the rest off -- where
+			// a spread over open ground is the honest answer because there is nothing to aim at.
 			var spread = new List<CPos>();
 			for (var y = bounds.Top; y < bounds.Bottom; y++)
 			{
@@ -187,6 +248,42 @@ namespace OpenRA.Mods.Common.Traits
 			PadByFarthestPoint(chosen, spread, count);
 
 			return chosen;
+		}
+
+		/// <summary>
+		/// <para>Fill the package out on a ring of <paramref name="radiusCells"/> around the FIRST
+		/// chosen point, skipping any angle that lands off the enemy's ground or on a cell already
+		/// taken.</para>
+		///
+		/// <para>SIXTEEN ANGLES FOR AT MOST A HANDFUL OF SLOTS, deliberately: a ring point can be
+		/// refused (it is across the border, off the map, or duplicates a choice) and sampling only
+		/// as many angles as there are slots would leave the package short whenever one is. Walking
+		/// a fixed sixteen in order keeps the result a pure function of the inputs and gives every
+		/// slot fifteen fallbacks.</para>
+		///
+		/// <para>INTEGER TRIGONOMETRY, through WAngle's own tables. No float appears here for the
+		/// reason no float appears anywhere on this path: it decides where warheads land.</para>
+		/// </summary>
+		static void PadByRing(List<CPos> chosen, int count, int radiusCells, Func<CPos, bool> onEnemyGround)
+		{
+			if (chosen.Count == 0 || chosen.Count >= count)
+				return;
+
+			// A zero or negative separation would put the whole ring on the anchor itself.
+			var radius = radiusCells > 0 ? radiusCells : 1;
+			var anchor = chosen[0];
+
+			const int Samples = 16;
+			var arm = new WVec(radius * 1024, 0, 0);
+
+			for (var i = 0; i < Samples && chosen.Count < count; i++)
+			{
+				var v = arm.Rotate(WRot.FromYaw(new WAngle(i * 1024 / Samples)));
+				var cell = new CPos(anchor.X + (v.X / 1024), anchor.Y + (v.Y / 1024));
+
+				if (onEnemyGround(cell) && !chosen.Contains(cell))
+					chosen.Add(cell);
+			}
 		}
 
 		/// <summary>

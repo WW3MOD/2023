@@ -58,13 +58,23 @@ rather than guessed at. Seconds are ticks/16.67.
      620   37.2s   Russia slot 2, on USA's ground.
      635   38.1s   Russia slot 3 -- the LAST impact of the cascade,
                    anchor + (2*2-1) * ImpactSpacingTicks 15.
-     637   38.2s   All four craters, both packages down.                               05
+     615   36.9s   THE ONLY UNWASHED LOOK AT A 455 kt DETONATION -- USA's two            05
+                   fireballs, Russia's not yet landed. What to judge is the
+                   fireball sprite scale: NukeW88's Fireball.ScalePercent is
+                   585, the one number in that weapon block not tied to a
+                   stated law, and the light generator reads it.
+     637   38.2s   FULL WHITEOUT BY DESIGN -- four overlapping flashes.                 06
+                   NOT the crater frame; that is 07.
      665   39.9s   ANNIHILATION, 30 ticks past the LAST impact of the CASCADE rather
                    than past any one warhead. That is the simplification the cascade
                    bought: there is no longer a salvo and a player warhead on two
                    schedules to hold the sweep past. "Total strategic annihilation."
      680   40.8s   Resolution point. See the caveat below.
-     700   42.0s   Test.Skip. Verdict SKIP, exit 2, five PNGs in the run directory.
+     685   41.1s   AFTERMATH -- four craters, nothing standing. Past the last           07
+                   flash (635 + 30) and past the sweep. One of Russia's two
+                   craters is the far NW corner and is off-frame; see the
+                   frame note and the targeting report.
+     730   43.8s   Test.Skip. Verdict SKIP, exit 2, SEVEN PNGs in the run directory.
 
 RUN LENGTH IS ~700 TICKS, up from ~545 (2026-09-13) and still well down on the ~780 before that.
 The extra 155 is the cascade's anchor: nothing of the exchange may land until the window has shut

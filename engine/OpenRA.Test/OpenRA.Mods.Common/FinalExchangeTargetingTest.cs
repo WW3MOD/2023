@@ -151,8 +151,126 @@ namespace OpenRA.Test
 				Cluster(50, 30, 28),
 			};
 
+			// COUNT 2 AGAINST THREE ASSETS, deliberately: the drop only stands while the package
+			// still has somewhere better to go. Ask for 3 and the dropped one is taken anyway --
+			// AClusteredEnemyBaseYieldsRealTargetsAndNeverACorner is that half.
 			var aim = Choose(2, assets);
 			Assert.That(aim, Is.EqualTo(new[] { new CPos(40, 20), new CPos(50, 30) }));
+		}
+
+		// ==== WHAT HAPPENS WHEN SEPARATION EMPTIES THE LIST (2026-09-20) ====================
+		// Run 260920_155623 put a 750 kt warhead on cell (1,1), the corner of a 64x32 map, and it
+		// was not a bug in the sampler: the Sarmat's AimPointRadius is 30 cells, the enemy half was
+		// about 40x32, so EVERY asset sat inside 30 cells of the first and was dropped. Farthest-
+		// point padding then did exactly its job. These four pin the fix.
+
+		[Test]
+		public void AClusteredEnemyBaseYieldsRealTargetsAndNeverACorner()
+		{
+			// THE SHIPPED CASE at shipped-ish proportions: five buildings inside ten cells of each
+			// other, against a separation of 20. The first walk takes ONE and drops the other four,
+			// so the package must come out of that base rather than off the map edge.
+			var baseCells = new[]
+			{
+				new CPos(45, 18), new CPos(47, 20), new CPos(44, 22), new CPos(49, 17), new CPos(46, 25)
+			};
+
+			var assets = new List<FinalExchangeAsset>
+			{
+				Cluster(baseCells[0].X, baseCells[0].Y, 40),
+				Cluster(baseCells[1].X, baseCells[1].Y, 30),
+				Cluster(baseCells[2].X, baseCells[2].Y, 20),
+				Cluster(baseCells[3].X, baseCells[3].Y, 10),
+				Cluster(baseCells[4].X, baseCells[4].Y, 5),
+			};
+
+			var aim = Choose(4, assets, 20);
+			Assert.That(aim.Count, Is.EqualTo(4));
+
+			foreach (var c in aim)
+			{
+				Assert.That(baseCells, Contains.Item(c),
+					$"{c} is not one of the enemy's own buildings -- the package escaped to open ground");
+				Assert.That(c.X, Is.GreaterThan(Bounds.Left + 1).And.LessThan(Bounds.Right - 2),
+					$"{c} is on the map edge");
+			}
+
+			// AND IN PRIORITY ORDER THROUGHOUT: the first walk takes the biggest, and the second
+			// takes the rest by weight rather than by whatever order they happened to be dropped in.
+			Assert.That(aim[0], Is.EqualTo(baseCells[0]), "the biggest concentration must still be aimed at first");
+			Assert.That(aim[1], Is.EqualTo(baseCells[1]), "the second walk must keep the weight ordering");
+		}
+
+		[Test]
+		public void ASingleAssetIsRingedRatherThanAbandoned()
+		{
+			// The enemy has exactly ONE distinct thing standing and the package wants four. Tier 4
+			// has nothing left to give, so the remaining three go on a ring at the separation
+			// radius -- close enough to read as one strike on that target rather than three corners.
+			var aim = Choose(4, new List<FinalExchangeAsset> { Sr(48, 20) }, 8);
+
+			Assert.That(aim.Count, Is.EqualTo(4));
+			Assert.That(aim[0], Is.EqualTo(new CPos(48, 20)));
+
+			for (var i = 1; i < aim.Count; i++)
+			{
+				var dx = aim[i].X - 48;
+				var dy = aim[i].Y - 20;
+
+				// On the ring, within the rounding a cell-space circle costs.
+				Assert.That((dx * dx) + (dy * dy), Is.InRange(6 * 6, 10 * 10),
+					$"{aim[i]} is not on the 8-cell ring around the only target");
+			}
+
+			Assert.That(aim.Distinct().Count(), Is.EqualTo(aim.Count));
+		}
+
+		[Test]
+		public void ASideWithNothingStandingStillGetsAFullSpread()
+		{
+			// The one case farthest-point padding is still for: no assets at all, so there is no
+			// ring to hang anything off and open ground is the honest answer.
+			var aim = Choose(4, new List<FinalExchangeAsset>(), 20);
+
+			Assert.That(aim.Count, Is.EqualTo(4));
+			Assert.That(aim.Distinct().Count(), Is.EqualTo(4));
+
+			for (var i = 0; i < aim.Count; i++)
+			{
+				for (var j = i + 1; j < aim.Count; j++)
+				{
+					var dx = aim[i].X - aim[j].X;
+					var dy = aim[i].Y - aim[j].Y;
+					Assert.That((dx * dx) + (dy * dy), Is.GreaterThan(10 * 10),
+						$"{aim[i]} and {aim[j]} are clumped");
+				}
+			}
+		}
+
+		[Test]
+		public void EveryPointOfEveryPaddingTierIsOnTheEnemyHalf()
+		{
+			// THE INVARIANT THAT MUST SURVIVE ALL SIX TIERS, swept so each is reached in turn: 0
+			// assets exercises the spread, 1 the ring, and 5 clustered ones the dropped-asset walk.
+			foreach (var n in new[] { 2, 3, 4, 6 })
+			{
+				foreach (var assetCount in new[] { 0, 1, 5 })
+				{
+					var assets = new List<FinalExchangeAsset>();
+					for (var i = 0; i < assetCount; i++)
+						assets.Add(Cluster(44 + i, 18 + (2 * i), 10 - i));
+
+					var aim = Choose(n, assets, 20);
+					Assert.That(aim.Count, Is.EqualTo(n), $"N={n} assets={assetCount}");
+
+					foreach (var c in aim)
+					{
+						Assert.That(SideOf(c), Is.EqualTo(EnemySide), $"{c} (N={n} assets={assetCount})");
+						Assert.That(InBand(c), Is.False, $"{c} (N={n} assets={assetCount})");
+						Assert.That(Bounds.Contains(c.X, c.Y), Is.True, $"{c} (N={n} assets={assetCount})");
+					}
+				}
+			}
 		}
 
 		[Test]
@@ -196,16 +314,29 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void PaddingIsPlacedAwayFromTheAssetsAlreadyAimedAt()
+		public void PaddingSitsAtTheSeparationRadiusFromTheAssetRatherThanOnItOrAtTheEdge()
 		{
-			// The padding's first pick maximises its distance from what is already chosen, so a single
-			// real target in one corner pushes the fill to the opposite one rather than beside it.
+			// ==== THIS TEST ASSERTED THE DEFECT UNTIL 2026-09-20 ====
+			// It read "the padding's first pick maximises its distance from what is already chosen,
+			// so a single real target in one corner pushes the fill to the OPPOSITE one", and that
+			// is precisely how a 750 kt warhead came to land on cell (1,1) of a 64x32 map. The
+			// intent underneath it was sound -- do not stack the package on one cell -- and the
+			// intent is what survives; the "as far away as possible" reading of it does not.
+			//
+			// WHAT THE PROPERTY IS NOW: a second warhead with no second target goes on the RING, at
+			// the separation radius. Near enough to read as one strike on the thing that is actually
+			// there, far enough that it is not a second crater in the first one.
 			var aim = Choose(2, new List<FinalExchangeAsset> { Sr(35, 3) });
 
 			Assert.That(aim[0], Is.EqualTo(new CPos(35, 3)));
+
 			var dx = aim[1].X - 35;
 			var dy = aim[1].Y - 3;
-			Assert.That((dx * dx) + (dy * dy), Is.GreaterThan(20 * 20));
+			var d2 = (dx * dx) + (dy * dy);
+
+			Assert.That(d2, Is.GreaterThan(0), "the second warhead is stacked on the first");
+			Assert.That(d2, Is.InRange((Separation - 2) * (Separation - 2), (Separation + 2) * (Separation + 2)),
+				$"{aim[1]} is neither on the {Separation}-cell ring nor a deliberate spread point");
 		}
 
 		[Test]
