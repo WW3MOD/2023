@@ -1,5 +1,6 @@
 -- ASSERTION SCENARIO: with "Pre-captured Structures" ON, a neutral capturable structure is owned
--- by the nearer player at match start, and one that nobody is meaningfully nearer to is not.
+-- at match start by the player on ITS OWN side of the DefconWall border, and one standing inside
+-- the border band is owned by nobody.
 --
 -- =====================================================================================
 -- THE CLAIM UNDER TEST
@@ -115,14 +116,16 @@ WorldLoaded = function()
 
 		-- ---- verdict ----
 		if near ~= "USA" then
-			return "fail: the derrick at 11,15 is owned by '" .. near .. "'. It sits 7.5 cells from " ..
-				"USA's Supply Route and 48.5 from Russia's -- a 545% margin, six times the middle " ..
-				"band. Nothing about this one is close"
+			return "fail: the derrick at 11,15 is owned by '" .. near .. "'. Its footprint is cells " ..
+				"11-12 x 15-16, entirely WEST of the band at x=31,32, and USA is the only contender " ..
+				"whose anchor is on that side (its Supply Route centre is cell 4,16). Nothing east " ..
+				"of the band can own it at any distance"
 		end
 
 		if far ~= "Russia" then
-			return "fail: the derrick at 51,15 is owned by '" .. far .. "'. It sits 8.5 cells from " ..
-				"Russia's Supply Route and 47.5 from USA's -- a 458% margin"
+			return "fail: the derrick at 51,15 is owned by '" .. far .. "'. Its footprint is cells " ..
+				"51-52 x 15-16, entirely EAST of the band, and Russia is the only contender whose " ..
+				"anchor is on that side (Supply Route centre cell 60,16)"
 		end
 
 		if mid ~= "Neutral" then
