@@ -34,9 +34,10 @@ measures at several scales rather than assuming.
 
 METRICS, AND WHY 3x5 RATHER THAN THE 4x5 IN convert.py
 -------------------------------------------------------
-The baked lettering on the shipped cameos is 5 ink rows ending on sprite row 46 = SLOT row 45
-(measured here on e1americaicon and t90icon), and tools/cameo/README.md records
-"PRECISION STR." -- 14 characters -- measuring 56px, i.e. 4.0px per character.
+The baked lettering on the shipped cameos is 5 ink rows ending on sprite row 46 = SLOT ROW 44
+(measured here on e1americaicon and t90icon; the slot row said 45 until 2026-09-20, see below),
+and tools/cameo/README.md records "PRECISION STR." -- 14 characters -- measuring 56px, i.e.
+4.0px per character.
 
 convert.py's baked-caption font is 4px of ink on a 5px advance. At that pitch "PRECISION STR."
 is 69px against a 60px slot budget, so the widget would shorten the mod's own longest shipped
@@ -45,9 +46,18 @@ the un-badged budget, 11 fit beside a badge. Punctuation is narrower; see advanc
 
 Cap height is 5px = 640 units, sitting on the baseline. CameoCaptionCache puts the line box at
 slotHeight - bottomMargin - lineHeight and SpriteFont.DrawText adds `size` to reach the
-baseline, so with CaptionBottomMargin: 0 the baseline is slot row 46 and a 5-row cap occupies
-rows 41..45 -- which is where the baked lettering already is. The font SIZE cancels out of that
+baseline, so with CaptionBottomMargin: 1 the baseline is slot row 45 and a 5-row cap occupies
+rows 40..44 -- which is where the baked lettering already is. The font SIZE cancels out of that
 derivation entirely; what has to be 5 is the CAP HEIGHT, not the size.
+
+    CORRECTED 2026-09-20. This said margin 0 and rows 41..45, from sprite row 46 being slot row
+    45. It is slot row 44: IconSpriteOffset moves the sprite's CENTRE, not its top-left, so a
+    48-row cameo in a 46-row slot starts at slot row (46 - 48) / 2 + (-1) = -2. And slot row 45
+    is unusable anyway -- the sidebar's cell frame (`background-iconrow` row 46,
+    `background-supportoverlay` row 47) composites over it after the palette widget has drawn.
+    The cost of the old number was that EVERY caption in the game lost its fifth glyph row: I
+    read as T, L as I, E as F, RIFLEMAN as RTFLEMAS. None of the measurements in this file were
+    wrong -- they are all in SPRITE rows, and the error was entirely in the mapping to slot rows.
 
 THE AUTOHINTER IS ON, AND IT IS WHY THIS FILE MEASURES THROUGH ftprobe AND NOT PILLOW
 ---------------------------------------------------------------------------------------

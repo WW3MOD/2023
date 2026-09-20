@@ -30,10 +30,12 @@ import binmock          # noqa: E402  -- cameo decoding and the palette
 import ftprobe          # noqa: E402  -- the engine's FreeType
 import pixelfont        # noqa: E402  -- the font under test and the slot constants
 
-# chrome/ingame-player.yaml, both palettes. Same numbers binmock.py carries, same reason.
+# chrome/ingame-player.yaml, both palettes. Same numbers binmock.py carries, same reason -- and
+# the placement of the cameo and of the cell frame over it are taken from binmock rather than
+# restated, so the two mockups cannot drift apart again. BOTTOM_MARGIN was 0 here until
+# 2026-09-20; see binmock.SPRITE_CENTRE_OFFSET and binmock.frame() for what that cost.
 SLOT_W, SLOT_H = 62, 46
-SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 0, 2, 1
-SPRITE_OFFSET = (-1, -1)
+SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 1, 2, 1
 SIZE = 7                                  # Fonts: CameoCaption: Size, and Caption: Size
 BG = (24, 26, 30, 255)                    # the sidebar behind a cameo
 FG, CONTRAST = (255, 255, 255), (0, 0, 0)  # CaptionColor / CaptionContrastColor defaults
@@ -114,7 +116,7 @@ def slot(cameo, caption, ft, badge=None, band=True):
     """One 62x46 icon slot. CameoCaptionCache.Build, hand-ported -- see the module header."""
     img = Image.new("RGBA", (SLOT_W, SLOT_H), BG)
     if cameo is not None:
-        img.alpha_composite(cameo, SPRITE_OFFSET)
+        img.alpha_composite(cameo, binmock.sprite_origin(cameo.size))
 
     reserved = badge.size[0] + BADGE_GAP if badge else 0
     text, width = None, 0
@@ -138,6 +140,13 @@ def slot(cameo, caption, ft, badge=None, band=True):
         draw_caption(img, ft, text, (SLOT_W - reserved - width) // 2, top)
     if badge:
         img.alpha_composite(badge, (SLOT_W - SIDE_MARGIN - badge.size[0], bottom - badge.size[1]))
+
+    # The sidebar's cell frame, composited last because it is a later sibling of the palette
+    # widget. It covers slot row 45 and slot column 61 -- which is why the caption is anchored to
+    # end on slot row 44 and not 45. binmock.frame() carries the citation.
+    overlay = binmock.frame()
+    if overlay is not None:
+        img.alpha_composite(overlay, binmock.SUPPORT_OVERLAY_ORIGIN)
     return img
 
 

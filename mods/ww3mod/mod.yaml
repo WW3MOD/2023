@@ -333,10 +333,15 @@ Fonts:
 	# The arithmetic, and the measurement that confirms it through the engine's own freetype6,
 	# are in tools/cameo/pixelfont.py; `python tools/cameo/pixelfont.py --verify` re-checks it.
 	#
-	# ASCENDER 5 IS THE CAP HEIGHT. The glyphs are 5 rows tall and sit on the baseline, which is
-	# what puts a runtime caption on slot rows 41-45 -- the rows the baked lettering already
-	# occupies on every shipped cameo. `Caption` above says 6 because FreeSansBold's caps are 6
-	# rows at this size; the two fonts are not interchangeable and the numbers are not copies.
+	# ASCENDER 5 IS THE CAP HEIGHT. The glyphs are 5 rows tall and sit on the baseline, which --
+	# with CaptionBottomMargin: 1 in chrome/ingame-player.yaml -- puts a runtime caption on slot
+	# rows 40-44, the rows the baked lettering already occupies on every shipped cameo. (This
+	# comment said 41-45 until 2026-09-20. The ART figure it came from, sprite rows 42-46, is
+	# right; the slot mapping was not, because IconSpriteOffset moves the sprite's CENTRE and a
+	# 48-row cameo in a 46-row slot therefore starts at slot row -2. Slot row 45 is in any case
+	# covered by the sidebar's own cell frame and cannot be drawn on -- see that file.)
+	# `Caption` above says 6 because FreeSansBold's caps are 6 rows at this size; the two fonts
+	# are not interchangeable and the numbers are not copies.
 	CameoCaption:
 		Font: ww3mod|WW3Caption.ttf
 		Size: 7

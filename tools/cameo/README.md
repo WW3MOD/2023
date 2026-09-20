@@ -197,7 +197,7 @@ Side-by-side at 6× with the rows ruled: `WORKSPACE/mockups/caption-vs-baked.png
 | Advance width, "PRECISION STR." | 56px | 57px | 1px over 14 characters |
 | Letter colour | `#FFFFFF`, 115/115 px | `CaptionColor`, white | exact |
 | Treatment | 1px outline, all 8 sides | `DrawTextWithContrast(…, 1)` | already an outline |
-| Last ink row | slot row 45 of 46 | `IconSize.Y - CaptionBottomMargin - 1` | equal at margin **0** |
+| Last ink row | slot row 44 of 46 | `IconSize.Y - CaptionBottomMargin - 1` | equal at margin **1** |
 
 So tracking, colour, weight and treatment need nothing. **The one real gap is
 antialiasing**, and it is the trap in this file:
@@ -224,12 +224,25 @@ antialiasing**, and it is the trap in this file:
 > antialiased.** So "match the baked art" is not the argument for a 1-bit caption
 > font. The geometry claims above (5 ink rows, last ink row on slot row 45, 4px
 > pitch) all re-measured correct.
+>
+> **AND THE SLOT ROW IN THAT TABLE WAS WRONG UNTIL 2026-09-20.** The ART figure —
+> 5 ink rows ending on **sprite** row 46 — is right and has been re-measured again.
+> The slot row derived from it was not: `IconSpriteOffset` moves the sprite's
+> **centre**, not its top-left, so a 48-row cameo in a 46-row slot begins at slot
+> row `(46 - 48) / 2 + (-1) = -2` and sprite row 46 is **slot row 44**. Slot row 45
+> is unusable in any case — `PALETTE_FOREGROUND` composites the sidebar's cell frame
+> (`background-iconrow` row 46; `background-supportoverlay` row 47) over every slot
+> *after* the palette widget draws. The cost was a caption that lost its bottom glyph
+> row everywhere: `I` read as `T`, `L` as `I`, `E` as `F`.
 
-**`CaptionBottomMargin` must be 0**, and that is derived rather than chosen: the
+**`CaptionBottomMargin` must be 1**, and that is derived rather than chosen: the
 generated text's last ink row is `IconSize.Y - margin - 1` (the cache puts the
 line box at `slotHeight - margin - lineHeight`, `SpriteFont.DrawText` adds `size`
 to reach the baseline, and `lineHeight` *is* `size`, so the font cancels), and it
-has to equal the row the baked ink ends on. `CameoCaptionBandTest` asserts it.
+has to equal the row the baked ink ends on — **slot row 44**, not 45. It must also
+stay off slot row 45, which the sidebar's cell frame paints over.
+`CameoCaptionBandTest` asserts both, and derives the sprite's placement from
+`IconSize` and `IconSpriteOffset` rather than carrying a constant.
 
 ### Rollout order is decided by one fact
 

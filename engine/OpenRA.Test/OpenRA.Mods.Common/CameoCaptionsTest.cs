@@ -355,8 +355,12 @@ namespace OpenRA.Test
 			// `slotHeight - bottomMargin - 1`, and the margin is the ONLY thing that moves it.
 			//
 			// That is what makes matching the baked lettering a measurement rather than a taste
-			// call: the baked ink ends on slot row 45 of 46, so the margin has to be 0. It shipped
-			// at 2, floating the text two rows clear of every baked caption beside it.
+			// call: the baked ink ends on SLOT ROW 44 of 46 -- sprite rows 42-46 of a 48-row cameo
+			// whose top-left the widget centres onto slot row -2 -- so the margin has to be 1. It
+			// shipped at 2, floating the text clear of every baked caption beside it, was then
+			// "corrected" to 0 on the strength of a slot row read off the art as 45, and was
+			// corrected again to 1 on 2026-09-20. Slot row 45 is in any case painted over by the
+			// sidebar's cell frame; see CameoCaptionBandTest, which now checks both facts.
 			for (var margin = 0; margin <= 4; margin++)
 			{
 				var caption = Cache(bottomMargin: margin).Get("50 KT");
@@ -396,11 +400,18 @@ namespace OpenRA.Test
 		[Test]
 		public void BandStopsShortOfTheSlotBottomWhenThePaddingIsLessThanTheBottomMargin()
 		{
-			// The failure this pins is not hypothetical: the caption feature shipped with the engine
-			// default padding of 1 against a bottom margin of 2, leaving band rows 36-44 against
-			// baked ink whose last row is slot row 45, so a dotted line of the old lettering survived
-			// under every runtime caption. Kept as a test so the shape of that bug is on the record
-			// and the test above cannot be "fixed" by clamping the band unconditionally.
+			// The shape this pins is the one the feature shipped with: the engine default padding of
+			// 1 against a bottom margin of 2 leaves band rows 36-44, one row short of the slot.
+			//
+			// THE STORY ATTACHED TO IT IS NOT RELIABLE and is recorded here as such. The 2026-09-08
+			// report said a dotted line of baked lettering survived under every runtime caption
+			// because the baked ink's last row is slot row 45; that row number came from reading
+			// IconSpriteOffset as a top-left offset, and the baked ink actually ends on slot row 44
+			// (corrected 2026-09-20, see CameoCaptionBandTest). A band covering 36-44 does cover 44,
+			// so the reported symptom does not follow from the reported cause. What survives is the
+			// ARITHMETIC below, which is all this test asserts: the band's bottom is
+			// `slotHeight - bottomMargin + padding` clamped into the slot, so it stops short of the
+			// last row whenever the padding is less than the margin.
 			var band = Cache(bottomMargin: 2, backgroundPadding: 1).Get("50 KT").Background;
 			Assert.That(band.Bottom, Is.EqualTo(45));
 			Assert.That(band.Bottom, Is.LessThan(46));
