@@ -106,6 +106,44 @@ It matters in both directions. It **shrinks** what a change to that activity can
 
 Three refill sites iterate the filtered `Rearmable.RearmableAmmoPools` (built at `Rearmable.cs:44`): `RearmTick` (`:60`, docked hosts and the LC), the `SupplyProvider` passive aura (`SupplyProvider.cs:853`), and `QuickRearm` (`:46`). **But the enumeration is not complete, and a 2026-08-21 claim that it was is wrong:** `EnterCarrierMaster.cs:49-53` refills **every** pool on the actor via `self.TraitsImplementing<AmmoPool>()`, bypassing `Rearmable` entirely, and `CarrierMaster` is in use in this mod (`infantry.yaml:2323`). The Lua scripting API (`AmmoPoolProperties.cs:62`) is a fourth writer. So `Essential ⊆ Rearmable.AmmoPools` is necessary but **not** sufficient on a carrier-capable actor.
 
+### "Empty" is an AFFORDABILITY BAND, not a zero — and the two halves of one rearm errand disagreed about it
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)*
+
+`AmmoPool.RearmCandidates` filters hosts on `CurrentSupply > 0` (`AmmoPool.cs:1309`), so the whole range
+`1 … batchPrice − 1` is **stocked and unable to serve anybody**: both `Rearmable.RearmTick`
+(`Rearmable.cs:106`, `provider.CurrentSupply < ammoPool.Info.SupplyValue → continue`) and
+`AmmoPool.TryServeBatch` skip a pool the provider cannot pay for. **In this mod that band is where the
+Logistics Centre normally sits** — an `iskander` batch is `SupplyValue: 1500` against the Centre's
+`TotalSupply: 2250`, so one missile leaves 750 behind, which is stock that can serve nothing. **Any fix written
+against `CurrentSupply == 0` misses the reported unit entirely.**
+
+**The durable half is where the two halves of one errand drifted apart.** `AmmoPool.AutoRearm` routes a
+docking-gated host (the LC) to `Resupply` and everything else (truck/cache) to `SeekSupplyProvider`.
+`SeekSupplyProvider` re-asks `HostCanAffordSomethingWeNeed` every tick through its `TargetValid`, and
+`SupplyHuntMath.NextState` answers `!providerUsable` with `Returning`. `Resupply` re-asked only
+*"am I still dry?"* and never whether the host could still serve — so the truck half had been fixed and the LC
+half had not, which is exactly why the user's report named the LC. **When one capability has two activities,
+enumerate the per-tick re-decision each makes; a fix applied to one of them looks complete from either side.**
+
+**The stall was the idle RE-DECISION, not the arrival.** Arrival already terminated correctly. The unit then
+went idle *at* the depot, and the hopelessness test asked `AnyRearmHostWithinLeash`, which swept
+`RearmCandidates(self, requireSupply: false)` — hosts that **exist** — so the drained Centre it was parked at
+counted as a reason to wait. That disposition's only payoff is `NeedsResupply`, whose sole engine-wide reader
+drives to the flagged **unit**; nothing anywhere reads it as *"resupply my depot"*. Waiting beside a static
+drained depot can therefore never terminate on its own.
+
+**A shipped claim this falsified, worth checking before you repeat it: docking rearm is NOT unmetered.**
+`test-poor-depot-still-worth-the-trip` asserts a dry tank should drive to a Centre holding less than one batch
+"on the grounds that a rearm there is FREE — `Rearmable.RearmTick` hands out ammunition with no supply
+consulted". That was true when written and was falsified the same afternoon; `Rearmable.cs:106` meters it
+today. **Read `Rearmable.cs:83-118` before trusting any claim that docking rearm is free** — several comments
+across the tree still assert it.
+
+**Adjacent, not fixed:** `AnyRearmHostWithinLeash` measures in chessboard cells while `ChooseAffordableResupplier`
+picks the nearest affordable by Euclidean distance, so an affordable host can sit inside the leash while the
+*chosen* one falls outside it.
+
 ### Pool NAME never implies pool ROLE
 
 `primary-ammo` is used 40 times and `secondary-ammo` 15 — just enough regularity to make a name-based rule look safe. It is not, and the counterexamples are headline units:
@@ -223,6 +261,8 @@ Pool budget = `(Ammo / ReloadCount) × SupplyValue`. For Bradley 25mm above: `(9
 
 Batching keeps integer math honest while letting us express low per-round cost. `ReloadCount: 100, SupplyValue: 5` is ~0.05 effective per round — affordable for a 900-round bulk autocannon on a 1500-cost IFV, with whole-number bookkeeping.
 
+**`TryServeBatch` takes `SupplyValue` as ONE FLAT CHARGE and serves `Min(Max(1, ReloadCount), missing)` rounds, so a pool one round short still pays a whole batch.** *(Promoted 2026-09-20 from DISCOVERIES.)* Reading `SupplyValue` as a per-round price understates a cheap-batch pool by up to 100×, which is how thirteen pools came to price a larger-calibre round at or below the 5.56 mm rifle anchor — a 30 mm autocannon shell on the `bmp2` cost exactly what a rifle cartridge cost. **The reusable check is the part worth keeping: group every pool by the WEAPON KEY its armaments name, and assert one per-round price per key.** That catches the same round priced differently on two carriers, and it catches the opposite mistake too — **a comment describing a unit's real-world armament is not evidence of what the ruleset does.** The `btr`'s comment says 14.5 mm KPVT, true of a real BTR-80, while its armament fires `12.7mm.MG`, the same key the `m113` fires; pricing them apart on the strength of the comment would have created the very split being removed.
+
 ### One property, two uses
 
 `SupplyValue` is the single cost-per-batch property. It's charged when a supply provider hands over a batch (rearm) and deducted when a unit evacuates with that batch missing (evac/sell).
@@ -301,6 +341,35 @@ So a lone $100 infantryman is worth a tube shell but not a Grad volley — the a
 The pool drains as:
 - Vehicles dock and rearm directly (`SupplyValue × batches given`).
 - Trucks drive in to restock (truck pulls supply from LC; LC drops by exactly the amount taken).
+
+**The reverse — truck INTO Centre — is a direct atomic transfer, and it always worked for humans.** *(Promoted
+2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Activities/DeliverSupply.cs:148-154` does
+`supply.DeductSupply(given)` then `hostProvider.AddSupply(given)`, sized by `SupplyTransferMath.AmountToDeliver`
+— **not** a crate drop the Centre then absorbs. `LOGISTICSCENTER` carries `AbsorbsSupplyCache`
+(`structures.yaml:701`), and that trait is the **gate on the order itself**: `DropsSupplyCache.ResolveOrder:321`
+returns early unless the target has it, so its presence is what makes an LC a legal delivery target at all.
+`TRUK` carries `DropsSupplyCache` (`vehicles.yaml:669`), which issues the order and holds the targeters, and
+`DeliverSupply` is the **default left-click** of a loaded truck on a Centre.
+
+> **The generalisable half outlived the gap it was found in.** For a long window the feature had a complete
+> engine path, a cursor, a targeter and a test scenario, and was still unreachable for one of the two kinds of
+> player, because `grep -rn "DeliverSupply" engine/OpenRA.Mods.Common/Traits/BotModules/` returned **only
+> prose** — no bot module ever issued the order, so a bot's Centre ran to zero and stayed there. *(Closed
+> since: `LogisticsCenterBotModule.cs:440` now queues the same order a human issues.)* **"Is the feature
+> implemented" and "is anything wired to trigger it" are separate questions. Grep the CALLERS, not the
+> capability.**
+
+**Two independent claim registries exist for trucks and they do not see each other.** `SupplyFollowerBotModule`
+filters its roster on `IsClaimedByOtherModule` (`claimant != null && claimant != "supply-follow"`), so a truck
+claimed under any other name in the **`BotBlackboard`** vanishes from its scan entirely — claiming is how you
+take a truck without a fight. It does **not** consult `PoiGoalGuard.Ledger`, which is the other claim system in
+this codebase (see [`architecture.md` §"The PoiGoalGuard commitment ledger"](architecture.md#the-poigoalguard-commitment-ledger--commit-on-order--three-tier-timers)) and the one
+`LogisticsCenterBotModule` already uses for its LCCVs. **Picking the wrong registry for a given counterparty
+means your claim is invisible; claim in whichever one the module you need to keep OFF the unit actually
+reads.** And **the release is the half that goes wrong** — a module that drops a unit from its roster while
+keeping its blackboard claim leaves it alive-and-claimed forever and invisible to every claim-respecting
+module. Any new claimant needs its release edges enumerated, **including owner change**, since a Centre
+captured away mid-drive leaves a truck driving at a building that is no longer yours.
 
 When the LC's pool hits zero it stops servicing rearm requests. The player deploys another LCCV, or relies on trucks that still have supply.
 

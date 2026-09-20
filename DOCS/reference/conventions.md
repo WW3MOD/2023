@@ -175,6 +175,25 @@ That asymmetry is the design: ground autocannons and MGs list `Helicopter` and s
 
 **The suppression is caused by BYSTANDERS, not only by the intended victim — an actor with a `HitShape` and no enabled `Targetable` swallows the explosion and the sound of any shell landing on it.** `ActorTypeAtImpact` (`CreateEffectWarhead.cs:67-96`) walks `FindActorsOnCircle(pos, WDist.Zero)` and, for every actor whose hitshape contains the impact point, sets `anyInvalidActor = true` unless the warhead `IsValidAgainst` it (`:89-92`) — and `IsValidAgainst` fails immediately when `GetEnabledTargetTypes()` is empty (`:107`). One such actor is enough: the method returns `Invalid` and `DoImpact` returns before the sprite and before `Game.Sound.Play` (`:155`). Because `^1x1Shape` spans a whole cell, an untargetable full-cell actor silences *every* shell in its cell. **Damage is unaffected** — `CreateEffectWarhead` and `WarheadAS.IsValidImpact` (`WarheadAS.cs:75-85`) are the only two sites carrying this early-out; `DamageWarhead.DoImpact` has no position-level gate. So "the shell did nothing" and "the shell did damage but looked and sounded like nothing" are different defects. Since `db01b0ae` both sites skip cosmetic ground cover (`victim.IsGroundCover()`, `CreateEffectWarhead.cs:82`, `WarheadAS.cs:48`), which is what un-silenced shells landing on `^CivField`; any *other* untargetable-but-hitshaped actor still swallows them.
 
+### An armament's `RequiresForceFire` is a per-WEAPON opt-out from AutoTarget, so "does this unit auto-attack X" is not an actor-level question
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)*
+
+`AttackBase.ChooseArmamentsForTarget` walks **every** armament, and each armament excludes itself only by its
+own flags. So a unit's AutoTarget configuration says what the unit *may* do and says nothing about which of its
+weapons will actually be picked: reading the actor's `AutoTarget` block alone answers "yes" for everything, and
+reading only the primary armament answers "never".
+
+The shipped instance is the drone operator, and it is correct as authored rather than a defect: `DR`'s primary
+`DroneTargeter` carries `RequiresForceFire: True`, so every AutoTarget scan skips it, while the secondary
+`DroneJammer` carries no such flag, no `RequiresCondition` and no `AmmoPool` binding — leaving it the **sole
+survivor of the scan filter and therefore DR's only auto-targetable weapon**. The jammer is live *because* the
+gun is not. `^DR` additionally removes `StancePositioningExecutor` and `GrantConditionOnBotOwner@tacpos` so a
+bot lane cannot silence it, with a protective comment saying so at the site.
+
+**Rule: answer "does this auto-attack X" per ARMAMENT.** The per-actor stance is a permission; the per-armament
+flags are the selection.
+
 ### There are TWO `ValidTargets` gates on every shot: the weapon's gates AIMING, the warhead's gates IMPACT — and only one of them has a default
 
 *(Promoted 2026-09-02 from DISCOVERIES, every citation re-read at `main @ 26f9cec0`.)*
@@ -215,6 +234,20 @@ still be announced, and do nothing to the ground.
 `IsValidTarget` (`GameRules/WeaponInfo.cs`), and splash warheads run each candidate through it — an actor
 with no enabled target types is an invalid victim for every weapon in the game. **Override `TargetTypes`
 to a value nothing lists** rather than removing the trait.
+
+### A launcher that fires a DUMMY weapon: its firepower is not reachable from its `Armament`
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)*
+
+Three shipped launchers bind their ammo pool to an armament whose weapon does nothing, because what is actually
+delivered is a **spawned actor**: `iskander` and `HIMARS` through `MissileSpawnerMaster`, `DR` through
+`CarrierMaster`. `IskanderTargeter` is an `InstantHit` carrying `Damage: 50` with every `Versus` entry at 0;
+`HIMARSTargeter` inherits it; `DroneTargeter` is `Damage: 0` and its armament sets `AmmoUsage: 0` as well.
+
+**Consequence beyond tooltips: any code that assesses a unit's firepower by walking `Armament` → `Weapon` →
+warhead concludes these three are harmless.** The damage lives on the spawned actor's own weapon
+(`IskanderExplosion`), which is not reachable from the launcher's armament at all. Check for a spawner trait
+before trusting a threat-assessment, scoring or UI path that walks armaments.
 
 ### `TargetDamage` scales by distance from the victim's CENTRE, so which cell of a building you clicked changes the damage
 
@@ -317,6 +350,48 @@ Worked on shipped data against `abrams` (`Thickness: 700`, `Distribution: 100,40
 Two rules follow. **(1)** Any surface showing penetration must also show attack direction, or it is actively misleading rather than merely incomplete. **(2)** `Armor.Thickness` alone never answers "will this hurt it" — the direction term is not a modifier you can round away; it is 10× on the weapon class designed to exploit it.
 
 `TopAttack: true` is set at exactly five sites: `weapons-missiles.yaml:6` (`ATGM`) and `weapons-ballistics.yaml:880, 974, 1007, 1097` (artillery rounds). It is **not** on `RPG`, `TankRound.*`, `WGM.*`, `Hellfire.*` or `Stinger.quad` — so `ATGM` is the only infantry weapon in the mod that behaves this way.
+
+#### `Armor.Type` and `Armor.Thickness` are two independent halves, and only one is gated on a `Versus` table
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* They are adjacent fields on one trait and are
+consumed by different code on different terms:
+
+- **`Type` is inert unless some warhead's `Versus` table names it.** `DamageWarhead.DamageVersus` applies a
+  modifier only for classes a table actually lists; an unlisted class takes the default 100 % (the full rule is
+  §"`Versus`: an OMITTED armor class is FULL damage" above, where `Kevlar` is the standing example).
+- **`Thickness` is read straight off the trait on EVERY hit** and compared against `Penetration` whatever the
+  type is called. It never consults a table.
+
+So an actor can be meaningfully armoured through a type that no weapon in the game discriminates on. `gtwr` is
+the shipped case — `Type: Unarmored, Thickness: 25` (`structures-defenses.yaml:103-105`), the sole
+`Thickness > 0` paired with an undiscriminated type — and a tooltip that gated the whole armour row on the type
+being discriminated suppressed the thickness with it. **Giving a class real protection is a `Versus:` edit in
+the weapons files, or a `Thickness:`, never an `Armor.Type:` edit.** `Thickness` is **millimetres**
+(`Armor.cs:28`), and the roster is coherent in that unit (aircraft 3–20, APC 10–19, MBT 280–700, bunker 2000).
+
+#### Five facings, four values — and the two flag-selected ones are hard switches
+
+`ArmorInfo.Distribution` is `{ Front, Side, Rear, Top, Bottom }` **in percent** (`Armor.cs:31-32`), consumed
+only by `DamageWarhead.ArmorDirectionPercent`. Three things that are easy to get wrong:
+
+1. **`distribution[1]` is read for BOTH flanks**, so left and right cannot differ. Any UI must show one
+   mirrored side number.
+2. **The entries are percentages, never millimetres.** The per-facing mm figure is `thickness × armorPercent /
+   100` (**integer** division) and exists as a number nowhere in the YAML.
+3. **The horizontal facings interpolate; roof and belly do not.** The four cardinals are exact and the code
+   blends between neighbours by impact angle, while `TopAttack` → `[3]` and `BottomAttack` → `[4]` are hard
+   switches chosen by an explicit weapon flag — real distinct facings, not approximations of an angle.
+   `BottomAttack` is authored on exactly one weapon, `ATMine`.
+
+**Per-facing armour is a VEHICLES-ONLY feature and is near-mute across the roster** *(census, as of
+`a21583fd` — re-derive before relying on it)*: every `Distribution` in the mod is in `vehicles*.yaml`, and
+`ArmorDirectionPercent` returns a flat 100 % unless `distribution.Length == 5`, so aircraft, structures and
+defences — which author `Thickness` but no `Distribution` — really are uniform. Of the sixteen vehicles that
+author one, only `abrams` (`100,40,15,10,10`) and `t90` (`100,60,40,15,15`) are differentiated; thirteen carry
+the identical flat `100,80,80,80,60` against a `^Vehicle` fallback of `100,50,25,10,10`. **A vehicle wearing
+the APC boilerplate at MBT thickness gets an absurd roof** — `t72` is the live instance (280 mm × 80 % = 224 mm
+overhead against the T-90's 42 mm, halving `ATGM` effectiveness against it). That is a class of authoring bug
+invisible in the YAML, because the numbers look like every neighbour's.
 
 ### Bullets DO lead a moving target — the lead lives in `Armament`, not in `Bullet`
 
@@ -495,6 +570,39 @@ with passable cells.
 **Shipped examples, as of `main @ 95bdffb2`:** `SUPPLYROUTE` is 3x3 `=+= +++ =+=` (`structures.yaml:285-286`)
 — all four corners stoppable, five transit-only cells. `LOGISTICSCENTER` is 2x2 `++ =+` (`:435-436`) with
 exactly one stoppable cell, `(0,1)`, under the crane. Neither has ever blocked movement.
+
+### `Dimensions` is a BOUNDING BOX, not the shape — a `CenterPosition`-anchored trait on a padded Building fires off-centre
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`. Geometry over read code and authored YAML — never launched.)*
+
+A Building's `CenterPosition` is the centre of its **`Dimensions` box**, not of its authored footprint:
+`Building.CenterOffset` is `(CenterOfCell(dim) - CenterOfCell(1,1)) / 2` = `512 × (dim - 1)` per axis
+(`Traits/Buildings/Building.cs:207-211`), applied once at construction (`:350`). Any trait that anchors at
+`self.CenterPosition` therefore acts from the box centre — and **when the footprint carries an empty padding
+column, the box centre is displaced into the padding, away from the mass a player sees.** The error scales
+with the padding, not with the actor's size.
+
+The live case was forest cover. `ProximityExternalCondition` anchors its trigger at `self.CenterPosition`
+(`Traits/Conditions/ProximityExternalCondition.cs:75`), while the forest *shadow* reads `Building.Density`,
+which `Map.SetDensityLayer` stamps per footprint cell at `location + d.Key`. Cover and shadow — the two halves
+of forest concealment — were therefore anchored on different points, and the clump actors (`TC01` footprint
+`==_ xx_`, `TC04` `x==_ xx=_ x___`, `Density: 0` in the padding) put only 27–50 % of their own authored density
+inside their own 1-cell cover circle, against 100 % for the single-trunk trees the radius was chosen from.
+The single-trunk case was the one the original reasoning was checked on; the clumps are the bulk of the forest.
+
+**Fixed by a per-actor `Offset` on the trigger, not by a bigger `Range`** — `Offset: -512,0,0` on TC01–TC03,
+`-1024,-512,0` on TC04, `0,512,0` on TC05 (`ingame/decoration.yaml:580`, `:596`, `:612`, `:628`, with the
+derivation in that file's own header at `:33-53`). Two things to carry:
+
+- **The field is ADDED, not subtracted.** `ProximityExternalCondition` does `position += Info.Offset` at both
+  call sites; the `[Desc]` used to say "Offset to subtract from center" and was backwards. It now states the
+  box-centre trap in place (`:39-43`).
+- **The proximity test is STRICT** — `HorizontalLengthSquared < range.LengthSquared` — so a cell at exactly
+  `Range` is **not** covered. Size an offset to leave margin rather than to land on the boundary.
+
+A one-cell-radius emitter cannot span a 3-cell-wide mass whatever offset it is given (TC04/TC05 cap at 63.6 %
+of their own density); that needs a second emitter. `T01.Husk` already carried an `Offset` workaround, so this
+had been hit once before and not generalised.
 
 ### Disabling a string field: bare colon, not `""`
 
@@ -852,6 +960,34 @@ Four things decide whether this works, and three of them are traps:
 
 **The rule: write an enumeration as a claim with its method attached, never as a bare number.** Not *"17 sites"* but *"17 sites; grep `\bfa\.Owner\b` over `engine/**/*.cs`; recall unverified"*. A bare number is indistinguishable from a measurement at the point of reuse, and it will be reused. **If a design decision depends on an enumeration being complete, buy the recall-complete instrument** — one attribute and one build is cheaper than the design being wrong.
 
+### Reflection over the loaded assemblies answers "implements A but not B" — grep structurally cannot
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* The `[Obsolete]` + `CS0618` trick above finds
+consumers of a **member**. It cannot answer "which classes implement interface A but not interface B", because
+the interface may be inherited from an abstract base and **never named in the file** — there is no text to
+match. A throwaway NUnit case answers it exactly, in ~40 lines:
+
+```csharp
+foreach (var t in asm.GetTypes().Where(t => t.IsClass && !t.IsAbstract)) {
+    var i = t.GetInterfaces();   // transitive closure — inherited interfaces included
+    if ((i.Contains(typeof(INotifyAddedToWorld)) || i.Contains(typeof(INotifyRemovedFromWorld)))
+        && !i.Contains(typeof(INotifyOwnerChanged)))
+        rows.Add(t.FullName);
+}
+```
+
+`GetInterfaces()` returning the **transitive closure** is what makes this a regression check rather than a
+census: once a base class gains the interface, every subclass drops out of the result set — direct evidence the
+base handler reaches them all. Anchor each assembly with `typeof(SomePublicType).Assembly`. Three gotchas, each
+of which cost a run or a compile:
+
+- **`TestContext.Progress.WriteLine` does NOT survive `dotnet test`'s default console logger.** The test passes
+  and the output vanishes. Write to a file from inside the test.
+- Many Cnc trait classes are **internal**, so `typeof(TSResourceLayer)` fails `CS0122`. Use a public type such
+  as `ChronoshiftPaletteEffect` to anchor `OpenRA.Mods.Cnc`.
+- **It narrows the reading list; it does not do the reading.** Of 37 hits on the run that produced this, 12 died
+  to a YAML-presence grep and the other 25 had to be read for actual owner-dependence.
+
 ### `A() ?? B` in a decision path — check that both arms answer the same QUESTION
 
 *(Promoted 2026-09-06 from DISCOVERIES.)* Nothing type-checks that the two arms of a `??` are the same *kind*
@@ -952,6 +1088,12 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **`cmd.exe` parses redirection operators on `@REM` lines.** An angle bracket inside a batch comment is a live redirect, not documentation — the comment removed on 2026-09-01 carried a literal bracketed path on the argument-passing branch. Keep redirect, pipe and escape characters out of `.cmd` comments.
 
 ## Engine behaviors that surprise (debugging gotchas)
+
+- **`Actor.Location` LEADS a moving unit by one cell, and unit speed does not widen the window.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Actor.Location` is `OccupiesSpace.TopLeft` (`Actor.cs:78`) and for a `Mobile` actor `TopLeft => ToCell` (`Mobile.cs:314`) — **the cell being moved INTO**. `ToCell` is assigned when a move BEGINS, not when it completes (`Mobile.IsLeavingCell` encodes the same semantics: `ToCell != location && FromCell == location`). So the reported cell runs one ahead of where the unit physically is, and **a Speed-25 rifleman's reported cell jumps exactly as fast as a tank's** — the intuition that a slow unit gives a poll a wide margin is backwards, because the first tick of the queued move is enough. Anything reading where a unit *arrived*, *spawned* or *stopped* by polling `Actor.Location` is reading its destination. Use a notification hook — for a Supply Route delivery that is `Trigger.OnProduction`, which fires from `INotifyProduction.UnitProduced` inside the same frame-end task, after `CreateActor` and after the MoveTo is queued but **before any activity has ticked**, so `ToCell` is still the spawn cell — or `CenterPosition` when an approximate position will do. **The independent tell that such a reading is an instrument fault rather than an engine one:** a reported "entry cell" that is not on the map perimeter cannot have come from `ChooseClosestMatchingEdgeCell` at all.
+
+- **`INotifySold.Sold` means "this actor got home alive"; `Selling` is only the INTENT.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Sold` fires from exactly two places — `RotateToEdge.cs:466`, reached only by an actor that physically reached the map edge, and `Sell.cs:45` for a building selling in place. `Sellable.cs:83` raises `Selling`. So a unit ordered to evacuate and killed en route raises `Selling` and never `Sold`, and reading the wrong one turns *"recovered"* into *"tried to recover"*.
+
+- **`Cargo.MaxWeight` is a weight BUDGET that the tooltip prints as a headcount.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Cargo.cs:47` renders `$"{MaxWeight} infantry"`, which is only a passenger count while every passenger weighs 1 — true today because `Passenger.Weight` defaults to 1 (`Passenger.cs:29`) and is overridden nowhere in `mods/`. **The first `Passenger.Weight: 2` authored in this mod silently makes every transport tooltip overstate its capacity, and nothing fails.** Found from the reverse error: `pbox`/`hbox` descriptions claimed "Garrisons 2 soldiers" against a `MaxWeight` of 4, so the hand-written figure and the generated row disagreed on screen.
 
 - **`FindTilesInCircle` / `FindTilesInAnnulus` THROW above 56 cells rather than clamping, and nothing at the call site says so.** *(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 6e5721ae`.)* `Map.FindTilesInAnnulus` rejects any `maxRange` past `MapGrid.MaximumTileSearchRange` (`Map/Map.cs:1994-1995`, ceiling **56** at `Map/MapGrid.cs:113`), so a radius over 56 cells takes the game down at the instant of the call. `FindTilesInCircle` reads like a search helper, its argument is a plain cell count, and there is no clamp, no guard and no `[Desc]` mentioning a maximum anywhere on the traits that reach it. This has now caught **four** callers in this repo and every one was found by crashing rather than by reading: `Radar.Range: 56c0` via `AffectsMapLayer.ProjectedCells` (2026-08-21 — note `56c0` resolves to 57, so the effective ceiling is **55c0**), an autotest radar scenario (`10a03ea0`), a support power's `CameraRange: 68c0` (`9d197f66`), and `TerrainLighting.AddLightSource`'s light radius (2026-09-06). **Treat any WDist that reaches a `FindTiles*` call as capped at 55c0 until you have read the callee.**
 
