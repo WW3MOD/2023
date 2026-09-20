@@ -9,7 +9,6 @@
  */
 #endregion
 
-using System.Linq;
 using OpenRA.GameRules;
 using OpenRA.Mods.Common.Traits;
 using OpenRA.Traits;
@@ -65,11 +64,34 @@ namespace OpenRA.Mods.Common.Warheads
 				if (!IsValidAgainst(a, firedBy))
 					continue;
 
+				// PERF: this was a LINQ FirstOrDefault with a lambda capturing `firedBy` and `this`,
+				// evaluated INSIDE the Amount loop -- so a closure, a delegate and an enumerator per
+				// actor per amount. WW3MOD's high-yield warheads are what make that add up: a single
+				// NukeSarmatRV carries SIXTEEN of these warheads (ten fire, one EMP, five
+				// suppression), each sweeping every actor inside 49-65 cells, and six of them fly per
+				// salvo.
+				//
+				// THE LOOKUP STAYS INSIDE THE AMOUNT LOOP AND MUST. CanGrantCondition is stateful --
+				// a trait that has just granted can refuse the next grant -- so the second iteration
+				// is entitled to select a DIFFERENT ExternalCondition than the first, and hoisting
+				// the search would silently collapse `Amount: n` onto one trait. Only the trait-set
+				// lookup is hoisted, which is safe because an actor's trait membership is fixed at
+				// creation.
+				//
+				// Same traits, same order, same first match: this is the foreach the LINQ compiled
+				// to, without the per-call allocations.
+				var externals = a.TraitsImplementing<ExternalCondition>();
+
 				for (var i = 0; i < Amount[0]; i++)
 				{
-					a.TraitsImplementing<ExternalCondition>()
-						.FirstOrDefault(t => t.Info.Condition == Condition && t.CanGrantCondition(firedBy))
-						?.GrantCondition(a, firedBy, Duration);
+					foreach (var t in externals)
+					{
+						if (t.Info.Condition != Condition || !t.CanGrantCondition(firedBy))
+							continue;
+
+						t.GrantCondition(a, firedBy, Duration);
+						break;
+					}
 				}
 			}
 		}

@@ -5,6 +5,23 @@
 
 ---
 
+- [2026-09-20] [MEDIUM] **`demo-nuke-arsenal` cannot fire two of its six warheads, and has not been
+  able to since the powers were faction-tiered.** The demo fires all six shots from USA
+  (`demo-nuke-arsenal.lua` `SHOTS`, all `Test.ActivateSupportPower(USA, ...)`), but
+  `MissileStrikePower@Sarmat` and `MissileStrikePower@TsarBomba` both declare
+  `Prerequisites: powers.event, player.russia` (`player.yaml:238-239`, `:242-243`). Prerequisites
+  are ANDed (`TechTree.cs:65-70`) and a `player.<faction>` name is an identity "provided by faction
+  alone ... and NEVER by the sandbox option" (`player.yaml:227-230`) -- so shot 4 (Sarmat) and shot
+  6 (Tsar Bomba) are permanently `hidden` for an america player and the demo's own
+  `[NOT FIRED: ...]` fallback is what runs. Its map.yaml header still describes the Sarmat's "six
+  separate fireballs" and the Tsar Bomba's 246-cell blast as things the viewer will watch.
+  **Not fixed here** -- the fix is a decision (fire those two from the Russia player the map already
+  defines, or move the demo to a russia client) and it belongs with whoever owns that scenario.
+  Note `wt/final-exchange` is retiring the B83, which touches shot 5 of the same table, so the two
+  edits want doing together. Verified by reading only; not launched.
+  (found while working on: wt/nuke-perf, the nuke perf rig, which hit the identical wall and spent
+  three launch slots on it)
+
 - [2026-09-20] [MEDIUM] **The AT mine's 10000-damage direct-hit warhead has never detonated, because
   a paste typo made its two warheads `Warhead@Spread` twice instead of `@Target`/`@Spread`.** In
   `rules/weapons/weapons-explosions.yaml` the `ATMine` block carried `Warhead@Spread` twice — first
