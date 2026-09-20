@@ -747,6 +747,183 @@ namespace OpenRA.Mods.Common.Traits
 			return side;
 		}
 
+		// ======================================================================================
+		// THE LEVEL-INDEPENDENT GEOMETRY SURFACE
+		// ======================================================================================
+		//
+		// WHO THIS IS FOR, AND WHY IT CANNOT BE ONE OF THE ACCESSORS ABOVE. Every public member
+		// declared before this point -- IsBeyondWall, ForbidsPlacement, DepthBeyondWall,
+		// NearestPositionOnOwnSide -- is gated on the escalation level, either through `active` or
+		// through StandsAtThisLevel. That is correct for all of them: they answer "may this actor be
+		// here", and outside DEFCON 3 the answer is always yes because there is no wall standing.
+		//
+		// THE DEFCON-3 GATE APPLIES TO BLOCKING, NOT TO GEOMETRY. The border itself is a property of
+		// the MAP and of where the sides start, and it resolves in every mode: nine of the ten
+		// shipped maps author `DefconWall: RegionCells:` in their own rules.yaml
+		// (WORKSPACE/audit/positioning-borders-260919.md), and world.yaml sets DeriveFromSpawns for
+		// anything that does not. Asking "which half of the map is this cell in" is therefore
+		// answerable in a Skirmish match, where DefconEscalation holds NoLevel and the wall will
+		// never stand at all.
+		//
+		// Consumers, all of which run in EVERY mode and none of which blocks anything:
+		//   - PreCapturedStructures (world.yaml:688) -- assigns each neutral capturable structure to
+		//     the nearest player on ITS OWN side of the border, and leaves the band neutral.
+		//   - the final-exchange targeting on a sibling branch, next.
+		//
+		// NOTHING HERE MUTATES THE WORLD. ResolveBorder builds an in-memory region or line, writes
+		// one Log line and touches no CustomTerrain byte -- raising the wall is RaiseWall's job and
+		// is still gated on `active`. So a Skirmish match that calls into this surface is otherwise
+		// byte-identical to one that does not.
+		//
+		// ONE SENTINEL, ONE MEANING, ACROSS BOTH BACKENDS. The two geometries disagree natively --
+		// the line's NoSide is 0 and its sides are -1/+1, the region's Unlabelled is -1 and its
+		// component ids start at 0 -- and NoSideValue above exists precisely because those must not
+		// be interchanged. This surface normalises instead: every real side id is >= 0 and
+		// <see cref="NoSide"/> is the single "inside the band, off the map, or otherwise
+		// unclassified" answer on both paths. Callers may rely on `side < 0` meaning exactly that.
+
+		/// <summary>
+		/// The one sentinel of the level-independent surface: this cell or position is inside the
+		/// border band, off the map, or otherwise has no side. Distinct from every real side id,
+		/// which are non-negative on both backends.
+		/// </summary>
+		public const int NoSide = -1;
+
+		/// <summary>
+		/// Did a real, non-degenerate border resolve for this match -- an authored region that
+		/// divides the map, an authored line, or a derived one? False on a map with no border at
+		/// all, in which case every side query below answers <see cref="NoSide"/>.
+		/// </summary>
+		// LAZY, exactly as ForbidsPlacement is, and for the same reason: this may be the FIRST thing
+		// to ask where the border is, because a trait declared earlier in world.yaml than this one
+		// runs its IWorldLoaded first. ResolveBorder is idempotent and every input it reads (the
+		// map, its terrain, the players' HomeLocations) exists before the first IWorldLoaded -- see
+		// its own header.
+		public bool HasBorder
+		{
+			get
+			{
+				ResolveBorder();
+				return IsRegion || !geometry.IsDegenerate;
+			}
+		}
+
+		/// <summary>
+		/// Which side of the border this cell is on: a non-negative id that is stable for the whole
+		/// match, or <see cref="NoSide"/> for a cell inside the band, off the map, or on a map with
+		/// no border. Two cells share a side id if and only if the border does not separate them.
+		/// </summary>
+		public int SideOf(CPos cell)
+		{
+			ResolveBorder();
+
+			// The region is labelled per cell and its Unlabelled IS NoSide -- both -1 -- so a border
+			// cell, an off-Bounds cell and an unreachable one all fall out with the right answer and
+			// no mapping at all. Its component ids are already 0..ComponentCount-1.
+			if (IsRegion)
+				return region.SideOf(cell);
+
+			if (geometry.IsDegenerate)
+				return NoSide;
+
+			var centre = world.Map.CenterOfCell(cell);
+			return NormalisedLineSideAt(centre.X, centre.Y);
+		}
+
+		/// <summary>
+		/// Which side of the border this world position is on. See <see cref="SideOf(CPos)"/>.
+		/// </summary>
+		public int SideOf(WPos pos)
+		{
+			ResolveBorder();
+
+			// Map.CellContaining rather than DefconWallRegion.CellContaining, matching what
+			// IsBeyondWall(Player, WPos) already does: the map's own projection is the authority on
+			// which cell a position is in.
+			if (IsRegion)
+				return region.SideOf(world.Map.CellContaining(pos));
+
+			if (geometry.IsDegenerate)
+				return NoSide;
+
+			return NormalisedLineSideAt(pos.X, pos.Y);
+		}
+
+		/// <summary>
+		/// Is this cell part of the border itself -- a cell of an authored region, or a cell of the
+		/// band a line draws? Always false on a map with no border. An off-map cell is NOT in the
+		/// band, but its <see cref="SideOf(CPos)"/> is still <see cref="NoSide"/>.
+		/// </summary>
+		public bool IsInBand(CPos cell)
+		{
+			ResolveBorder();
+
+			if (IsRegion)
+				return region.IsInWallBand(cell);
+
+			if (geometry.IsDegenerate)
+				return false;
+
+			var centre = world.Map.CenterOfCell(cell);
+			return geometry.IsInWallBand(centre.X, centre.Y);
+		}
+
+		/// <summary>
+		/// Which side of the border this player's HOME is on -- the same question
+		/// <see cref="SideFor"/> answers for the gated accessors, normalised onto this surface and
+		/// available at any escalation level.
+		/// </summary>
+		// READS Player.HomeLocation, AND A CALLER THAT HAS A BETTER HOME SHOULD PASS THAT INSTEAD.
+		// HomeLocation is CPos.Zero -- the FIELD DEFAULT of PlayerReference.HomeLocation
+		// (PlayerReference.cs:41) -- for a map player, and also for a lobby player on any map or
+		// scenario that strips MapStartingLocations, because Player.cs:213 falls back to the
+		// PlayerReference when there is no IAssignSpawnPoints trait to ask. That is a coordinate
+		// default masquerading as a position, and on a region map it reads Unlabelled and therefore
+		// NoSide. PreCapturedStructures consequently asks SideOf(WPos) about the player's ANCHOR --
+		// their Supply Route, whose CenterPosition sits exactly on the centre of their spawn cell on
+		// every shipped map -- rather than calling this. This overload is for callers whose players
+		// really are lobby players on a map with spawn points.
+		public int SideOf(Player player)
+		{
+			ResolveBorder();
+
+			if (player == null)
+				return NoSide;
+
+			if (IsRegion)
+				return SideFor(player);
+
+			if (geometry.IsDegenerate)
+				return NoSide;
+
+			// The band test the line needs and the region gets for free: a home inside the band has
+			// no side on either backend, so the sentinel keeps exactly one meaning.
+			if (IsInBand(player.HomeLocation))
+				return NoSide;
+
+			return NormalisedLineSide(SideFor(player));
+		}
+
+		/// <summary>
+		/// Map the line's native -1/0/+1 at a world position onto this surface's non-negative ids,
+		/// treating anything inside the band as unclassified.
+		/// </summary>
+		int NormalisedLineSideAt(long px, long py)
+		{
+			if (geometry.IsInWallBand(px, py))
+				return NoSide;
+
+			return NormalisedLineSide(geometry.SideOf(px, py));
+		}
+
+		static int NormalisedLineSide(int nativeSide)
+		{
+			if (nativeSide == DefconWallGeometry.NoSide)
+				return NoSide;
+
+			return nativeSide < 0 ? 0 : 1;
+		}
+
 		/// <summary>
 		/// May this player's actors be at this position? False whenever the wall is down, so callers
 		/// on hot paths can lean on this single test.
