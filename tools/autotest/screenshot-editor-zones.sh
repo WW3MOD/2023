@@ -8,7 +8,7 @@
 #   01-zones-intact   the Zones panel with the map's authored DMZ drawn, readout
 #                     reading "DMZ splits the map into 2 areas."
 #   02-zones-cut      the same panel after a scripted erase stroke cuts the band,
-#                     readout red and reading "does not split the map (1 area)".
+#                     readout red and reading "does NOT split the map (1 area)".
 # The second frame is the whole point: the red state is the one that cannot be
 # reasoned about from the code, and it is unreachable without either a cursor or
 # a scripted stroke.
