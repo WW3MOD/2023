@@ -2112,6 +2112,38 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				$"last={strike.FinalExchangeLastImpactTick}|spacing={strike.ImpactSpacingTicks}";
 		}
 
+		[Desc("The SIDES in this match, comma-joined in seat order -- " + nameof(CombatantSides) +
+			".CountsAsASide's answer -- or \"absent\" outside test mode.",
+			"",
+			"EXISTS BECAUSE A SCENARIO CANNOT OTHERWISE SEE THAT ONE OF ITS SIDES IS NOT IN THE " +
+			"MATCH, and there are two different ways for that to be true. A map authoring TWO " +
+			"`Playable: True` seats gets one Player and one empty slot, because run-test.sh seats a " +
+			"single client -- so Player.GetPlayer(\"<the other>\") returns nil. A map authoring the " +
+			"second side as a bare map combatant DOES get a Player, but any trait filtering on " +
+			"`Player.Playable` cannot see it. The first fails as a nil dereference; the second fails " +
+			"hundreds of ticks later as whatever that trait does with one side instead of two, which " +
+			"on 2026-09-20 was a final exchange that armed nobody and said nothing.",
+			"",
+			"ASSERT ON THIS IN WorldLoaded, AND print it BEFORE the guard: a Test.Fail on the first " +
+			"line of a scenario produces an empty lua.log, which is also the documented tell for " +
+			"\"the game never launched\".",
+			"",
+			"Read-only and test mode only.")]
+		public string MatchSides()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			var w = Context.World;
+			if (w == null)
+				return "absent";
+
+			// Fully qualified: this method's own name would otherwise shadow the type.
+			return string.Join(",", w.Players
+				.Where(OpenRA.Mods.Common.Traits.CombatantSides.CountsAsASide)
+				.Select(p => p.InternalName));
+		}
+
 		[Desc("What ONE side's strike package actually did in the final exchange, as " +
 			"`impacts=<t;t;…>|auto=<x,y;x,y;…>`, or \"absent\" on a world with no " +
 			nameof(DoomsdayStrike) + ".",

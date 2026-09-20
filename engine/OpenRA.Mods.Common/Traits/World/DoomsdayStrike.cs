@@ -326,6 +326,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly List<(Player Player, int Tick)> exchangeImpacts = new();
 		readonly List<(Player Player, CPos Cell)> autoFiredAimPoints = new();
 
+		// WHY EACH SIDE DID OR DID NOT FIRE AT THE CLOSE, one entry per PLAYER -- not per entry of
+		// `autoFire`, and not per side the window knows about. That distinction is the whole point:
+		// the 2026-09-20 defect was a side missing from BOTH of those lists, so a census built from
+		// either would have printed the same nothing that sent a reader looking in the wrong place.
+		readonly List<(string Side, string Reason, int Warheads)> closeCensus = new();
+
 		// The latest tick at which a PLAYER-PLACED game-ender is due to detonate. The resolution is
 		// held past it, so the verdict never lands while the player's own warhead is still in the air.
 		int playerImpactTick;
@@ -671,11 +677,35 @@ namespace OpenRA.Mods.Common.Traits
 		/// Sides that are still in the match, in world.Players order — which is world-creation order and
 		/// therefore identical on every client.
 		/// </summary>
+		// ==== CountsAsASide, NOT Playable, AND THE DIFFERENCE COST A WHOLE SCENARIO RUN ====
+		// `Playable` is a statement about LOBBY SLOTS, not about who is in the match: a map-authored
+		// combatant that owns a Supply Route and fights is `Playable: false`. This trait gated on it
+		// in SIX places, so on test-final-exchange-autofire — whose Russia is a bare map combatant,
+		// the shape every passing two-sided scenario in the tree uses — Russia was never enumerated
+		// as a side, never armed, and never reached the auto-fire loop. The log said `auto-fired for
+		// []` and named no reason, because every reason lived inside a loop Russia was not in.
+		//
+		// CombatantSides.CountsAsASide is the mod's one answer, already used by DefconWall,
+		// NuclearExchange, InfluenceStack, SightingThreatLayer and SpawnStartingUnits — and
+		// NuclearExchange using it while this used Playable is exactly the two-layers-disagree shape
+		// CombatantSides exists to prevent. It additionally rejects a map-AUTHORED spectator slot a
+		// client is sitting in, which the runtime flags do not reflect; see that file's header for
+		// the phantom-third-player runs that cost.
+		//
+		// SHIPPED BEHAVIOUR IS UNCHANGED. On all ten shipped maps every non-playable player is
+		// Neutral or Creeps, both NonCombatant; in a real lobby every human and bot seat is Playable
+		// and neither non-combatant nor spectating. The delta is a latent phantom side, removed.
 		IEnumerable<string> SurvivingSides()
 		{
 			foreach (var p in world.Players)
-				if (p.Playable && !p.NonCombatant && p.WinState != WinState.Lost)
+				if (IsSurvivingSide(p))
 					yield return p.InternalName;
+		}
+
+		/// <summary>Is this player a side that is still in the match? The one test, so the six callers cannot drift.</summary>
+		static bool IsSurvivingSide(Player p)
+		{
+			return CombatantSides.CountsAsASide(p) && p.WinState != WinState.Lost;
 		}
 
 		/// <summary>
@@ -708,7 +738,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			foreach (var p in world.Players)
 			{
-				if (!p.Playable || p.NonCombatant || p.WinState == WinState.Lost)
+				if (!IsSurvivingSide(p))
 					continue;
 
 				p.PlayerActor.GrantCondition(info.FinalExchangeCondition);
@@ -804,7 +834,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Deliberately may be null; see DoomsdayStrikeInfo.FinalExchangeNotification. PlayNotification
 			// with a null key is a documented no-op, so this costs nothing until a line is recorded.
 			foreach (var p in world.Players)
-				if (p.Playable && !p.NonCombatant && p.WinState != WinState.Lost)
+				if (IsSurvivingSide(p))
 					Game.Sound.PlayNotification(world.Map.Rules, p, "Speech",
 						info.FinalExchangeNotification, p.Faction.InternalName);
 		}
@@ -838,6 +868,9 @@ namespace OpenRA.Mods.Common.Traits
 				$"{cascade.AnchorTick}, spacing {info.ImpactSpacingTicks}, last impact tick {cascade.LastImpactTick}; " +
 				$"annihilation tick {annihilationTick}, resolution tick {resolutionTick}.");
 
+			foreach (var (side, reason, warheads) in closeCensus)
+				Log.Write("debug", $"FINAL EXCHANGE census: {side} -- {reason}; {warheads} warhead(s).");
+
 			AnnounceAutoFire();
 		}
 
@@ -861,16 +894,31 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			foreach (var (player, key) in autoFire)
 			{
-				if (player.WinState == WinState.Lost || window.HasPlaced(player.InternalName))
+				if (player.WinState == WinState.Lost)
+				{
+					closeCensus.Add((player.InternalName, "defeated", 0));
 					continue;
+				}
+
+				if (window.HasPlaced(player.InternalName))
+				{
+					closeCensus.Add((player.InternalName, "placed its own", ImpactCountFor(player)));
+					continue;
+				}
 
 				// The zero-window path's trigger is mid-launch further up this very call stack.
 				if (player.InternalName == zeroWindowTrigger)
+				{
+					closeCensus.Add((player.InternalName, "trigger, already launching", ImpactCountFor(player)));
 					continue;
+				}
 
 				var manager = player.PlayerActor.TraitOrDefault<SupportPowerManager>();
 				if (manager == null || !manager.Powers.TryGetValue(key, out var instance))
+				{
+					closeCensus.Add((player.InternalName, $"no `{key}` on its manager", 0));
 					continue;
+				}
 
 				// NOT Ready IS A LEGITIMATE OUTCOME AND IS SAID OUT LOUD. The host turned the arsenal
 				// off (`nuke-arsenal-disabled` disables the trait, so the instance has no enabled
@@ -878,14 +926,16 @@ namespace OpenRA.Mods.Common.Traits
 				// map-wide salvo hid this case by firing for everybody from a weapon nobody owned.
 				if (!instance.Ready)
 				{
-					Log.Write("debug", $"FINAL EXCHANGE: {player.InternalName}'s `{key}` is not ready at the close; nothing fires for them.");
+					closeCensus.Add((player.InternalName,
+						$"`{key}` not ready at the close (arsenal checkbox off, or the banked shot was spent)", 0));
 					continue;
 				}
 
 				var cells = ChooseAimPoints(player, instance.Info);
 				if (cells.Count == 0)
 				{
-					Log.Write("debug", $"FINAL EXCHANGE: no aim point could be found for {player.InternalName}; nothing fires for them.");
+					closeCensus.Add((player.InternalName,
+						"no aim point could be found -- the enemy side classified as empty", 0));
 					continue;
 				}
 
@@ -904,7 +954,36 @@ namespace OpenRA.Mods.Common.Traits
 					autoFiredAimPoints.Add((player, c));
 
 				instance.Activate(order);
+				closeCensus.Add((player.InternalName, $"auto-fired `{key}`", ImpactCountFor(player)));
 			}
+
+			// ==== AND EVERY PLAYER THE LOOP ABOVE NEVER REACHED ====
+			// `autoFire` only holds players ArmGameEnders armed, and ArmGameEnders only walks sides.
+			// A player that is not a side -- or that is one and holds no game-ender -- falls out of
+			// BOTH, which is precisely how Russia vanished from run 260920_140352 without a single
+			// line naming it. Walking world.Players is what makes that impossible.
+			foreach (var p in world.Players)
+			{
+				if (closeCensus.Any(e => e.Side == p.InternalName))
+					continue;
+
+				closeCensus.Add((p.InternalName, CombatantSides.CountsAsASide(p)
+					? "a side, but ArmGameEnders armed it nothing -- see the arming log above"
+					: $"NOT A SIDE (Playable={p.Playable}, NonCombatant={p.NonCombatant}, "
+						+ $"authored-non-combatant={p.PlayerReference?.NonCombatant}, "
+						+ $"authored-spectator={p.PlayerReference?.Spectating})", 0));
+			}
+		}
+
+		/// <summary>Warheads this side has reserved a cascade slot for so far. Census column.</summary>
+		int ImpactCountFor(Player player)
+		{
+			var n = 0;
+			foreach (var (p, _) in exchangeImpacts)
+				if (p == player)
+					n++;
+
+			return n;
 		}
 
 		/// <summary>
@@ -926,7 +1005,7 @@ namespace OpenRA.Mods.Common.Traits
 		{
 			var enemies = new List<Player>();
 			foreach (var p in world.Players)
-				if (p.Playable && !p.NonCombatant && p != firer && !p.IsAlliedWith(firer))
+				if (CombatantSides.CountsAsASide(p) && p != firer && !p.IsAlliedWith(firer))
 					enemies.Add(p);
 
 			if (enemies.Count == 0)
@@ -992,7 +1071,10 @@ namespace OpenRA.Mods.Common.Traits
 			var anchorSides = new List<int>();
 			foreach (var p in world.Players)
 			{
-				if (!p.Playable || p.NonCombatant)
+				// LATENT UNTIL THE FALLBACK PATH IS TAKEN, AND THEN TOTAL: with one anchor in the
+				// list HomeProximitySide returns index 0 for every cell, so the whole map classifies
+				// as the enemy's and the firer bombs its own half.
+				if (!CombatantSides.CountsAsASide(p))
 					continue;
 
 				var anchor = AnchorOf(p);
@@ -1280,7 +1362,7 @@ namespace OpenRA.Mods.Common.Traits
 			// the claim a reader would want to check.
 			Log.Write("debug", $"FINAL EXCHANGE resolution at tick {world.WorldTick}, from the score frozen at " +
 				"the trigger tick: " + string.Join(", ", world.Players
-					.Where(p => p.Playable && !p.NonCombatant)
+					.Where(CombatantSides.CountsAsASide)
 					.Select(p => $"{p.InternalName}={p.PlayerActor.TraitOrDefault<PlayerExperience>()?.Experience ?? 0}")));
 
 			foreach (var p in world.Players)

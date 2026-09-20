@@ -64,6 +64,47 @@ WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
 	local Russia = Player.GetPlayer("Russia")
 
+	-- ==== BOTH SIDES MUST BE IN THE MATCH, AND THIS FAILS AT TICK 1 RATHER THAN AT TICK 350 ====
+	-- Run 260920_140352 spent a whole launch slot discovering, from fault 3 at the close, that
+	-- Russia was not a side at all. There are TWO ways for that to be true and they fail
+	-- differently, so they are checked separately and say different things:
+	--
+	--   nil Player      the map authored TWO `Playable: True` seats. run-test.sh seats ONE client,
+	--                   so the second slot is empty and GetPlayer returns nil (DISCOVERIES,
+	--                   2026-09-19). Dereferencing it below would be the first symptom.
+	--   not a side      the map authored the second side correctly as a bare map combatant, but
+	--                   something under test filters on `Player.Playable`, which is a statement
+	--                   about lobby slots and false for a map combatant. THAT is what bit here.
+	--
+	-- PRINTED BEFORE THE GUARD, deliberately. A Test.Fail on the first line of WorldLoaded writes
+	-- an empty lua.log, which is also the documented tell for "the game never launched" -- one
+	-- print is what separates the two for whoever reads the run directory.
+	local sides = Test.MatchSides()
+	print("match sides: " .. sides)
+
+	if USA == nil or Russia == nil then
+		Test.Fail(string.format("a named player does not exist: USA=%s Russia=%s. This map must "
+			.. "author exactly ONE `Playable: True` seat (the client's) and the other side as a "
+			.. "bare map combatant; two playable seats leaves the second one empty and unnamed. "
+			.. "Test.MatchSides() says [%s]",
+			tostring(USA ~= nil), tostring(Russia ~= nil), sides))
+		return
+	end
+
+	local sideCount, seen = 0, {}
+	for name in sides:gmatch("[^,]+") do
+		sideCount = sideCount + 1
+		seen[name] = true
+	end
+
+	if sideCount ~= 2 or not seen["USA"] or not seen["Russia"] then
+		Test.Fail(string.format("this scenario needs BOTH USA and Russia to be sides and "
+			.. "CombatantSides.CountsAsASide reports [%s] (%d side(s)). A side missing here is a "
+			.. "side nothing in the exchange can arm, aim for or fire at, and every later assertion "
+			.. "would be measuring a one-sided match", sides, sideCount))
+		return
+	end
+
 	local t0 = nil
 	local decided = false
 	local faults = {}
@@ -229,6 +270,12 @@ WorldLoaded = function()
 				package, PACKAGE)
 		end
 
+		-- THE FULL-PACKAGE ASSERTION, TIGHTENED ON 2026-09-20 AFTER IT READ 7 INSTEAD OF 8 IN
+		-- test-escalation-full-match. Both sides fired, both were national enders, nothing was
+		-- vetoed -- and one of them delivered 3 warheads because NuclearBotModule sized its aim
+		-- list from MissileStrikePowerInfo.AimPoints while the power sized the salvo from
+		-- DoomsdayStrike.PackageSize. Two layers disagreeing about N is exactly the class of bug
+		-- this redesign exists to remove, so a short package is a FAULT and not a tolerance.
 		if warheads ~= nil and warheads ~= 2 * PACKAGE then
 			fault("%d warhead(s) took a cascade slot, not the %d two full packages make. Every "
 				.. "game-ender warhead fired inside the exchange reserves exactly one slot in "
