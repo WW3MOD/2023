@@ -10,7 +10,9 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Linq;
 using OpenRA.Graphics;
+using OpenRA.Mods.Common.Traits;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -20,15 +22,20 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[FluentReference]
 		const string MarkerTiles = "label-tool-marker-tiles";
 
+		[FluentReference]
+		const string Zones = "label-tool-zones";
+
 		enum MapTool
 		{
-			MarkerTiles
+			MarkerTiles,
+			Zones
 		}
 
 		readonly DropDownButtonWidget toolsDropdown;
 		readonly Dictionary<MapTool, string> toolNames = new()
 		{
-			{ MapTool.MarkerTiles, MarkerTiles }
+			{ MapTool.MarkerTiles, MarkerTiles },
+			{ MapTool.Zones, Zones }
 		};
 
 		readonly Dictionary<MapTool, Widget> toolPanels = new();
@@ -43,9 +50,23 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			var markerToolPanel = widget.Get("MARKER_TOOL_PANEL");
 			toolPanels.Add(MapTool.MarkerTiles, markerToolPanel);
 
+			// THE ZONES TOOL IS CONDITIONAL ON THE MOD DECLARING ITS TRAIT, and that is not defensive
+			// padding -- this chrome file is shared by every bundled mod, and only ww3mod declares
+			// ZoneLayerOverlay on EditorWorld. A mod without it keeps exactly today's behaviour: one
+			// tool, and a dropdown that disables itself below.
+			var zoneToolPanel = widget.Get("ZONE_TOOL_PANEL");
+			if (world.WorldActor.TraitOrDefault<ZoneLayerOverlay>() != null)
+				toolPanels.Add(MapTool.Zones, zoneToolPanel);
+			else
+				zoneToolPanel.Visible = false;
+
 			toolsDropdown.OnMouseDown = _ => ShowToolsDropDown(toolsDropdown);
 			toolsDropdown.GetText = () => FluentProvider.GetMessage(toolNames[selectedTool]);
-			toolsDropdown.Disabled = true; // TODO: Enable if new tools are added
+
+			// Enabled now that there is a second tool to switch to -- this was the TODO the slot was
+			// left here for. Every panel but the selected one starts hidden; the chrome ships
+			// ZONE_TOOL_PANEL with Visible: false and SelectTool does the rest.
+			toolsDropdown.Disabled = toolPanels.Count < 2;
 		}
 
 		void ShowToolsDropDown(DropDownButtonWidget dropdown)
@@ -61,7 +82,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				return item;
 			}
 
-			var options = new[] { MapTool.MarkerTiles };
+			var options = toolPanels.Keys.ToArray();
 			dropdown.ShowDropDown("LABEL_DROPDOWN_TEMPLATE", 150, options, SetupItem);
 		}
 

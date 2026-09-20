@@ -314,6 +314,13 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 				if (package == null)
 					throw new ArgumentNullException(nameof(package));
 
+				// PAINTED ZONES LIVE IN A WORLD TRAIT UNTIL THIS LINE. ZoneLayerOverlay owns them
+				// while the editor runs -- it needs a CellLayer to render and to undo against -- and
+				// Map.Zones is what Map.Save serialises, so the two have to be reconciled exactly
+				// once, here, at the only point every editor save path passes through. TraitOrDefault
+				// because a mod need not declare the trait at all; a mod without it saves no Zones.
+				world.WorldActor.TraitOrDefault<ZoneLayerOverlay>()?.WriteTo(map);
+
 				map.Save(package);
 
 				var actionManager = world.WorldActor.TraitOrDefault<EditorActionManager>();
