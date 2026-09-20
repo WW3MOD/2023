@@ -482,6 +482,49 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 - **`IsIdle` is useless as an observable for aircraft.** `ticksToIdle` was `-1` and `idleSpans` `0` in **every** arm including RED: an idle airframe is running `FlyIdle`/`Hover`, which is an activity, so `IsIdle` never goes true. Use a **position trace**, and sample it — a min/max pair cannot separate "flew over once and left" from "flew over, came back, flew over again", which is exactly the fixed-wing behaviour.
 - **Every vehicle bleeds out below 50% HP, and it silently confounds any "hold a unit at critical damage" scenario.** `ChangesHealth@CriticalDamage` on `^Vehicle` (`vehicles.yaml:184-187`: `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50`) is irreversible, so a target parked at 15% **dies on a fixed ~75-tick clock with nothing shooting it**. Two runs of the scenario above ended with a dead target on *both* lanes — including the lane that fired zero shots — so two thirds of each observation window measured an aircraft against a corpse. The tell was the zero-shots lane also reporting a dead target; nothing in the verdict flagged it. Add `-ChangesHealth@CriticalDamage` to any such scenario. This is also what makes "already doomed" literally true in WW3MOD and is the premise the whole break-off feature rests on.
 
+### `CanSlide` splits the aircraft code in half, and an `ISpeedModifier` reaches only ONE of the halves
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* Helicopters set `CanSlide`
+(`^Helicopter`, `aircraft.yaml:198`, and helicopter husks at `husks-aircraft.yaml:33`); the C# default is
+`false` (`Aircraft.cs:118`, which carries a PITFALL at `:117` saying the flag switches the entire movement
+codepath), so fixed-wing and `^Drone` are on the other one.
+
+- **Fixed-wing move inside the activity.** `Fly.Tick`'s else-branch calls `FlyTick`, which steps by
+  `aircraft.FlyStep(...)` (`Aircraft.cs:835-840`) — and `FlyStep` uses `MovementSpeed` (`:826`), which applies
+  every `ISpeedModifier` (collected at `:405`).
+- **Helicopters never move horizontally inside the activity at all.** `Fly.Tick`'s slider branch only writes
+  `aircraft.RequestedAcceleration` (`Fly.cs:294`); `Aircraft.Tick` integrates it a tick later (`:523-541`).
+  **That path never reads `MovementSpeed`** — `CalculateAccelerationToWaypoint` uses `Info.Speed` (`:467`) and
+  so does the max-speed clamp (`:530`).
+
+**So an `ISpeedModifier` of 0 stops a fixed-wing dead and leaves a helicopter flying at full speed.** It also
+zeroes `GetTurnSpeed` (`:293`) — and `Aircraft.Tick`'s own facing update (`:555`) uses `Info.TurnSpeed`
+directly rather than `GetTurnSpeed`, so the helicopter keeps turning too. **Anything reaching for a speed
+modifier to immobilise aircraft — EMP, jamming, a no-fly rule, a stasis effect — is half a feature on this
+mod's airframes, and the half that fails is the one players notice.**
+
+**The chokepoint that does hold is `Aircraft.SetPosition` (`:1017`).** `CenterPosition` is a private-set auto
+property (`:287`) assigned in exactly one place, and both other public entry points delegate to it, so every
+horizontal, vertical and teleporting position change of anything carrying `Aircraft` passes through it —
+including the falling husk, the crash-landing helicopter, the repulsion nudge, the arrival-snap teleports and
+creation placement. **It is verifiable by exhaustion rather than by inference**, which is why the DEFCON 3
+wall's hard layer lives there. **Rejecting a write there must also zero `CurrentVelocity`**, and that is
+load-bearing rather than tidiness: a helicopter holding a non-zero synced velocity while its position stops
+changing computes `MovementType.None` while still holding speed, so the animation stops agreeing with the
+simulation — this mod has shipped a bug of exactly that family. The reasoning is carried in-code at the site.
+
+**And the map edge is not a wall.** Aircraft leave the map routinely and by design (`FlyOffMap`, and
+`RotateToEdge` deliberately targets a point past the boundary); the scattered `Map.Contains` checks are guards
+against operating off-map, not barriers. The only pushback is a repulsion nudge gated on `Info.Repulsable` and
+on cruising (`Aircraft.cs:679`, `:701`) — **`Repulsable` defaults to `true` (`:32`), and at `a21583fd` exactly
+two things in the mod turn it off** (`^SummonerDummy`, `defaults.yaml:1218`, and the Badger,
+`aircraft.yaml:561`), while the quadcopter drone sets it explicitly on. *(A 2026-09-09 entry claimed it was
+off on `^NeutralAirborne` and `^Drone`; neither holds here — `^NeutralAirborne` is not a template in
+`defaults.yaml` at all — so do not reason from "most airframes are not repulsable".)* **The only enforced
+leash in the mod is `CarrierSlave.MaxDistance`** (`CarrierSlave.cs:149-156`, live on the quadcopter), and it
+works by issuing an unqueued `MoveTo` back inside on an interval — so it overshoots by design and is soft
+rather than hard.
+
 ## Suppression system
 
 **Infantry suppression (10-tier, cap 100, decay 1/5 ticks):**
@@ -506,6 +549,37 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 - Ambush: pre-aim at targets, hold fire until spotted or damaged, coordinate with nearby allies. Widened into a stationary hide-and-spring state machine + an `@experimental` bot lane consumer behind the default-off `enable-ambush-tactics` gate — see §Widened ambush (Stages 1–4) below.
 - FireAtWill: fire at any valid target in range
 - Conditions: `stance-fireatwill`, `stance-ambush`, `stance-holdfire`
+
+### Two autonomous fire paths that no `UnitStance` predicate covers
+
+*(Promoted 2026-09-20 from DISCOVERIES; both re-read at `main @ a21583fd`, where one of the entry's three
+claims no longer reproduces — see the note at the end.)*
+
+**A garrison building set to `HoldFire` keeps shooting, because the stance test is on the DEPLOY paths and not
+on the hot one.** `GarrisonManager` runs its own scanner — `ScanForTarget`
+(`Traits/Garrison/GarrisonManager.cs:1016`, a raw `FindActorsInCircle` at `:1076`) — rather than
+`AutoTarget.ChooseTarget`, and `AttackGarrisoned` fires at `PortState.CurrentTarget` directly, so **none of
+`AutoTarget`'s guards can see it.** The `buildingStance` checks live at `:867-871` (empty-port auto-deploy)
+and `:936-940` (`PromoteFromShelter`), both deploy paths. The already-occupied branch (`:816-818`) goes
+straight to `UpdatePortTarget` (`:957-1011`), which re-acquires at `:1009` with **no stance predicate
+anywhere**. So a `GTWR`/`PBOX`/`HBOX` with a soldier already in the port ignores the stance entirely. **Two
+copies of the test, and the one on the hot path is missing**; no comment says whether that is deliberate.
+(`ScanForTarget` does gate on `DefconFireDiscipline.HoldsFire`, so the DEFCON rules reach it — the gap is
+specifically `UnitStance`.)
+
+**`AttackFollow.ClearRequestedTarget` does not clear — it PROMOTES**, and the branch that fires the promoted
+target carries no stance predicate either. The method assigns the finished `RequestedTarget` to
+`OpportunityTarget` under `Info.PersistentTargeting` (`Traits/Attack/AttackFollow.cs:78-95`, and the PITFALL
+is in-file at `:82-85`), and the fire branch at `:238-240` gates only on `DefconFireDiscipline.Permits`. The
+only thing that drops it is a stance-change notification, which returns early for force-attacks. **So a
+Ctrl-clicked target keeps being shot at through a stance drop** — and `FlyAttack.OnLastRun` deliberately uses
+this on the way home, so aircraft returning to base still fire. Carry the attack SOURCE across the promotion
+or the promoted target looks deliberate and can never be re-evaluated.
+
+> **The entry's third claim — "ambush by proxy ignores the neighbour's own stance" — does NOT reproduce at
+> `a21583fd` and must not be cited.** `AutoTarget.TriggerNearbyAmbushAllies` (`:1016`) sets the latch only on
+> allies whose `Stance == UnitStance.Ambush`, and `GarrisonManager.TriggerAmbush` (`:1376`) returns unless the
+> building is itself in `Ambush`. Both are additionally guarded at the source by `DefconHoldsFire`.
 
 ## Directional / rear armor
 
@@ -692,6 +766,28 @@ autotest before `Test.ActivateSupportPower(player, orderKey, cell)` was added �
 `SelectGenericPowerTarget` emits on a left-click and returns a status string so a scenario can print **why**
 a power did not fire.
 
+### Every live support power is a `MissileStrikePower`, and it reveals its own target area before it lands
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* **All `AirstrikePower@` blocks in
+`player.yaml` are commented out**, so every shipped power — including the GBU-57, which reads like a bomber
+payload — is a `MissileStrikePower`. **Do not assume a power that "is an airstrike" flies the airstrike
+geometry**; when sweeping for anything geometry-dependent, the discriminator is the power TYPE, not the
+scenario name and not the missile actor.
+
+**And the trap for any fog- or visibility-related work at a strike's aim point: the strike deletes the fog
+there before the thing you are watching arrives.** `MissileStrikePower` spawns a `RevealShroudEffect` of
+`CameraRange` radius `CameraSpawnAdvance` ticks BEFORE impact, and the shipped high-yield nuke sets a large
+`CameraRange`. A scenario built to observe fog behaviour at that point captures a uniformly lit map — i.e. it
+looks as though the fog setting simply did not apply, which sends the author back to re-check lobby options.
+`CameraRange: 0` disables it cleanly (the effect is constructed only `if (info.CameraRange != WDist.Zero)`).
+The same field exists on `NukePower` and `AirstrikePower`. *(For a scenario that needs an indestructible
+vision source instead, the `CAMERA` actor (`rules/misc.yaml`) inherits `^StandardVision` and carries no
+`Health` and no `Targetable`, so a warhead cannot remove it — a normal unit used as the observer is vaporised
+on the first tick and takes the vision boundary with it at the exact moment the effect appears. Reference it
+from a map's `Actors:` block as lowercase `camera`: `Ruleset.cs:126` keys `ActorInfo` by
+`k.Key.ToLowerInvariant()`, and the lowercasing runs after MiniYaml merging, so `Inherits: CAMERA` is correct
+inside the rules while `CAMERA` in a map is a lookup failure rather than a case-insensitive match.)*
+
 ## Production queues: autobuild, the parallel throttle, and pre-loaded transports
 
 *(Promoted 2026-09-04/05 from DISCOVERIES; citations re-read at `main @ 95bdffb2`.)*
@@ -768,6 +864,19 @@ does **not** call `GetBuildTime` (`:62-70`), so neither queue's multipliers can 
 (`:245`) every time a veteran of that type comes home alive. `Caps = {3, 2, 1}` (`:303`) governs *accrual*
 only. **Any readout showing a rank count must budget for two digits.**
 
+### A zero build time is a ONE-TICK build, and a zero speed modifier means that tick never arrives
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `ProductionItem` starts at
+`RemainingTime = TotalTime = 1` (`ProductionQueue.cs:838`) and only overwrites it for a positive build time
+(`:855`), so **`GetBuildTime` returning 0 is a one-tick build rather than a broken one** — and the cost
+arithmetic keys off `RemainingTime == 1` as the last-instalment case (`:879`), so the money is still taken in
+full on that tick.
+
+**Zeroing build time is therefore not sufficient for "no delay".** `SupplyRouteContestation` returns 0 from
+`IProductionSpeedModifier` on an empty control bar, and at a modifier of 0 `TickInner` does not tick the queue
+at all (`:409`, under the `speedModifier >= 100` / `> 0` / else ladder at `:394-409`) — so **a one-tick item
+never gets its one tick, and a contested Supply Route freezes even an instant purchase.**
+
 ## AI configuration
 
 AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
@@ -798,6 +907,28 @@ Now: `AirframeReadiness` (`Traits/BotModules/AirframeReadiness.cs`) answers host
 **Out-of-ammo evac is a unit-level `AmmoPool` behaviour, invisible to bot modules.** `AmmoPool.AutoRearmIfAllEmpty` `case Evacuate` queues `RotateToEdge` (`AmmoPool.cs:197-204`); WW3MOD vehicles opt in via `InitialResupplyBehaviorAI: Evacuate`. No bot module reads the resulting state, and the evac path never commits the unit to the `PoiGoalGuard` ledger — so an evacuating unit is "free" to any module that lacks an ammo filter and can be recruited back onto an axis, overwriting its retreat. `LayeredDefenceBotModule` is the only module that guards it (`SkipOutOfAmmoUnits`, default true, `:102,277`; `IsOutOfAmmo` = all pools at 0, `:469`). Any module pulling units by proximity/idle needs this guard or a shared evac reservation.
 
 **This engine auto-evac never fires for AIRCRAFT.** `AutoRearmIfAllEmpty` hard-returns on `self.Info.HasTraitInfo<AircraftInfo>()` (`AmmoPool.cs:173`), and its `INotifyAttack` trigger guards on aircraft too (`:247`) — so no stance, including `Evacuate`, ever auto-rotates a spent heli to the edge. With no HPAD to rearm at, a spent attack heli `ReturnToBase`s and (nothing `Reservable`) `FlyIdle`s in place indefinitely, draining upkeep the whole time (`InfersUpkeep` charges from spawn until `RemovedFromWorld`, `InfersUpkeep.cs:83-89`). A heli therefore has **no engine evac path at all** — evacuating it (and thereby both banking the HP-scaled salvage via `RotateToEdge`'s `fixedRefund`, `RotateToEdge.cs:280`, and ending the upkeep drain) requires an explicit bot-module order, unlike a ground unit whose `Evacuate` stance handles it automatically.
+
+### A bot's Info surface is `Type` and `Name` and nothing else — a `Description:` in `ai.yaml` stops the mod loading
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `IBotInfo`
+(`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:421-425`) exposes exactly `Type` and `Name`; `ModularBotInfo`
+has no `Description` and no `Difficulty`. Because `FieldLoader.UnknownFieldAction` **throws** by default
+(`FieldLoader.cs:62-63`, reached at `:646`), writing a description into `ai.yaml` does not merely fail to
+render — **it is a `NotImplementedException: FieldLoader: Missing field 'Description' on 'ModularBotInfo'` at
+mod load.** Anyone estimating bot-description work as a YAML edit is estimating a change that cannot be made.
+
+**Nor can the text be smuggled into `Name`:** `Player.ResolvePlayerName` uses `IBotInfo.Name` as the in-game
+player NAME, and `LobbyUtils.SetupEditableSlotWidget` truncates it to the slot button width. **And there is no
+render site in the picker:** `LobbyUtils.ShowSlotDropDown` → `LABEL_DROPDOWN_TEMPLATE`, whose item template is
+one `Label@LABEL` at `Height: 25` with `SetupItem` setting only that label's text. The tooltip path is **one
+YAML line short** of working, which is worth knowing because from the C# it looks as though it already does:
+`ScrollItemWidget : ButtonWidget` inherits `TooltipContainer`/`TooltipTemplate`/`TooltipDesc` and its `Setup`
+clones the template so the copy ctor carries them, `TOOLTIP_CONTAINER` exists in the lobby tree,
+`Widget.GetOrNull` is recursive, and the stock `BUTTON_TOOLTIP` already has both a `Label@LABEL` and a
+`Label@DESC` — **but `TooltipContainer` is `readonly`, i.e. YAML-only, and the dropdown template does not set
+it, so `ButtonWidget.MouseEntered` early-returns and nothing draws.** The worked example is one widget away in
+the same file: `DropDownButton@HANDICAP_DROPDOWN` sets `TooltipContainer: TOOLTIP_CONTAINER` plus
+`TooltipText:` and works; `DropDownButton@SLOT_OPTIONS` does not.
 
 ### AI production: `UnitsToBuild` weights are share *ceilings*, not priorities
 
@@ -1160,6 +1291,55 @@ The sweep is therefore gated on `map.Grid.Type == MapGridType.Rectangular` and i
 
 **PITFALL — this looks like a dead-constant bug and "fixing" it is worse than leaving it.** `EmitSyncOpcodes` pushes `0xaaa` then `Brtrue`s on *that constant*, so the branch is always taken and the `Pop; Ldc_I4 0x555` arm is unreachable. It is tempting to restore the intended `0x555`/`0xaaa` encoding. **Don't:** both bools would still use the same encoding, so `0x555^0x555 == 0xaaa^0xaaa == 0` and the cancellation is completely unchanged. Only distinct bit *positions* fix it. Meanwhile restoring the constants changes every sync hash in the game, breaking existing replays and saves, and buys zero additional detection. **The real remedy is to not rely on two bools carrying independent information through one trait's hash.**
 
+### `World.NextActorID` is a zero-bookkeeping partition of the actor population by creation time
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `nextAID` is a plain `uint` whose only
+writer is `NextAID()`'s post-increment (`World.cs:556-560`), `Actor.ActorID` is `readonly`, and
+`World.NextActorID` (`:584`) is get-only so allocation stays inside `NextAID`. **Snapshotting the counter
+therefore gives a total order on creation that cannot be invalidated afterwards** — no per-actor bookkeeping,
+nothing to keep in sync, no allocation. Anything that needs *"did this exist when X happened"* should snapshot
+this rather than invent a parallel registry; `Effects/AreaEffectVictims.cs` wraps it as a `DetonationStamp`
+struct with an instance `Predates` method.
+
+> **DO NOT justify its determinism by `SyncHash`.** `SyncHash` hashes the IDs of actors **currently in**
+> `actors` (`World.cs:586`+), so an actor created and disposed inside the same frame-end drain never appears in
+> any hash and still bumps `nextAID` — two clients could agree on every hash and disagree on the counter. The
+> argument that holds is the compiler-scope one, and it is recorded in-code at `World.cs:563-583`; the method
+> is banked at [`conventions.md` §"A grep census is a SAMPLE"](conventions.md).
+
+**The shape this exists to fix is worth more than the mechanism.** An effect whose only memory is a
+"have I hit this one already" set has **no filter on who may be hit at all**: the set is constructed empty and
+only ever added to, so an actor created after the effect was born has by construction never been in it, reads
+as *"the front has not reached this one yet"*, and takes a full hit on the first tick it is inside the radius.
+**Whenever an effect's only memory is "already processed", check what it does with an input that arrives after
+the memory was created — the answer is always "treats it as new", and for a damage effect that means "kills
+it".** Two riders:
+
+- **"Existed at time T" and "was exposed at time T" are different predicates, and a monotonic counter only
+  answers the first.** An actor already loaded in a transport at detonation is `!IsInWorld`, so it is never in
+  the spatial partition and never swept, *and* it holds a pre-detonation `ActorID`, so the stamp does not
+  exclude it — and `Cargo.SpawnPassenger` re-adds **the same `Actor` object** with `w.Add(passenger)`
+  (`Cargo.cs:1263-1268`) rather than creating a new one, so unloading it into the crater hundreds of ticks
+  later hands it a full hit from an invisible wave. Chronoshift is the same shape by a third route, and `^Husk`
+  carries `Chronoshiftable`. Reach for the counter when the question really is about creation ORDER; when it is
+  about EXPOSURE, the counter looks right in every test and is wrong for exactly the actors that were hidden
+  when you sampled.
+- **Replacing a disc sweep with an annulus to fix this would be a second bug.** While the wave is alive the
+  disc boundary *is* the front, so a pre-detonation actor can only get inside by crossing it and catching it
+  late is catching it correctly — whereas a strict annulus is genuinely leaky: an actor moving inward faster
+  than the annulus is wide is skipped entirely. **The two failure modes look similar in a diff and are
+  opposites in effect.**
+
+**Two sync-guard facts that fall out of the same work.** **Every `ConditionalTrait<T>` is `ISync`** (for its
+`IsTraitDisabled` flag, `Traits/Conditions/ConditionalTrait.cs:41`), so *"no `ISync` type reads this
+wall-clock value"* is **not a reachable bar** for any trait that wants a `RequiresCondition` — such a guard has
+to exempt render entry points and then pin the exempted set to an explicit list. And **a paused world still
+renders**: `World.Tick` skips the whole simulation when `Paused`, but `Game.Loop` keeps calling `LogicTick` and
+advancing `nextLogic`, so a wall-clock sub-tick fraction keeps sweeping 0 → 1 → 0 with nothing moving.
+Anything extrapolating from a per-tick velocity must stop at the pause or the sprite visibly oscillates at the
+tick rate; `World.SimulationIsAdvancing` is written as the same expression `Tick` branches on so the two cannot
+drift.
+
 ### Cross-runtime float drift is a WEAK desync hypothesis here — structurally, then empirically
 
 Worth settling early, because "different .NET versions" is the first thing reached for when a desync has no other explanation, and chasing it costs days.
@@ -1304,6 +1484,109 @@ Practical consequence: a replay's stamp is readable with no game involved — `t
 
 **`Launch.Replay` is the whole dialog path and does not need the replay browser.** `BlankLoadScreen.cs:79-99` hands it straight to `ReplayUtils.PromptReplayCompatibility` with `onWatch: Game.JoinReplay` / `onCancel: Game.LoadShellMap` — the same call the browser makes, so one launch argument exercises the shipped decision, strings and buttons (`tools/autotest/watch-replay.sh` wraps it). **But "a dialog appeared" and "the button was consumed" are both untrustworthy predicates here:** cancel loads the shellmap, which is a real world with terrain and units, so "the screen shows a game" is satisfied by the *dismissal* just as well as by the watch. The discriminators are the in-game HUD with a running clock versus the main menu, the pause panel titled with the *recorded* map's name, and — non-visually — the engine log line `Sync reports disabled (… replay True)` emitted when a replay world is created (`OrderManager.cs:169-171`; note it is built by string interpolation, so grepping the literal `Sync reports disabled` finds nothing in source).
 
+## The render pass order, and what each pass can and cannot reach
+
+*(Promoted 2026-09-20 from DISCOVERIES — six entries from one week's nuclear-presentation work, banked as one
+section because every one of them was a question about which pass something is in. Read at `main @ a21583fd`;
+line numbers in `WorldRenderer.Draw` move often, so the ORDER is the durable part.)*
+
+`WorldRenderer.Draw` runs these in sequence, and they are **sequential passes, not one sorted list**:
+
+| # | Pass | Site |
+|---|---|---|
+| 1 | terrain tile layer, then **every `IRenderOverlay` trait on the world actor** | `WorldRenderer.cs:378` → `TerrainRenderer.cs:108-113` |
+| 2 | opaque black beyond the CELL GRID | `:384` (`DrawBeyondMapFog`, `:472`) |
+| 3 | actors, projectiles and effects | `:389` |
+| 4 | `AfterActors` post-process | `:394` |
+| 5 | above-fog renderables, then the translucent beyond-grid actor overlay | `:405`, `:422` |
+| 6 | fog layers (`IRenderShroud.RenderFog`) | `:424` |
+| 7 | unexplored layer (`RenderUnexplored`) | `:435` |
+| 8 | `AfterShroud` post-process | `:455` |
+
+**Five consequences, each of which has cost a session:**
+
+- **A sprite you cannot raise above another sprite by ANY amount of Z is probably not in the same pass.**
+  `SmudgeLayer` is an `IRenderOverlay`, so smudges are drawn in pass 1 and every actor in pass 3 — a scar is
+  not "below" a tank in a Z sense that any `ZOffset` could reorder. The flip side is the useful half:
+  **anything that wants to sit above terrain and below actors can be an `IRenderOverlay` and needs no
+  `ZOffset` at all**, which is worth knowing before reaching for a large negative offset (the largest
+  anywhere in this tree is `-8192`, and it has to be sized against the sprite's own half-height).
+- **Fog is COMPOSITED OVER the finished world, not multiplied into sprites, so no per-sprite flag can ever
+  un-darken an effect.** `SpriteRenderable.Render` multiplies tint by exactly one thing,
+  `wr.TerrainLighting.TintAt(pos)`, and by nothing else; sweeping every `IFinalizedRenderable` in
+  `OpenRA.Game/Graphics` and `OpenRA.Mods.Common/Graphics` for `Fog`/`Shroud` returns two hits, both of which
+  use them to **skip geometry** rather than to scale colour. **That exhaustive absence is the load-bearing
+  result** — it rules out the "there is also a tint somewhere" hypothesis, which is exactly what the next
+  bullet's name invites.
+- **`VisibleThroughFog` is a CULL, and a single point test.** `SpriteEffect.Render` is
+  `if (!initialized || (!visibleThroughFog && world.FogObscures(pos)))` (`Effects/SpriteEffect.cs:140`) — one
+  `WPos`, the effect's centre. It decides whether the effect is drawn AT ALL and says nothing about how the
+  sprite is shaded, and **because it samples one point it can never describe a sprite that spans cells of
+  differing visibility**: a 700 %-scale mushroom cloud covers tens of cells and the flag resolves it as one.
+- **Shroud and fog are not the same overlay, and the difference is itself a diagnosis.** Layer 0 is shroud and
+  is **fully opaque** — it does not darken, it erases, and `ShroudRenderer.LayerAlpha` exempts index 0 from
+  `FogDarkness` entirely. Layers 1..9 are fog and are translucent, compounding toward low visibility. **So a
+  user reporting a DARKENED effect is reporting fog; under shroud they would see nothing at all.** It follows
+  that the correct slot for an effect that must keep full brightness is BETWEEN the two halves — past the fog
+  pass, still under the unexplored pass — which keeps per-pixel shroud occlusion for free instead of having
+  to cull the whole effect. That is what passes 5–7 above are for.
+- **`MapGrid.EnableDepthBuffer` defaults to `false` (`MapGrid.cs:115`) and ww3mod never sets it.** Draw order
+  alone governs occlusion in this mod, which is what makes "insert a draw between two existing passes" exact
+  rather than approximate. **Check this before reasoning about render order anywhere in this engine** — the
+  same insert in a depth-buffered mod would need the depth state managed across the seam.
+
+### Smooth the LIGHT, keep the MASK hard — and a per-cell quad is not a design constraint
+
+**`TerrainSpriteLayer.UpdateTint` samples `TintAt` at the cell's four CORNERS and writes them as vertex
+colours** (`TerrainSpriteLayer.cs:161`), so the GPU interpolates and the below-fog half of every light is
+already smooth; `RgbaColorRenderer.FillRect` has had a four-colour overload the whole time. **Before
+designing a smoothing scheme, check whether the other consumer of the same data already smooths — an artefact
+that appears in one of two paths is usually an omission, not a design constraint.**
+
+But the two quantities must quantise differently and **only one of them may be smoothed.** The per-cell quad
+is load-bearing where it multiplies per-cell fog data: `lost` is exactly 0 over never-explored ground, so
+interpolating the MASK would bleed a neighbour's non-zero value into an unexplored corner and light ground
+nobody has scouted. The light is a closed-form function of position and is sampled at the corners; the fog
+factor stays per-cell and multiplies all four equally, **so a zero annihilates the whole quad and the no-leak
+guarantee holds by construction rather than by care.** The corners are shared with the neighbour by
+construction (both cells derive the same `WPos` from their own centre), which is what makes the interpolation
+continuous across every boundary.
+
+**A corollary that generalises past lighting: an early-out that samples ONE point of a primitive is a hard
+edge wherever the primitive is partially covered.** A `MinimumChannel` cut-off tested the centre
+contribution only, so a cell straddling a light's outer radius with a dark centre and a bright corner was
+skipped entirely and the glow terminated on a cell boundary. Test all four corners instead.
+
+**Two residuals, both pre-existing and recorded so they are not re-opened as bugs:** fog LEVELS step per cell
+while `ShroudRenderer` draws fog with 16-frame corner-blended sprites, so at a fog boundary a restoration
+pass does not exactly track what the fog took — and fixing it means interpolating the mask, which the
+paragraph above forbids. And `map.CenterOfCell` carries terrain Z, so two adjacent cells at different heights
+derive their shared corner to different `WPos` and the quads do not perfectly abut on a cliff.
+
+### A post-process pass is free when idle, and does not have to be fullscreen
+
+`WorldRenderer.ApplyPostProcessing` (`:460-468`) tests `pass.Type != type || !pass.Enabled` and `continue`s
+**before** `Game.Renderer.Flush()` and before any draw call, so **"costs nothing when idle" is already the
+contract** and the whole job of adding a pass is making `Enabled` cheap and honest. Three further facts, none
+of them discoverable from a shader file:
+
+- **The primitive for any screen-space distortion already ships**, in `postprocess_textured_vortex.frag`, and
+  it is one line: re-sample the already-rendered frame at an offset instead of straight through
+  (`texelFetch(WorldTexture, ivec2(gl_FragCoord.xy + delta), 0)`). Everything else the chrono vortex does —
+  a baked LUT sheet, 48 frames, a fixed 64x64 quad — is *its look*, not the mechanism.
+- **`postprocess_textured.vert` positions a QUAD, which is how a world position reaches screen space.** Only
+  fragments under the quad run, so a 3-cell effect costs 3 cells of fill.
+- **Vertex units in that path are WORLD pixels and `gl_FragCoord` is in FRAMEBUFFER pixels**, differing by
+  `Renderer.WorldDownscaleFactor`. Anything that positions a quad in one space and displaces in the other has
+  to convert; the vortex does not, which is harmless at downscale 1 and is why nobody has noticed.
+
+**And the lesson about how to FIND any of this: grep for the MECHANISM, not the feature's own vocabulary.**
+"Heat haze", "distortion", "refraction" and "shimmer" appear nowhere in this engine — grepping the feature's
+name returns nothing and would have justified writing it from scratch. `texelFetch`, `WorldTexture` and
+`PostProcess` found it. **A rendering primitive is almost always named after its first consumer**, so the
+thing you want is filed under something else's name: `ChronoVortexRenderer` is a localized screen-space
+distortion, and `LightInterpolation` is a general curve library named after lights.
+
 ## Fog visibility: `Detectable` is the mod's visibility trait, and `FrozenUnderFog` is a dead end
 
 **`Detectable` (`Traits/Modifiers/Detectable.cs`) is the mod's `IDefaultVisibility`, and it is also the render gate.** Its `ModifyRender` (`:293`) returns `SpriteRenderable.None` (`:304`) when `IsVisible` is false, so the trait decides whether a sprite is drawn at all, not merely whether the actor is targetable. (One exception: with the dev-mode `CosmeticReveal` flag set it returns semi-transparent ghosts instead of nothing.) **There is no `HiddenUnderFog` in this engine** — do not go looking for one.
@@ -1329,14 +1612,81 @@ Practical consequence: a replay's stamp is readable with no game involved — `t
 Reported as *"edge tiles are not rendered, but actors placed there are rendered"* on the main-menu shellmap. Three things had to be true at once, and only the third was a bug.
 
 - **`TerrainSpriteLayer`'s `restrictToBounds` clips ROWS ONLY, never columns.** It uses the visible-cell region solely to pick a `firstRow`/`lastRow`, then emits whole rows at full width (`engine/OpenRA.Game/Graphics/TerrainSpriteLayer.cs:207-231`). So the left/right one-cell border columns were **already** being drawn as terrain; only the top/bottom border rows were ever clipped. **Anyone reasoning "`restrictToBounds` hides the border" will predict the wrong edges.**
-- **What actually paints the black is `DrawBeyondMapFog`** (`WorldRenderer.cs:403`, called at `:344-345` under `World.Type != WorldType.Editor`). It fills **fully opaque** black between the viewport edge and the map rect, deliberately **after terrain but before actors** so tall sprites near edges still show (comment at `:341-343`). That ordering is the whole reason actors appear to float: the black is painted, then actors draw on top of it.
+- **What actually paints the black is `DrawBeyondMapFog`** (`WorldRenderer.cs:472`, called at `:384` under `World.Type != WorldType.Editor` — *cites corrected 2026-09-20; they were `:403` / `:344-345`*). It fills **fully opaque** black between the viewport edge and the map rect, deliberately **after terrain but before actors** so tall sprites near edges still show (comment at `:341-343`). That ordering is the whole reason actors appear to float: the black is painted, then actors draw on top of it.
 - **The ring between `Bounds` and `MapSize` is full of authored scenery.** Every one of the 10 maps is `MapSize N,M` / `Bounds 1,1,N-2,M-2`, and **8 of 10 author actors in that unplayable ring** — `river-zeta-ww3` (the `FirstTimeShellmap`, `mod.yaml:9`) has **189**, including 102 `v17` village buildings and 29 `rice`; `woodland-warfare-ww3` 115; `siberian-pass-ww3` 36. Those sprites were the things standing on black. *(as of 2026-08, parsed from the map files)*
 
-**Why it only showed in the menu.** In a match the ring is covered by opaque shroud: `ShroudRenderer` builds `tileInfos` over `Map.AllCells` — the full `MapSize` — at `ShroudRenderer.cs:123`, while `MapLayers.GetVisibility` returns **0 for any cell outside playable `Bounds`** (`Traits/Player/MapLayers.cs:659`, guard at `:663-664`, and `Map.Contains(PPos)` is `Bounds.Contains` at `Map.cs:1418-1421`). Visibility 0 ⇒ shroud sprite at full opacity. But the shellmap has **`RenderPlayer == null`**, and `ShroudRenderer.UpdateShroud` clears every dirty cell's sprites and then `continue`s without repainting when there is no render player (`:247-285`, `:272-273`) — so the ring loses its cover. `DrawBeyondMapActorFog` (`WorldRenderer.cs:450`), the pass that would fog actor overflow to match, also early-returns on `renderPlayer == null` (`:452-454`). **Same root applies to observers and to TestMode's full-map viewer** — which is why an autotest screenshot of a map edge does not look like what a player sees.
+**Why it only showed in the menu.** `ShroudRenderer` builds `tileInfos` over `Map.AllCells` — the full `MapSize` — at `ShroudRenderer.cs:123`, and in a match the ring gets a mask from its playable neighbour (see the render-vs-simulation subsection below). But the shellmap has **`RenderPlayer == null`**, and `ShroudRenderer.UpdateShroud` clears every dirty cell's sprites and then `continue`s without repainting when there is no render player (`:247-285`, `:272-273`) — so the ring loses its cover. `DrawBeyondMapActorFog` (`WorldRenderer.cs:547`), the pass that would fog actor overflow to match, also early-returns when there is no render player (`DrawBeyondMapActorOverlay`, `:627-628`) *(cites corrected 2026-09-20; the overlay has since been split into a translucent fog half and an opaque unexplored half, and the pass itself now also returns early when `shroudRenderer == null`)*. **Same root applies to observers and to TestMode's full-map viewer** — which is why an autotest screenshot of a map edge does not look like what a player sees.
 
-**Geometry rules out "just render the border" as the fix.** `Viewport.Center` and `Scroll` clamp only the viewport **centre** into the playable rect (`Viewport.cs:326`, `:339`), so the edges overhang by up to half a viewport — **~27 cells horizontally at 1080p** (960 px ÷ (24 px `TileSize` × 1.5 zoom)), more via the main menu's own 4× zoom-out. The border is one cell; rendering it can never fill a 27-cell overhang. The opaque overlay has to stay — it just has to start at `MapSize` instead of `Bounds`, which is what `bc22c9d6` did (`DrawBeyondMapFog` now computes its rect from `map.MapSize`, and `TerrainRenderer.cs:84` passes `restrictToBounds: false` unconditionally).
+**Geometry rules out "just render the border" as the fix.** `Viewport.Center` and `Scroll` clamp only the viewport **centre** into the playable rect (`Viewport.cs:326`, `:339`), so the edges overhang by up to half a viewport — **~27 cells horizontally at 1080p** (960 px ÷ (24 px `TileSize` × 1.5 zoom)), more via the main menu's own 4× zoom-out. The border is one cell; rendering it can never fill a 27-cell overhang. The opaque overlay has to stay — it just has to start at `MapSize` instead of `Bounds`, which is what `bc22c9d6` did (`DrawBeyondMapFog` now computes its rect from `map.MapSize`). *(Corrected 2026-09-20: `TerrainRenderer` no longer passes `restrictToBounds` at all — the flag is a `TerrainSpriteLayer` constructor parameter, read at `TerrainSpriteLayer.cs:292` to choose `VisibleCellsInsideBounds` vs `AllVisibleCells`. The three renderers that deliberately cross into the ring are the terrain layer and both `ShroudRenderer` layers.)*
 
 **Reinforcements are NOT affected, contrary to the obvious worry.** `GetSameEdgeCells` measures against `Bounds.Left`/`Bounds.Right - 1` (`Map.cs:1816-1830`) — the **playable** edge — so `ProductionFromMapEdge` spawns inside `Bounds` and never in the ring. Rendering the ring changes nothing about where units appear or how they walk in. *(Known and unfixed: `Map.ChooseClosestEdgeCell` (`Map.cs:1745-1758`) uses bare `Bounds.Right`/`Bounds.Bottom`, which are **exclusive**, so the legacy no-`SpawnArea` path can name a ring cell. Not exercised by the shipped maps.)*
+
+### The RENDERER and the SIMULATION disagree about the one-cell ring on purpose, so a render fix there must read the render-side answer
+
+> **CORRECTION 2026-09-20.** The paragraph above used to continue *"In a match the ring is covered by opaque
+> shroud … `MapLayers.GetVisibility` returns 0 for any cell outside playable `Bounds` … visibility 0 ⇒ shroud
+> sprite at full opacity."* **That has been false since `b4f0db94` (2026-08-22)** and is corrected in place.
+> `GetVisibility` does still return 0 out there — the claim was true of the SIMULATION and wrong about the
+> RENDERER, and only the renderer decides what is drawn. The conclusion about the shellmap is unaffected: the
+> ring loses its cover because `RenderPlayer == null`, not because of the visibility value.
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* **`ShroudRenderer.ClampToPlayable` (`ShroudRenderer.cs:193`, static
+body at `:205`/`:214`) hands a ring cell the visibility of the playable cell it abuts**, so the ring shows
+whatever its neighbour shows. Meanwhile `MapLayers.GetVisibility` answers for the simulation, where every
+visibility source is gated on `Map.Contains` (= `Bounds.Contains`), and returns 0 for every ring cell. **The
+two disagree deliberately**, and `ShroudRenderer.cs:186-189` says why: `GetVisibility` also feeds
+`FrozenActorLayer`, targeting and `BeliefStore`, so changing it would be a determinism change.
+
+**The consequence for anyone adding a renderer to this stack is that widening the sweep alone fixes nothing,
+and looks like it should.** A fog-piercing light clipped its sweep to `Viewport.VisibleCellsInsideBounds`
+while the three renderers it was compensating for cross into the ring, so the ring got a bright fog quad and
+no light restored behind it — one cell, ~6.4x darker than the tile one step inside it, at the shipped
+`FogDarkness`. Widening to `AllVisibleCells` is a **no-op**, because `restore[0] = 0` then skips exactly the
+cells the wider sweep just admitted; the fix also has to call `ClampToPlayable` rather than `GetVisibility`
+raw. **Both halves are required and each is inert without the other.** The no-leak guarantee gets no weaker,
+structurally rather than carefully: the clamp can only return a cell inside `Bounds`, so a ring cell borrows
+its mask from one specific playable cell and inherits that cell's 0 when it is unexplored.
+
+**Generalisable: when a mod adds a renderer to an existing stack, the question is not "what is the right
+region" but "what region do the renderers I am compensating for already use"** — `restrictToBounds` is a
+per-layer flag precisely because there is no single answer. The tell that this class is in play is a visual
+artifact **exactly one cell wide, at a map edge**, in a mod whose maps all carry a one-cell cordon.
+
+### `IRenderShroud.FogTransmission` is the single source for the fog curve — do not rebuild it across the assembly boundary
+
+*(Promoted 2026-09-20 from DISCOVERIES; verified fixed at `a21583fd`.)* `WorldRenderer.DrawBeyondMapActorFog`
+(`:547`, called at `:422`) attenuates the part of any sprite that spills past the CELL GRID, and has to match
+the fog `ShroudRenderer` paints over the map or a sprite crossing the map edge has a step through it. It used
+to rebuild that curve by hand, because `WorldRenderer` is in `OpenRA.Game` and `ShroudRenderer` in
+`Mods.Common` and Game cannot reference Common. **The copy omitted the fog palette's own alpha**
+(`ShroudRenderer.FogPaletteAlpha`, `160f / 255f`, `ShroudRenderer.cs:327`, composited at `:346`), so every
+layer bit harder than the real one: a sprite beyond the grid kept **0.0317** of itself where the same sprite
+one cell further in kept **0.1378** — a **4.35x** error, worst at visibility 1, which is ordinary
+fully-fogged ground. Users reported it as explosions being "very faint outside the border".
+
+**The fix was already half-built.** `IRenderShroud` carried `FogDarkness` *for exactly this consumer*, with a
+doc comment saying so — someone had hit the assembly boundary, solved it by passing the **input** across
+rather than the **answer**, and left the derivation duplicated on the far side. The interface now exposes
+`FogTransmission(int visibility)` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:521`, with the incident
+recorded at `:517`) and the copy is gone. **When an interface exists to carry a parameter across a boundary
+so the other side can re-derive a result, the RESULT is what should have crossed** — the parameter version
+looks cheaper and leaves a second copy of the logic behind, which is the whole failure.
+
+**Auditing the blast radius of a render change: find the value at which the effect VANISHES and check what
+routinely sits there.** The trait list here looked alarming — `ProductionFromMapEdge` on `SUPPLYROUTE` means
+every called-in unit enters at a map edge, and `AirstrikePower`, `MissileStrikePower`, `FlyOffMap`,
+`Aircraft`, `AmmoPool` and `FreeActorWithDelivery` all send actors off-map — but the overlay is keyed to the
+visibility of the playable BORDER cell and is absent entirely at visibility 10, so **anything carrying
+`RevealsShroud` lights its own border cell to full and passes through a no-op.** What is actually affected is
+the narrow set that is beyond the grid AND under fog AND carries no vision of its own: nuclear clouds and
+fireballs, missile bodies inbound over unwatched edges, airstrike ordnance. **A trait list overstates breadth
+whenever the effect is gated on a state most of those traits suppress.**
+
+**What this does NOT fix, recorded so nobody re-opens it:** a nuclear cloud still steps at the grid boundary.
+That residual is the fog-piercing LIGHT, drawn per-cell over ground and stopping at the grid because beyond
+it `DrawBeyondMapFog` has painted opaque black before actors. Closing it would mean lighting terrain the game
+deliberately blacks out, which the no-leak argument forbids. **The FOG half of the discontinuity is gone; the
+LIGHT half is by design.**
 
 ### Edge-cell selection: `CVec.Length` is a FLOORED sqrt, so it merges non-equidistant candidates into one tie
 
@@ -1362,6 +1712,120 @@ Two rules worth carrying beyond this incident:
 **Where the armour arithmetic actually lives:** `ArmorInfo.Thickness` is *"Armor thickness in mm"* (`Armor.cs:28`), and penetration is compared against `Thickness × ArmorDirectionPercent` — see §"Directional / rear armor".
 
 > **⚠️ TWO CLAIMS FROM THE ORIGINATING ENTRY ARE CARRIED HERE AS FLAGS, NOT AS BANKED FACTS — they were not verified, and this notice exists so they cannot quietly become clean once inside the bank.** (1) The census *"~109 of 149 warheads lack `Penetration`"* — an unchecked count, and a dated one even if right. (2) The claim that `Bullet.cs` **always detonates**. **Re-derive either before building on it.** The rest of this section was read from the code.
+
+## `INotifyKilled` is the only hook that names the killer, and a crush is indistinguishable from a shot
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `Health`'s kill path notifies
+`INotifyKilled` with an `AttackInfo` carrying `Attacker`, `Damage.Value` and `Damage.DamageTypes`, and **two
+audiences: traits on the dying actor and traits on its owner's PlayerActor** (`Health.cs:127-128`, refreshed on
+owner change at `:135`). **There is no World-actor delivery**, so a world trait cannot observe deaths — a
+match-wide tap is either one trait per player actor or `World.ActorRemoved`, which carries no attacker at all.
+(This is the death-side twin of §"Combat feedback": `AttackInfo` names *who*, and never *why a hit
+accomplished nothing*.)
+
+**Three of the four death classes separate cleanly; the fourth does not.** Enemy fire is
+`RelationshipWith(e.Attacker.Owner)`, friendly fire is the same test the other way, and **self-inflicted is
+`e.Attacker == self`, which is clean and complete** — helicopter crashes, `FallToEarth`, `KillsSelf`,
+`Parachutable`, `OwnerLostAction` and the sacrificial capture/demolish/repair kills all take that form.
+
+**Crushing does not.** `Passable.OnBeingCrushed` calls
+`self.Kill(passer, passerMobile.Info.LocomotorInfo.CrushDamageTypes)` (`Traits/Passable.cs:108`), so
+**`e.Attacker` is the crusher — an ordinary enemy actor** — and attacker alone cannot tell "ran over" from
+"shot". The intended discriminator is the damage type, **and it is empty**: `LocomotorInfo.CrushDamageTypes`
+defaults to an empty `BitSet` (`Traits/World/Locomotor.cs:81`) and **no locomotor in `mods/ww3mod/` sets it**
+(grep returns zero). A crush therefore arrives as `Attacker = <enemy vehicle>, DamageTypes = {}`, identical in
+shape to a weapon that declares no damage types; `Mine.cs` is the same expression. **So any rule of the form
+"the first life taken by enemy action ends the phase" silently counts being run over as an enemy kill.**
+Fixing it is a content change, not a code one — give the ground locomotors a `CrushDamageTypes` value — and it
+has to be done deliberately, because it is invisible from the rule's own code.
+
+**Timing caveat if a rule wants the first casualty's TICK.** `Health.InflictDamage` early-returns on `IsDead`,
+so `Killed` fires exactly once per actor — but `Explodes`, `SpawnedExplodes` and `Vaporizable` re-kill inside
+an `AddFrameEndTask`, so anything killed by a victim's explosion lands **one frame late** and carries the
+*primary* victim's configured `DamageSource` as its attacker.
+
+### `DamageTypes` selects an ANIMATION and a SOUND, not a husk policy — and nothing in WW3MOD suppresses husks by damage type
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* A nuclear ground-zero warhead commented *"uses ElectricityDeath to
+trigger electric disintegration"* is doing much less than it reads: `ElectricityDeath` reaches exactly two
+things in the mod, and neither is husk suppression — `WithDeathAnimation: DeathTypes:` on `^Infantry`, a
+**sequence-index map**, and `DeathSounds@Zapped`, a **voice** selector.
+
+**The husk is spawned by `SpawnActorOnDeath`, whose damage-type filter is OPT-IN per spawner:**
+`if (Info.DeathType != null && !e.Damage.DamageTypes.Contains(Info.DeathType)) return;`, and its own `[Desc]`
+says *"Leave empty to spawn an actor ignoring the DeathTypes"*. **There are 112 `SpawnActorOnDeath`
+declarations across 16 files in `mods/ww3mod/rules/` and ZERO of them set `DeathType:`** *(a census, so it
+carries a date — 2026-09-06; recall is unverified for spawners declaring `DeathType` more than five lines below
+their key)*. So every vehicle killed at nuclear ground zero leaves its husk, and **no damage type anyone
+invents can change that without also editing all 112 sites.** The same opt-in shape applies to
+`Explodes.DeathTypes` (also unset on most of the mod's 73 declarations) and `EjectOnDeath` does not filter by
+damage type in any form.
+
+**The generalisable trap: an enum-like string that works SOMEWHERE makes it look like it works EVERYWHERE.**
+`ElectricityDeath` is a real damage type, spelled correctly, demonstrably changes what infantry look like when
+they die, and is consumed by a trait whose name contains the word "Death". Every signal available at the call
+site says the mechanism is engaged. What is not visible from the weapon file is that **each consumer opts in
+separately, and the consumer you cared about never did.** Before believing a damage type gates a behaviour,
+find the consumer and check that it reads the field at all.
+
+**What the mechanism has to be instead, and two timing facts any "remove this actor cleanly" work will hit.**
+Suppression has to be a property of the VICTIM at the moment of death, not of the weapon, because the thing
+that finally kills a unit inside a fireball may be a different warhead arriving on the same tick —
+`ISuppressDeathRemains` is that interface, asked of the victim by the five traits that leave something behind
+(chosen by counting what the mod declares: `SpawnActorOnDeath` 112, `Explodes` 73, `EjectOnDeath` 19,
+`WithDeathAnimation` 11, `SpawnedExplodes` 2; traits that merely make noise or shake the camera are
+deliberately off the list). Then: **`SpawnActorOnDeath` does not spawn during `Killed`** — it records the
+attacker there and spawns in `RemovedFromWorld`, which for a killed actor runs at FRAME END via
+`Actor.Dispose`'s `AddFrameEndTask`, so there is a usable window after death in which the husk can still be
+prevented, which is what makes husk suppression independent of warhead declaration order where cook-off is
+not. And **a null attacker also suppresses the husk, by accident** (`attackingPlayer = e.Attacker?.Owner` with
+the spawn gated on non-null), so `Kill(null, ...)` silently leaves no husk — **do not build on this**: it is
+emergent rather than intended and it costs the kill its attribution in `PlayerStatistics`.
+
+**Why `Kill` rather than the tempting `Dispose()`.** `Dispose` suppresses every remains-producing trait by
+construction, in one line, with no interface and no engine edits — and it also suppresses `PlayerStatistics`,
+`GivesExperience`, `GivesBounty`, `ActorLostNotification` and `UnitLifecycleLogger`, so a weapon that
+vaporised fifty units would move neither player's ledger by a single credit. **Fail toward too much debris,
+never toward a broken ledger**: a leftover wreck is a visible cosmetic bug someone will report, while a
+silently uncounted kill is neither. *(`UpdatesPlayerStatistics.AddToArmyValue` is a win-rule input — see
+§"The cost ledger is NOT zero-sum".)*
+
+## `HasTraitInfo<BuildingInfo>()` is NOT "is this a building" — it selects 98 % of a populated map
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `^CivField`
+(`rules/ingame/civilian.yaml:254`) and `^Tree` (`rules/ingame/decoration.yaml:267`) both declare
+`Building: Footprint: x, Dimensions: 1,1` — fields need it for placement, trees for their footprint. On
+river-zeta that test matches **4459 of 4544 actors** (1713 `v17`, 864 `v16`, 610 `rice`, ~1100 trees) against
+**53** actual structures. A Dead Hand clustering routine asserted the opposite in a code comment — *"crop tiles
+inheriting ^CivField … have no Building trait at all"* — and clustered on it, so its idea of a "city" was the
+centroid of half a map of rice paddy. **The comment was written confidently and was never checked against the
+YAML.**
+
+**The test that means what you want is TARGET TYPES**, because it is the *targeteer's* definition rather than
+the placement system's. `^CivField` deliberately declares no `Targetable` at all (there is a PITFALL in
+`civilian.yaml` explaining that giving a field target types makes it soak shots) and `^Tree` declares `Trees`,
+while `^BasicBuilding` and `^CivBuilding` declare `Structure` — so
+`TraitInfos<ITargetableInfo>().Any(t => t.GetTargetTypes().Contains("Structure"))` separates structures from
+scenery exactly. **With one trap: `^TechBuilding` DROPS `Structure`** and carries `TechStructure` instead, so
+oil derricks — the highest-value point targets on the map — fail a `Structure` test and any enumeration needs
+an explicit bypass for them.
+
+**And the more reusable half: a large-radius weapon's runtime cost is dominated by its
+`GrantExternalCondition` RADII, not by its damage or its yield.** `GrantExternalConditionWarhead.DoImpact`
+runs `FindActorsInCircle` and then a `TraitsImplementing<ExternalCondition>()` LINQ probe **per actor**, and
+the mod's nukes carry **19 such warheads each**; `ShockwaveEffect.Tick` calls `FindActorsOnCircle` — which is
+`FindActorsInCircle` over the whole disc, not an annulus — once per tick for the wave's entire life. On
+river-zeta the measured actor-touches per detonation run from ~10,900 (10 kt) to ~6.79 M (50 Mt), a **173x
+spread between the mod's two shipped nukes for 300x the yield**, because the largest weapon's outer fire and
+suppression rings exceed the map diagonal and **ten of its nineteen grant warheads enumerate every actor on
+the map**. *(Measured 2026-09-07 on one map; the arithmetic, not the figures, is the durable part.)*
+
+**The rule: cost scales with (number of grant warheads) x (actors inside each radius) x (concurrent
+detonations), and only the last of those three is obvious.** Before adding a large-radius weapon to anything
+that fires in bulk, multiply it out — it is a 20-line script over the map's `Actors:` block and the weapon's
+`Range:` fields, needs no build and no launch, and would have caught this before it shipped.
+`LightEventManager` is the one part of the stack that is bounded (`MaximumConcurrentEvents = 32`); nothing
+bounds shockwaves or condition grants.
 
 ## Garrisoning is an OWNERSHIP transfer, and that one fact rewrites the rest of the system
 
@@ -1476,3 +1940,40 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   - The same shape in `LabelWidget`: the template ctor builds `GetText = () => textCache.Update(Text)` (`:45`) and the copy-ctor does `GetText = other.GetText` (`:65`), so **cloning a label and setting `.Text` renders the template's text, silently**. `ColorBlockWidget.GetColor = widget.GetColor` (`:39`) is the third instance.
   - **Cloning is the most common cause but not the only one** — panel logic that assigns a delegate at runtime produces the same divergence without any clone involved.
   - **The detector, and the reason this is banked as a family:** if you set a widget property and nothing changes on screen, ask whether anything still *reads the field*. Assigning `Visible`/`Text`/`Color` is only meaningful while the matching delegate is still the constructor's default. **Assign the delegate, not the field** — `clone.IsVisible = () => clone.Visible` — or construct fresh instead of cloning.
+- **A missing chrome region is a CRASH, not a blank button — and a production tab needs THREE regions that
+  no lint asks for.** *(Promoted 2026-09-20 from DISCOVERIES.)* `ImageWidget.Draw` dereferences `GetSprite()`
+  with no null check (`ImageWidget.cs:80`) and `ChromeProvider.GetImage` returns null for an unknown region,
+  so a tab whose glyph is absent throws on the first frame the sidebar draws. **You cannot see the requirement
+  in the chrome YAML:** a `ProductionTypeButton`'s `Image@ICON` deliberately carries no `ImageName`, and
+  `ClassicProductionLogic` synthesises all three names from `ProductionGroup.ToLowerInvariant()` plus
+  `-disabled` / `-alert` (`Widgets/Logic/Ingame/ClassicProductionLogic.cs:80-91`), **overwriting anything
+  written in the YAML**. So adding a tab means adding three regions, and nothing checks for them.
+  *(The `production-icons` band's own 17px-pitch grid map — including which column is free — is documented
+  in place at `mods/ww3mod/chrome.yaml:175-186`, which is the temptation site; check there before commissioning
+  art for a new tab or order button.)*
+- **An existing font field on a widget means the widget CAN draw text; it does not mean it has a text slot
+  where you want one.** *(Promoted 2026-09-20 from DISCOVERIES.)* `SupportPowersWidget` and
+  `ProductionPaletteWidget` both carry `OverlayFont = "TinyBold"`, which reads like a caption facility already
+  shipped. It is not one: both draw READY / ON HOLD / a countdown **centred on the icon**, and
+  `SupportPowerInstance.IconOverlayTextOverride()` overrides that same centre slot. All of it is transient
+  status. A persistent caption belongs at the bottom edge, so it is a new draw in both widgets — what the
+  existing field buys you is the font, contrast and measurement machinery, which is what makes the addition
+  small.
+  - **A runtime caption has to REPLACE the baked one, not sit on it.** Every shipped cameo already has a
+    caption in exactly those pixels (see the bullet above), so drawing a second one there produces two
+    overlapping words — an early render came out `PA0.3 KTKE` — which no amount of positioning fixes, because
+    the two want the same rows. The feature therefore needs an opaque band (default off) to turn an overlay
+    into a replacement. **A "just draw text over the art" feature meets a wall wherever the art is not blank,
+    and cameo art is the case where it never is.**
+  - **The font size is arithmetic, not taste, and it is answerable offline.** The slot is `IconSize: 62, 46`
+    less a 1 px side margin = **60 px**, and `SpriteFont.LineWidth` sums glyph ADVANCES — so the budget is
+    measurable against the same TTF with no build and no launch. At TinyBold (FreeSansBold 10 px) five of the
+    sixteen shipped support-power captions overflow; at 7 px all sixteen fit, the longest landing on exactly
+    60. **Measure with `getlength` (advances), not `getbbox` (ink extents)** — the two disagree by several px
+    on a short string and the engine uses advances.
+  - **Before asking for a screenshot slot to judge a sidebar detail, check whether the asset format is simple
+    enough to compose the pixels offline.** For cameos it is: `mods/ww3mod/bits/misc/icons/*.shp` are ShpTS
+    format 1 — an 8-byte header, a 20-byte frame header whose last `u32` is the data offset, then raw indexed
+    bytes — and 34 lines of Python decodes one. `temperat.pal` is not on disk (it lives inside
+    `temperat.mix`), but a captioned overlay does not go through a palette at all: the widget draws it in
+    straight RGBA.
