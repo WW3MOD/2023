@@ -2,7 +2,7 @@ MapFormat: 12
 
 RequiresMod: ww3mod
 
-Title: TEST: pre-captured structures go to the nearer player, and the middle one stays neutral
+Title: TEST: pre-captured structures go to the player on their side of the border, and the one in the band stays neutral
 
 Author: WW3MOD test harness
 
@@ -45,14 +45,16 @@ Players:
 	# (test-push-departs-together, test-combined-arms-rendezvous).
 	#
 	# `Enemies: USA` still makes the two mutual enemies, which is what the middle test needs:
-	# PreCapturedOwnership compares the nearest player against the nearest NON-ALLIED player, so
-	# if these two were allies Middle would be captured rather than left neutral.
+	# The two must stay mutual enemies for a different reason than they used to. Under the border
+	# rule the alliance clause is gone -- PreCapturedOwnership.ResolveOnSide has none, because
+	# "contested" is stated by the band rather than inferred from two distances -- but `Enemies`
+	# is still what makes this a two-sided match rather than a co-op slot layout.
 	#
 	# NOTE THE RESULTING PLAYER ORDER: map players come first, so World.Players is
 	# [Neutral, Russia, USA, Everyone] and the trait's contender list is [Russia, USA] -- Russia
-	# is index 0 and would win a tie. Nothing here ties (the closest margin is 3.6%), but the
-	# debug.log line the trait writes at world load prints the list, so read it rather than
-	# assuming the order.
+	# is index 0 and would win a tie. Nothing here ties: each outer derrick has exactly ONE
+	# contender on its side of the band, so the tie rule is never reached. Read the debug.log
+	# line the trait writes at world load rather than assuming the order.
 	PlayerReference@Russia:
 		Name: Russia
 		LockFaction: True
@@ -70,18 +72,25 @@ Players:
 # the two anchors on the centres of cells 4,16 and 60,16 — 56 cells apart, on one row, so
 # every distance below is a right triangle with a half-cell rise.
 #
-# OILB is 2x2, so an actor at Location L has its centre at L + (0.5,0.5). The half-cell y
-# offset is DELIBERATE: it keeps Middle off an exact tie, so a green run proves the ratio band
-# is working and not merely that equal distances are handled. Distances, in cells:
+# WHAT DECIDES EACH VERDICT IS THE BAND, NOT THE DISTANCES. rules.yaml authors a two-cell
+# DefconWall band at x=31,32 running the full height of Bounds, so the map states where the
+# middle is and the trait reads it. A structure with ANY footprint cell in the band stays
+# Neutral; every other one goes to the nearest contender whose own home is on its side.
 #
-#   NearUSA    at 11,15 -> centre 11.5,15.5   USA  7.52   Russia 48.50   margin  545%  -> USA
-#   Middle     at 31,15 -> centre 31.5,15.5   USA 27.50   Russia 28.50   margin  3.6%  -> Neutral
-#   NearRussia at 51,15 -> centre 51.5,15.5   USA 47.50   Russia  8.51   margin  458%  -> Russia
+# OILB is 2x2, so an actor at Location L occupies L..L+(1,1) and its centre is at L + (1,1) in
+# cell-corner terms (Building.cs:207-211). Footprints, sides and verdicts:
 #
-# 3.6% sits well inside the shipped MiddleBandPercent of 10 and well clear of both ends of the
-# empty 8.4%..15.2% calibration band, so this scenario does not go red on a retune within that
-# band — which is the point. If MiddleBandPercent is ever pushed BELOW 3.6, Middle flips to USA
-# and this goes red for a legitimate reason; fix the expectation, do not widen it.
+#   NearUSA    at 11,15  cells 11-12 x 15-16  WEST of the band   -> USA      (the only contender west)
+#   Middle     at 31,15  cells 31-32 x 15-16  ALL FOUR in band   -> Neutral  (distances not consulted)
+#   NearRussia at 51,15  cells 51-52 x 15-16  EAST of the band   -> Russia   (the only contender east)
+#
+# The distances still exist and are still worth knowing, because they are what the setup guard
+# in the Lua reads to prove the anchors are the Supply Routes rather than the HomeLocation
+# fallback: from the two SR centres at 4,16 and 60,16, NearUSA is 7.52 cells from USA and 48.50
+# from Russia, and NearRussia is 8.51 from Russia and 47.50 from USA. They no longer DECIDE
+# anything — each outer derrick has exactly one contender on its side, so it would go to that
+# player at any distance. MiddleBandPercent is not consulted on this map at all, and a retune of
+# it cannot red this scenario.
 #
 # mpspawn actors are present so the map is a well-formed map with a spawn point, but nothing
 # here reads them: with both SRs placed, AnchorFor returns on its Supply Route branch and never

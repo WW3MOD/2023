@@ -53,6 +53,72 @@ agree exactly, because the Supply Route sits on its owner's spawn cell; the anch
 Found by the `wt/precaptured-line` worker and documented at the declaration of
 `DefconWall.SideOf(Player)`; recorded here because it is a trap for every future consumer of that
 surface, not just for these two.
+## 2026-09-20 - Pre-captured structures by the border: the shipped borders hand out EVERY capturable, and the design note's marquee promise no longer holds (`wt/precaptured-line`, base `main @ 20ae9548`)
+
+**What changed.** `PreCapturedStructures` used to decide ownership by a distance RATIO against
+`MiddleBandPercent` (10). It now asks `DefconWall` where the border is and, on a map that has one,
+assigns each neutral capturable structure to the nearest contender **on its own side of that
+border**, leaving anything whose footprint touches the band neutral. The ratio survives as the
+fallback for a map where no border resolves. New level-independent surface on `DefconWall`:
+`HasBorder`, `SideOf(CPos)`, `SideOf(WPos)`, `SideOf(Player)`, `IsInBand(CPos)` and the single
+sentinel `DefconWall.NoSide = -1` (`engine/OpenRA.Mods.Common/Traits/World/DefconWall.cs:753-925`).
+
+**The finding worth carrying: under the new rule NOTHING stays neutral on any shipped map.**
+Measured, not reasoned about —
+`python tools/precaptured-calibration/precaptured_border_table.py` reproduces
+`DefconWallRegion.Label`'s 8-connected row-major labelling against each map's authored
+`RegionCells` and assigns all **90** eligible structures across the nine maps that author a border
+(arena-tank-duel is the ninth and carries neither spawns nor capturables). Every one of the 90
+gets an owner; **zero** are neutral. The ratio rule left 19 of them neutral, including
+every headline case the design note was calibrated around: woodland-warfare's `bio` "Nuclear
+Reactor" at 48,47 now goes to spawn0, x-lake's central `bio` at 64,64 to spawn0, and both
+river-zeta `LOGISTICSCENTER`s to a player.
+
+**Why, and it is not a bug in either layer.** The borders were AUTHORED to a stated acceptance
+criterion of "no capturable inside the band" — `WORKSPACE/audit/positioning-borders-260919.md`
+records x-lake's western routing being chosen over the symmetric one precisely because the
+symmetric line swallowed the central `bio` into the band. So the two pieces of work were each
+correct in isolation and compose into "everything is claimed at world load". If the reactor
+staying neutral matters, the fix is in the MAP's `RegionCells`, not in the trait: widen the band
+over the structure and it goes neutral again, by the rule rather than by a percentage.
+
+**The 25 rows where the two rules disagree**, from the same run: 19 are "ratio neutral → border
+gives it to somebody", and 6 are "the two rules pick DIFFERENT players" — `nuclear-winter` oilb
+40,62 and 60,8; `polar-disorder` logisticscenter 64,31 and oilb 32,3 / 49,27 / 64,93. Those six
+are the rule doing its job: the nearer player is across the border, and reaching the structure
+means crossing it.
+
+**Per-side counts reconcile with the border audit on seven maps of nine, and the two residues are
+both explained rather than fixed.**
+
+* `siberian-pass` (audit SW 10 / NE 10 vs 3 / 2) and `seventh-woods` (NW 6 / SE 5 vs 4 / 3): the
+  audit counted `BARL` and `BRL3`. The trait excludes them — they carry `-Selectable:`
+  (`civilian.yaml:772, 793`) and sit in the editor's Decoration category. Add the barrels back and
+  both maps reconcile exactly (3+4+3 = 10, 2+5+3 = 10, 4+2 = 6, 3+2 = 5). **I believe the trait**:
+  the filter is documented, deliberate and load-bearing, and the audit's column is a count of
+  capturables in general rather than of this trait's eligible set.
+* `nuclear-winter` (audit NE 6 vs 5): the audit counted an `mslo`. **`Actor436: mslo` on that map
+  is owned by `Creeps`, not `Neutral`** (`mods/ww3mod/maps/nuclear-winter-ww3/map.yaml:1146-1148`),
+  and the trait's owner filter is `OwnsWorld`, so it is out of scope. I believe the trait here too.
+
+**And that last one falsified a comment in the trait.** `PreCapturedStructures.cs` asserted "No
+shipped map gives Creeps a capturable structure either way" as the reason the `OwnsWorld` vs
+`NonCombatant` choice was academic. It is not academic: `MSLO` passes all three filters
+(Capturable + Building + Selectable), so a `NonCombatant` owner test would hand a Missile Silo to
+whichever player is nearest, on the one shipped map that has one. It is the **only** non-Neutral
+capturable structure on any of the ten maps — swept for, not assumed. Comment corrected in place.
+
+**A trap for the next consumer of the border: do NOT read `Player.HomeLocation` to ask which side
+a player is on.** It is `CPos.Zero` for a map player, and also for a lobby player on any map or
+scenario that strips `MapStartingLocations` — `Player.cs:213` falls back to the `PlayerReference`
+when there is no `IAssignSpawnPoints` trait, and every autotest scenario in this tree strips it.
+On a region map (0,0) reads `Unlabelled`, so both sides get no side and every structure stays
+neutral, silently. `PreCapturedStructures` reads the player's ANCHOR instead. Note this is a
+DIFFERENT hazard from the one the border audit records under "Supply Routes on the Bounds edge":
+that one is about the SR actor's top-left LOCATION cell being at x=0, whereas its CenterPosition
+is `CenterOfCell(HomeLocation)` exactly (the `(-1,-1)` placement offset and a 3x3's `(+1,+1)`
+CenterOffset cancel) and is safely in Bounds. All 26 spawns across the eight bordered maps that
+have any label cleanly; the script reports none unlabelled.
 
 ## 2026-09-20 - Fixing a universe bug in the tool that CONSUMES it leaves the tool that MEASURES it wrong, and a repo that states two numbers for one quantity (`wt/rollout-survey`, base `main @ da5a2a2a`)
 
