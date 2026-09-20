@@ -97,9 +97,15 @@ Player:
 	# BOTH, NOT JUST THE ONE THAT IS PLACED. Russia's Sarmat is fired FOR it at the close, so its
 	# MissileDelay is inside the same flight budget FinalExchangeFlightTicks above has to cover.
 	#
+	# BOTH ARE sarmatmissile AT SPEED 1600 SINCE 2026-09-20 -- the Trident reuses the Sarmat body --
+	# so the two arcs are now EQUAL on this map at ~58 ticks, where the B83 this replaced flew
+	# ~132. FinalExchangeFlightTicks below is therefore more generous than it strictly needs to be
+	# and is left alone deliberately: it IS the anchor, and every asserted tick in the .lua derives
+	# from it.
+	#
 	# IN THIS ONE `Player:` NODE rather than a second one at the foot of the file: MiniYaml treats
 	# two top-level entries with the same key as a duplicate, not a merge, within one file.
-	MissileStrikePower@B83:
+	MissileStrikePower@TridentW88:
 		MissileDelay: 120
 
 	MissileStrikePower@Sarmat:

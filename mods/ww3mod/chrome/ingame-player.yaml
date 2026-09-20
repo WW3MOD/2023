@@ -119,7 +119,7 @@ Container@PLAYER_WIDGETS:
 					# is not defined (CheckChromeHotkeys.cs:97). common|hotkeys/supportpowers.yaml
 					# stops at 06, so 07-16 are defined in ww3mod|hotkeys.yaml. Raising this again
 					# means adding definitions in the same edit.
-					HotkeyCount: 16
+					HotkeyCount: 17
 				Container@PALETTE_FOREGROUND:
 					Children:
 						Image@ICON_TEMPLATE:

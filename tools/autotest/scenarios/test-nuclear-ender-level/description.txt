@@ -39,7 +39,7 @@ Two assertions per launch come out of that, and they are the coverage this scena
 Then it asserts, off the support power bin (SupportPowerInstance.Disabled — the predicate
 SupportPowersWidget filters its icon list on):
 
-  * USA's B83Strike reads `ready` at level 5, and can be ACTIVATED through the real order path.
+  * USA's TridentStrike reads `ready` at level 5, and can be ACTIVATED through the real order path.
     Both halves of "I should be able to choose the game ender and place the targets".
   * Russia's SarmatStrike reads `ready` at its own level 5.
   * The faction lock of 2026-09-14 (c8cadc8a) holds: USA never sees the Sarmat, Russia never sees

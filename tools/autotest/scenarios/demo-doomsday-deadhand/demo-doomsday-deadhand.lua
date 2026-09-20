@@ -7,7 +7,7 @@
 --
 -- WHAT THIS FILE EXISTS TO SHOW: a warhead a PLAYER placed inside the fifteen-second window,
 -- landing in the SAME cascade as the ones the machine fires for the side that placed nothing. USA
--- fires its B83; Russia does not, and Russia's own Sarmat is fired for it at the enemy. Both halves
+-- fires its Trident; Russia does not, and Russia's own Sarmat is fired for it at the enemy. Both halves
 -- of the user's ruling -- "either way the outcome is the same" -- are on screen at once.
 --
 -- RETIMED 2026-09-20 WITH THE REDESIGN. Dead Hand -- a map-wide, side-blind salvo with its own
@@ -41,7 +41,7 @@
 --         description.txt), so it was paying 170 ticks for something invisible.
 --   CUT   the dead air on BOTH game-enders, 500 ticks shipped -> 120. SpawnActorEffect holds the
 --         actor out of the world and renders NOTHING while it waits (SpawnActorEffect.cs:44-49),
---         so those ticks are a beacon and an empty sky. Both, not just the B83: Russia's Sarmat
+--         so those ticks are a beacon and an empty sky. Both, not just the Trident: Russia's Sarmat
 --         is fired for it at the close and carries the same 500.
 --   CUT   FinalExchangeFlightTicks 800 -> 260, which is what the shortened MissileDelay makes
 --         correct rather than merely convenient: it must cover MissileDelay plus the slowest
@@ -54,16 +54,16 @@
 --         thing worth looking at here.
 --
 --     tick   what
---       70   B83 state printed BEFORE the window. Expect "hidden" -- both game-enders are event
+--       70   Trident state printed BEFORE the window. Expect "hidden" -- both game-enders are event
 --            tier and no faction provides powers.event, so the bin is empty. The control.
 --            THE PACKAGE HERE IS TWO WARHEADS PER SIDE. 64x32 is 2048 playable cells, which
 --            rounds to 1 at CellsPerImpact 2400 and is lifted to MinPackage 2 -- so this demo
 --            also shows the floor doing its work. Four warheads total, on four cascade slots.
 --
 --       80   TIME LIMIT EXPIRES -> BeginFinalExchange. Band appears at 0:15.
---       85   B83 state printed again. Expect "ready". That flip IS the feature.
---       90   FRAME 01 -- band at ~0:15, B83 cameo present.
---       95   USA places its B83. Expect "issued". TWO aim points, on a ring around the click.
+--       85   Trident state printed again. Expect "ready". That flip IS the feature.
+--       90   FRAME 01 -- band at ~0:15, Trident cameo present.
+--       95   USA places its Trident. Expect "issued". TWO aim points, on a ring around the click.
 --      250   FRAME 02 -- band at ~0:05, USA's beacons planted.
 --      330   WINDOW CLOSES. Russia's own Sarmat is fired FOR it, at USA's half of the map.
 --      336   FRAME 03 -- "The packages are in the air." + "Fired automatically for: Russia."
@@ -119,7 +119,7 @@ WorldLoaded = function()
 	Camera.Position = WPos.New(40 * 1024 + 512, 19 * 1024 + 512, 0)
 
 	-- Pre-selected so the support-power bin is on screen BEFORE the window opens, which is what
-	-- lets frame 01 show the B83 cameo appearing rather than take its arrival on trust.
+	-- lets frame 01 show the Trident cameo appearing rather than take its arrival on trust.
 	-- UsaA is the map actor id from map.yaml; map actors are exposed to Lua under their id.
 	TestHarness.Select(UsaA)
 
@@ -131,13 +131,13 @@ WorldLoaded = function()
 	-- SupportPowerInstance.Permitted is false however many conditions are granted. Its appearance
 	-- fifteen ticks later is only evidence because of this line.
 	Trigger.AfterDelay(WindowOpensTick - 10, function()
-		Media.DisplayMessage("Before the window, B83 reads: "
-			.. Test.GetSupportPowerState(USA, "B83Strike"), "DEAD HAND")
+		Media.DisplayMessage("Before the window, Trident reads: "
+			.. Test.GetSupportPowerState(USA, "TridentStrike"), "DEAD HAND")
 	end)
 
 	Trigger.AfterDelay(WindowOpensTick + 5, function()
-		Media.DisplayMessage("Window open. B83 now reads: "
-			.. Test.GetSupportPowerState(USA, "B83Strike")
+		Media.DisplayMessage("Window open. Trident now reads: "
+			.. Test.GetSupportPowerState(USA, "TridentStrike")
 			.. " -- watch the countdown band.", "DEAD HAND")
 	end)
 
@@ -145,7 +145,7 @@ WorldLoaded = function()
 		"THE FRAME THE FEATURE LIVES OR DIES ON. ~10 ticks into the window. expects: a full-width "
 		.. "band about a third down the screen reading FINAL EXCHANGE / PLACE YOUR STRIKE PACKAGE "
 		.. "-- UNPLACED FIRES AT THE ENEMY, with a clock at or just under 0:15 and its borders "
-		.. "reaching BOTH screen edges; and a B83 cameo "
+		.. "reaching BOTH screen edges; and a Trident cameo "
 		.. "now present in the support-power bin that was empty ten ticks earlier. FAIL if the band "
 		.. "is absent (the window never opened), if it reads as a dialog box with visible ends, or "
 		.. "if the bin is still empty (the power was never armed -- that is the tier or the "
@@ -157,8 +157,8 @@ WorldLoaded = function()
 		-- power is a game-ender, so MissileStrikePower asks DoomsdayStrike for the package size
 		-- (2 here) and lays the second bomb on the AimPointFallbackSpread ring around this click.
 		-- That path is only exercised because the binding cannot drive placement mode.
-		PlacementStatus = Test.ActivateSupportPower(USA, "B83Strike", CPos.New(AimPoint.X, AimPoint.Y))
-		Media.DisplayMessage("USA places its B83 on the eastern city: " .. PlacementStatus, "FINAL EXCHANGE")
+		PlacementStatus = Test.ActivateSupportPower(USA, "TridentStrike", CPos.New(AimPoint.X, AimPoint.Y))
+		Media.DisplayMessage("USA places its Trident on the eastern city: " .. PlacementStatus, "FINAL EXCHANGE")
 	end)
 
 	LateFrame(250, "02-band-five-seconds", function()
@@ -177,7 +177,7 @@ WorldLoaded = function()
 		.. "placement at tick 95 was not recorded.")
 
 	Frame(592, "04-cascade-opens",
-		"THE ANCHOR TICK, plus two. expects: USA's first 1.2 Mt going off around the eastern city, "
+		"THE ANCHOR TICK, plus two. expects: USA's first 455 kt going off around the eastern city, "
 		.. "and NOTHING having gone off before it -- the whole point of the cascade is that no "
 		.. "warhead of the exchange lands until the window has shut and the flight has been flown. "
 		.. "Russia's two should still be inbound, arriving 28 and 43 ticks later. FAIL if the map "

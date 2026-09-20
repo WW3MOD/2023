@@ -28,7 +28,7 @@
 --
 -- ---- THE SCHEDULE, ALL OF IT DERIVED FROM rules.yaml ------------------------------------------
 --       100  TIME LIMIT EXPIRES -> the window opens. Both sides are armed.
---       130  USA places its B83. Russia deliberately does not.
+--       130  USA places its Trident. Russia deliberately does not.
 --       350  WINDOW CLOSES. Russia's own Sarmat is fired FOR it, at USA's half.
 --       610  THE ANCHOR: 350 + FinalExchangeFlightTicks 260. USA slot 0.
 --  625/640/655   USA slots 1-3.
@@ -209,7 +209,7 @@ WorldLoaded = function()
 				.. "%d). USA's order at tick 130 should have set it: DoomsdayStrike.ReportExchangeLaunch "
 				.. "records a placement for any warhead NuclearGameEnders.Is() accepts. READ "
 				.. "debug.log for the return of Test.ActivateSupportPower -- `not-ready` or `hidden` "
-				.. "there means the window never armed the B83, which is the tier, the condition or "
+				.. "there means the window never armed the Trident, which is the tier, the condition or "
 				.. "the magazine (see DoomsdayStrike.ArmGameEnders)", placementsMax)
 		end
 
@@ -351,12 +351,12 @@ WorldLoaded = function()
 	--
 	-- A SINGLE-TARGET ORDER, which is what this binding issues and what a bot issues. The power is
 	-- a game-ender, so MissileStrikePower asks DoomsdayStrike for the package size and lays the
-	-- remaining bombs on the AimPointFallbackSpread ring around this click. That path is only
+	-- remaining RVs on the AimPointFallbackSpread ring around this click. That path is only
 	-- exercised because the binding cannot drive placement mode -- SelectMultiPowerTarget is a
 	-- client-local order generator with no scripted entry point.
 	local PlacementStatus = "not attempted"
 	Trigger.AfterDelay(130, function()
-		PlacementStatus = Test.ActivateSupportPower(USA, "B83Strike", CPos.New(AimPoint.X, AimPoint.Y))
+		PlacementStatus = Test.ActivateSupportPower(USA, "TridentStrike", CPos.New(AimPoint.X, AimPoint.Y))
 		note("USA placement order returned %q", PlacementStatus)
 	end)
 

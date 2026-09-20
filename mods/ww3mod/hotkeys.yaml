@@ -93,6 +93,16 @@ SupportPower16:
 	Types: SupportPower
 	Contexts: Player
 
+# Slot 17 arrived with MissileStrikePower@TridentW88 on 2026-09-20. The bin binds hotkeys by DRAW
+# INDEX and only for the first HotkeyCount icons, so a roster larger than the count leaves the last
+# power unreachable from the keyboard -- which is what PowerPurchaseWiringTest's
+# TheSupportBinBindsAHotkeyForEveryPowerAPlayerCanHold checks. HotkeyCount in
+# chrome/ingame-player.yaml and this block must move together.
+SupportPower17:
+	Description: Slot 17
+	Types: SupportPower
+	Contexts: Player
+
 GroupScatter: G Shift
 	Description: Scatter queued waypoints among selected units
 	Types: World

@@ -65,10 +65,16 @@ namespace OpenRA.Test
 		[Test]
 		public void TheTwoNationalEndersAreGameEnders()
 		{
-			// 750 kt (RS-28 Sarmat, one re-entry vehicle) and 1.2 Mt (B83-1). Both above the
-			// 100 kt band ceiling, both below SandboxOnlyAboveTons.
+			// 750 kt (RS-28 Sarmat) and 455 kt (Trident II D5 / W88), one re-entry vehicle each.
+			// Both above the 100 kt band ceiling, both below SandboxOnlyAboveTons.
+			//
+			// 455 kt IS THE ONE WORTH CHECKING, because it is the closest a shipped ender comes to
+			// the band below: RungForYield has four ceilings and the highest is 100 kt, so anything
+			// past it falls through to GameEnder. Insert a band between 100 kt and the top and
+			// America silently stops having a national ender at all -- no cameo, nothing in the
+			// log, which is the 2026-09-16 defect arriving from a new direction.
 			Assert.That(NuclearGameEnders.Is(Power(750000)), Is.True, "the Sarmat is a game-ender");
-			Assert.That(NuclearGameEnders.Is(Power(1200000)), Is.True, "the B83 is a game-ender");
+			Assert.That(NuclearGameEnders.Is(Power(455000)), Is.True, "the Trident W88 is a game-ender");
 		}
 
 		[Test]
@@ -110,8 +116,8 @@ namespace OpenRA.Test
 			// THE POSITIVE HALF OF THE 2026-09-14 RULING, and the reason NamesAnOwner is public:
 			// every ArmableBy assertion below is a FALSE, so without this pair the whole fixture
 			// would pass against `ArmableBy => false`.
-			Assert.That(NuclearGameEnders.NamesAnOwner(Power(1200000, "powers.event, player.america"), EventTier),
-				Is.True, "the B83 names America as its owner, beside the licensed event tier");
+			Assert.That(NuclearGameEnders.NamesAnOwner(Power(455000, "powers.event, player.america"), EventTier),
+				Is.True, "the Trident names America as its owner, beside the licensed event tier");
 			Assert.That(NuclearGameEnders.NamesAnOwner(Power(750000, "powers.event, player.russia"), EventTier),
 				Is.True, "the Sarmat names Russia");
 		}
@@ -143,9 +149,18 @@ namespace OpenRA.Test
 				Is.EqualTo(new[] { "player.russia" }),
 				"the Sarmat's arming must turn on Russia's faction identity and nothing else");
 
-			Assert.That(NuclearGameEnders.OwnerPrerequisites(Power(1200000, "powers.event, player.america"), EventTier),
+			Assert.That(NuclearGameEnders.OwnerPrerequisites(Power(455000, "powers.event, player.america"), EventTier),
 				Is.EqualTo(new[] { "player.america" }),
-				"the B83's arming must turn on America's faction identity and nothing else");
+				"the Trident's arming must turn on America's faction identity and nothing else");
+
+			// AND THE B83, WHICH IS NO LONGER ANYBODY'S. It kept `powers.event` and lost
+			// `player.america` on 2026-09-20, so subtracting the licensed tier leaves NOTHING and
+			// ArmableBy refuses it -- the same shape the unattributed 6 Mt strategic strike has.
+			// Re-attributing it would give America TWO national enders and the exchange would arm
+			// both; rules/player.yaml carries the standing note.
+			Assert.That(NuclearGameEnders.OwnerPrerequisites(Power(1200000, "powers.event"), EventTier),
+				Is.Empty,
+				"the B83 is retired from Escalation and must name no owner");
 
 			// AND THE HAZARD ITSELF, stated as a test rather than only as a comment: licensing the
 			// faction name empties the list, and an ender nobody owns is armed by nobody.

@@ -74,7 +74,7 @@
 local USA_1KT    = "B61LowStrike"       -- 300 t     band 1  Kiloton
 local USA_50KT   = "B61MaxStrike"       -- 50000 t   band 3  FiftyKiloton
 local USA_100KT  = "W76Strike"          -- 100000 t  band 4  HundredKiloton
-local USA_ENDER  = "B83Strike"          -- 1200000 t band 5  GameEnder, powers.event + player.america
+local USA_ENDER  = "TridentStrike"      -- 455000 t band 5  GameEnder, powers.event + player.america
 local RU_20KT    = "RuIskanderStrike"   -- 10000 t   band 2  TwentyKiloton
 local RU_100KT   = "RuKalibrStrike"     -- 100000 t  band 4  HundredKiloton
 local RU_ENDER   = "SarmatStrike"       -- 750000 t  band 5  GameEnder, powers.event + player.russia
@@ -527,9 +527,9 @@ WorldLoaded = function()
 			local ok = expect(USA, "USA", USA_ENDER, "ready",
 				"THE END LEVEL GRANTED NOTHING THE PLAYER CAN SEE -- this is the reported bug."
 				.. " USA's level is NuclearRung.GameEnder (the ledger's END box is lit) and"
-				.. " B83Strike must be a cameo USA can click."
+				.. " TridentStrike must be a cameo USA can click."
 				.. " `hidden` means SupportPowerInstance.Disabled is true, which folds in Permitted,"
-				.. " which folds in prereqsAvailable -- and B83 declares `powers.event`, a"
+				.. " which folds in prereqsAvailable -- and the Trident declares `powers.event`, a"
 				.. " prerequisite NO faction provides (player.yaml:144, :238). The grant loop in"
 				.. " NuclearExchange.MakeBandsReady skips any power that is not already Permitted,"
 				.. " so the one call that could clear that flag (SupportPowerInstance.MakeReady)"
@@ -562,7 +562,7 @@ WorldLoaded = function()
 			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
 				"A SECOND END CAMEO APPEARED. The 6 Mt strategic strike names no owner"
 				.. " (`Prerequisites: powers.event` alone, player.yaml:842) and the ruling is one"
-				.. " national ender per side -- B83 for USA, Sarmat for Russia. `ready` here means"
+				.. " national ender per side -- Trident for USA, Sarmat for Russia. `ready` here means"
 				.. " NuclearGameEnders.ArmableBy treated an empty owner list as 'everybody owns it'"
 				.. " rather than 'nobody does'. Its RequiresCondition is satisfied at this level and"
 				.. " it has no lobby gate left (`high-yield-nuke` retired 2026-09-15), so this"
@@ -636,7 +636,7 @@ WorldLoaded = function()
 				.. " SarmatStrike declares `powers.event, player.russia` and Russia holds the"
 				.. " faction half")
 			ok = expect(Russia, "Russia", USA_ENDER, "hidden",
-				"RUSSIA WAS HANDED AMERICA'S WARHEAD. B83Strike declares `powers.event,"
+				"RUSSIA WAS HANDED AMERICA'S WARHEAD. TridentStrike declares `powers.event,"
 				.. " player.america` (player.yaml:238)") and ok
 			ok = expect(Russia, "Russia", UNOWNED_ENDER, "hidden",
 				"A SECOND END CAMEO APPEARED IN RUSSIA'S COLUMN. Russia's half of the 2026-09-14"

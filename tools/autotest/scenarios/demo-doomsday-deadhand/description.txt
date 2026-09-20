@@ -14,7 +14,7 @@ not a claim that anything passed. The two runs before 2026-09-13 took no screens
 ended, which is why they came back TIMEOUT-FAIL with an empty lua.log and no PNGs.
 
 Watch for, in order: the countdown band ("FINAL EXCHANGE -- PLACE YOUR STRIKE PACKAGE -- UNPLACED
-FIRES AT THE ENEMY -- 0:15") and a B83 cameo appearing in a bin that was empty; USA's own two 1.2 Mt
+FIRES AT THE ENEMY -- 0:15") and a Trident cameo appearing in a bin that was empty; USA's own two 1.2 Mt
 bombs going up inside the window with beacons around the eastern city; the band clearing at zero and
 "Fired automatically for: Russia."; then a long quiet while everything flies; then FOUR impacts
 fifteen ticks apart -- USA's two first, Russia's two after -- and then everything still standing is
@@ -40,7 +40,7 @@ rather than guessed at. Seconds are ticks/16.67.
       85    5.1s   B83 state printed again: expect "ready". That flip is the whole
                    feature -- the window granted the condition, overrode the event
                    tier and banked a shot.
-      90    5.4s   Band at ~0:15, B83 cameo now present.                              01
+      90    5.4s   Band at ~0:15, Trident cameo now present.                              01
       95    5.7s   USA PLACES. Its B83 is ordered onto the eastern city at 49,22
                    through the real support-power order path; the on-screen line
                    reads "issued". Russia places nothing, on purpose.
@@ -88,7 +88,7 @@ what this demo can SHOW, because the frozen-score verdict is unshowable under Te
 WHAT TO DO IF USA'S WARHEAD NEVER FLIES. The on-screen line at tick 95 says why, and the same
 string is carried into the Test.Skip note and into frames 02 and 05: "not-ready:0" means the power
 was never armed (the window did not grant it), "hidden" means the bin never drew it,
-"unknown-power:B83Strike" means the arsenal is not loaded. Nothing is asserted here, so that
+"unknown-power:TridentStrike" means the arsenal is not loaded. Nothing is asserted here, so that
 printout is the only thing standing between a silent miss and a wasted launch slot.
 
 NO WAVES AT ALL ANY MORE. This paragraph used to explain the missing third wave (the fill pass,

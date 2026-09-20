@@ -13,7 +13,7 @@ Player:
 	# holds the actor out of the world and renders nothing while it waits (SpawnActorEffect.cs:44-49),
 	# so every one of those ticks is an empty sky with a beacon on it.
 	#
-	# BOTH, NOT JUST THE B83, AND THAT IS NEW AS OF 2026-09-20. Russia's Sarmat is no longer a
+	# BOTH, NOT JUST AMERICA'S, AND THAT IS NEW AS OF 2026-09-20. Russia's Sarmat is no longer a
 	# weapon this demo can ignore: the side that places nothing is now AUTO-FIRED with its own
 	# national ender, so the Sarmat's 500 ticks would sit inside the cascade's flight budget and
 	# push FinalExchangeFlightTicks (World node, below) back up with it.
@@ -25,7 +25,7 @@ Player:
 	#
 	# THESE ARE IN THIS `Player:` NODE rather than a second one at the foot of the file: MiniYaml
 	# treats two top-level entries with the same key as a duplicate, not a merge, within one file.
-	MissileStrikePower@B83:
+	MissileStrikePower@TridentW88:
 		MissileDelay: 120
 
 	MissileStrikePower@Sarmat:
