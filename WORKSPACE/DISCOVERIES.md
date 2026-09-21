@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`)
+
+PIPELINE item 86, ruling (a). Recorded because the SHAPE generalises past this fix.
+
+**The defect is not a bug in either module.** In run `260906_091912` the bot had three eligible units.
+`LaneAmbushBotModule` took two of them (the army's only MBT among them) and posted them 40% of the way to
+the enemy SR; `PoiOffensiveBotModule` then read `[exp-staging] hold-under-min pool=1 min=2` and correctly
+refused to advance the single unit it had left. **Both gates did exactly what they were written to do.**
+The lane's posting cleared `MinUnitsPerAmbush: 2`; offense's hold cleared `FreePoolMinAdvanceUnits: 2`. The
+army was split below the threshold *both halves needed*, and the tank walked to `20,14` alone and died at
+t585.
+
+**The generalisable rule: a per-consumer minimum is not a share.** `MinUnitsPerAmbush` (item 64) asks *"is
+this lane big enough?"* — a question entirely internal to the lane. It cannot ask *"is what I am leaving
+behind big enough?"*, and no number of local floors composes into a global one. Whenever two modules draw
+from one pool and each carries its own floor, the floors are **jointly unsatisfiable on a small pool** and
+the failure looks like correct behaviour in both logs. Look for this wherever the `PoiGoalGuard` ledger
+arbitrates: the ledger stops two modules owning the same unit, it does not stop them between them starving
+a third thing.
+
+**The fix reads the other module's own numbers, and that is the part to copy.**
+`AmbushLaneMath.ReserveAllowance` is decided on `PoiOffensiveBotModule.TryGetFreePoolSnapshot`'s published
+free-pool count and axis state plus `EffectiveFreePoolMinAdvanceUnits` — the *same three terms*
+`ForwardStagingMath.FreePoolMayAdvance` is decided on. That is what makes the two gates agree rather than
+merely both exist: a floor of 0 and a live axis waive the reserve **because they waive the floor**. A
+private re-derivation of "how many units does offense have" would have needed its own maintenance and would
+have drifted the first time the offense pool's predicate changed.
+
+**Why a published snapshot and not a live call (the trap worth knowing).**
+`PoiOffensiveBotModule.BuildFreePool()` looks pure and is not: it calls `PruneStandoffMemory()` and, through
+`StoodOffForTransport`, **writes `standoffSince[a] = tick`** — it latches the transport standoff clock at
+the tick of whoever calls it. A consumer calling it to "just count" would start offense's standoff clocks on
+the *consumer's* cadence, and would additionally re-emit the once-per-tick `[exp-ledger]` census at a
+foreign tick. **Before reading another module's pool, check the counting function for writes.** Publishing a
+snapshot from inside the existing computation costs nothing and has no such reach.
+
+**Two imprecisions, both bounded, both vanishing exactly where the item lives** — recorded because the
+argument, not the numbers, is what makes the design defensible. (1) The snapshot is published on offense's
+`ReevaluateInterval` (100), so a consumer on a different cadence reads a number up to one interval old;
+offense's `TraitEnabled` stagger is a `LocalRandom` draw, so the phase offset varies per match. (2)
+`BuildFreePool` runs three times per offense eval and the last wins, while the floor test consumes the
+second — they differ by whatever an axis claimed in between. **At the opening no axis can form at all**
+(`DesiredAxisCount` returns 0 below `EarlyMinAxisSize` — item 64's premise), so nothing is claimed between
+the calls and all three counts are equal, and the pool is small enough that a 100-tick-old count and a live
+one give the same verdict against a floor of 2.
+
+Code: `LaneAmbushBotModule.cs` (`OffenseFloorReserveEnabled`, `ResolveReserveAllowance`,
+`AmbushLaneMath.ReserveAllowance`), `PoiOffensiveBotModule.cs` (`TryGetFreePoolSnapshot`,
+`EffectiveFreePoolMinAdvanceUnits`), `ai.yaml:1093` / `:3227`.
+
 ## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
 
 Found while re-deriving item 78's edge-choice rule from source for

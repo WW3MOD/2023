@@ -1071,6 +1071,26 @@ Player:
 		# Both profiles (2026-09-05 ruling: @stable is a re-synced copy), so @stable changes here too and the
 		# next benchmark baseline should be re-taken.
 		MinUnitsPerAmbush: 2
+		# ARMY-SHARE RESERVE (item 86) — the lane may not take a unit while doing so would leave
+		# PoiOffensiveBotModule's free pool below its own FreePoolMinAdvanceUnits (2, :772 / :3150 at this ref).
+		# MinUnitsPerAmbush above stops the lane posting a unit ALONE; it says nothing about the lane's SHARE of
+		# a small army, and at the opening those are different bugs. Measured in run 260906_091912 with three
+		# eligible units: `[exp-ambush] lane post=28,12 units=2` + `[exp-ledger] free=1 held=2 by=ambush:2` — the
+		# lane took two, the army's only MBT among them, and that tank walked 8,16 -> 20,14 and died at t585
+		# while `[exp-staging] hold-under-min pool=1 min=2` shows offense correctly refusing to advance the one
+		# unit left to it. Both modules were right in isolation; the army was split below the threshold BOTH
+		# halves needed, and neither could see the other's share.
+		# Reads the offense's OWN published free-pool count, axis state and floor (TryGetFreePoolSnapshot /
+		# EffectiveFreePoolMinAdvanceUnits) — the same three terms ForwardStagingMath.FreePoolMayAdvance is
+		# decided on, never a private estimate. A live axis waives it, as does a floor of 0, so it bites at the
+		# opening and lets a grown pool recruit exactly as before.
+		# Default FALSE on the engine class per the architecture rule, so a profile omitting it is unaffected.
+		# Both profiles carry it (2026-09-05 ruling: @stable is a re-synced copy of @experimental) — so this
+		# DOES move @stable, deliberately, and the next ai-bench baseline should be re-taken.
+		# Bounds HOW MANY, never WHICH: recruits are still ordered by proximity to the post cell alone, so a
+		# pool large enough to clear the floor can still hand the lane the army's only tank. Filed as a
+		# follow-up on item 86, not fixed here. See AmbushLaneMath.ReserveAllowance.
+		OffenseFloorReserveEnabled: true
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6
@@ -3202,6 +3222,9 @@ Player:
 		UnitsPerAmbush: 2
 		# Minimum manning (item 64) — mirrors @experimental; see the annotated copy there.
 		MinUnitsPerAmbush: 2
+		# Army-share reserve (item 86) — mirrors @experimental; see the annotated copy there. Moves @stable
+		# deliberately (the reserve can refuse an opening lane that used to post); re-take the ai-bench baseline.
+		OffenseFloorReserveEnabled: true
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12
 		PostCellClampCells: 6

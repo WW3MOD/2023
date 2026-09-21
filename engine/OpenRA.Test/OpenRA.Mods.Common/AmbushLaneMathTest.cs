@@ -200,5 +200,103 @@ namespace OpenRA.Test
 				}
 			}
 		}
+
+		// ── ReserveAllowance: the army-share reserve (PIPELINE item 86) ──
+		//
+		// The measured defect: three eligible units, offense floor 2, no axis. Unbounded the lane takes two of
+		// them (the army's only MBT among them) and leaves offense at one — below its own floor, which it then
+		// correctly refuses to advance. The reserve is the arithmetic that stops the split.
+
+		[Test]
+		public void ReserveIsUnboundedWhenDisabled()
+		{
+			// The C# default. Every term below is the failing opening; only `enabled` differs.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(false, true, true, 3, 2, false),
+				Is.EqualTo(int.MaxValue));
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWithNoOffensiveModule()
+		{
+			// Nothing to reserve FOR — a profile running ambush without the offensive stager is unaffected.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(true, false, false, 0, 0, false),
+				Is.EqualTo(int.MaxValue));
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWhenOffenseAppliesNoFloor()
+		{
+			// min <= 0 is FreePoolMayAdvance's own off-switch, and it is also what EffectiveFreePoolMinAdvance-
+			// Units reports when forward staging is off. Checked BEFORE the snapshot term on purpose: this is
+			// configuration, knowable without a pool count, and must not fall into the withhold-on-unknown path.
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 3, 0, false), Is.EqualTo(int.MaxValue));
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, false, 0, 0, false), Is.EqualTo(int.MaxValue));
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 3, -1, false), Is.EqualTo(int.MaxValue));
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWhileAnAxisIsLive()
+		{
+			// FreePoolMayAdvance waives the floor whenever an axis exists, so there is no floor to be left
+			// below. This is what keeps the reserve aimed at the opening rather than at every reinforcement.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(true, true, true, 3, 2, true),
+				Is.EqualTo(int.MaxValue));
+		}
+
+		[Test]
+		public void ReserveWithholdsEverythingWhenTheSnapshotIsUnknown()
+		{
+			// Offense has a floor but has not computed a pool, so whether a take would breach it is unknowable.
+			// Fails toward offense, like MinUnitsPerAmbush.
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, false, 0, 2, false), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReserveAboveTheFloorAllowsOnlyTheSurplus()
+		{
+			// Five free, floor 2 ⇒ three are spare. Taking the fourth would put offense at 1.
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 5, 2, false), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ReserveAtTheFloorAllowsNothing()
+		{
+			// Offense sits exactly on its floor: every remaining unit is load-bearing.
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 2, 2, false), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReserveBelowTheFloorAllowsNothingAndNeverGoesNegative()
+		{
+			// The state the measured run was ALREADY in at t226 ([exp-ledger] free=1, min=2). A negative
+			// allowance would read as "owed" and, min'd against a need, would hand the lane units.
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 1, 2, false), Is.EqualTo(0));
+			Assert.That(AmbushLaneMath.ReserveAllowance(true, true, true, 0, 2, false), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReserveOnTheMeasuredOpeningRefusesTheSecondUnitAndSoTheWholeLane()
+		{
+			// Run 260906_091912 verbatim: three eligible units, offense floor 2, axes=0. The lane wanted
+			// UnitsPerAmbush=2 and got an allowance of ONE — and since MinUnitsPerAmbush is also 2, a lane that
+			// can be filled to only one is refused by minimum manning, so NOBODY is posted. That composition is
+			// the fix: the reserve caps availability and manning then refuses the part-lane.
+			var allowance = AmbushLaneMath.ReserveAllowance(true, true, true, 3, 2, false);
+			Assert.That(allowance, Is.EqualTo(1));
+			Assert.That(AmbushLaneMath.LaneMayPost(0 + allowance, 2), Is.False);
+		}
+
+		[Test]
+		public void ReserveLeavesALargePoolUntouchedForAFullLane()
+		{
+			// The unchanged case, and the reason this is aimed at the opening: a twelve-unit pool clears the
+			// floor with room to spare, so both lanes fill and the module behaves as it always did.
+			var allowance = AmbushLaneMath.ReserveAllowance(true, true, true, 12, 2, false);
+			Assert.That(allowance, Is.EqualTo(10));
+			Assert.That(AmbushLaneMath.LaneMayPost(0 + System.Math.Min(2, allowance), 2), Is.True);
+		}
 	}
 }

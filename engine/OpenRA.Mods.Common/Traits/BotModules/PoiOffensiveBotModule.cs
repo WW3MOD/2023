@@ -1334,6 +1334,44 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public CPos? ForwardStagingAnchor => stagingAnchor;
 
+		// FREE-POOL SNAPSHOT (PIPELINE item 86) — the three numbers the forward-staging floor is decided from,
+		// recorded where the pool is actually computed. Published so LaneAmbushBotModule's army-share reserve
+		// can ask "would taking a unit leave offense below its own floor?" against THE POOL OFFENSE READS
+		// rather than against a private re-derivation. -1 tick = never computed.
+		int freePoolCount;
+		int freePoolAxes;
+		int freePoolTick = -1;
+
+		/// <summary>
+		/// <para>The free pool as of this module's most recent computation of it: <paramref name="freeCount"/>
+		/// uncommitted, un-axis'd units, with <paramref name="axisLive"/> saying whether any attack axis exists
+		/// (the term that WAIVES the staging floor in <see cref="ForwardStagingMath.FreePoolMayAdvance"/>), at
+		/// <paramref name="tick"/>. Returns false before the first eval. Read-only: an observation channel, not a
+		/// control surface — no consumer may steer the offensive's recruitment.</para>
+		///
+		/// <para>TWO IMPRECISIONS THE CONSUMER MUST CARRY, both bounded and both vanishing at the opening, which
+		/// is the state item 86 is about. (1) STALENESS: this is published on the offensive's own
+		/// ReevaluateInterval, so a consumer on a different cadence reads a number up to one interval old.
+		/// (2) INTRA-EVAL: BuildFreePool runs three times per eval and the last call wins, while the floor test
+		/// consumes the second — they differ by whatever an axis claimed in between. At the opening no axis can
+		/// form at all (DesiredAxisCount returns 0 below EarlyMinAxisSize — item 64's premise), so nothing is
+		/// claimed between the calls and all three counts are equal.</para>
+		/// </summary>
+		public bool TryGetFreePoolSnapshot(out int freeCount, out bool axisLive, out int tick)
+		{
+			freeCount = freePoolCount;
+			axisLive = freePoolAxes > 0;
+			tick = freePoolTick;
+			return freePoolTick >= 0;
+		}
+
+		/// <summary>The forward-staging floor AS OFFENSE APPLIES IT: the configured
+		/// <see cref="PoiOffensiveBotModuleInfo.FreePoolMinAdvanceUnits"/>, or 0 when forward staging is off and
+		/// the field is therefore never read (its Desc says "Only read when ForwardStagingEnabled"). A consumer
+		/// reserving units against this floor must see 0 — not the configured value — in that state, or it would
+		/// reserve for a floor nobody applies.</summary>
+		public int EffectiveFreePoolMinAdvanceUnits => Info.ForwardStagingEnabled ? Info.FreePoolMinAdvanceUnits : 0;
+
 		// The last ADOPTED staging anchor (Chebyshev hysteresis, so a 1-cell field wobble doesn't re-lay the
 		// formation every eval), and the last staging cell each idle unit was AttackMoved to (re-issue dedup so a
 		// unit already walking up keeps its order). Both empty/null unless ForwardStagingEnabled.
@@ -2514,6 +2552,14 @@ namespace OpenRA.Mods.Common.Traits
 				Log.Write("debug",
 					$"[exp-standoff] player={player.PlayerName} held={stoodOff} free={pool.Count} tick={tick}");
 			}
+
+			// Publish for the item-86 army-share reserve (see TryGetFreePoolSnapshot). Recorded on EVERY call so
+			// the snapshot exists whether or not forward staging runs this eval — the floor test lives behind two
+			// early returns inside StageFreePool, and a consumer that only ever saw the post-return state would
+			// read "never computed" on exactly the flat-field openings it most needs a number for.
+			freePoolCount = pool.Count;
+			freePoolAxes = axes.Count;
+			freePoolTick = tick;
 
 			return pool;
 		}
