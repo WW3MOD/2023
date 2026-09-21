@@ -111,6 +111,12 @@ local function Probe(tick)
 	local okAmB, ammoB = pcall(function() return LauncherB.AmmoCount("primary-ammo") end)
 	local okAmA, ammoA = pcall(function() return LauncherA.AmmoCount("primary-ammo") end)
 	local okM, missiles = pcall(function() return #LauncherB.Owner.GetActorsByType("himarsmissile") end)
+	-- THE READING THAT WILL SETTLE RUN 3'S HYPOTHESIS -- it has not settled it yet.
+	-- Test.IsDetectedBy goes straight through Actor.CanBeViewedByPlayer (TestGlobal.cs:1771-1776),
+	-- so it is the engine's own answer to "can USA see the church", which is what decides
+	-- `targetIsHiddenActor` in the attack activity. false-early-then-true confirms the viewability
+	-- mechanism; true throughout refutes it and the order comment above needs rewriting.
+	local okV, visC = pcall(function() return Test.IsDetectedBy(Church, LauncherB.Owner) end)
 
 	if not okM and ProbeError == nil then
 		ProbeError = tostring(missiles)
@@ -119,7 +125,8 @@ local function Probe(tick)
 
 	local sig = "B[" .. (okB and chainB or "?") .. " ammo=" .. (okAmB and tostring(ammoB) or "?") ..
 		"] A[" .. (okA and chainA or "?") .. " ammo=" .. (okAmA and tostring(ammoA) or "?") ..
-		"] missiles=" .. (okM and tostring(missiles) or "?")
+		"] missiles=" .. (okM and tostring(missiles) or "?") ..
+		" churchVisible=" .. (okV and tostring(visC) or "?")
 
 	if sig ~= LastSig then
 		LastSig = sig
@@ -129,6 +136,21 @@ local function Probe(tick)
 			Trace[#Trace + 1] = line
 		end
 	end
+end
+
+-- Dumped twice -- once at tick 1 and once at the tick the order is issued -- so the two can be
+-- compared. Long, so it goes to lua.log only and never into result.json.
+-- NOTE THE ARGUMENT ORDER: TargetableReport is (target, byActor) — target FIRST
+-- (TestGlobal.cs:921). Reversed, it would report the LAUNCHER's targetability and read as a
+-- perfectly plausible answer to a question nobody asked.
+local function Snapshot(label)
+	local ok, report = pcall(function() return Test.TargetableReport(Church, LauncherB) end)
+	print("HIMARSPROBE " .. label .. " church-targetable: " .. (ok and report or "?"))
+
+	local ok2, canB = pcall(function() return LauncherB.CanTarget(Church) end)
+	local ok3, canA = pcall(function() return LauncherA.CanTarget(Block) end)
+	print("HIMARSPROBE " .. label .. " canTarget B->Church=" .. (ok2 and tostring(canB) or "?") ..
+		" A->Block=" .. (ok3 and tostring(canA) or "?"))
 end
 
 local function TraceText()
@@ -146,26 +168,72 @@ WorldLoaded = function()
 	TestHarness.FocusBetween(Church, Block)
 	Test.SetZoom(1)
 
-	-- allowMove FALSE, and that makes the map's spawn geometry load-bearing rather than merely
-	-- convenient: a launcher that repositions changes the impact geometry between the two lanes,
-	-- but a launcher that CANNOT reposition also cannot fix a bad spawn.
+	-- DO NOT ORDER FROM WorldLoaded. This is the one scenario-side difference between this file and
+	-- the launcher scenario that has been passing all along, and it is why the order dies.
 	--
-	-- CITE THE RIGHT ACTIVITY. A HIMARS is AttackTurreted, which derives from AttackFollow, while
-	-- AttackFrontal is its SIBLING under AttackBase -- so this unit never runs
-	-- Activities/Attack.cs and the `tooClose`/`needsToMove` lines there do not apply to it. (An
-	-- earlier version of this comment cited them; corrected 2026-09-21.) The equivalent gate is
-	-- AttackFollow.cs:517, which requires in-MaxRange AND out-of-MinRange AND clear LOS; failing it
-	-- falls to :528, where `move == null` -- exactly what allowMove=false produces at :404 -- ends
-	-- the activity on its first tick. Both launchers are ~24 cells out, clearing the 16c0 minimum by
-	-- 7.5; see the geometry block in map.yaml before moving any of the four.
-	LauncherB.Attack(Church, false, true)
-	LauncherA.Attack(Block, false, true)
+	-- WHAT IS MEASURED. Runs 2 and 3 both ended with
+	-- `HIMARSPROBE t1 B[(idle) ammo=2] A[(idle) ammo=2] missiles=0` as the ONLY probe line and zero
+	-- [GUNTRACE] lines. Both launchers were already IDLE at the first Lua tick, ammo untouched: the
+	-- attack activity died before tick 1 and no armament was ever consulted. Geometry cannot explain
+	-- it -- runs 1 (10 cells, inside MinRange) and 2 (24 cells, inside the band) failed identically.
+	--
+	-- WHAT IS ESTABLISHED. The pre-explored map is applied as a FRAME-END TASK, not inline:
+	-- `if (ExploreMapEnabled) self.World.AddFrameEndTask(w => ExploreAll());` (MapLayers.cs:200-201).
+	-- Lua's WorldLoaded runs BEFORE that task drains, so the world genuinely is not settled here.
+	-- test-sam-intercepts-iskander orders from a tick poller at `FireAtTick = 20`, commented "let the
+	-- world settle before ordering" (:48), and never from WorldLoaded. This file is copying that.
+	--
+	-- WHAT IS INFERRED AND NOT YET PROVEN -- read the probe, do not trust this paragraph. The
+	-- suspected mechanism is target VIEWABILITY. AttackActivity's constructor records
+	-- `lastVisibleTarget` only when `target.Actor.CanBeViewedByPlayer(self.Owner)` (AttackFollow.cs
+	-- :414-417); the first Tick then sets `useLastVisibleTarget` from `targetIsHiddenActor` (:487),
+	-- and TWO independent exits follow from it -- `:508` (hidden with no fallback position) and
+	-- `:521` (in range but hidden) -- either of which returns true and ends the activity on tick one,
+	-- silently. That is consistent with every observation, but I could NOT establish that the church
+	-- is actually unviewable at tick 0: ^StandardVision grades out past 22c0 (defaults.yaml:115-145)
+	-- and detection also depends on the building's Detectable tier, so a 24-cell target may well be
+	-- seen. Two readings-by-code have already been wrong on this scenario, so the probe now samples
+	-- `Test.IsDetectedBy(Church, LauncherB.Owner)` every tick: if it reads false early and true
+	-- later, the mechanism above is confirmed; if it was true all along, the "settling" is something
+	-- else and this comment is the thing to fix.
+	--
+	-- WHY NO LOG EVER SAID SO. `CombatProperties.Attack` does warn about an unviewable target, but
+	-- that branch is gated on `!HasTraitInfo<FrozenUnderFogInfo>()` (CombatProperties.cs:97) and
+	-- these buildings carry FrozenUnderFog (structures.yaml:80, via ^BasicBuilding) -- so for exactly
+	-- these targets the warning is suppressed and lua.log stayed empty while the order died.
+	--
+	-- NOT A RULES REGRESSION, AND THE CHURCH IS HIMARS-ABLE IN PLAY. A player cannot issue an order
+	-- before the first frame-end task has drained; only a script can. The tuning branch's Targetable
+	-- blocks are fine: ^CivBuilding carries Ground and no RequiresForceFire (civilian.yaml:17-19,
+	-- and the note at :45-72 explains why that flag was deliberately deleted). The
+	-- `RequiresForceFire: true` at civilian.yaml:287 belongs to ^Bridge, not to any civilian
+	-- building. 58 of 317 scenarios issue an order from WorldLoaded and 30 of those use .Attack(,
+	-- so most get away with it -- presumably because their targets sit inside the attacker's own
+	-- vision bubble, which is live from world setup. A 24-cell indirect-fire shot does not.
+	local OrderAtTick = 20
+	local ordered = false
 
+	-- allowMove FALSE: a launcher that repositions changes the impact geometry between the two
+	-- lanes, so the map's spawn separation is part of the assertion. Both are ~24 cells out,
+	-- clearing HIMARSTargeter's 16c0 minimum by 7.5 and well inside its 50c0 maximum; the gate is
+	-- AttackFollow.cs:517 and the give-up is :528. See the geometry block in map.yaml.
 	local ticks = 0
 
 	Trigger.OnTick(function()
 		ticks = ticks + 1
+
+		if not ordered and ticks >= OrderAtTick then
+			ordered = true
+			Snapshot("t" .. ticks .. " at-order")
+			LauncherB.Attack(Church, false, true)
+			LauncherA.Attack(Block, false, true)
+		end
+
 		Probe(ticks)
+
+		if ticks == 1 then
+			Snapshot("t1 pre-order")
+		end
 
 		if Reported then
 			return
@@ -185,13 +253,17 @@ WorldLoaded = function()
 		end
 	end)
 
-	-- Generous: the missile has to fly ~24 cells. Fails with the census rather than timing out
-	-- silently, so a run that produced no impact says which lane was quiet.
+	-- THE BUDGET. AssertWithin's argument is multiplied by TestHarness.TicksPerSecond = 25, so 40
+	-- here is 1000 ticks -- 60 s of wall clock at Timestep 60, not 40 (test-helpers.lua:7-36
+	-- explains why that conversion is deliberately left wrong-but-lenient). Against that: order at
+	-- t20, then AttackTurreted's SetupTicks 100 plus up to ~52 ticks of turret travel at TurnSpeed
+	-- 10 plus Armament AimingDelay 40, then ~120 ticks of flight for 24 cells. Impact lands near
+	-- t330, so there is about 3x headroom. Do not trim this to the measured margin.
 	--
-	-- THE CENSUS NOW NAMES THE RANGE TOO. The first ever run of this scenario reported only
-	-- "church 38000/38000, block 120000/120000", which is the signature of a launcher that never
-	-- fired at all -- but says nothing about why, and the why was a spawn 10 cells from its target
-	-- against MinRange 16c0. Printing each lane's separation turns that diagnosis into a read.
+	-- THE CENSUS NAMES THE RANGE AND THE PROBE. Run 1 reported only "church 38000/38000, block
+	-- 120000/120000", which is the signature of a launcher that never fired -- and is equally the
+	-- signature of three different causes. It took three runs to separate them because the verdict
+	-- carried no state but health. It now carries the separations and the probe trace.
 	TestHarness.AssertWithin(40, function() return Reported end, function()
 		return "no impact within 40s — church " ..
 			(Church.IsDead and "DEAD" or tostring(Church.Health)) .. "/" .. ChurchStart ..
