@@ -245,10 +245,24 @@ test-no-formation-drift                   test-wgm-tree-density-ladder
 test-who-pays-for-a-rearm
 ```
 
-Each needs either a verdict note or a `pass-empty` declaration. Neither has been done here: the
-first is 33 behavioural edits to scenarios this task did not audit, and the second is 33 assertions
-of legitimacy that have not been earned by reading them. **The list is the deliverable; working it
-down is a separate, scoped job.**
+**RESOLVED 2026-09-21, same branch.** All 33 were read and all 34 sites now carry a note; none
+needed a `pass-empty` declaration. Eleven already composed the string and discarded it on the green
+path (a `summary` used only by `Test.Fail`, or a `Readings()`/`State()` helper) — those were
+one-word changes. The rest got a note built from state already in scope at the verdict; only the
+turret pair needed a new local, to track peak deflection, because "the turret stayed locked"
+without the number it stayed within is the same empty verdict written longhand.
+
+`test-burn-demo` is the single genuine nothing-to-say pass — a demo wearing a `test-` prefix, same
+family as `test-burn-arena` and `test-burn-compare`. It carries a one-line comment at the call and
+a literal note saying it asserted nothing, rather than a declaration, so the run still says so out
+loud.
+
+Verified without launching anything: `luac -p` over the whole scenario tree plus
+`mods/ww3mod/scripts` (zero syntax failures), and — the real risk — every changed file compiled at
+`HEAD` and at the working tree with its set of global reads diffed. An out-of-scope name is not a
+Lua compile error, it is `nil`, and concatenating `nil` throws at the verdict and turns a passing
+scenario into a false RED; such a name appears as a NEW global read. Zero new globals across all 33
+files. That check was itself RED-tested by planting `WATCH_TICKZ` in `test-no-cover-shuffle`.
 
 ## Unsettled
 
@@ -268,7 +282,8 @@ Two things are **true but out of scope**, recorded so they are not rediscovered 
   `test-lc-refill-gesture` names it as the intended behaviour at :377-381.
 * **The tripwire cannot detect the YES class.** Once `AssertWithin` carries a note, a himars-shaped
   false GREEN passes with a non-empty note and `PASS-EMPTY` never fires. The race is a static
-  property of the script, invisible to the runner. The instruments for it are this audit, the rule
-  in the helper's doc block, and — if it recurs — a static gate in the `worldactor-gate` /
-  `lua-gate` family that flags an `AssertWithin` predicate returning a variable latched next to a
-  `Trigger.AfterDelay`. Not built here.
+  property of the script, invisible to the runner. **BUILT 2026-09-21, same branch:** it is now a
+  `lua-gate` check (`tools/lua-gate/README.md` §"The third failure class"), which fires on exactly
+  one scenario across 327 scripts in 362 scenarios — the one that had the bug — with the four
+  watchdog-only and 41 sole-authority shapes silent. It is a positional heuristic and is documented
+  as one.
