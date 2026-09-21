@@ -142,3 +142,93 @@ UnloadMenu: J
 	Description: Unload menu — choose which class leaves the transport
 	Types: World
 	Contexts: Player
+
+# ---------------------------------------------------------------------------------------------
+# GARRISON / TRANSPORT HOLD COMMANDS — the eleven buttons of chrome/ingame-player.yaml's
+# GARRISON_PANEL (:830) and CARGO_PANEL (:1053), which shipped with labels and tooltips and no
+# `Key:` at all (audit 260921 §2.6 U3, item R6).
+#
+# EVERY ONE OF THEM IS DELIBERATELY UNBOUND, and that is the point rather than an omission.
+# Two independent reasons, and either alone would be enough:
+#
+# 1. THERE IS ONE FREE UNMODIFIED LETTER IN THE PLAYER CONTEXT AND IT IS K. Counted across all
+#    nine files mod.yaml's Hotkeys block loads: A B C D E F G H I J L M N O P Q R S T U V W X Y Z
+#    are all taken. Handing out eleven defaults would mean eleven modifier chords nobody asked
+#    for, or stealing keys that already do something.
+# 2. A KEY ON A VISIBLE BUTTON SHADOWS EVERYTHING BELOW IT. Widget.HandleKeyPressOuter
+#    (Widget.cs:450-465) walks children in reverse and returns on the first handler that claims
+#    the key, and it is gated on IsVisible() only -- so an EJECT_PORT button bound to `1` would
+#    silently eat control-group 1 for as long as a garrison is selected. Not a conflict the
+#    player could diagnose.
+#
+# So these follow the SupportPower07-17 pattern directly above: a Description and no key, which
+# makes them BINDABLE rather than BOUND. Paired with the hotkey-group-hold-commands group in
+# common|chrome/settings-hotkeys.yaml, all eleven now appear under Esc > Settings > Hotkeys with
+# their live binding, which is the readable reference the audit says does not exist.
+#
+# Types: Hold is a new type. It exists so these eleven get their own section in that panel
+# instead of being buried among Unit Commands; nothing in C# reads it.
+#
+# WHAT ALREADY HAS A KEY, AND WHY THESE ARE STILL NOT REDUNDANT. UnloadAllTroops and DropSupply
+# duplicate Deploy (F) exactly -- Cargo and DropsSupplyCache both implement IIssueDeployOrder
+# (Cargo.cs:422, DropsSupplyCache.cs:587) and their button gates match CanIssueDeployOrder --
+# and the shipped tooltips say "Same as Deploy" out loud. They are declared anyway so the panel
+# enumerates the hold buttons completely; a player who never finds Deploy can bind these.
+# EjectAll is NOT a duplicate: it fires on GarrisonManager.HasAnyOccupants (ports + shelter)
+# while Deploy fires on Cargo.CanIssueDeployOrder = !IsEmpty() (shelter only), so with every
+# soldier pushed out to a firing port -- the 1HP-rubble case GarrisonPanelLogic.cs:53-56 names --
+# Deploy is disabled and this is the only order that still works.
+GarrisonEjectPort01:
+	Description: Garrison — unload firing position 1
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort02:
+	Description: Garrison — unload firing position 2
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort03:
+	Description: Garrison — unload firing position 3
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort04:
+	Description: Garrison — unload firing position 4
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort05:
+	Description: Garrison — unload firing position 5
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort06:
+	Description: Garrison — unload firing position 6
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort07:
+	Description: Garrison — unload firing position 7
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort08:
+	Description: Garrison — unload firing position 8
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectAll:
+	Description: Garrison — unload all (ports and shelter)
+	Types: Hold
+	Contexts: Player
+
+TransportUnloadAll:
+	Description: Transport — unload all troops (same as Deploy)
+	Types: Hold
+	Contexts: Player
+
+TransportDropSupply:
+	Description: Transport — drop all supply as a cache (same as Deploy)
+	Types: Hold
+	Contexts: Player

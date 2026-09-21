@@ -5,6 +5,25 @@
 
 ---
 
+- [2026-09-21] [MEDIUM] **`O` is bound twice in the Player context, so one of the two commands is
+  dead and nothing says which** (found while: re-deriving audit 260921 §2.5/§2.6 for the hotkey
+  reference, `wt/hotkey-reference`, `main @ d69e6883`). `WaypointMode: O`
+  (`engine/mods/common/hotkeys/game.yaml:187`, `Types: OrderGenerator`, `Contexts: Player`) and
+  `ProductionTypePowers: O` (`mods/ww3mod/hotkeys.yaml:20`, `Types: Production`, `Contexts:
+  Player`). That is exactly `HotkeyManager.GetFirstDuplicate`'s predicate — equal value **and**
+  overlapping `Contexts` (`HotkeyManager.cs:91-103`) — so both already render red in
+  Esc → Settings → Hotkeys; nobody has opened it. **Scanned all 198 definitions the mod loaded at
+  that ref; this is the only collision.** The command-bar `WAYPOINT` button
+  (`ingame-player.yaml:521`) and the production tab button (`:1583`) are visible simultaneously in a
+  normal match, and `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks children in reverse
+  returning on the first claim, so the later-drawn one wins and the other silently never fires.
+  **Which one loses was NOT determined** — that is a draw-order question and no capture was taken;
+  do not assume it from the file order. **Not fixed here**: the repair is picking a new default for
+  one of them, `K` is the only free unmodified letter left in the Player context, and spending it is
+  a design call rather than a worker's. `ww3mod|hotkeys.yaml`'s own header comment asserts the
+  `Y/U/I/O` run is "unbound in the Player context", which was already false when written.
+
+
 - [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,
   and `tools/autotest/selftest.sh` has two red cases saying so.** Running the selftest on
   `main @ 70e63582` (stub launcher, no game) gives `crash (fresh exception log)` → wanted

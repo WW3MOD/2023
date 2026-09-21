@@ -808,3 +808,23 @@ notification-nuclear-enemy-armed = Enemy escalated: { $yield } now available to 
 ## Shown when your side's cooldown ends and your whole arsenal comes back. No $yield: a cooldown is
 ## side-wide, so what returned is every band your level allows rather than any one of them.
 notification-nuclear-cooldown-ended = Nuclear cooldown ended.
+
+## HotkeysSettingsLogic.HotkeyGroups — section headings in Esc > Settings > Hotkeys.
+##
+## These are not decoration: CheckFluentReferences.CheckHotkeysSettingsLogic
+## (CheckFluentReferences.cs:302-320) harvests every key under a HotkeysSettingsLogic
+## `HotkeyGroups:` node as a required fluent key, so a group added to
+## common|chrome/settings-hotkeys.yaml without a line here lints as a missing key and
+## renders as the raw slug to the player.
+##
+## The first three mirror the three stance bars the command bar draws below Fire Stance.
+## Their definitions live in common|hotkeys/game.yaml and have been bound since 84a1ee69;
+## what was missing was the group that makes the panel draw them.
+hotkey-group-engagement-stance-commands = Engagement Stance Commands
+hotkey-group-cohesion-stance-commands = Cohesion Commands
+hotkey-group-resupply-behavior-commands = Resupply Behaviour Commands
+
+## The garrison / transport hold panels. Every key in this group ships unbound; the section
+## exists so a player can find them and bind them. See ww3mod|hotkeys.yaml for why none of
+## them carries a default.
+hotkey-group-hold-commands = Garrison & Transport Commands

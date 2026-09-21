@@ -3,6 +3,67 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Found re-deriving audit `260921-release-readiness.md` §2.5 **I1** ("There is no hotkey list a player
+can read", evidence: "`chrome/` inventory — no help/keys panel"). **I1 is wrong as stated.**
+`mod.yaml:208` loads `common|chrome/settings-hotkeys.yaml`, `common|chrome/settings.yaml:9` declares
+`HOTKEYS_PANEL: Hotkeys` in `SettingsLogic`'s tab list, and `IngameMenuLogic.CreateSettingsButton`
+(`:480-493`) is created unconditionally from `ingame-menu.yaml:5`'s `Buttons:` line. So Esc →
+Settings → Hotkeys has always enumerated the bindings, with each one read **live** from
+`modData.Hotkeys[hd.Name].GetValue().DisplayString()` (`HotkeysSettingsLogic.cs:73`) — a rebind
+cannot make it stale. The real I1 is a *discoverability* gap: nothing in the game points at it.
+
+**The defect underneath is different and is the one worth carrying.**
+
+- **A hotkey exists to the player only if its `Types:` appear in a `HotkeyGroups:` entry in
+  `settings-hotkeys.yaml`.** `HotkeysSettingsLogic.InitHotkeyList` (`:183-214`) iterates the
+  **groups**, not the definitions, and selects `hd.Types.Overlaps(typesInGroup)`. A definition whose
+  type matches no group is never cloned into the list: it cannot be read and cannot be rebound,
+  however well it works in a match. The chrome file is the registration.
+- **Nine WW3MOD keys were in exactly that state, and this is all of R5.** `84a1ee69` ("Add Cohesion
+  and Resupply Behavior stance bars") introduced three new types — `EngagementStance`,
+  `CohesionStance`, `ResupplyBehavior` — in `engine/mods/common/hotkeys/game.yaml` and did not touch
+  `settings-hotkeys.yaml`, which `git log` shows has only ever been written by upstream merges. The
+  nine (`Ctrl+Alt+A/D/F`, `Ctrl+Alt+1-6`) are all **bound and working** — `ingame-player.yaml:637-817`
+  wires each to a command-bar button — so R5's own column header, "unbound hotkey declarations", is a
+  misnomer; its verdict text, "9 declarations, none player-reachable", is exact. Unbound-by-default is
+  a separate and much larger set: **21** definitions ship with no key, 20 of them `SupportPowerNN` and
+  `StatisticsGraph`/`StatisticsArmyGraph`/`RemoveFromControlGroup`, plus `PowerDown`, whose key is
+  commented out in place (`ww3mod|hotkeys.yaml`, `PowerDown: # X`).
+- **Grouping is a display filter, not a registration, and that makes the hole quieter.**
+  `HotkeyManager` computes `HasDuplicates` over every definition regardless (`HotkeyManager.cs:43`,
+  `GetFirstDuplicate` `:91-103`: equal value **and** overlapping `Contexts`). But the red that flag
+  drives is painted on a remap button (`HotkeysSettingsLogic.cs:80-83`) that an ungrouped definition
+  never gets, so a clash involving one of the nine could not be seen by anyone.
+
+**Two things that fell out of the same sweep, both pre-existing:**
+
+- **`O` is double-bound in the Player context.** `WaypointMode: O` (`common|hotkeys/game.yaml:187`,
+  `Types: OrderGenerator`) and `ProductionTypePowers: O` (`ww3mod|hotkeys.yaml:20`, `Types:
+  Production`) share `Contexts: Player`, which is precisely `GetFirstDuplicate`'s predicate — this is
+  the **only** such collision across all 198 definitions the mod loaded at `d69e6883`. Both buttons
+  are visible at once in a match and `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks children
+  in reverse and returns on the first claim, so one of the two is dead. Which one is a draw-order
+  question this pass did not settle, and no capture was taken. Filed as a bug, not fixed here.
+- **`K` is the last free unmodified letter in the Player context.** Counted over all nine files
+  `mod.yaml:281-290` loads: every other letter A–Z is taken. This corroborates
+  `ww3mod|hotkeys.yaml`'s own comment ("J and K are the only unbound letters left") and is why the
+  eleven garrison/cargo buttons of §2.6 **U3** were given named-but-unbound definitions rather than
+  defaults — eleven defaults would have to be modifier chords or thefts.
+
+**Why a `Key:` on one of those eleven could not simply reuse a taken key.** `HandleKeyPressOuter` is
+gated on `IsVisible()` **only**, and children are walked in reverse with the first `true` winning. A
+visible `EJECT_PORT_0` bound to `1` would silently swallow control-group 1 for as long as a garrison
+is selected — a conflict with no symptom a player could trace. Panel-scoped keys are not scoped.
+
+**Also noticed, not acted on:** `ingame-info-howtoplay.yaml:96-101` tells the player Supply Routes
+are "indestructible". `CLAUDE.md` is emphatic that they are **untargetable, not indestructible**
+(`structures.yaml:347-348` `TargetTypes: NoAutoTarget`; the `Armor: Type: Indestructable` at `:368`
+is inert), and the distinction is exactly what decides whether a bypass such as `VaporizeWarhead`
+reaches one. Whether player-facing copy should carry that nuance is a call for the user, so the line
+is left alone and flagged here.
+
 ## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
 
 Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
