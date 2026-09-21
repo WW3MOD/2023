@@ -3,6 +3,58 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
+
+`test-garrison-port-arc-highpriority` asserted "a shooter outside a garrison port's arc lands nothing"
+by holding a 30 s window and comparing the occupant's health. Its header argued at length that damage
+was **"the only observable that sits below that line"**, the line being the attack activity's
+`target.IsValidFor(self)` -> `Actor.IsTargetableBy` (`Attack.cs:209`, `AttackBase.cs:288`). Staged for
+real, the sabotage it names produced **two passes**:
+
+| run | sabotage | lua.log | verdict |
+|---|---|---|---|
+| `260915_220342` | none | `BEHIND-SHOT ... canTarget=false`, 4th targetable `[enabled=False answers=False]` | pass (correct) |
+| `260915_220801` | both `RequiresCondition: !garrisoned-at-port` lines deleted from `Targetable@HighPriority` on `^MT`/`^AT` | `BEHIND-SHOT ... canTarget=TRUE`, 4th targetable `[enabled=True answers=True]`, `isTargetableBy=True` | **pass (wrong)** |
+
+**The half of the header's argument that stands** is about the ORDER layer: `Test.GetTargetOrder` and
+`Test.ClickOrder` walk `IOrderTargeter`, which ends at `WeaponInfo.IsValidAgainst` ->
+`victim.GetEnabledTargetTypes()` (`WeaponInfo.cs:256-264`) -- a UNION of target types with no
+per-attacker question in it, so it reads "Attack" before and after the fix.
+
+**The half that is wrong** is the conclusion. `Actor.CanTarget` is
+`Target.FromActor(t).IsValidFor(Self)` (`engine/OpenRA.Mods.Common/Scripting/Properties/CombatProperties.cs:111-115`)
+-- literally `Actor.IsTargetableBy`, the same call the activity re-runs every tick. It is not an
+order-layer instrument and the paragraph above does not apply to it. **The scenario was already
+printing it on every shot and simply was not asserting on it.**
+
+**The generalisation.** A limb that asserts a NEGATIVE ("no damage arrived") is satisfied by every
+reason a shot can fail to connect, of which "the gate refused him" is only one. It is not a test of
+the gate; it is a test of the whole chain below it, read backwards. **When the mechanism under test is
+a boolean predicate the engine exposes, assert on the predicate and keep the downstream effect as a
+second limb** -- not the reverse. The health window here is kept for exactly that reason: damage from
+outside the arc is a finding whatever the gate says.
+
+**What was ELIMINATED as the reason no damage landed**, so the next reader does not re-walk it:
+
+- **Not `GarrisonProtection`.** It forwards damage only to `garrisonManager.ShelterPassengers`, i.e.
+  men inside `Cargo` (`engine/OpenRA.Mods.Common/Traits/Garrison/GarrisonProtection.cs:126-131`), and
+  its own `[Desc]` says so. A port occupant is deployed in-world and never reaches that path.
+- **No arc-keyed damage modifier exists at all.** `DamageMultiplier@GarrisonCover`
+  (`mods/ww3mod/rules/ingame/infantry.yaml:213-215`) is a flat `Modifier: 20` on
+  `RequiresCondition: garrisoned-at-port` -- direction-blind. Targeting is the *only* arc gate.
+- **Not integer truncation.** One connecting round is ~28 hp of a 200 hp MT: `Damage: 200`
+  (`weapons-ballistics.yaml:115`) x `RangeDamageFactor(5.66c0, 10c0, 50)` ~= 71%
+  (`DamageWarhead.cs:112-121`, no `Versus:` on the warhead so `DamageVersus` returns 100) x the 20%
+  cover. `HoldAndCompare` samples every tick for 30 s; it could not miss that.
+
+So the behind shooter put **no round on the occupant's hitshape**, and the two live sub-causes could
+not be separated without another run: either he never fired, or every round was discarded at
+`TargetDamageWarhead.DoImpact`'s `closestDistance > Spread.Length` gate
+(`engine/OpenRA.Mods.Common/Warheads/TargetDamageWarhead.cs:85-91`) -- the `Bullet` projectile carries
+`Inaccuracy: 256`. **`GunTrace` settles it**: that same method writes `TargetDamage HIT ...` and
+`TargetDamage SKIP outsideSpread ...` when enabled. No `TargetDamage` line for the behind shooter
+means he never fired; a `SKIP outsideSpread` line means he did and it was thrown away.
+
 ## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
