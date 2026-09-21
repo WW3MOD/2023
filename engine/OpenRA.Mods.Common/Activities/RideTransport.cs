@@ -23,8 +23,10 @@ namespace OpenRA.Mods.Common.Activities
 		Cargo enterCargo;
 		Aircraft enterAircraft;
 
-		public RideTransport(Actor self, in Target target, Color? targetLineColor)
-			: base(self, target, targetLineColor)
+		/// <param name="initialTargetPosition">Forwarded to Enter; see its constructor for what this
+		/// is for and why only the scripting binding passes it.</param>
+		public RideTransport(Actor self, in Target target, Color? targetLineColor, WPos? initialTargetPosition = null)
+			: base(self, target, targetLineColor, initialTargetPosition)
 		{
 			passenger = self.Trait<Passenger>();
 		}

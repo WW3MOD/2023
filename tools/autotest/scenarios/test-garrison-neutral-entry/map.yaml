@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: can a rifleman walk into a NEUTRAL civilian building (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE VARIABLE UNDER TEST is the owner of the building, and nothing else. Same actor type,
+	# same squad size, same start distance, side by side.
+	NeutralHouse: v08
+		Owner: Neutral
+		Location: 24,20
+	OwnedHouse: v08
+		Owner: USA
+		Location: 40,20
+	N1: e1
+		Owner: USA
+		Location: 21,20
+	N2: e1
+		Owner: USA
+		Location: 21,21
+	O1: e1
+		Owner: USA
+		Location: 37,20
+	O2: e1
+		Owner: USA
+		Location: 37,21
+	# LANE C — THE DISCRIMINATOR, ADDED 2026-09-21. Same actor, same owner and same start
+	# distance as the neutral lane; the ONLY difference is that these two are ordered in through
+	# Test.ClickOrder (the real order layer, Passenger.ResolveOrder) instead of the Lua
+	# MobileProperties.EnterTransport call the other two lanes use. Every neutral house that has
+	# ever been garrisoned successfully in this repo was ordered through the order layer
+	# (test-garrison-hostile-cogarrison 260915_204522, test-garrison-suppression-readout
+	# 260915_204746); every neutral house that failed was ordered through the Lua call. This lane
+	# is what separates "neutral is refused" from "the Lua entry path is broken", and no run so
+	# far has held both variables still at once.
+	ClickHouse: v08
+		Owner: Neutral
+		Location: 56,20
+	CL1: e1
+		Owner: USA
+		Location: 53,20
+	CL2: e1
+		Owner: USA
+		Location: 53,21
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 90,6
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 90,52
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 90,6
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,52
+
+Rules: rules.yaml
