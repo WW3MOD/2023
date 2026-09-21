@@ -45,10 +45,12 @@ Actors:
 	# TWO INDEPENDENT LANES, AND THE GEOMETRY IS THE WHOLE FIXTURE -- READ THIS BEFORE MOVING A CELL.
 	# HIMARSTargeter is Range 50c0 / MinRange 16c0 (weapons-missiles.yaml:382-383, inherited from
 	# IskanderTargeter). The Lua orders both shots with allowMove=false, so whatever separation is
-	# written here is the ONLY separation these launchers will ever have. Attack.cs:276 sets
-	# `tooClose` from MinRange, :282 folds it into `needsToMove`, and :299-300 returns
-	# UnableToAttack as soon as `move == null` -- which is what allowMove=false produces (:75).
-	# So inside 16 cells the attack activity ENDS ON ITS FIRST TICK having never aimed: no shot, no
+	# written here is the ONLY separation these launchers will ever have. A HIMARS is AttackTurreted
+	# (AttackFollow), NOT AttackFrontal, so the gate is AttackFollow.cs:517 -- in MaxRange AND out of
+	# MinRange AND clear LOS -- and failing it falls to :528, where `move == null` (what
+	# allowMove=false produces at :404) returns and ends the activity. (This block cited
+	# Activities/Attack.cs:276/282/299-300 until 2026-09-21; those lines are AttackFrontal's and this
+	# unit never runs them.) So inside 16 cells the attack activity ENDS ON ITS FIRST TICK: no shot, no
 	# warning, no Lua error, and both targets sitting at exactly full HP. That is precisely what this
 	# scenario did on its first ever run (2026-09-21: "no impact within 40s -- church 38000/38000,
 	# block 120000/120000") when each launcher stood 10 cells from its target while this comment

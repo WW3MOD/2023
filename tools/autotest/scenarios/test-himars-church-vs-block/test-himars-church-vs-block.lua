@@ -47,6 +47,98 @@ local function CellsBetween(a, b)
 	return tostring(math.floor(math.sqrt(dx * dx + dy * dy) / 1024 + 0.5))
 end
 
+-- ---------------------------------------------------------------------------------------------
+-- WHY THIS PROBE EXISTS. Two runs (2026-09-21) produced the identical census -- both targets at
+-- EXACTLY full HP -- first with the launchers 10 cells out (inside HIMARSTargeter's MinRange 16c0)
+-- and then at 24 cells, inside the band. So the range was real but not the whole story, and the
+-- second run proved that reading the HP alone cannot distinguish the two questions that matter:
+--
+--   (1) did the attack ACTIVITY survive, or did it end on its first tick?
+--   (2) did the armament ever FIRE -- i.e. is this "no shot" or "a shot that put no missile
+--       into the world"?
+--
+-- Nothing in debug.log answers either. WW3_GUNTRACE=1 only instruments Armament.CheckFire
+-- (Armament.cs:500-526), which is never reached when the refusal is one rung above it in
+-- AttackFollow.Tick's `IsAiming` conjunction (:213-215) or in the activity itself.
+--
+-- The three readings below settle both questions between them, and Test.ActivityChain exists for
+-- precisely this purpose -- its own [Desc] says inferring this by reading code "has already
+-- produced one confident wrong answer" (TestGlobal.cs:1195-1200).
+--
+--   ActivityChain "(idle)"                   -> the AttackActivity RETURNED TRUE and ended. Look at
+--                                               AttackFollow.cs:442 (AmmoPool.CannotFight), :447
+--                                               (RequestedTarget invalidated), :508 (target hidden
+--                                               with no usable last-seen position) or :528
+--                                               (maxRange zero / below minRange, with move == null
+--                                               because allowMove is false).
+--   ActivityChain names an attack activity    -> the activity SURVIVED, so range, LOS and target
+--     for the whole window                      validity all passed (:517-524) and the refusal is
+--                                               in the firing gate: CanAimAtTarget (:112-128),
+--                                               ReadyToEngage -> AttackTurreted.CanAttack (turret
+--                                               facing + AttackBase.CanAttack's SetupTicks 100),
+--                                               DefconFireDiscipline.Permits, or Armament.CanFire.
+--                                               THIS is the case where WW3_GUNTRACE=1 pays off.
+--   ammo 2 -> 1                               -> the armament FIRED. Everything above is innocent
+--                                               and the fault is downstream: MissileSpawnerMaster's
+--                                               INotifyAttack.Attacking hook found no launchable
+--                                               slave (:98-100), or the missile flew and its
+--                                               warheads did nothing.
+--   ammo stays 2 AND missiles stays 0        -> no shot was ever taken. Combined with the chain
+--                                               reading above, that names the rung.
+--   missiles goes 0 -> 1                     -> the rocket exists; the remaining suspects are
+--                                               flight and warhead, not the launcher.
+--
+-- Sampled every tick but RECORDED ONLY ON CHANGE, so the trace is a handful of lines rather than
+-- a thousand. Full trace goes to lua.log via print(); the first few lines also ride into the
+-- failure message, because a zero-byte lua.log is exactly what the last two runs produced and the
+-- verdict has to carry its own evidence.
+local Trace = {}
+local LastSig = nil
+local ProbeError = nil
+
+-- EVERY probe read goes through pcall, and every one is wrapped in a CLOSURE rather than passed as
+-- `pcall(obj.Method, obj, ...)`. OpenRA exposes actor properties as already-bound closures — the
+-- scenario's own `LauncherB.Attack(Church, false, true)` is a dot call with no self — so handing
+-- pcall an extra leading argument would push the real one off the end. A probe that is meant to
+-- explain a silent failure must not become a second one: if a binding shape here is wrong the
+-- reading degrades to "?" and names itself in lua.log, instead of killing the OnTick trigger and
+-- costing the run the verdict it exists to produce.
+local function Probe(tick)
+	local okB, chainB = pcall(function() return Test.ActivityChain(LauncherB) end)
+	local okA, chainA = pcall(function() return Test.ActivityChain(LauncherA) end)
+	-- Pool name must be "primary-ammo" (vehicles-america.yaml:1144). AmmoCount THROWS on an
+	-- unknown pool (AmmoPoolProperties.cs:38), so a typo here would surface in lua.log, not hide.
+	local okAmB, ammoB = pcall(function() return LauncherB.AmmoCount("primary-ammo") end)
+	local okAmA, ammoA = pcall(function() return LauncherA.AmmoCount("primary-ammo") end)
+	local okM, missiles = pcall(function() return #LauncherB.Owner.GetActorsByType("himarsmissile") end)
+
+	if not okM and ProbeError == nil then
+		ProbeError = tostring(missiles)
+		print("HIMARSPROBE binding-error missiles: " .. ProbeError)
+	end
+
+	local sig = "B[" .. (okB and chainB or "?") .. " ammo=" .. (okAmB and tostring(ammoB) or "?") ..
+		"] A[" .. (okA and chainA or "?") .. " ammo=" .. (okAmA and tostring(ammoA) or "?") ..
+		"] missiles=" .. (okM and tostring(missiles) or "?")
+
+	if sig ~= LastSig then
+		LastSig = sig
+		local line = "t" .. tick .. " " .. sig
+		print("HIMARSPROBE " .. line)
+		if #Trace < 5 then
+			Trace[#Trace + 1] = line
+		end
+	end
+end
+
+local function TraceText()
+	if #Trace == 0 then
+		return "probe recorded nothing"
+	end
+
+	return table.concat(Trace, " ;; ")
+end
+
 WorldLoaded = function()
 	ChurchStart = Church.Health
 	BlockStart = Block.Health
@@ -56,14 +148,25 @@ WorldLoaded = function()
 
 	-- allowMove FALSE, and that makes the map's spawn geometry load-bearing rather than merely
 	-- convenient: a launcher that repositions changes the impact geometry between the two lanes,
-	-- but a launcher that CANNOT reposition also cannot fix a bad spawn. Attack.cs:299-300 returns
-	-- UnableToAttack the instant `move == null` and anything in `needsToMove` is set -- and
-	-- MinRange 16c0 feeds that via `tooClose` (:276, :282). Both launchers are ~24 cells out, which
-	-- clears the minimum by 7.5; see the geometry block in map.yaml before moving any of the four.
+	-- but a launcher that CANNOT reposition also cannot fix a bad spawn.
+	--
+	-- CITE THE RIGHT ACTIVITY. A HIMARS is AttackTurreted, which derives from AttackFollow, while
+	-- AttackFrontal is its SIBLING under AttackBase -- so this unit never runs
+	-- Activities/Attack.cs and the `tooClose`/`needsToMove` lines there do not apply to it. (An
+	-- earlier version of this comment cited them; corrected 2026-09-21.) The equivalent gate is
+	-- AttackFollow.cs:517, which requires in-MaxRange AND out-of-MinRange AND clear LOS; failing it
+	-- falls to :528, where `move == null` -- exactly what allowMove=false produces at :404 -- ends
+	-- the activity on its first tick. Both launchers are ~24 cells out, clearing the 16c0 minimum by
+	-- 7.5; see the geometry block in map.yaml before moving any of the four.
 	LauncherB.Attack(Church, false, true)
 	LauncherA.Attack(Block, false, true)
 
+	local ticks = 0
+
 	Trigger.OnTick(function()
+		ticks = ticks + 1
+		Probe(ticks)
+
 		if Reported then
 			return
 		end
@@ -95,7 +198,8 @@ WorldLoaded = function()
 			", block " .. (Block.IsDead and "DEAD" or tostring(Block.Health)) .. "/" .. BlockStart ..
 			" — ranges: LauncherB->Church " .. CellsBetween(LauncherB, Church) ..
 			"c, LauncherA->Block " .. CellsBetween(LauncherA, Block) ..
-			"c (HIMARSTargeter needs >16c and <50c; allowMove is false so these cannot change)"
+			"c (HIMARSTargeter needs >16c and <50c; allowMove is false so these cannot change)" ..
+			" — probe: " .. TraceText()
 	end)
 end
 
