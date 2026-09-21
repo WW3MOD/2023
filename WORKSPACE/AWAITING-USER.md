@@ -24,6 +24,7 @@ Reply with just the numbers if the recommendations are fine. Every one of these 
 | **3** | Iskander outclasses HIMARS at the same price — fix which end? | **Fix the HIMARS armour omission first (it's a bug), then re-measure before touching cost** |
 | **4** | Ratify the pass/fail numbers for the forest-ambush test? | **Yes, as measured** |
 | **5** | Build a full-screen splash image? | **No — put the logo in the slot that already exists** |
+| **6** | *(not a question)* The art + audio work only you can do, in one list | **Nothing to answer — §6 is a work list** |
 
 **If you answer nothing at all:** the mod ships announcing itself as "Pre-Alpha", pointing strangers at openra.net as its homepage, with a known armour bug on one US unit, one test that cannot be trusted, and an empty hole where the startup logo goes.
 
@@ -48,6 +49,12 @@ Ordered by how much it blocks a public release. Each says what happens if you sa
 >
 > **This is a one-word answer.** Everything below is the detail for whoever edits it, not for you.
 
+> **UPDATED 2026-09-21 — the question is now narrower and strictly cheaper, and no deadline rides on it.** The panel used to be a hardcoded literal, so "Pre-Alpha" was what a packaged release said no matter what. **It is not a literal any more** (`wt/identity-panel`): a packaged build now shows the **tag it was stamped with** — today `WW3MOD v0.1.2` — and a source tree shows `WW3MOD — dev build (<short sha>)`. That is a fact rather than a name, so **the panel is no longer wrong while you think about it**, and the two other lines it got wrong (see §1(b) below) are fixed outright.
+>
+> **What is still yours to say:** whether you want a *word* on that line in addition to the tag — `WW3MOD v0.1.2 Beta`, or the tag alone. Everything in the table below still applies to that choice; the "leave Pre-Alpha" row is gone because that string no longer exists anywhere in the tree, and an `OpenRA.Test` fixture now fails the build if it comes back (`ReleaseIdentityTest.NoPanelHardcodesAVersionString`).
+>
+> **If you say nothing now:** the release announces itself by its version number and nothing else, which is honest and unremarkable. That is a defensible ship state — this row is no longer a blocker.
+
 **These are two independent strings and only one is cheap; earlier framings of this item ran them together.** Re-verified at `a0cb877d`:
 
 **(a) What the player actually reads — free to change, and it is ONE line, not two.** "Pre-Alpha" is **not in `mod.yaml` at all**. It is two hardcoded C# literals, but **only one of them is reachable**:
@@ -59,6 +66,10 @@ Ordered by how much it blocks a public release. Each says what happens if you sa
 **(b) `mod.yaml:3` `Version: release-20230225` — not free, and arguably already correct.** The live panel renders it as **"Fork: "** + the value (`MainMenuLogic.cs:281`; the dead panel does the same at `ModInfoPanelLogic.cs:23`) — it is deliberately presented as *the OpenRA release this forked from*, which is true, and is a normal thing for a total conversion to state. It is also a deliberately frozen literal: `Server.cs:541` and `Handshake.cs:48` both record that its compatibility job was **superseded by `BuildFingerprint`**. Touched exactly once ever (`4894008b`, 2023-03-19). Changing it costs three concrete things — (i) `mod.yaml` is hashed verbatim into the rules segment (`BuildFingerprint.cs:310-313`), so it moves the multiplayer hash for everyone; (ii) **every existing replay disappears from the in-game browser**, which reads only `Replays/ww3mod/<Version>/` (`ReplayBrowserLogic.cs:145`); (iii) it orphans the launcher registration key `ww3mod-release-20230225` (`ExternalMods.MakeKey`).
 
 **Recommended: do (a) only and leave (b) alone** — that removes the "unfinished" signal at zero risk while keeping an accurate fork marker. If you want (b) changed too, say so explicitly and accept (i)–(iii).
+
+> **CORRECTION 2026-09-21 — (b)'s reasoning above was false on every install, and is now moot.** The claim that `Version:` "is deliberately presented as *the OpenRA release this forked from*, **which is true**" was checked against the **source tree**, where `mod.yaml:3` does read `release-20230225`. It is not true of anything a stranger runs: `mod.config:104 PACKAGING_OVERWRITE_MOD_VERSION="True"` sends packaging through `engine/packaging/functions.sh:153-161 set_mod_version`, which **rewrites that line with the WW3MOD git tag**. So on every packaged release the line labelled `Fork:` read `v0.1.2` — the mod's own version, presented as the OpenRA release it forked from.
+>
+> **Fixed without touching the value, so (i)–(iii) are still not being spent.** The fork line now renders `Game.EngineVersion` (`engine/VERSION`, which packaging sets from `mod.config ENGINE_VERSION` to the same `release-20230225`), so it reads identically on a dev tree and on an install. `mod.yaml:3` is untouched and this item still does **not** ask you to change it.
 
 **If you say nothing:** a public release ships announcing itself as Pre-Alpha.
 
@@ -141,6 +152,49 @@ Thresholds live at `tools/autotest/parse-case01-bar.py:33-36` (batch-level) and 
 **⚠️ The 2026-08-16 art deferral does *not* close this, and I am flagging that rather than assuming it.** You said of the art/audio TODO lists: *"you can skip it fully now… just document it as a standing todo pre-release."* That deferral is about **producing assets for slots that already exist** (logo, installer icon, Russian cameos, music) — and it is discharged: the standing document is `pipeline/items/46-release-art-audio.md`. This item asks something different — whether to **build a new slot**. If you meant the deferral to cover this too, say so and it closes.
 
 **If you say nothing:** startup shows a gray bar with an empty hole where the logo should be.
+
+### 6. Art and audio — **the release work no worker can do, in one list**
+
+> **The decision:** *none. This is a work list, not a question.* It is here because the 2026-09-21
+> release-readiness audit (§1.4) ruled that U9 and U4 are **due** and that **a worker cannot author
+> any of it** — so parking it in a worker queue keeps it looking scheduled when nobody is able to
+> start. Every line below is blocked on a file only you can make.
+>
+> **What a worker CAN still do, and has:** every slot below already exists and is wired. Dropping a
+> file in is the whole job — no code, no chrome, no engine change. Where a slot was genuinely
+> missing, that is called out as such.
+
+**Re-measured 2026-09-21 at `1160a531`, not relayed** — each of these was checked on disk this pass:
+
+| | What is missing | Slot | Measured |
+|---|---|---|---|
+| **A1** | **The mod chooser shows Red Alert's icon.** Literally the first image a stranger sees, before the game starts. | `mods/ww3mod/icon.png` | md5 `e9b6dc3d42d3f3e28d2747c69a1dd412` — **byte-identical** to `engine/mods/ra/icon.png`. Both files, both hashes, re-run this pass. |
+| **A2** | **The startup screen has a hole where the logo goes.** | `mods/ww3mod/uibits/loadscreen.png` | Present, 6110 bytes, **untouched since `1218bd90` "Loadscreen, removed logo for now"** — confirmed by `git log` on the path. The "0 of 65536 non-transparent pixels" figure is the 2026-09-02 measurement, **relayed, not re-derived** (no image library on the machine this pass). |
+| **A3** | **One music track ships, and it loops forever.** | `mods/ww3mod/bits/sounds/music/` | Exactly one file: `journey.aud`, 3,030,900 bytes. `music.yaml` declares 88 tracks but a track that cannot be opened is silently dropped, and the `music` package is the only content package with no `Download:` — so Quick Install cannot fetch the rest. There is also **no menu theme and no victory/defeat sting** on a stock install. |
+| **A4** | **Splash / menu art.** | §5 of this file — **unanswered, and it is the one question here** | §5 asks whether you want a full-screen splash or just the logo in the slot A2 already has. Recommended there: logo only. |
+| **A5** | **Every unit is drawn with a Red Alert sprite**, and the Russian build icons are the American ones. | `bits/units/`, `bits/misc/icons/` | The loudest single case: `sequences.yaml:208-213` draws the `bradley`, a US IFV, as `1tnk` — RA's **Allied Light Tank**. Not a bug (the sprite resolves from your own `conquer.mix`), but it is the visible half of "still Red Alert". The 15/15 identical Russian cameo md5s are **relayed from 2026-09-02**, not re-measured. |
+| **A6** | **13 command-bar buttons have no icon of their own.** | `uibits/` + `chrome.yaml` | Re-derived this pass — see below. |
+
+**A6 has a deliverable and it was not missing.** The release-readiness audit could not find the
+duplicate-map table U4 names ("19 of 25 buttons share art across 11 sprites; 14 new icons needed")
+and flagged that it might never have been written. **It was** — it is
+[`audit/260816-command-bar-research.md`](audit/260816-command-bar-research.md) §3, not
+`260816-content-completeness.md`, which is the file that was grepped.
+
+**But its numbers have drifted and should not be quoted.** The command bar changed since: a button
+was removed and the resupply bar was rehoused. Re-derived mechanically at `1160a531` in
+[`audit/260921-command-bar-icon-map.md`](audit/260921-command-bar-icon-map.md), which supersedes the
+counts and carries the per-button map, the 13-icon shopping list and the sheet-capacity finding:
+
+> **24 buttons draw on 11 distinct sprite rectangles. 4 have art of their own; 20 share. 13 new
+> 24×24 icons make all 24 distinct.** `glyphs.png` has **one** free 24² cell, so the 13 want a new
+> sheet — which is additive and touches none of the 152 existing regions. Format is friendly: plain
+> RGBA PNG, no palette, no SHP step. One button can be de-duplicated **today with no art at all** —
+> `stance-icons/return-fire` is fully declared and used by nothing.
+
+**If you say nothing:** the mod ships under Red Alert's icon, with a hole where the startup logo
+goes, one looping track, units drawn as Red Alert units, and four command-bar icons doing the work
+of twenty-four. None of that stops it running, and none of it can be fixed by anyone but you.
 
 ---
 

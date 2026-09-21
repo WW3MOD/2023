@@ -3,6 +3,79 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A build stamp cannot be a clock: the `BuildRevision` attribute is a Compile input, which is why the menu's build date reads a file timestamp instead (`wt/identity-panel`, base `main @ 1160a531`)
+
+The main menu's `v` panel showed `"Built: " + DateTime.Now` — the **player's** current date, labelled
+as the build date, on every install forever. The obvious repair is an assembly attribute stamped at
+build time, and the repo already has the machinery: `engine/Directory.Build.targets:135
+StampBuildRevision` emits `[AssemblyMetadata("BuildRevision", ...)]` on OpenRA.Game, read back at
+runtime by `BuildFingerprint.EngineRevision` (`BuildFingerprint.cs:82-88`).
+
+**Putting a timestamp there would be wrong, and the target's own comment says why** (`:123-129`):
+the attribute is a **Compile input**, so a value that moves every build recompiles OpenRA.Game every
+build. That comment records the cost measured when a *stray untracked file under `mods/`* had this
+effect — **6.3 s vs 3.1 s** — and the second-order consequence that matters more: per CLAUDE.md the
+build fails fast on Windows while the game holds the DLLs, so an unconditional engine recompile
+breaks the edit-yaml-while-playing loop. The revision is deliberately **an identity, not a clock**;
+the same paragraph records that a bare `rev-parse HEAD` was rejected for being a clock.
+
+**What shipped instead:** `ReleaseIdentity.ResolveBuildTime` reads `File.GetLastWriteTime` on
+OpenRA.Game's own assembly. Zero build-system change, zero recompile pressure, and it cannot perturb
+the handshake — `ReadRevision` filters `AssemblyMetadataAttribute` on `Key == "BuildRevision"`, so a
+differently-named attribute would have been fingerprint-safe, but the *rebuild* cost is the blocker,
+not the fingerprint. Honest in both trees: a build rewrites the assembly (on macOS/Linux
+`Directory.Build.targets:70 UnlinkProjectOutputForMmapSafety` unlinks it first), and packaging
+publishes a fresh one. **Known weakness, stated:** a tree copied with a tool that does not preserve
+mtimes reports the copy time. That is wrong by the age of a file copy; `DateTime.Now` was wrong by
+the entire age of the release.
+
+**The generalisation worth carrying:** before adding anything to `StampBuildRevision`, ask whether
+the value changes on every build. If it does, it does not belong in an assembly attribute in this
+repo, however natural the slot looks.
+
+## 2026-09-21 - `mod.yaml` `Version:` means two different things in a source tree and an install, and a standing decision doc reasoned from the source-tree meaning (`wt/identity-panel`, base `main @ 1160a531`)
+
+`mods/ww3mod/mod.yaml:3 Version: release-20230225` is the OpenRA release this forked from — **in a
+source tree only**. `mod.config:104 PACKAGING_OVERWRITE_MOD_VERSION="True"` routes packaging through
+`packaging/windows/buildpackage.sh:106-108` -> `engine/packaging/functions.sh:153-161 set_mod_version`,
+which **rewrites that line with the git tag**. So on every packaged release the field holds `v0.1.2`
+while the checked-in file says `release-20230225`, and anything that renders it as a fork marker is
+correct on a developer's machine and false on every install.
+
+`AWAITING-USER.md` §1(b) reasoned from the source-tree meaning in as many words — *"deliberately
+presented as the OpenRA release this forked from, **which is true**"* — and concluded the line was
+fine. Corrected in place this pass. The engine version is separately available and is the honest
+source: `Game.EngineVersion` (`Game.cs:333`) reads `engine/VERSION`, which packaging sets from
+`mod.config ENGINE_VERSION` to the **same** `release-20230225`, so it reads identically in both trees.
+
+**The reusable half:** `ModVersion.TryParse` (`engine/OpenRA.Mods.Common/ModVersion.cs`) is a ready
+discriminator between the two states and needs no new code — a stamped tag parses, `release-20230225`
+does not. Its own comments already assign that reading to "an unstamped development build", so the
+two uses cannot drift apart. **Any check of the form "is this a packaged build?" should go through
+it rather than string-comparing against `engine/VERSION`.**
+
+## 2026-09-21 - U4's duplicate-map table was never missing, and the new icon collections look like de-duplication without being it (`wt/identity-panel`, base `main @ 1160a531`)
+
+`audit/260921-release-readiness.md` §1.4 and `## Watch` record that U4's deliverable — "19 of 25
+buttons share art across 11 sprites; 14 new icons needed" — **could not be found** and might never
+have been written, and say not to dispatch against it until that is settled. **It exists:**
+`audit/260816-command-bar-research.md:208`, verbatim. The audit grepped
+`260816-content-completeness.md`, which is the file PIPELINE.md's wording points at.
+
+**Its counts have drifted, though, and the reason is the interesting part.** Re-derived mechanically
+at `1160a531` (`audit/260921-command-bar-icon-map.md`): **24 buttons, 11 rectangles, 20 sharing, 13
+icons needed** — against 25 / 11 / 19 / 14. Two edits moved it: `@TAKE_COVER` was deleted, and the
+resupply bar was rehoused into a new `resupply-icons` collection (`chrome.yaml:319`).
+
+**The trap:** `resupply-icons` and `command-mode-icons` (`:298`) are `Inherits:` aliases whose regions
+point at **coordinates that already existed**. Counting collections, or counting distinct
+`ImageName:` values, says the bar has more distinct art than it does — the rehousing moved three
+buttons off the `stance-icons` rectangles and straight onto three `command-icons` ones, for a net
+change of zero. **Only the resolved sheet rectangle decides whether two buttons look alike**, and any
+future recount has to walk the `Inherits:` chain to get one. The genuine improvement in those
+commits is real but is in the `-highlighted` twins: 8 amber recolours give some buttons distinct
+*active* art. The duplication above is of the resting art.
+
 ## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
 
 `test-garrison-port-arc-highpriority` asserted "a shooter outside a garrison port's arc lands nothing"
