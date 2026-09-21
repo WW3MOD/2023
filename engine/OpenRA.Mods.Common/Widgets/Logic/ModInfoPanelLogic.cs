@@ -10,6 +10,7 @@
 #endregion
 
 using System;
+using OpenRA.Network;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets.Logic
@@ -19,9 +20,15 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		[ObjectCreator.UseCtor]
 		public ModInfoPanelLogic(Widget widget, ModData modData, Action onExit, string shellmapName)
 		{
-			widget.Get<LabelWidget>("MOD_VERSION").Text = "Version: Pre-Alpha";
-			widget.Get<LabelWidget>("ENGINE_VERSION").Text = "Fork: " + modData.Manifest.Metadata.Version;
-			widget.Get<LabelWidget>("BUILD_DATE").Text = "Built: " + DateTime.Now.ToString("yyyy-MM-dd");
+			// WW3MOD: this panel is not reachable -- MOD_INFO_PANEL is declared in info-panel.yaml and
+			// opened by nothing -- but it carried the same three false lines as the live "v" dropdown,
+			// so a later reader grepping for "Pre-Alpha" would have found this one and "fixed" a panel
+			// no player can see. Routed through the same derivation instead of left as bait.
+			widget.Get<LabelWidget>("MOD_VERSION").Text =
+				ReleaseIdentity.VersionLabel(modData.Manifest.Metadata.Version, BuildFingerprint.EngineRevision);
+			widget.Get<LabelWidget>("ENGINE_VERSION").Text = ReleaseIdentity.ForkLabel(Game.EngineVersion);
+			widget.Get<LabelWidget>("BUILD_DATE").Text =
+				ReleaseIdentity.BuildLabel(ReleaseIdentity.ResolveBuildTime(ReleaseIdentity.StampedAssembly));
 			widget.Get<LabelWidget>("AUTHORS").Text = "By: FreadyFish & CmdrBambi";
 
 			var shellmapLabel = widget.Get<LabelWidget>("SHELLMAP_NAME");

@@ -273,13 +273,19 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 
 			rootMenu = widget;
 
-			// Info dropdown — inline panel toggled by info button
+			// Info dropdown — inline panel toggled by info button. Every line here is derived; see
+			// ReleaseIdentity for what each one used to claim and why that was false on an install.
+			// Note what the "Fork:" line must NOT read: modData.Manifest.Metadata.Version is the
+			// OpenRA release only in a source tree -- packaging overwrites it with the WW3MOD tag.
 			var infoDropdown = rootMenu.GetOrNull<BackgroundWidget>("INFO_DROPDOWN");
 			if (infoDropdown != null)
 			{
-				infoDropdown.Get<LabelWidget>("INFO_MOD_VERSION").Text = "WW3MOD — Pre-Alpha";
-				infoDropdown.Get<LabelWidget>("INFO_ENGINE_VERSION").Text = "Fork: " + modData.Manifest.Metadata.Version;
-				infoDropdown.Get<LabelWidget>("INFO_BUILD_DATE").Text = "Built: " + DateTime.Now.ToString("yyyy-MM-dd");
+				var stamped = ReleaseIdentity.StampedAssembly;
+				infoDropdown.Get<LabelWidget>("INFO_MOD_VERSION").Text =
+					ReleaseIdentity.VersionLabel(modData.Manifest.Metadata.Version, BuildFingerprint.EngineRevision);
+				infoDropdown.Get<LabelWidget>("INFO_ENGINE_VERSION").Text = ReleaseIdentity.ForkLabel(Game.EngineVersion);
+				infoDropdown.Get<LabelWidget>("INFO_BUILD_DATE").Text =
+					ReleaseIdentity.BuildLabel(ReleaseIdentity.ResolveBuildTime(stamped));
 				infoDropdown.Get<LabelWidget>("INFO_AUTHORS").Text = "By: FreadyFish & CmdrBambi";
 			}
 
