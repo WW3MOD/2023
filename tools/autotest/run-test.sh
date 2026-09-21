@@ -534,7 +534,12 @@ check_launch_failure() {
 	_sl=$(find_engine_log "server.log")
 	# "because an error occurred" narrows it further: the refusal we care about is
 	# an EXCEPTION at join, not a peer that simply went away.
-	if [ -n "${_sl}" ] && grep -q "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null; then
+	# Both greps below are gated on the log being NEWER than this run's launch stamp. A
+	# client.log left by the PREVIOUS run's teardown ends in "Connection to ... failed";
+	# without the gate this watch fired ~1 s after the next launch, killed the game before
+	# it logged a byte, and reported "server refused the client" quoting a six-day-old
+	# log (run 260921_145344). The lua.log branch above already had the gate.
+	if [ -n "${_sl}" ] && [ -n "${LAUNCH_STAMP}" ] && [ "${_sl}" -nt "${LAUNCH_STAMP}" ] && grep -q "Dropping connection .* because an error occurred" "${_sl}" 2>/dev/null; then
 		LAUNCH_FAIL_SRC="${_sl}"
 		# The refusal line plus the lines under it -- the exception is the part
 		# that names the actual fault, and it is written after the refusal.
@@ -543,7 +548,7 @@ check_launch_failure() {
 	fi
 
 	_cl=$(find_engine_log "client.log")
-	if [ -n "${_cl}" ] && grep -q "Connection to .* failed" "${_cl}" 2>/dev/null; then
+	if [ -n "${_cl}" ] && [ -n "${LAUNCH_STAMP}" ] && [ "${_cl}" -nt "${LAUNCH_STAMP}" ] && grep -q "Connection to .* failed" "${_cl}" 2>/dev/null; then
 		LAUNCH_FAIL_SRC="${_cl}"
 		LAUNCH_FAIL_DETAIL=$(grep -m 1 "Connection to .* failed" "${_cl}" 2>/dev/null || true)
 		return 0
