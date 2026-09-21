@@ -3,6 +3,57 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
+
+Found while re-deriving item 78's edge-choice rule from source for
+[`WORKSPACE/audit/260921-item78-edge-arithmetic.md`](audit/260921-item78-edge-arithmetic.md).
+`DOCS/reference/game-model.md` §"Map-edge spawning" carried one sentence that was wrong twice over.
+**Fixed in place on sight** per CLAUDE.md's knowledge-bank rule; recorded here because the *shape* of
+the error is the reusable part.
+
+**The superseded text:** *"…at which point the caller falls back to `self.Location` — the unit's own
+cell (`:163-168`) … So on almost every map both reinforcement entry and evacuation resolve from
+wherever the actor happens to be standing, **not** from the SR."*
+
+**Error 1 — the evacuation half went stale and nobody swept for it.** `ac16f2b6` (item 78,
+2026-09-05) replaced that `?? self.Location` with `?? FriendlyEvacuationOrigin(self)`
+(`RotateToEdge.cs:209`). The commit updated the dossier and `DISCOVERIES`, and the 09-05 curation
+note at `DISCOVERIES.md:3928` even says the map split is *"SUPERSEDED by item 78 and is promoted as
+history, not as current behaviour"* — but `game-model.md`, which describes the same `??` from the
+other side, was never touched. **A correction that names its own supersession is not self-executing:
+`grep` for the CODE EXPRESSION you changed (`?? self.Location`) across `DOCS/`, not for the item
+number.**
+
+**Error 2 — the reinforcement half was wrong from the start, and is the more useful finding.**
+Entry and evacuation are **two different traits with two different `FindClosestSpawnArea`
+functions**, and the doc read them as one:
+
+- Evacuation: `RotateToEdge.FindClosestSpawnAreaForOwner` (`RotateToEdge.cs:101`), `self` = **the
+  evacuating unit**, and the null arm is now owner-side.
+- Entry: `ProductionFromMapEdge.FindClosestSpawnArea` (`ProductionFromMapEdge.cs:57`), a separate
+  static, `self` = **the producing building** — and that building is `SUPPLYROUTE`
+  (`ProductionFromMapEdge:` at `structures.yaml:472`, inside the actor opening at `:295`).
+
+So entry's `?? self.Location` (`ProductionFromMapEdge.cs:101`, `:119`) resolves to **the Supply
+Route's own cell**. "Resolves from wherever the actor happens to be standing, *not* from the SR" is
+exactly backwards there: the actor standing there **is** the SR. The 09-02 correction was reacting to
+a claim about the `spawnarea` *hint* and over-generalised from "the hint is absent" to "the anchor is
+unit-side". **Those are different claims, and `?? self.Location` means something different on a unit
+trait than on a building trait.** The `spawnarea` count itself (only `river-zeta-ww3`, 6 actors) is
+re-confirmed at this ref and stands.
+
+**Not changed, and deliberately:** `economy.md` §"The evacuation anchor is the `spawnarea` actor" is
+still accurate. It describes `FindClosestSpawnAreaForOwner` and the `AmmoPool` rearm-vs-evacuate
+comparison (`AmmoPool.cs:907`, the `beatsExit` short-circuit at `:776`), which item 78 deliberately
+did not touch — the fix moved only the *other* arm of the `??`. Two adjacent sections describing two
+arms of one expression, one of which moved: checking the wrong one would have produced a confident
+false correction.
+
+**Also re-confirmed while here** (so nobody re-spends it): the 2026-09-05 measurement reproduces
+exactly at `70e63582`. Weighting the nine unit-anchored maps' raid rows by sample size (n = 7170)
+gives own/opponent/flank = **14.36 / 70.37 / 15.27**, against the recorded 14.4 / 70.4 / 15.3.
+Medians do **not** recombine that way and were bounded, not re-derived.
+
 ## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
 
 `MissileStrikePower.Activate` does not read `info.MissileDelay` when the sandbox lobby option is on:
