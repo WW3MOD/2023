@@ -784,6 +784,18 @@ namespace OpenRA.Mods.Common.Traits
 			if (requestPause.Any(rp => rp.PauseUnitProduction))
 				return;
 
+			// THE WORLD IS ENDING. The authoritative stop is in ProductionQueue -- Enabled goes false
+			// and ResolveOrder refuses every order -- so this is not what makes production cease. What
+			// it does is stop the bot SPENDING A CYCLE choosing reinforcements nobody will build, and
+			// stop it writing a [composition] pick line for each one: the recorded match has three of
+			// them at ticks 31020, 31080 and 31110 against an exchange that opened at 30957, which is
+			// how the defect was found and is exactly the noise that would hide the next one.
+			//
+			// Same stand-down and same predicate as SupplyRouteContestation.Tick, which is the other
+			// system that has to hold still while the salvo is in the air.
+			if (DoomsdayStrike.VictoryChecksSuspended(world))
+				return;
+
 			ticks++;
 
 			if (ticks % FeedbackTime == 0)

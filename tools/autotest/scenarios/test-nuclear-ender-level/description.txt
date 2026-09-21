@@ -18,10 +18,28 @@ launches NuclearExchangeState.ReportLaunch's rules make the shortest possible ch
   L5  USA  W76       100000 t  band 4  ->  Russia level 5 = GameEnder
        (levels never fall, so USA keeps its own END through firing)
 
+EVERY ONE OF THOSE FIVE ARROWS IS NOW WATCHED, NOT WAITED OUT (2026-09-19). This scenario used to
+set `EscalationDelayTicks: -1` in rules.yaml, which restored the pre-2026-09-16 timing where a
+victim's level rose on the tick the enemy clicked; it did so because the phase schedule was a
+column of constants that fired and then read a level forty ticks later. The override is gone. Each
+launch now snapshots Test.GetImpactEffectCount, waits for the detonation, and hangs its check off
+the tick the victim's band was SEEN to leave `hidden` — so the file has no opinion about how long
+a B61, an Iskander or a Kalibr takes to arrive, which is what let those constants be wrong.
+
+Two assertions per launch come out of that, and they are the coverage this scenario adds:
+
+  (a) the victim's new band stays HIDDEN on every tick between the launch and the explosion. RED
+      the instant an escalation is applied at the click — which is what the deleted override
+      restored, and what the whole 2026-09-16 ruling is about.
+  (b) and is drawn within EscalationDelayTicks (50) plus a 40-tick grant allowance of that
+      explosion. RED if the deferral never fires: a dropped pending record, an impact never
+      reported by MissileStrikePower. (a) cannot see that — a level that never rises also never
+      rises early.
+
 Then it asserts, off the support power bin (SupportPowerInstance.Disabled — the predicate
 SupportPowersWidget filters its icon list on):
 
-  * USA's B83Strike reads `ready` at level 5, and can be ACTIVATED through the real order path.
+  * USA's TridentStrike reads `ready` at level 5, and can be ACTIVATED through the real order path.
     Both halves of "I should be able to choose the game ender and place the targets".
   * Russia's SarmatStrike reads `ready` at its own level 5.
   * The faction lock of 2026-09-14 (c8cadc8a) holds: USA never sees the Sarmat, Russia never sees
@@ -35,10 +53,21 @@ SupportPowersWidget filters its icon list on):
     TacNukeStrike, whose host checkbox is off.
 
 THE SIDE COOLDOWN IS NOT THE SUBJECT and is compressed to 60 ticks flat so it cannot bite: every
-launch by one side is at least 140 ticks after that side's previous one. It is NOT set to zero,
-which RulesetLoaded would refuse anyway — a scenario configured so the cooldown could not possibly
-apply would also pass over its removal. test-nuclear-exchange's phase G2 is where the top rung's
-cooldown IS asserted.
+launch by one side is now a whole missile flight (257–605 ticks) after that side's previous one,
+because each launch waits for the previous escalation to be observed. It is NOT set to zero, which
+RulesetLoaded would refuse anyway — a scenario configured so the cooldown could not possibly apply
+would also pass over its removal. test-nuclear-exchange's phase G2 is where the top rung's cooldown
+IS asserted as a GATE.
+
+ONE COOLDOWN READING DID SURVIVE HERE, and the retiming moved it to where it always belonged.
+Phase G2 reads USA's own ender 40 ticks after USA fires at L5, and requires `charging:` — the firer
+pays for its own shot at the top rung. That is settled when the button is pressed, not when the
+warhead lands, so it is anchored on the LAUNCH. It used to live inside the L5 check at rise+40,
+which only worked while a rise was forty ticks after a click; with the rise a flight away, a
+60-tick cooldown would have long expired there and the reading would have asserted nothing.
+
+The whole run is about 2400 ticks (~2.5 min at 1×), against ~560 before, and that is entirely
+flight time: five warheads at 257–605 ticks each.
 
 RUNS AT SHIPPED LOBBY CONFIGURATION AND THAT IS THE POINT. It does NOT set
 PowersSandboxCheckboxEnabled, which every other nuclear scenario does — that option provides

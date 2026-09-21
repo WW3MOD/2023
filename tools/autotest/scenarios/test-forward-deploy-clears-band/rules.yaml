@@ -1,0 +1,55 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-CrateSpawner:
+
+	# STRIPPED SO HomeLocation IS THE AUTHORED ONE. MapStartingLocations is the IAssignSpawnPoints
+	# implementation, and with it present the client player's home comes from whichever mpspawn the
+	# assigner picked (Player.cs:213) -- which on a two-spawn map is a coin flip that could seat USA
+	# at x 58 and mirror the whole scenario. The map.yaml authors both homes instead.
+	-MapStartingLocations:
+
+	LuaScript:
+		Scripts: test-helpers.lua, test-forward-deploy-clears-band.lua
+
+	# THE MATCH IS PINNED AT DEFCON 3, where the border stands. Same shape as
+	# test-defcon-wall/rules.yaml: Escalation rather than the shipped Skirmish default, because
+	# Skirmish holds NoLevel and the wall never stands at NoLevel; and a no-rush period far longer
+	# than the run so the level cannot fall to 2 mid-test and take the wall down under the
+	# assertions. NoRushTicksOverride is the scenario escape hatch and beats the lobby dropdown.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 3
+		NoRushTicksOverride: 30000
+
+	# NO DefconWall BLOCK ON PURPOSE. world.yaml already sets DeriveFromSpawns: True, and the
+	# DERIVATION is what this scenario has to exercise -- authoring Start/End here would test a line
+	# no shipped map draws and would skip the code path the bug lives on. The shipped HalfWidth of
+	# 1024 is likewise left alone: it is what makes the band three columns wide and therefore what
+	# brings it into contact with the annulus at this separation.
+
+	# THE FORCE UNDER TEST. Both of these are the LOBBY DEFAULTS for this map -- LobbyCommands
+	# .LoadMapSettings seeds every option from the map's own WorldActorInfo, so a rules.yaml value
+	# here is what the dropdown opens on and therefore what the match runs with. The Lua asserts the
+	# option really did land on `motorized`, because a silently-ignored default would make every
+	# other assertion here pass over an empty map.
+	#
+	# `none` at home leaves USA with just the Supply Route the package is measured against; the
+	# whole force is the FORWARD one, which is the only one that gets anywhere near the border.
+	SpawnStartingUnits:
+		StartingUnitsClass: none
+		ForwardDeploymentClass: motorized
+
+# Nothing initiates on its own: a unit that wandered off under autotargeting would move the very
+# cells this scenario reads. DEFCON 3 holds fire anyway; this makes it independent of that.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

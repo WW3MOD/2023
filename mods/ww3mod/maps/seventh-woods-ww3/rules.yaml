@@ -1,0 +1,49 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON SEVENTH WOODS -- THE NORTH-EAST TO SOUTH-WEST DIAGONAL ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# RegionTerrainTypes IS DELIBERATELY EMPTY HERE, UNLIKE RIVER ZETA, and that is a judgement
+	# about this map rather than a default. On River Zeta the Water type IS the divide: 588 cells,
+	# one channel, nothing else on the map carries it. This map's 109 water cells are eight puddles in the
+	# corners and its 344 Cliffs cells are 17 small shelves; nothing here is continuous enough to be worth
+	# naming as a type. Naming a type would drag blobs nowhere
+	# near the border into the band and wash a large part of the map in the trait's amber fill,
+	# which is drawn over every border cell (DefconWall.RenderAnnotations). So the border is
+	# authored cell by cell below.
+	#
+	# HOW THESE CELLS WERE CHOSEN, and they are data rather than a derivation -- redraw any of them.
+	# A cell set separates the map in the 8-connected graph DefconWallRegion.Label floods if and
+	# only if it contains a 4-CONNECTED chain of blocked cells running from one Bounds edge to
+	# another. So the border is a shortest path: tools/nav-guard/defcon_border_designer.py runs
+	# Dijkstra over Bounds with terrain a player already reads as a barrier priced near zero and
+	# open ground priced ten times higher, which makes the route follow whatever the map actually
+	# has and cross open ground only where the map leaves no choice. The chain is then dilated by
+	# one cell, so the band is three cells thick everywhere except where Bounds clips it -- exactly
+	# the thickness the shipped HalfWidth of 1024 produces, and above the sqrt(2)/2 floor below
+	# which a diagonal band leaks through its own corners.
+	#
+	# THIS IS THE WEAKEST OF THE EIGHT AND THIS COMMENT SHOULD SAY SO. Only 67 of 202 route cells are
+	# Cliffs, Rock or Water -- the other 135 are open woodland floor, so two thirds of this border is
+	# invented rather than found. It is drawn on the north-east to south-west diagonal because that is
+	# what the map's own layout implies: the four spawns are 180-degree rotations of each other about the
+	# centre, (1,33) pairing with (121,81) and (30,1) with (92,112), so the anti-diagonal is the only
+	# division that treats the two pairs alike. It picks up the cliff shelves and rock belts it passes and
+	# crosses open ground between them.
+	#
+	# Verified statically, no launch: 606 band cells, all inside Bounds, engine load gate 2 components of
+	# 6569 and 6377. Spawns (1,33) and (30,1) north-west, (92,112) and (121,81) south-east; distance to
+	# the band 35 and 48 against 42 and 41, so the two sides average the same 41 cells. All 15 locomotors
+	# separate; 1 cell at (97,23) is sealed for the ground classes and 2 for `walker` and `template`,
+	# where this map already carries 3 pocketed cells in the nav-guard baseline. Capturables 6 north-west
+	# against 5 south-east, none inside the band.
+	DefconWall:
+		# THE 606 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.

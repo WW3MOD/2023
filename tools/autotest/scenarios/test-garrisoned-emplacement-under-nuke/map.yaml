@@ -1,0 +1,93 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a garrisoned emplacement inside a nuke's vaporize radius dies
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 100,60
+
+Bounds: 1,1,98,58
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and it is the END of the chain the Kill fixture measures the start of.
+# GarrisonManager.Indestructible is a damage FLOOR (IDamageFloor): damage may take a garrison to
+# 1 HP and no further. Health.Kill bypasses the floor deliberately (it is InflictDamage with
+# ignoreModifiers: true), and this scenario asks whether that bypass actually reaches the one caller
+# where getting it wrong is permanently visible on the map.
+#
+# THE CALLER IS Vaporizable.ITick. A Vaporize warhead marks everything inside its radius, the actor
+# fades, and then Vaporizable calls self.Kill -- EVERY TICK, because `active` is never cleared and
+# its only brake is `if (self.IsDead) return;`. An emplacement whose floor was honoured there could
+# never satisfy that guard: it would finish the fade INVISIBLE (ISuppressDeathRemains and the render
+# modifier are already in effect) and then sit at 1 HP forever, alive, still shooting, still
+# targetable, raising a full-MaxHP AttackInfo every tick for the rest of the match -- which a
+# GARRISONED one forwards a share of to the men inside.
+#
+# A GTWR IS THE SUBJECT DELIBERATELY. GTWR/PBOX/HBOX carry Vaporizable through ^ExistsInWorld and
+# never remove it. The 38 civilian buildings DO remove it, through ^TechBuilding's -Vaporizable
+# (structures.yaml:183) -- as does SUPPLYROUTE (:318), which is the documented reason one nuke is
+# not an instant win. So the emplacements are the only garrisonable actors this path can reach.
+#
+# THE WITNESS IS WHAT MAKES THE VERDICT ATTRIBUTABLE. A plain rifleman four cells from ground zero
+# carries Vaporizable and NO damage floor, so he takes the identical path with the one variable
+# removed. If he dies and the tower does not, the blast landed and the floor ate the Kill -- which
+# is the RED, and it is a different sentence from "the strike never arrived".
+#
+# GEOMETRY. Ground zero is 50,30, which is the tower's own cell. The strike's Warhead@VaporizeRemoval
+# has Radius 6c820 (weapons-superweapons.yaml:1019), so the tower at 0 cells and the witness at 4 are
+# both comfortably inside it. Both Supply Routes are far away and survive regardless: they carry
+# -Vaporizable and their only target type is NoAutoTarget.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# GROUND ZERO. Starts NEUTRAL: GarrisonManager claims a building only while it is Neutral
+	# (DynamicOwnership), so that is the only start state from which the flip to Russia can happen.
+	Tower: gtwr
+		Owner: Neutral
+		Location: 50,30
+	# THE CONTROL: same Vaporizable, same radius, no damage floor.
+	Witness: e1
+		Owner: Russia
+		Location: 54,30
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 94,30
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 10,30
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 90,30
+
+Rules: rules.yaml

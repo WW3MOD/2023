@@ -64,6 +64,9 @@ YIELDS = {
     'NukeB61Mod12Y10': 10.0, 'NukeRuIskander': 10.0,
     'NukeB61Mod12Y50': 50.0, 'NukeRuKinzhalN': 50.0,
     'NukeW76': 100.0, 'NukeRuKalibr': 100.0,
+    # 455 kt is BELOW CODA_THRESHOLD_KT, so the W88 is a four-stage shake like the W76 and not
+    # a five-stage one like the Sarmat RV. That is the law deciding, not a choice.
+    'NukeW88': 455.0,
     'NukeSarmatRV': 750.0, 'NukeB83': 1200.0, 'NukeTsarBomba': 50000.0,
     'NukeSarmatMIRV': 5 * 750.0,
 }

@@ -1,0 +1,139 @@
+# The auto-fire autotest's overrides. Every departure from shipped is listed with what it costs.
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	# Removed so each player's HomeLocation falls back to the pinned PlayerReference value rather
+	# than a spawn assignment -- which is what gives this map two real SIDES for DeriveFromSpawns to
+	# bisect. See map.yaml's note on the CPos.Zero trap for what happens on a scenario that pins
+	# neither.
+	-MapStartingLocations:
+	-CrateSpawner:
+	LuaScript:
+		Scripts: test-helpers.lua, test-final-exchange-autofire.lua
+
+	# THE MODE. Escalation, DEFCON 1. Nothing here is about the ladder -- no side ever climbs it --
+	# but NuclearExchange only exists in Escalation, and DoomsdayStrike.BeginFinalExchange calls
+	# OpenFinalExchange on it before it arms anybody, so the mode has to be right or the arming path
+	# under test is not the shipped one.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 1
+		NuclearReleaseDelayTicksOverride: 10
+
+	# ==== THE CLOCK: DOOR (b) ====
+	# 100 ticks, so the window opens almost immediately and the run is short. The .lua measures the
+	# window's LENGTH from the tick the ending is first seen rather than from this number, so a
+	# change here does not silently move an assertion.
+	TimeLimitManager:
+		TimeLimitTicks: 100
+		SkipTimeRemainingNotifications: true
+
+	# THE BAND, WIDENED FROM THE SHIPPED 1c0. DeriveFromSpawns is already on mod-wide, so the border
+	# is the perpendicular bisector of 6,17 and 58,17: a vertical line at x = 32. 2c0 makes the band
+	# x in [30, 34], which is wide enough that "no aim point is inside it" is a statement with teeth
+	# rather than a two-cell coincidence.
+	DefconWall:
+		HalfWidth: 2c0
+
+	DoomsdayStrike:
+		# Required: a scenario runs under TestMode, where the ending is off by default so that the
+		# existing timed tournament and autotest configurations keep ending the way they always did.
+		RunInTestMode: true
+
+		# ==== THE PACKAGE, PINNED TO 4 ====
+		# 2048 playable cells / 512 = 4, against the shipped 2400 which would give 1 and be lifted
+		# to MinPackage 2. See map.yaml for why a scenario pins this rather than asserting the
+		# shipped table -- that table is FinalExchangePackageTest's job and it does it over all ten
+		# maps with no world at all.
+		CellsPerImpact: 512
+		MinPackage: 2
+		MaxPackage: 6
+
+		# ==== THE CASCADE, COMPRESSED ====
+		# 260 against the shipped 800, and it is the shortened MissileDelay below that makes this
+		# CORRECT rather than merely convenient: FinalExchangeFlightTicks must cover MissileDelay
+		# plus the slowest game-ender's flight, or a warhead placed on the window's last tick is
+		# scheduled into the past and arrives outside the cascade.
+		#
+		# THE ARITHMETIC. b83missile is Speed 700 with Acceleration 0, so BallisticMissileFly's
+		# EstimateArcTicks is hDist/speed and hDist is the standoff -- this map's diagonal,
+		# sqrt(64^2 + 32^2) = 71.6 cells, plus ApproachMargin 16c0 = ~88 cells = ~90k WDist, so
+		# ~128 ticks. sarmatmissile at Speed 1600 is roughly 56. 120 + 128 = 248, so 260.
+		#
+		# EVERY TICK IN THIS FILE'S SCHEDULE DERIVES FROM IT: the window closes at 350 and the
+		# anchor is therefore 610.
+		#
+		# THE PRE-LAUNCH COUNTDOWN IS THE MOD-WIDE FinalExchangeMissileDelay 100 AS OF 2026-09-20,
+		# so the MissileDelay overrides in the Player node above are now INERT INSIDE THE EXCHANGE
+		# and are kept only for a launch outside one (there is none here). The anchor was already
+		# this floor rather than any natural tick, so every asserted tick below is unchanged.
+		FinalExchangeFlightTicks: 260
+		# Shipped. It is the thing being measured, so it is not compressed.
+		ImpactSpacingTicks: 15
+		# Shipped. Ditto -- the .lua asserts the window is exactly this long.
+		FinalExchangeWindowTicks: 250
+		# Compressed tail: 90/30 shipped. The sweep and the verdict are asserted to HAPPEN, never to
+		# be a particular length.
+		AnnihilationDelayTicks: 30
+		ResolutionDelayTicks: 15
+
+	# SHIPPED LOBBY CONFIGURATION, PINNED AND LOCKED so no saved session can move one out from under
+	# the run. PowersSandboxCheckboxEnabled MUST STAY FALSE: ProvidesPrerequisite@SandboxEvent hands
+	# every player `powers.event` while it is on (player.yaml), which is the one prerequisite the
+	# game-enders declare and no faction provides -- turn it on and the arming path under test is
+	# bypassed entirely, exactly as test-nuclear-ender-level records.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: false
+		PowersSandboxCheckboxLocked: true
+
+Player:
+	# DEAD AIR ON BOTH GAME-ENDERS, 500 shipped -> 120. SpawnActorEffect holds the missile out of
+	# the world and renders nothing while it waits (SpawnActorEffect.cs:44-49), so those ticks buy
+	# this scenario nothing but wall time.
+	#
+	# BOTH, NOT JUST THE ONE THAT IS PLACED. Russia's Sarmat is fired FOR it at the close, so its
+	# MissileDelay is inside the same flight budget FinalExchangeFlightTicks above has to cover.
+	#
+	# BOTH ARE sarmatmissile AT SPEED 1600 SINCE 2026-09-20 -- the Trident reuses the Sarmat body --
+	# so the two arcs are now EQUAL on this map at ~58 ticks, where the B83 this replaced flew
+	# ~132. FinalExchangeFlightTicks below is therefore more generous than it strictly needs to be
+	# and is left alone deliberately: it IS the anchor, and every asserted tick in the .lua derives
+	# from it.
+	#
+	# IN THIS ONE `Player:` NODE rather than a second one at the foot of the file: MiniYaml treats
+	# two top-level entries with the same key as a duplicate, not a merge, within one file.
+	MissileStrikePower@TridentW88:
+		MissileDelay: 120
+
+	MissileStrikePower@Sarmat:
+		MissileDelay: 120
+
+	# Removed so an elimination cannot end the match before the poller writes a verdict. The
+	# annihilation sweep at the end of the cascade kills every actor on the map by design.
+	-ConquestVictoryConditions:
+
+	# Fog off and the map pre-explored, so nothing the poller reads is a visibility artefact.
+	# DoomsdayStrike reveals the map itself when the window opens; this makes the run's earlier
+	# ticks match.
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		ExploredMapCheckboxLocked: true
+		FogCheckboxEnabled: false
+		FogCheckboxLocked: true
+
+	# NO CASH. Since decision 02 nothing nuclear is purchasable in Escalation at all, so this is
+	# belt-and-braces -- but it is what makes a `ready` game-ender mean "the exchange armed this"
+	# rather than "somebody could have bought it".
+	PlayerResources:
+		DefaultCash: 0
+
+# Nothing initiates on its own: the scenario issues the one order it measures.
+^Combatant:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+		InitialEngagementStance: HoldPosition
+		InitialEngagementStanceAI: HoldPosition

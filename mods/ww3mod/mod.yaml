@@ -147,8 +147,8 @@ Rules:
 	ww3mod|rules/ingame/vehicles.yaml
 	ww3mod|rules/ingame/vehicles-america.yaml
 	ww3mod|rules/ingame/vehicles-russia.yaml
-	ww3mod|rules/doomsday.yaml
 	ww3mod|rules/ingame/nuclear-arsenal.yaml
+	ww3mod|rules/cameo-captions.yaml
 
 Sequences:
 	ww3mod|sequences/sequences.yaml
@@ -320,6 +320,31 @@ Fonts:
 		Font: common|FreeSansBold.ttf
 		Size: 7
 		Ascender: 6
+	# THE CAMEO CAPTION FONT, and the two things about it that are not free to change.
+	#
+	# SIZE 7 IS A PIXEL-GRID CONSTANT, not a taste call. WW3Caption.ttf is a 1-bit pixel font
+	# whose unitsPerEm is 896 = 7 * 2^7, chosen so FreeType's FT_DivFix(ppem*64, upem) is exact
+	# at ppem 7: one glyph cell is exactly 128 font units is exactly one device pixel, so no
+	# contour edge ever partly covers a pixel and every lit pixel comes back at coverage 255.
+	# Change this 7 and the divide stops being exact, the glyphs land between pixels and the
+	# antialiasing this font exists to remove comes straight back. If the caption ever needs to
+	# be a different size, regenerate the font at the matching unitsPerEm -- do not retune here.
+	# The arithmetic, and the measurement that confirms it through the engine's own freetype6,
+	# are in tools/cameo/pixelfont.py; `python tools/cameo/pixelfont.py --verify` re-checks it.
+	#
+	# ASCENDER 5 IS THE CAP HEIGHT. The glyphs are 5 rows tall and sit on the baseline, which --
+	# with CaptionBottomMargin: 1 in chrome/ingame-player.yaml -- puts a runtime caption on slot
+	# rows 40-44, the rows the baked lettering already occupies on every shipped cameo. (This
+	# comment said 41-45 until 2026-09-20. The ART figure it came from, sprite rows 42-46, is
+	# right; the slot mapping was not, because IconSpriteOffset moves the sprite's CENTRE and a
+	# 48-row cameo in a 46-row slot therefore starts at slot row -2. Slot row 45 is in any case
+	# covered by the sidebar's own cell frame and cannot be drawn on -- see that file.)
+	# `Caption` above says 6 because FreeSansBold's caps are 6 rows at this size; the two fonts
+	# are not interchangeable and the numbers are not copies.
+	CameoCaption:
+		Font: ww3mod|WW3Caption.ttf
+		Size: 7
+		Ascender: 5
 	Small:
 		Font: common|FreeSans.ttf
 		Size: 12
@@ -482,3 +507,19 @@ DiscordService:
 ModCredits:
 	ModCreditsFile: ww3mod|credits.txt
 	ModTabTitle: WW3MOD
+
+WebServices:
+	# The OpenRA master server has never heard of mod id ww3mod: its versioncheck answers
+	# "unknown" for us forever, so the update notice could never appear. LatestVersionUrl
+	# switches WebServices.CheckModVersion to a client-side comparison against a static file,
+	# which needs no server at all -- this repo is public, so raw.githubusercontent serves it.
+	# Bump web/latest.txt when tagging a release; see web/README.md.
+	LatestVersionUrl: https://raw.githubusercontent.com/WW3MOD/2023/main/web/latest.txt
+	LatestVersionDownloadUrl: https://github.com/WW3MOD/2023/releases
+	# NO BLANK LINE ABOVE, DELIBERATELY -- see the note at test-nuclear-exchange/rules.yaml:52.
+	# A blank line between sibling keys inside a nested node can split the node, and here that
+	# would silently drop the news settings back to master.openra.net with nothing in lint to say so.
+	# Same reasoning for the main menu news panel. A static file cannot use the system-info
+	# payload MainMenuLogic would otherwise append to this URL, so it is not sent.
+	GameNews: https://raw.githubusercontent.com/WW3MOD/2023/main/web/news.yaml
+	GameNewsSendClientInfo: false

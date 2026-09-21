@@ -455,6 +455,16 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return detectable == null ? -1 : detectable.CurrentVisibility;
 		}
 
+		[Desc("The perf rig's ARM: 'exchange' when the process was launched with " +
+			"Test.ForceEscalationVariant=true, otherwise 'salvo'. A scenario prints this into its own " +
+			"markers so a run's numbers can never be read as the other arm's -- the two arms share a " +
+			"tick schedule by design, so the log line is the ONLY thing that tells them apart. " +
+			"Returns 'salvo' outside test mode.")]
+		public string GetEscalationArm()
+		{
+			return TestMode.IsActive && TestMode.ForceEscalationVariant ? "exchange" : "salvo";
+		}
+
 		[Desc("Number of actors currently selected. Test mode only.")]
 		public int GetSelectedCount()
 		{
@@ -2014,6 +2024,31 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<SightingThreatLayer>();
 		}
 
+		[Desc("The value an ILobbyOptions dropdown or checkbox actually resolved to, as the string the " +
+			"trait itself reads. \"\" when no such option is registered.",
+			"",
+			"NOT Map.LobbyOption, AND THE DIFFERENCE IS NOT A DETAIL. That binding resolves " +
+			nameof(ScriptLobbyDropdown) + " traits ONLY (MapGlobal.cs:112-120) — a separate, " +
+			"script-facing mechanism with its own trait and its own ID namespace. An option declared " +
+			"through " + nameof(ILobbyOptions) + ", which is every option this mod ships (game mode, " +
+			"starting units, forward deployment, the phase clocks), is invisible to it: it logs " +
+			"\"A ScriptLobbyDropdown with ID `x` was not found\" to the lua log and returns NIL. A " +
+			"scenario guarding on `Map.LobbyOption(id) ~= expected` therefore faults every single " +
+			"run, and one guarding on Map.LobbyOptionOrDefault(id, expected) never faults at all — " +
+			"the fallback IS the expected value, so the guard is vacuous. Both were live in " +
+			"test-forward-deploy-clears-band before this binding existed.",
+			"",
+			"This reads Session.Global.OptionOrDefault, which is the same call the consuming traits " +
+			"make (e.g. SpawnStartingUnits' forward-deployment class), so it cannot disagree with " +
+			"what the match is actually running. Test mode only.")]
+		public string LobbyOption(string id)
+		{
+			if (!TestMode.IsActive)
+				return "";
+
+			return Context.World?.LobbyInfo.GlobalSettings.OptionOrDefault(id, "") ?? "";
+		}
+
 		[Desc("The match-wide DEFCON level: 3 positioning, 2 cease-fire, 1 open war. Returns " +
 			"DefconEscalationState.NoLevel (0) in Skirmish and on any world with no DefconEscalation, " +
 			"which is a REAL answer and not an error — a scenario asserting on a phase transition must " +
@@ -2076,9 +2111,87 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (strike == null)
 				return "absent";
 
+			// APPEND-ONLY. Three scenarios match `phase=`, `placements=` and `closes=` out of this
+			// string with Lua patterns; a field inserted between them would be invisible to those
+			// patterns, but a field RENAMED or REORDERED could silently break one. New readings go
+			// on the end.
 			return $"phase={strike.FinalExchangePhaseValue}|open={(strike.FinalExchangeOpen ? "true" : "false")}|" +
 				$"placements={strike.FinalExchangePlacements}|salvo={(strike.SalvoInProgress ? "true" : "false")}|" +
-				$"closes={strike.FinalExchangeClosesTick}";
+				$"closes={strike.FinalExchangeClosesTick}|package={strike.PackageSize}|" +
+				$"warheads={strike.FinalExchangeWarheads}|anchor={strike.FinalExchangeAnchorTick}|" +
+				$"last={strike.FinalExchangeLastImpactTick}|spacing={strike.ImpactSpacingTicks}";
+		}
+
+		[Desc("The SIDES in this match, comma-joined in seat order -- " + nameof(CombatantSides) +
+			".CountsAsASide's answer -- or \"absent\" outside test mode.",
+			"",
+			"EXISTS BECAUSE A SCENARIO CANNOT OTHERWISE SEE THAT ONE OF ITS SIDES IS NOT IN THE " +
+			"MATCH, and there are two different ways for that to be true. A map authoring TWO " +
+			"`Playable: True` seats gets one Player and one empty slot, because run-test.sh seats a " +
+			"single client -- so Player.GetPlayer(\"<the other>\") returns nil. A map authoring the " +
+			"second side as a bare map combatant DOES get a Player, but any trait filtering on " +
+			"`Player.Playable` cannot see it. The first fails as a nil dereference; the second fails " +
+			"hundreds of ticks later as whatever that trait does with one side instead of two, which " +
+			"on 2026-09-20 was a final exchange that armed nobody and said nothing.",
+			"",
+			"ASSERT ON THIS IN WorldLoaded, AND print it BEFORE the guard: a Test.Fail on the first " +
+			"line of a scenario produces an empty lua.log, which is also the documented tell for " +
+			"\"the game never launched\".",
+			"",
+			"Read-only and test mode only.")]
+		public string MatchSides()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			var w = Context.World;
+			if (w == null)
+				return "absent";
+
+			// Fully qualified: this method's own name would otherwise shadow the type.
+			return string.Join(",", w.Players
+				.Where(OpenRA.Mods.Common.Traits.CombatantSides.CountsAsASide)
+				.Select(p => p.InternalName));
+		}
+
+		[Desc("What ONE side's strike package actually did in the final exchange, as " +
+			"`impacts=<t;t;…>|auto=<x,y;x,y;…>`, or \"absent\" on a world with no " +
+			nameof(DoomsdayStrike) + ".",
+			"",
+			"`impacts` is the tick each of this side's warheads is scheduled to DETONATE on, in " +
+			"launch order — the cascade slots it was given, not its own flight. `auto` is the cells " +
+			"the machine aimed its package at and is EMPTY for a side that placed its own, which is " +
+			"how a scenario tells the two halves of the partition apart.",
+			"",
+			"THIS EXISTS BECAUSE NEITHER READING IS OBSERVABLE ANY OTHER WAY, and that is structural " +
+			"rather than a convenience. A missile spends its whole MissileDelay held OUT of the world " +
+			"by SpawnActorEffect (SpawnActorEffect.cs:44-49), so `Map.ActorsInWorld` cannot " +
+			"distinguish eight warheads in the air from nothing having been fired; and an aim point " +
+			"is consumed by BallisticMissileFly and stored nowhere a script can reach. A scenario " +
+			"asserting on the exchange must read the exchange itself, which is this — the same " +
+			"argument " + nameof(DoomsdayStrike) + "'s own state reading makes.",
+			"",
+			"Read-only and test mode only.")]
+		public string FinalExchangePackage(Player player)
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			// TraitOrDefault for the reason DefconLevel above records: DoomsdayStrike is declared
+			// exactly once across the mod, unsuffixed (world.yaml).
+			var strike = Context.World?.WorldActor.TraitOrDefault<DoomsdayStrike>();
+			if (strike == null || player == null)
+				return "absent";
+
+			var impacts = string.Join(";", strike.ExchangeImpactTicksFor(player));
+			var auto = string.Join(";", strike.AutoFiredAimPointsFor(player).Select(c => $"{c.X},{c.Y}"));
+
+			// `impacts` IS THE PLAN AND `detonations` IS WHAT HAPPENED. Until 2026-09-20 only the
+			// plan was readable, so a warhead scheduled for 590 and going off at 594 was
+			// indistinguishable from one that landed on time -- and the demo frames that bracketed
+			// the difference were the only evidence it existed.
+			var det = string.Join(";", strike.DetonationRecord(player));
+			return $"impacts={impacts}|auto={auto}|detonations={det}";
 		}
 
 		[Desc("Whether the DEFCON 3 dividing wall is STANDING right now. False in Skirmish, false " +

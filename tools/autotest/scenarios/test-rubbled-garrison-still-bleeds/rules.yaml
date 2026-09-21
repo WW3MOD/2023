@@ -1,0 +1,71 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the abrams' stance is the one stated below on every
+	# machine -- this scenario's whole subject is what a unit does on FireAtWill.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-rubbled-garrison-still-bleeds.lua
+
+	# NO DefconEscalation BLOCK, deliberately. The sibling scenario needs DEFCON 2 and therefore
+	# cannot measure auto-acquisition at all; this one must have nothing holding fire, so it stays an
+	# ordinary Skirmish and the .lua pre-asserts Test.DefconLevel() == 0 to prove it.
+
+abrams:
+	# THE SUBJECT. Both fields because AutoTarget.cs:497 picks
+	# `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`; USA IS Playable here so
+	# InitialStance is the one that fires, but a scenario that is ever re-pointed at a bot slot
+	# should not silently fall back to the default.
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+
+E1:
+	# Held silent for the walk in. They are Russia-owned and the abrams does not yet exist while they
+	# are outside, so this is belt-and-braces -- but if the creation order in the .lua is ever
+	# changed, a rifleman who stops to fight is a rifleman who never reaches the shelter.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+V01:
+	# THE INSTRUMENT, not a balance change, and the SECOND attempt at it. 2000 HP is chosen to be
+	# below any warhead this map can deliver, so the very first shell takes the church from FULL
+	# HEALTH straight to its 1 HP floor in one step -- no intermediate hit lands at all, and every
+	# loss the run observes is therefore unambiguously from the rubble state.
+	#
+	# WHY NOT A LARGER POOL. The last hit BEFORE the floor is the dangerous one: it leaves the
+	# building just above zero, where the curve has already fallen to near CriticalProtection, so its
+	# share of the damage is within about 10% of the share at the floor itself. No MinPassThrough
+	# threshold separates those two, which means any pool large enough to need a second shell makes
+	# "did the rubble kill him, or the hit before it" unanswerable. One step removes the question.
+	#
+	# WHY NOT 20, WHICH THE FIRST VERSION USED. It was picked to make the clamping hit forward NOTHING
+	# (19 damage at protection 30 is a 13-point share, under MinPassThrough 15) -- reasoning that was
+	# wrong twice over. The arithmetic assumed the building would take 19 damage; under the old
+	# percentage clamp it took ZERO and never moved off 20 at all (run 260915_184945 found it stuck at
+	# 2/20 with its whole garrison dead). That defect is fixed in this commit; the pool is now chosen
+	# on a property that does not depend on it.
+	Health:
+		HP: 2000
+	# THE PORT-DEPLOYMENT GATE, in the SAME V01 block as the Health override above and not a second
+	# top-level V01: two adjacent top-level entries with the same key is the MiniYaml merge trap
+	# CLAUDE.md names -- IntoDictionaryWithConflictLog throws on a duplicate child the moment a
+	# second source names the actor. GarrisonManager reads `autoTarget?.Stance` off the BUILDING
+	# (GarrisonManager.cs:796, :865, :1316) and returns before every autonomous deploy path at
+	# HoldFire; the soldiers' own stance does not gate deployment at all. ^CivBuilding ships no
+	# AutoTarget, so the trait is ADDED here -- AttackGarrisoned is an AttackFollow and therefore an
+	# AttackBase, so there is one to attach to. Both fields because AutoTarget.cs:497 picks
+	# InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

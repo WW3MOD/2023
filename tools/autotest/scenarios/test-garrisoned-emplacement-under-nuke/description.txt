@@ -1,0 +1,1 @@
+A garrisoned guard tower at ground zero of a high-yield strike is destroyed rather than left alive-and-invisible at 1 HP - proving Vaporizable's Kill still reaches an actor that damage alone cannot reduce past its floor.

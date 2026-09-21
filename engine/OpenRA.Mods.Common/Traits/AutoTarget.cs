@@ -342,11 +342,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// guard below a single int compare and the whole feature a strict no-op outside the mode.</summary>
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
 
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
 		/// <summary>True while the match forbids autonomous fire. An ACQUISITION site may consult this
 		/// directly: anything such a site produces is by construction a target the unit chose for itself.
 		/// A site that already knows a shot's provenance must use DefconFireDiscipline.Permits instead, so
 		/// that an order still fires.</summary>
-		bool DefconHoldsFire => DefconFireDiscipline.HoldsFire(DefconLevel);
+		bool DefconHoldsFire => DefconFireDiscipline.HoldsFire(DefconMode, DefconLevel);
 
 		[Sync]
 		int nextScanTime = 0;

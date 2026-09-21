@@ -310,10 +310,14 @@
 		LevelUpImage: crate-effects
 	# Evacuating a ranked unit intact returns that rank to the purchase stock.
 	CreditsRankOnEvacuation:
-	# ConditionModifier@Rank_1:
-	# 	RequiresCondition: rank-veteran == 1
-	# 	Condition: suppressed
-	# 	Modifier: -1
+	# THERE IS NO `ConditionModifier` TRAIT. A four-line commented-out block used to sit
+	# here proposing suppression resistance per rank (`Condition: suppressed,
+	# Modifier: -1`), and it read like a one-line re-enable. It is not: uncommenting it
+	# would fail the rules load. `engine/OpenRA.Mods.Common/Traits/Multipliers/
+	# ConditionModifier.cs` exists but has ZERO non-comment lines, and what is commented
+	# out inside it is a stale copy of DetectableAddativeModifier, not a condition
+	# modifier at all. `grep -rn "ConditionModifierInfo\|class ConditionModifier" engine/`
+	# returns nothing. Rank-scaled suppression resistance needs C#, not a comment marker.
 	DetectableAddativeModifier@Rank_1:
 		RequiresCondition: rank-veteran == 1
 		VisionModifier: 1
@@ -1107,10 +1111,15 @@
 	#     (VaporizeWarhead.cs, and the comment there says so). A missile 38 cells up passing over an
 	#     impact point is inside the circle.
 	#   - The largest shipped fireball is NukeTsarBomba's 15c883, a ~16-cell disc.
-	# So a MIRV or a Dead Hand salvo -- two waves, WithinWaveTicks 2 -- would vaporize its own later
-	# warheads as they descend through an earlier fireball's footprint. That reads to a player as a
-	# nuke that randomly did nothing, and it breaks DoomsdayStrike's scheduled-arrival arithmetic,
-	# which computes launch times from EstimateArcTicks assuming every RV arrives.
+	# So a MIRV, or a final-exchange cascade -- every warhead of both packages ImpactSpacingTicks 15
+	# apart -- would vaporize its own later warheads as they descend through an earlier fireball's
+	# footprint. That reads to a player as a nuke that randomly did nothing, and it breaks
+	# DoomsdayStrike's scheduled-arrival arithmetic, which solves each launch delay backwards from a
+	# reserved impact tick assuming every warhead arrives.
+	#
+	# (This paragraph named the Dead Hand salvo's "two waves, WithinWaveTicks 2" until 2026-09-20.
+	# That salvo is gone; the hazard is not, and at a 15-tick pitch against a ~16-cell disc it is
+	# the same arithmetic with a different number in it.)
 	-Vaporizable:
 	Armor:
 		Type: Light

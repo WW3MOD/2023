@@ -1,0 +1,123 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: pre-captured structures go to the player on their side of the border, and the one in the band stays neutral
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	# RUSSIA IS A MAP PLAYER, NOT A SLOT, AND THE MISSING `Playable: True` IS LOAD-BEARING.
+	#
+	# CreateMapPlayers builds a Player for every non-playable map player, then one per OCCUPIED
+	# lobby slot, and skips an empty slot outright -- `if (client == null) continue`
+	# (CreateMapPlayers.cs:93-121). run-test.sh launches a single local client
+	# (`Launch.Map=<scenario>`, run-test.sh:745), so it seats ONE slot. The first version of this
+	# file gave both sides `Playable: True`; Russia's slot therefore stayed empty, no Russia
+	# Player object was ever constructed, `Player.GetPlayer("Russia")` returned nil, and both
+	# arms died on their own setup guard 15 s in with "SETUP: could not resolve players USA /
+	# Russia" and a zero-byte lua.log. Every passing two-sided scenario in this tree is built the
+	# same way as this one now is: exactly one Playable slot for the client, the other side a map
+	# player (test-unit-indicators, test-frozen-owner-snapshot) or a `Bot:` map player
+	# (test-push-departs-together, test-combined-arms-rendezvous).
+	#
+	# `Enemies: USA` still makes the two mutual enemies, which is what the middle test needs:
+	# The two must stay mutual enemies for a different reason than they used to. Under the border
+	# rule the alliance clause is gone -- PreCapturedOwnership.ResolveOnSide has none, because
+	# "contested" is stated by the band rather than inferred from two distances -- but `Enemies`
+	# is still what makes this a two-sided match rather than a co-op slot layout.
+	#
+	# NOTE THE RESULTING PLAYER ORDER: map players come first, so World.Players is
+	# [Neutral, Russia, USA, Everyone] and the trait's contender list is [Russia, USA] -- Russia
+	# is index 0 and would win a tie. Nothing here ties: each outer derrick has exactly ONE
+	# contender on its side of the band, so the tie rule is never reached. Read the debug.log
+	# line the trait writes at world load rather than assuming the order.
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+# GEOMETRY — every number here is chosen so the verdict can be checked by eye.
+#
+# THE ANCHOR IS THE SUPPLY ROUTE, NOT THE SPAWN POINT, and this scenario is the reason that
+# fallback exists. rules.yaml carries `-SpawnStartingUnits:`, so nothing creates an SR for a
+# player; these two are placed by hand. SUPPLYROUTE is 3x3, so an actor at Location L has its
+# CenterPosition at cell L + (1,1) (Building.cs:207-211). Placing them at 3,15 and 59,15 puts
+# the two anchors on the centres of cells 4,16 and 60,16 — 56 cells apart, on one row, so
+# every distance below is a right triangle with a half-cell rise.
+#
+# WHAT DECIDES EACH VERDICT IS THE BAND, NOT THE DISTANCES. rules.yaml authors a two-cell
+# DefconWall band at x=31,32 running the full height of Bounds, so the map states where the
+# middle is and the trait reads it. A structure with ANY footprint cell in the band stays
+# Neutral; every other one goes to the nearest contender whose own home is on its side.
+#
+# OILB is 2x2, so an actor at Location L occupies L..L+(1,1) and its centre is at L + (1,1) in
+# cell-corner terms (Building.cs:207-211). Footprints, sides and verdicts:
+#
+#   NearUSA    at 11,15  cells 11-12 x 15-16  WEST of the band   -> USA      (the only contender west)
+#   Middle     at 31,15  cells 31-32 x 15-16  ALL FOUR in band   -> Neutral  (distances not consulted)
+#   NearRussia at 51,15  cells 51-52 x 15-16  EAST of the band   -> Russia   (the only contender east)
+#
+# The distances still exist and are still worth knowing, because they are what the setup guard
+# in the Lua reads to prove the anchors are the Supply Routes rather than the HomeLocation
+# fallback: from the two SR centres at 4,16 and 60,16, NearUSA is 7.52 cells from USA and 48.50
+# from Russia, and NearRussia is 8.51 from Russia and 47.50 from USA. They no longer DECIDE
+# anything — each outer derrick has exactly one contender on its side, so it would go to that
+# player at any distance. MiddleBandPercent is not consulted on this map at all, and a retune of
+# it cannot red this scenario.
+#
+# mpspawn actors are present so the map is a well-formed map with a spawn point, but nothing
+# here reads them: with both SRs placed, AnchorFor returns on its Supply Route branch and never
+# reaches the HomeLocation fallback. They sit on the SR cells so that the two agree if it ever
+# did -- which for Russia it could not, since a map player's HomeLocation is PlayerReference's
+# CPos.Zero default and AnchorFor now drops a contender that reads it.
+Actors:
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 4,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,16
+	UsaSR: supplyroute
+		Owner: USA
+		Location: 3,15
+	RussiaSR: supplyroute
+		Owner: Russia
+		Location: 59,15
+	NearUSA: oilb
+		Owner: Neutral
+		Location: 11,15
+	Middle: oilb
+		Owner: Neutral
+		Location: 31,15
+	NearRussia: oilb
+		Owner: Neutral
+		Location: 51,15
+
+Rules: rules.yaml

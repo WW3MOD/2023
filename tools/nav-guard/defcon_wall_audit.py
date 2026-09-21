@@ -43,10 +43,50 @@ division for the distance, and C#'s truncate-toward-zero integer division (Pytho
 FLOOR, which differs on negatives -- see _trunc_div, and the perpendicular components here
 are routinely negative).
 
+A REGION IS THE OTHER SHAPE THE BORDER CAN TAKE, and it is checked here too. A map may
+author the border as a SET OF CELLS instead of a line -- terrain types plus hand-drawn
+additions (DefconWallInfo.RegionTerrainTypes / RegionCells) -- which is what a map divided
+by a river wants, because the bisector of two spawns ignores the water entirely. The two
+questions are identical for a region and the answers matter more, because a region is
+authored by hand and nothing derives it:
+
+  SEPARATION. Same test, and the region's failure mode is the one a line cannot have: a
+  river that stops short of the map edge leaves a land bridge round the end, so the border
+  is drawn over real water, looks completely convincing, and divides nothing.
+
+  AND IT DIFFERS PER LOCOMOTOR, which the line's audit never had to care about, because a
+  line is a statement about POSITION and a region is a statement about REACHABILITY -- and
+  reachability is a property of the mover. Measured on river-zeta-ww3: blocking
+  Water+River+Bridge separates every VEHICLE locomotor 3/3 by spawn (2667/2622 cells) while
+  leaving `foot`, `walker`, `template` and both amphibious foot classes as ONE 6843-cell
+  component containing all six spawns. A region checked against one locomotor is not checked.
+
+  THE MECHANISM IS NOT A GAP IN THE WATER, and this cost two wrong hypotheses before the
+  path trace settled it. The obvious reading is that the river stops short of the map edge
+  and infantry walk round the end -- river-zeta-ww3 really does have three water-free rows
+  at each end (y3-y5, y77-y79), so the story fits. It is wrong: capping both ends changes
+  NOTHING, at any cap width from 66 to 126 cells. The actual crossing is mid-river at
+  x51-60, y43-49, over cells whose terrain type is ROCK. The channel is not solid water --
+  it has dry rock outcrops in it, `foot` lists Rock in its TerrainSpeeds and `heavywheeled`
+  does not, and that single terrain difference IS the entire vehicle-versus-infantry split.
+  Adding Rock to the type list separates every locomotor (721 cells) and makes the end caps
+  unnecessary, because the same rock closes those rows too.
+
+  GENERALISE: when a terrain border leaks for one mover class and not another, the cause is
+  a terrain type inside the barrier that one locomotor passes -- not, as it appears, a hole
+  at the barrier's ends. Trace a path before authoring a cap; a row-by-row scan of the
+  barrier's extent will show you gaps that are not the gap being used.
+
 Usage:
     python defcon_wall_audit.py                     # shipped default, extreme spawn pair
     python defcon_wall_audit.py --half-width 512    # reproduce the leak
     python defcon_wall_audit.py --all-pairs         # every pair a 1v1 could produce
+    python defcon_wall_audit.py --map river-zeta --region-terrain Water,River,Bridge
+    python defcon_wall_audit.py --map river-zeta --region-terrain Water,River,Bridge \
+        --region-cells "44,0,44,1"                  # terrain plus hand-drawn end caps
+    python defcon_wall_audit.py --map river-zeta --region-file region.txt
+    python defcon_wall_audit.py --region-from-map          # every map's OWN authored region
+    python defcon_wall_audit.py --region-from-map --quiet --show-sealed
 """
 
 from __future__ import annotations
@@ -60,8 +100,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import miniyaml  # noqa: E402
 import modload  # noqa: E402
 import nav_guard  # noqa: E402
+from miniyaml import base_key  # noqa: E402
 
 CELL = 1024
 HALF_CELL = 512
@@ -254,6 +296,420 @@ def audit_line(model, geometry, variant: str):
     }
 
 
+def parse_region_cells(text: str) -> list[tuple[int, int]]:
+    """A flat comma-separated X,Y list, exactly as FieldLoader.ParseCPosArray reads it.
+
+    Mirrored rather than loosened on purpose: if this accepted a form the engine rejects,
+    a region could pass the audit and then fail to load.
+    """
+    parts = [p.strip() for p in text.replace("\n", ",").split(",") if p.strip()]
+    if len(parts) % 2 != 0:
+        raise ValueError(f"expected an even number of coordinates, got {len(parts)}")
+    return [(int(parts[2 * i]), int(parts[2 * i + 1])) for i in range(len(parts) // 2)]
+
+
+def region_cells_for(game_map, tileset, terrain_types: list[str],
+                     explicit: list[tuple[int, int]]) -> set[tuple[int, int]]:
+    """The border cell set: every cell of an authored terrain type, plus the authored cells.
+
+    Mirrors DefconWall.BuildRegion. The terrain scan walks the whole map rather than only
+    Bounds because the engine's does -- Map.AllCells includes the border ring, and a border
+    that stopped at Bounds would leave a one-cell seam round the edge.
+    """
+    cells = {c for c in explicit}
+    if terrain_types:
+        wanted = set(terrain_types)
+        for y in range(game_map.height):
+            for x in range(game_map.width):
+                if game_map.terrain_type(tileset, x, y) in wanted:
+                    cells.add((x, y))
+    return cells
+
+
+def map_rule_nodes(game_map):
+    """Every rules node a map contributes, BOTH forms of `Rules:` -- which modload does not.
+
+    `Rules:` takes two shapes and only one of them is a child block. `Rules: rules.yaml` is
+    an inline FILE-LIST value (MiniYaml.cs:627-631 appends it to the mod's rule files), and
+    `modload.load_map` walks only `Rules:`' child nodes, so for that form it returns an
+    empty `rule_overrides` -- which is exactly the form river-zeta-ww3 and every map
+    authored here uses. Reading a map's DefconWall through `rule_overrides` alone therefore
+    finds nothing on precisely the maps that have one. Not fixed in modload on purpose:
+    nav-guard's baselines are built from `rule_overrides` and widening it there would move
+    them. See DISCOVERIES 2026-09-16.
+    """
+    roots = {n.key: n for n in miniyaml.parse(
+        (game_map.path / "map.yaml").read_text(encoding="utf-8"))}
+    rules_node = roots.get("Rules")
+    if rules_node is None:
+        return []
+
+    nodes = []
+    refs = []
+    if rules_node.value:
+        refs += [v.strip() for v in rules_node.value.split(",") if v.strip()]
+    for r in rules_node.nodes:
+        if r.nodes:
+            nodes.append(r)
+        elif r.key.endswith(".yaml"):
+            refs.append(r.key)
+
+    for ref in refs:
+        inc = game_map.path / ref
+        if inc.exists():
+            nodes += miniyaml.parse(inc.read_text(encoding="utf-8"))
+    return nodes
+
+
+def zone_cells_from_map(game_map) -> list[tuple[int, int]]:
+    """The DMZ cells a map paints in the editor, from map.yaml's `Zones:` node.
+
+    Mirrors MapZones.DecodeRows. The form is row-ranges -- `12: 40-44, 60-61` -- where the key is Y
+    and the value is a comma-separated list of INCLUSIVE X ranges, each `lo-hi` or a bare `x`. The
+    separator is the first `-` at index > 0, which is what keeps a negative bound unambiguous.
+
+    ZONES ARE NOT CLIPPED TO Bounds here, for the same reason RegionCells is not: a band painted up
+    to the map edge has to close the ring where Bounds stops one cell short. engine_load_gate does
+    the clipping and reports what it dropped.
+    """
+    roots = {n.key: n for n in miniyaml.parse(
+        (game_map.path / "map.yaml").read_text(encoding="utf-8"))}
+    zones = roots.get("Zones")
+    if zones is None:
+        return []
+
+    cells = []
+    for zone in zones.nodes:
+        if zone.key != "DMZ":
+            continue
+        for row in zone.nodes:
+            y = int(row.key.strip())
+            for token in (row.value or "").split(","):
+                token = token.strip()
+                if not token:
+                    continue
+                split = token.find("-", 1)
+                lo, hi = (int(token), int(token)) if split < 0 else (int(token[:split]), int(token[split + 1:]))
+                if hi < lo:
+                    raise ValueError(f"{game_map.name}: Zones DMZ row {y}: range `{token}` runs backwards")
+                cells += [(x, y) for x in range(lo, hi + 1)]
+
+    return cells
+
+
+def region_from_map(game_map):
+    """The authored DEFCON 3 region a map declares, as (blocked cells, types, authored cells).
+
+    Mirrors DefconWall.BuildRegion: the map's painted `Zones: DMZ` cells, plus every cell of a
+    type named in RegionTerrainTypes, plus RegionCells -- all three UNIONED, with the last two
+    added unconditionally including cells outside Bounds. Returns an empty set for a map that
+    authors no region at all, which is how a caller tells "uses the derived line" from
+    "authored one".
+
+    THE ZONE IS COUNTED WITH THE HAND-AUTHORED CELLS in the returned tuple rather than reported
+    separately, because for the audit's purpose they are the same thing: cells somebody drew. The
+    migration from RegionCells to Zones therefore has to leave every number this tool prints
+    UNCHANGED, which is exactly the check that was run on it.
+    """
+    types = []
+    cells = list(zone_cells_from_map(game_map))
+    for node in map_rule_nodes(game_map):
+        if node.key != "World":
+            continue
+        for trait in node.nodes:
+            if base_key(trait.key) != "DefconWall":
+                continue
+            raw_types = trait.child_value("RegionTerrainTypes")
+            if raw_types:
+                types += [t.strip() for t in raw_types.split(",") if t.strip()]
+            raw_cells = trait.child_value("RegionCells")
+            if raw_cells:
+                cells += parse_region_cells(raw_cells)
+
+    if not types and not cells:
+        return set(), [], []
+
+    rules = modload.load_mod(nav_guard.MOD_DIR)
+    tileset = rules.tilesets[game_map.tileset]
+    return region_cells_for(game_map, tileset, types, cells), types, cells
+
+
+def engine_load_gate(game_map, blocked):
+    """DefconWallRegion's OWN labelling, which decides whether the wall is raised at all.
+
+    THIS IS NOT THE PER-LOCOMOTOR TEST AND IT IS STRICTLY STRONGER. DefconWall.BuildRegion
+    hands DefconWallRegion a passability predicate of `Map.Contains` and nothing else
+    (DefconWall.cs, "PASSABILITY HERE IS `Map.Contains` AND NOTHING ELSE") -- deliberately,
+    because passability is a property of a locomotor and a World-actor trait would have to
+    pick one arbitrarily. So the engine floods a grid in which EVERY in-Bounds cell that is
+    not a border cell is passable, and `IsDegenerate => ComponentCount < 2` then decides
+    whether the region survives. A degenerate region is DISCARDED and the wall stays down for
+    the whole match; it does not fall back to a line.
+
+    A path in a locomotor's graph is also a path in that fully-open graph, so open-graph
+    separation implies separation for every locomotor -- and the converse fails. A region can
+    therefore pass every locomotor line below, exit 0, and still never raise a wall in game.
+    That is not hypothetical: Water,River,Bridge on river-zeta-ww3 separates all six vehicle
+    locomotors while leaving the open graph in ONE 7060-cell piece.
+
+    Also mirrored: cells outside Bounds are DROPPED. DefconWallRegion.IndexOf returns -1 for
+    them, so an out-of-Bounds authored cell never enters BlockedCells, never reaches
+    CustomTerrain and is never drawn -- whatever BuildRegion's own comment about closing the
+    border ring says.
+    """
+    left, top, width, height = game_map.bounds
+    inside = {c for c in blocked
+              if left <= c[0] < left + width and top <= c[1] < top + height}
+    dropped = len(blocked) - len(inside)
+
+    seen = set()
+    components = 0
+    for y in range(top, top + height):
+        for x in range(left, left + width):
+            if (x, y) in inside or (x, y) in seen:
+                continue
+            components += 1
+            stack = [(x, y)]
+            seen.add((x, y))
+            while stack:
+                cx, cy = stack.pop()
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        n = (cx + dx, cy + dy)
+                        if not (left <= n[0] < left + width
+                                and top <= n[1] < top + height):
+                            continue
+                        if n in inside or n in seen:
+                            continue
+                        seen.add(n)
+                        stack.append(n)
+
+    return len(inside), dropped, components
+
+
+def audit_region(model, blocked: set[tuple[int, int]], variant: str, spawns):
+    """Separation and pockets for a REGION border, reported per locomotor.
+
+    The structure mirrors audit_line, with one difference that matters: a line has two
+    half-planes known in advance, so `side` is a function of position. A region has
+    COMPONENTS, which are only known after the flood -- so separation here is "do the
+    spawns land in more than one component", and a leak is "two spawns that should be
+    opposed are in the same one".
+    """
+    width = model.width
+    base_comps = _walk(model, model.passable, variant, list)
+    base_comps.sort(key=len, reverse=True)
+    base_sizes = [len(c) for c in base_comps]
+    base_main = set(base_comps[0]) if base_comps else set()
+
+    passable = bytearray(model.passable)
+    band = 0
+    for (cx, cy) in blocked:
+        lx, ly = cx - model.left, cy - model.top
+        if 0 <= lx < model.width and 0 <= ly < model.height:
+            i = ly * width + lx
+            if passable[i]:
+                passable[i] = 0
+                band += 1
+
+    comps = _walk(model, passable, variant, list)
+    comps.sort(key=len, reverse=True)
+
+    label = {}
+    for ci, cells in enumerate(comps):
+        for i in cells:
+            label[i] = ci
+
+    spawn_components = []
+    for (sx, sy) in spawns:
+        lx, ly = sx - model.left, sy - model.top
+        if 0 <= lx < model.width and 0 <= ly < model.height:
+            spawn_components.append(label.get(ly * width + lx))
+        else:
+            spawn_components.append(None)
+
+    reachable = [c for c in spawn_components if c is not None]
+    distinct = len(set(reachable))
+
+    # Cells that were mutually reachable before the border and are now in NO spawn's
+    # component -- the region's version of the pocket test. A lobe of land nobody can
+    # reach is the nav-guard failure shape occurring inside a half.
+    spawn_bodies = set()
+    for c in set(reachable):
+        spawn_bodies |= set(comps[c])
+    sealed = [i for i in base_main if passable[i] and i not in spawn_bodies]
+
+    return {
+        "band": band,
+        "components": [len(c) for c in comps],
+        "spawn_components": spawn_components,
+        "distinct": distinct,
+        "separates": distinct > 1,
+        "unreachable_spawns": sum(1 for c in spawn_components if c is None),
+        "newly_isolated": len(sealed),
+        "sealed_cells": sealed,
+        "base_largest": base_sizes[0] if base_sizes else 0,
+        "base_pocketed": sum(base_sizes) - (base_sizes[0] if base_sizes else 0),
+    }
+
+
+def run_authored(args, rules, maps) -> int:
+    """Audit the region each map AUTHORS, read back out of its own rules.yaml.
+
+    THIS IS THE ONLY CHECK THAT CAN SEE AN AUTHORED BORDER. `make nav-guard` decodes map.bin
+    and the map.yaml Actors block and has no CustomTerrain handling at all, so it is
+    byte-identically green whether a map authors a region or not; `--check-yaml` parses the
+    field and never asks whether the cells divide anything. A region that separates nothing
+    is DISCARDED by DefconWall.BuildRegion and the wall stays down for the whole match, with
+    one Log.Write as the only trace -- so without this mode the failure is invisible until
+    somebody plays the map and notices the border never appeared.
+    """
+    print("DEFCON wall audit -- AUTHORED REGIONS, read from each map's own rules.yaml "
+          f"(squeeze {args.squeeze})")
+    print("  A map with no region uses the derived line and is reported as such, not failed.\n")
+
+    failed = False
+    authored = 0
+    for game_map in maps:
+        blocked, types, cells = region_from_map(game_map)
+        if not blocked:
+            print(f"{game_map.name}   no authored region -- uses the derived line\n")
+            continue
+
+        authored += 1
+        tileset = rules.tilesets[game_map.tileset]
+        spawns = spawns_of(game_map)
+        locos = modload.world_locomotors(rules, game_map.rule_overrides)
+        if args.locomotor:
+            locos = [x for x in locos if x.name in args.locomotor]
+        occupancy, _ = nav_guard.cell_occupancy(rules, game_map, "live")
+
+        print(f"{game_map.name}   bounds={game_map.bounds}  spawns={len(spawns)} {spawns}")
+        print(f"    border cells: {len(blocked)}  "
+              f"(types {', '.join(types) or 'none'}; {len(cells)} authored by hand)")
+
+        in_bounds, dropped, open_components = engine_load_gate(game_map, blocked)
+        gate_ok = open_components >= 2
+        failed |= not gate_ok
+        print(f"    {'ok  ' if gate_ok else 'DEGENERATE'} engine load gate "
+              f"(DefconWallRegion, Map.Contains passability): {in_bounds} cell(s) in Bounds"
+              + (f", {dropped} dropped as out-of-Bounds" if dropped else "")
+              + f", {open_components} component(s)")
+        if not gate_ok:
+            print("         ! IsDegenerate -- BuildRegion logs and the wall stays DOWN.")
+
+        for loco in locos:
+            model = nav_guard.build_cell_model(rules, game_map, tileset, loco, occupancy)
+            if sum(model.passable) == 0:
+                continue
+            r = audit_region(model, blocked, args.squeeze, spawns)
+            if not [c for c in r["spawn_components"] if c is not None]:
+                continue
+            ok = r["separates"]
+            failed |= not ok
+            if args.quiet and ok and not r["newly_isolated"]:
+                continue
+            print(f"        {'ok  ' if ok else 'LEAK'} {loco.name:<26} "
+                  f"blocked={r['band']:>4} components={r['distinct']} "
+                  f"spawns={r['spawn_components']} sizes={r['components'][:4]}"
+                  + (f"  SEALED OFF {r['newly_isolated']} cells" if r["newly_isolated"] else ""))
+            if args.show_sealed and r["sealed_cells"]:
+                xs = [model.left + (c % model.width) for c in r["sealed_cells"]]
+                ys = [model.top + (c // model.width) for c in r["sealed_cells"]]
+                print(f"             sealed bbox x {min(xs)}..{max(xs)} "
+                      f"y {min(ys)}..{max(ys)}  e.g. ({xs[0]}, {ys[0]})")
+        print()
+
+    print(f"{authored} map(s) author a region.")
+    print("RESULT:", "AN AUTHORED REGION DOES NOT SEPARATE" if failed
+          else "every authored region separates the spawns on every locomotor that can reach them")
+    return 1 if failed else 0
+
+
+def run_region(args, rules, maps) -> int:
+    terrain_types = [t.strip() for t in (args.region_terrain or "").split(",") if t.strip()]
+
+    explicit: list[tuple[int, int]] = []
+    if args.region_cells:
+        explicit += parse_region_cells(args.region_cells)
+    if args.region_file:
+        explicit += parse_region_cells(Path(args.region_file).read_text(encoding="utf-8"))
+
+    print(f"DEFCON wall audit -- REGION  (terrain {terrain_types or 'none'}, "
+          f"{len(explicit)} authored cell(s), squeeze {args.squeeze})")
+    print("  SEPARATION is the test: the spawns must not all land in ONE component.")
+    print("  A one-cell-wide diagonal seals nothing -- 8-connected steps go through its corners.\n")
+
+    failed = False
+    for game_map in maps:
+        tileset = rules.tilesets[game_map.tileset]
+        spawns = spawns_of(game_map)
+        locos = modload.world_locomotors(rules, game_map.rule_overrides)
+        if args.locomotor:
+            locos = [x for x in locos if x.name in args.locomotor]
+        occupancy, _ = nav_guard.cell_occupancy(rules, game_map, "live")
+
+        blocked = region_cells_for(game_map, tileset, terrain_types, explicit)
+        print(f"{game_map.name}   bounds={game_map.bounds}  spawns={len(spawns)} {spawns}")
+        print(f"    border cells: {len(blocked)}")
+        if not blocked:
+            print("    ! the region is empty -- nothing to audit\n")
+            failed = True
+            continue
+
+        # The engine's own load-time gate, consulted before any locomotor is. See
+        # engine_load_gate: a region that leaves this in one piece is discarded by
+        # DefconWall.BuildRegion and no wall is ever raised, however green the lines below.
+        in_bounds, dropped, open_components = engine_load_gate(game_map, blocked)
+        gate_ok = open_components >= 2
+        failed |= not gate_ok
+        print(f"    {'ok  ' if gate_ok else 'DEGENERATE'} engine load gate "
+              f"(DefconWallRegion, Map.Contains passability): {in_bounds} cell(s) in Bounds"
+              + (f", {dropped} dropped as out-of-Bounds" if dropped else "")
+              + f", {open_components} component(s)")
+        if not gate_ok:
+            print("         ! IsDegenerate -- BuildRegion logs and the wall stays DOWN. "
+                  "The per-locomotor results below are moot.")
+
+        for loco in locos:
+            model = nav_guard.build_cell_model(rules, game_map, tileset, loco, occupancy)
+            if sum(model.passable) == 0:
+                continue
+
+            r = audit_region(model, blocked, args.squeeze, spawns)
+
+            # A locomotor that cannot reach any spawn has no opinion about this border --
+            # naval on a land map, `immobile`. Reporting it as a failure would drown the
+            # real answer in noise.
+            if not [c for c in r["spawn_components"] if c is not None]:
+                continue
+
+            ok = r["separates"]
+            failed |= not ok
+            flag = "ok  " if ok else "LEAK"
+            if args.quiet and ok and not r["newly_isolated"]:
+                continue
+
+            sizes = r["components"][:4]
+            print(f"        {flag} {loco.name:<26} blocked={r['band']:>4} "
+                  f"components={r['distinct']} spawns={r['spawn_components']} "
+                  f"sizes={sizes}"
+                  + (f"  SEALED OFF {r['newly_isolated']} cells" if r["newly_isolated"] else ""))
+
+            if args.show_sealed and r["sealed_cells"]:
+                xs = [model.left + (c % model.width) for c in r["sealed_cells"]]
+                ys = [model.top + (c // model.width) for c in r["sealed_cells"]]
+                print(f"             sealed bbox x {min(xs)}..{max(xs)} "
+                      f"y {min(ys)}..{max(ys)}  e.g. ({xs[0]}, {ys[0]})")
+        print()
+
+    print("RESULT:", "REGION DOES NOT SEPARATE" if failed
+          else "the region separates the spawns on every locomotor that can reach them")
+    return 1 if failed else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--half-width", type=int, default=1024,
@@ -267,12 +723,33 @@ def main(argv=None) -> int:
     ap.add_argument("--quiet", action="store_true", help="only print lines and failures")
     ap.add_argument("--show-sealed", action="store_true",
                     help="print the bounding box of any region the wall sealed off")
+
+    # ---- REGION MODE. Any of these three switches the audit from the derived LINE to an
+    # authored REGION (DefconWallInfo.RegionTerrainTypes / RegionCells). The line flags above
+    # are then unused: a map authors one or the other, never both.
+    ap.add_argument("--region-terrain", default=None,
+                    help="comma-separated terrain type names forming the border, "
+                         "e.g. Water,River,Bridge (DefconWallInfo.RegionTerrainTypes)")
+    ap.add_argument("--region-cells", default=None,
+                    help="flat comma-separated X,Y list of extra border cells, exactly as "
+                         "FieldLoader reads DefconWallInfo.RegionCells")
+    ap.add_argument("--region-from-map", action="store_true",
+                    help="audit the region each map AUTHORS in its own rules.yaml, instead "
+                         "of a region passed on the command line or the derived line")
+    ap.add_argument("--region-file", default=None,
+                    help="read the same flat X,Y list from a file (newlines count as commas)")
     args = ap.parse_args(argv)
 
     rules = modload.load_mod(nav_guard.MOD_DIR)
     maps = [modload.load_map(p) for p in modload.discover_maps(nav_guard.MOD_DIR)]
     if args.map:
         maps = [m for m in maps if any(f in m.name for f in args.map)]
+
+    if args.region_from_map:
+        return run_authored(args, rules, maps)
+
+    if args.region_terrain or args.region_cells or args.region_file:
+        return run_region(args, rules, maps)
 
     print(f"DEFCON wall audit  (HalfWidth {args.half_width}, extend {args.extend} cells, "
           f"squeeze {args.squeeze})")

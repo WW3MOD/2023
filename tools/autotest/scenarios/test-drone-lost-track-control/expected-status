@@ -64,6 +64,26 @@ THE REVEAL ARGMAX, and this arm is what proves 29,25 is that argmax.
 records=0 and intel=0 on every launch line here, so the rules.yaml override merged and this
 directory is a real control rather than a second copy of the treatment.
 
+2026-09-15 — THE LEASH FIX CHANGED THE TREATMENT, NOT THIS ARM, AND THIS DECLARATION STAYS.
+The hover ceiling moved from 22 to 30 cells (CarrierSlave.MaxDistance 25->33, DroneTargeter
+25c0->33c0, LeashCells 25->33 on both profiles), so the treatment can now reach the vanish cell
+and was expected to PASS. IT DID NOT, and its by-merit `fail` declaration is back --
+see that file for the hover-30 paired launch lines. THIS ARM IS HALF OF WHY: at t200 the two arms
+chose DIFFERENT cells for the first time (treatment 43,27, this arm 31,17), which is what proves
+the intel term moves the pick at all; and at t1800 BOTH arms retask to 47,55, which is what proves
+the second launch onto the contact is exploration ordering rather than the term. Neither statement
+was available from the treatment alone. Nothing about that reaches
+this arm: with IntelSampleInterval 999999 the contact table is still never written, every
+candidate still scores intelSquares 0, and a drone that cannot know where the enemy was cannot
+prefer that cell however far it can now fly.
+
+ONE THING TO EXPECT DIFFERENTLY HERE, AND IT IS NOT A FAILURE. ChooseTargetCell scans a
+(2*maxHover+1)^2 box, which grew from 45^2 = 2025 to 61^2 = 3721 candidates, and ground 30 cells
+out was not previously a candidate at all. THIS ARM'S CHOSEN CELL MAY THEREFORE NO LONGER BE
+29,25. That is the reveal argmax moving because the candidate set grew, which is expected and
+says nothing about the intel term. The RED this arm exists to produce is `records=0 intel=0`,
+verdict fail, and the drone not going to the vanish cell -- not a literal cell coordinate.
+
 REMOVE THIS FILE only if the control legitimately starts passing — which would mean the map
 geometry can no longer separate the hypotheses, and the scenario needs new coordinates rather
 than a new declaration.

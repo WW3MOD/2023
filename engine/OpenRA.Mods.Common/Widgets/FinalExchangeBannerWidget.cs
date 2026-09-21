@@ -5,7 +5,10 @@
 #endregion
 
 /*
- * THE FINAL EXCHANGE COUNTDOWN -- fifteen seconds the player must not be able to miss.
+ * THE FINAL EXCHANGE COUNTDOWN -- the one window the player must not be able to miss. Its length
+ * is DoomsdayStrikeInfo.FinalExchangeWindowTicks (250 = 15 s; it was briefly 500 between
+ * 2026-09-16 and 2026-09-20, for an asymmetry between the two factions' game-enders that no
+ * longer exists).
  *
  * Unlike DefconTransitionBannerWidget, which this is otherwise modelled on, it is NOT a four-second
  * announcement. It is on screen for the whole window and it carries a clock, because the thing it is
@@ -33,6 +36,7 @@
 
 using OpenRA.Graphics;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Primitives;
 using OpenRA.Widgets;
 
 namespace OpenRA.Mods.Common.Widgets
@@ -46,7 +50,13 @@ namespace OpenRA.Mods.Common.Widgets
 		public readonly int UrgentSeconds = 5;
 
 		public readonly string Title = "FINAL EXCHANGE";
-		public readonly string Line = "PLACE YOUR WARHEADS";
+
+		// WHAT HAPPENS NOW, NOT WHAT THE PLAYER MAY DO. "PLACE YOUR WARHEADS" told a player what
+		// button to press and left the consequence of not pressing it entirely unstated -- which,
+		// while Dead Hand existed, a player could reasonably read as "or nothing of mine flies".
+		// Since 2026-09-20 an unplaced package fires at the enemy anyway, and the banner says so:
+		// the choice on offer is WHERE, never WHETHER.
+		public readonly string Line = "PLACE YOUR STRIKE PACKAGE — UNPLACED FIRES AT THE ENEMY";
 
 		readonly World world;
 		readonly SpriteFont titleFont, lineFont;
@@ -62,6 +72,20 @@ namespace OpenRA.Mods.Common.Widgets
 			titleFont = Game.Renderer.Fonts[TitleFont];
 			lineFont = Game.Renderer.Fonts[LineFont];
 		}
+
+		// ---- IT MUST NOT EAT THE MOUSE, DRAWN OR NOT ---------------------------------------------
+		// THE SAME GUARD, AND THE SAME REASON, AS DefconReadoutWidget.cs:245. Suppressing the band
+		// inside Draw() does NOT make this widget invisible: `Visible` is still true (Widget.cs:222),
+		// so GetCursorOuter's `IsVisible() && EventBoundsContains(pos)` test passes (Widget.cs:399-415)
+		// and the inherited EventBounds => RenderBounds (Widget.cs:327) claims the whole 110px
+		// full-width band. It then answers with the inherited default cursor (Widget.cs:398).
+		// PLAYER_ROOT is added AFTER the interaction controller and the walk is in REVERSE, so that
+		// "default" beats the world's move/attack cursor for the entire match outside the window.
+		//
+		// AND THE DRAWN CASE MATTERS MORE HERE THAN FOR THE OTHER TWO. This band is up for the whole
+		// fifteen-second window while the line under it tells the player to place a strike package --
+		// a player doing exactly that, through the strip, must not have the cursor go dead on them.
+		public override Rectangle EventBounds => Rectangle.Empty;
 
 		public override void Tick()
 		{

@@ -5,13 +5,26 @@ Answers three things for the follow-on:
   2. how many of those cameos have lettering baked into the art
   3. whether a caption string could be derived from the tooltip name, or must be authored
 
-METHOD, and its limits. Reads mods/ww3mod/rules/**.yaml and sequences/**.yaml with a plain
+THE ACTOR UNIVERSE IS mod.yaml's `Rules:` LIST, NOT `os.walk` OVER THE RULES DIRECTORY, and this
+tool is where that distinction was got wrong last. `mods/ww3mod/rules/` holds .yaml files mod.yaml
+never loads (all of `weapons/` and `sound/`, the `campaign/` tree, `ingame/old.yaml` -- 18 of them
+as of 2026-09-20, recount with captions_table.unloaded_rules_paths()), and an actor defined only
+in one of those is NOT in the game. Counting it inflates every figure below and, worse, makes a
+caption on it look legitimate: five such entries reached a shipped rules file on 2026-09-20 and
+produced 3,650 lint errors. captions_table.py and check_captions.py moved to the loaded list that
+day; this survey did not, so the repo stated 115 and 111 for the same quantity for as long as it
+took to notice. It now calls captions_table.survey(), which owns both the universe and the
+resolver, so the three tools cannot report different rosters. `--all-on-disk` restores the
+directory walk for diagnostics and says so on stdout.
+
+METHOD, and its limits. Reads the loaded rules files and sequences/**.yaml with a plain
 MiniYaml-shaped parser, resolves `Inherits`/`Inherits@x` transitively, and treats an actor as
 buildable if `Buildable:` survives resolution and is not removed by `-Buildable:`. It does NOT
 evaluate prerequisites, so an actor gated to unbuildable (`Prerequisites: ~disabled`, like MSLO)
 still counts as having a cameo -- which is right for this question, since the cameo exists either
 way. Icon art is resolved through the `icon` sequence on the actor's own image.
 """
+import argparse
 import io
 import os
 import re
@@ -143,54 +156,42 @@ def has_baked_lettering(art, pal):
     return grad(range(h - 6, h - 1)) / max(grad(range(8, h - 12)), 1e-6) >= 1.6
 
 
-def main():
-    rules = merge(walk(os.path.join(ROOT, "mods/ww3mod/rules")))
-    seqs = merge(walk(os.path.join(ROOT, "mods/ww3mod/sequences")))
+def on_disk_rules_paths():
+    """Every .yaml under mods/ww3mod/rules, loaded or not. Diagnostics only -- see --all-on-disk."""
+    return sorted(walk(os.path.join(ROOT, "mods/ww3mod/rules")))
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        description="Count cameos, baked lettering and caption candidates across the roster.")
+    ap.add_argument("--all-on-disk", action="store_true",
+                    help="survey every .yaml under mods/ww3mod/rules instead of the files "
+                         "mod.yaml loads. Counts actors that are NOT in the game.")
+    args = ap.parse_args(argv)
+
+    # ONE universe and ONE resolver for the three tools. captions_table.survey() takes its files
+    # from mod.yaml's Rules: list and excludes the generated caption table, which is what makes
+    # this headline reconcile with check_captions.py's exactly.
+    import captions_table  # noqa: E402  -- deferred; captions_table imports this module back
+    if args.all_on_disk:
+        print("WARNING: --all-on-disk counts actors that are NOT in the game -- mod.yaml's "
+              "Rules: list does not load every file under mods/ww3mod/rules. The figures below "
+              "are an upper bound on ART work, not the roster a player sees.")
+    actors = captions_table.survey(on_disk_rules_paths() if args.all_on_disk else None)
+
     pal = binmock.load_palette(binmock.find_palette())
     font = ImageFont.truetype(os.path.join(ROOT, "engine/mods/common/FreeSansBold.ttf"), 7)
 
-    buildable = []
-    for name in rules:
-        if name.startswith("^") or name in ("Player", "World", "Defaults"):
-            continue
-        traits = resolve(name, rules)
-        if "Buildable" not in traits:
-            continue
-        buildable.append((name, traits))
+    print(f"BUILDABLE ACTORS WITH A CAMEO: {len(actors)}")
 
-    print(f"BUILDABLE ACTORS WITH A CAMEO: {len(buildable)}")
-
-    # icon art per actor. Sequence collections are keyed by IMAGE, which is the actor name
-    # lower-cased unless RenderSprites overrides it, and sequence files are all lower case.
-    seqs_lower = {k.lower(): v for k, v in seqs.items()}
-
-    def seq_art(image, icon):
-        node = seqs_lower.get(image.lower())
-        chain, guard = [], 0
-        while node is not None and guard < 8:
-            guard += 1
-            for key in node:
-                m = re.match(rf"{re.escape(icon)}:\s*(\S+)", key)
-                if m:
-                    return m.group(1)
-            parent = None
-            for key in node:
-                m = re.match(r"Inherits(?:@\w+)?:\s*(\S+)", key)
-                if m:
-                    parent = m.group(1)
-            node = seqs_lower.get(parent.lower()) if parent else None
-        return None
-
-    arts, unresolved, unresolved_names = Counter(), 0, []
-    for name, traits in buildable:
-        icon = (field(traits.get("Buildable"), "Icon") or "icon").split()[0]
-        image = field(traits.get("RenderSprites"), "Image") or name
-        art = seq_art(image, icon) or seq_art(name, icon)
-        if art:
-            arts[art.split("|")[-1]] += 1
-        else:
-            unresolved += 1
+    arts, unresolved_names = Counter(), []
+    for name, info in actors.items():
+        # survey() marks art it could not resolve through the icon sequence with "?".
+        if info["art"] == "?":
             unresolved_names.append(name)
+        else:
+            arts[info["art"]] += 1
+    unresolved = len(unresolved_names)
 
     print(f"  distinct icon art files resolved: {len(arts)}   actors whose art did not resolve: {unresolved}")
     if unresolved:
@@ -215,8 +216,8 @@ def main():
     # can the caption be derived from the tooltip name?
     fits = short = long_ = noname = 0
     examples = []
-    for name, traits in buildable:
-        nm = field(traits.get("Tooltip"), "Name")
+    for name, info in actors.items():
+        nm = info["tooltip"]
         if not nm:
             noname += 1
             continue

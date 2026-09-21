@@ -1,0 +1,132 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: an unplaced package fires at the enemy, on the same cascade as the placed one
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. The 2026-09-20 redesign of the ending, in the two claims it turns on:
+#
+#   AT THE ENEMY   -- a side that places nothing has its OWN package fired for it, at the OTHER
+#                     side's half of the map. Dead Hand, which this replaced, built ONE map-wide
+#                     salvo with no owner and bombed the side that declined to aim exactly as hard
+#                     as it bombed their enemy. That is the defect, and no test could see it: the
+#                     salvo had no owner to attribute a warhead to.
+#   ONE CASCADE    -- every warhead of BOTH packages lands on a slot of one evenly-spaced sequence
+#                     anchored past the window's close, so nothing lands before the window shuts.
+#                     The old shape had two unrelated clocks: Dead Hand flew on LeadInTicks 30 plus
+#                     a 44-tick flight while a Sarmat carries MissileDelay 500, so the machine's
+#                     warheads landed ~8.5 s before the player's own, every time, on every map.
+#                     That is what the user watched happen.
+#
+# ==== DOOR (b), THE TIME LIMIT, AND WHY NOT DOOR (a) ====
+# The ending has two entrances: a side firing a game-ender, or the Time Limit expiring with the
+# Nuclear ending checkbox on. This scenario uses the SECOND, and the choice is about cost rather
+# than coverage. A game-ender is only in a player's hands once the exchange has armed it or once
+# their LEVEL has climbed to NuclearRung.GameEnder, and climbing takes four scripted launches and a
+# missile flight between each (test-nuclear-ender-level is that scenario, and is ~2500 ticks long).
+# Door (b) arms both sides in one step.
+#
+# NOTHING IS LOST BY IT. DoomsdayStrike floors the cascade's anchor at the window's close plus
+# FinalExchangeFlightTicks on BOTH doors -- see FinalExchangeCascade's header for why the ruling's
+# "the trigger's first impact" cannot stand alone -- so the responder's arithmetic is identical
+# either way, and the responder is what this file is about. What door (a) additionally covers, the
+# trigger's own warheads taking slots, is pinned World-free by FinalExchangeCascadeTest.
+#
+# ==== THE PACKAGE IS PINNED TO 4 HERE AND THAT IS NOT THE SHIPPED NUMBER ====
+# rules.yaml sets CellsPerImpact 512 against the shipped 2400, which on this 64x32 map's 2048
+# playable cells gives 4 instead of the 2 the shipped value would (via MinPackage). Deliberate, and
+# the division of labour is: FinalExchangePackageTest pins the SHIPPED table over all ten maps with
+# no world at all, and does it better than a scenario could; what a scenario is for is the plumbing
+# -- that whatever N is, N warheads are actually created, owned by the right side and aimed at the
+# other one. Four gives that some room; two would make "all of them are on the enemy half" a
+# statement about two cells.
+#
+# ==== THE BORDER IS DERIVED, NOT AUTHORED ====
+# world.yaml sets DefconWall.DeriveFromSpawns mod-wide, so the border here is the perpendicular
+# bisector of the two homes at 6,17 and 58,17 -- a vertical line at x = 32, with rules.yaml's
+# HalfWidth 2c0 giving a band of x in [30, 34]. USA's half is WEST of it and Russia's is EAST.
+#
+# The .lua asserts the enemy-half property TWICE and on purpose: once geometrically (every one of
+# Russia's aim points is nearer USA's Supply Route than its own), which holds under any sane border
+# and is what the feature actually claims; and once against those literal coordinates, which is
+# what would catch the border resolving somewhere unexpected. If the second ever fails while the
+# first passes, the derivation moved and the numbers above are what to re-derive.
+#
+# ==== THE HomeLocation TRAP, WHICH THIS SCENARIO WOULD OTHERWISE BE VACUOUS UNDER ====
+# `-MapStartingLocations` below means Player.HomeLocation falls back to the PlayerReference value
+# pinned here, which is why the two entries carry one. On a scenario that pinned NEITHER, every
+# playable player's HomeLocation is CPos.Zero -- the FIELD DEFAULT of PlayerReference.HomeLocation
+# -- and DefconWall.SideOf(Player) reads cell (0,0) for both sides, answers the same value twice,
+# and the targeting would classify the whole map as the firer's own. DoomsdayStrike does not call
+# SideOf(Player) for exactly this reason: it resolves a player through an ANCHOR, the centre of
+# their lowest-ActorID BaseBuilding, i.e. their Supply Route. See DoomsdayStrike.AnchorOf.
+#
+# NOTHING IS AIMED AT ANYTHING LOAD-BEARING. Same rule as test-nuclear-exchange: SUPPLYROUTE
+# carries `Targetable.TargetTypes: NoAutoTarget`, which no Atomic warhead lists, so both survive
+# whatever arrives -- right up until DoomsdayStrike.Annihilate, which kills everything on the map
+# by design and is the last thing this run measures.
+
+# RUSSIA IS DELIBERATELY NOT `Playable`, for the reason test-nuclear-exchange records: AUTOTEST.md
+# map.yaml rule 3 allows exactly one human slot, and a map-authored combatant is still a side to
+# NuclearExchangeState.CountsAsASide and to DoomsdayStrike.SurvivingSides.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		HomeLocation: 6,17
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 58,17
+
+Actors:
+	# One Supply Route per side. THREE JOBS HERE, not the usual one: it keeps neither faction
+	# eliminated before the poller writes a verdict (AUTOTEST.md map.yaml rule 6), it is the ANCHOR
+	# DoomsdayStrike resolves each player's side from, and it is tier 1 of the targeting -- so
+	# Russia's package should open with a warhead on or beside USA's.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,17
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,17
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,17
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,17
+
+# DECLARED, and that declaration is the whole of whether rules.yaml is read at all. A rules.yaml the
+# map never references is silently ignored (Map.cs:102-107) and the one engine lint for scripting
+# returns early on exactly that state (Lint/CheckLuaScript.cs:21-23) -- the scenario then loads,
+# draws, writes a zero-byte lua.log and does nothing. `.\make.ps1 lua-gate` checks for that shape.
+Rules: rules.yaml

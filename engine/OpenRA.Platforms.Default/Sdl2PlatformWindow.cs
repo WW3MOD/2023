@@ -555,6 +555,16 @@ namespace OpenRA.Platforms.Default
 			return Sdl2Input.SetClipboardText(text);
 		}
 
+		public void OpenUrl(string url)
+		{
+			VerifyThreadAffinity();
+
+			// Failure here is the player's desktop having no handler registered. Nothing the game
+			// can do about that, and it must not take the menu down, so it is logged and dropped.
+			if (SDL.SDL_OpenURL(url) != 0)
+				Log.Write("debug", $"Failed to open {url}: {SDL.SDL_GetError()}");
+		}
+
 		static void SetSDLAttributes(GLProfile profile)
 		{
 			SDL.SDL_GL_ResetAttributes();

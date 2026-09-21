@@ -67,6 +67,7 @@ namespace OpenRA.Mods.Common.Traits
 		INotifyDamage[] notifyDamagePlayer;
 		IDamageModifier[] damageModifiers;
 		IDamageModifier[] damageModifiersPlayer;
+		IDamageFloor[] damageFloors;
 		INotifyKilled[] notifyKilled;
 		INotifyKilled[] notifyKilledPlayer;
 
@@ -121,6 +122,7 @@ namespace OpenRA.Mods.Common.Traits
 			notifyDamage = self.TraitsImplementing<INotifyDamage>().ToArray();
 			notifyDamagePlayer = self.Owner.PlayerActor.TraitsImplementing<INotifyDamage>().ToArray();
 			damageModifiers = self.TraitsImplementing<IDamageModifier>().ToArray();
+			damageFloors = self.TraitsImplementing<IDamageFloor>().ToArray();
 			damageModifiersPlayer = self.Owner.PlayerActor.TraitsImplementing<IDamageModifier>().ToArray();
 			notifyKilled = self.TraitsImplementing<INotifyKilled>().ToArray();
 			notifyKilledPlayer = self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>().ToArray();
@@ -165,6 +167,48 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		/// <summary>The lowest HP damage may take this actor to, as the highest floor any trait asks for.
+		/// Zero — and therefore the ordinary "damage can kill it" rule — whenever nothing implements
+		/// <see cref="IDamageFloor"/>, which is every actor in the mod but the garrisonable buildings.</summary>
+		int DamageFloor()
+		{
+			var floor = 0;
+			foreach (var df in damageFloors)
+			{
+				var f = df.GetDamageFloor();
+				if (f > floor)
+					floor = f;
+			}
+
+			return floor.Clamp(0, MaxHP);
+		}
+
+		/// <summary>Does this hit bypass <see cref="IDamageFloor"/> entirely? TRUE for exactly the two
+		/// cases the IDamageModifier this replaced never saw, because it lived inside
+		/// `if (!ignoreModifiers &amp;&amp; damage.Value &gt; 0)`: a Kill (which is InflictDamage with
+		/// ignoreModifiers set) and a heal or a zero-damage hit (where a floor cannot bite anyway).
+		/// <para>The Kill case is the one with teeth. Honour a floor there and an indestructible actor
+		/// stops being indestructible-by-damage and becomes UNKILLABLE — nothing can dispose it, and
+		/// Vaporizable.ITick, whose only brake is `if (self.IsDead) return;`, calls Kill on it every
+		/// tick for the rest of the match. Kept pure so that rule is pinned by a fixture rather than by
+		/// this comment.</para>
+		/// <para>Ordered to short-circuit before <c>DamageFloor()</c>, which walks a trait array.</para></summary>
+		public static bool IgnoresDamageFloor(bool ignoreModifiers, int damage)
+		{
+			return ignoreModifiers || damage <= 0;
+		}
+
+		/// <summary>One hit's effect on a hit-point pool, as a pure function so a fixture can walk a
+		/// whole engagement without an actor. `floor` of 0 is the ordinary rule and reproduces the
+		/// single Clamp(0, MaxHP) this replaced exactly; a positive floor means damage can approach it
+		/// and never pass it, which is what makes a building indestructible AND still reducible to its
+		/// last hit point. The percentage-modifier approach this replaced could do neither reliably —
+		/// see IDamageFloor.</summary>
+		public static int ApplyDamageToHp(int hp, int damage, int floor, int maxHp)
+		{
+			return (hp - damage).Clamp(floor, maxHp);
+		}
+
 		public void InflictDamage(Actor self, Actor attacker, Damage damage, bool ignoreModifiers)
 		{
 			// Overkill! Don't count extra hits as more kills!
@@ -196,7 +240,22 @@ namespace OpenRA.Mods.Common.Traits
 				damage = new Damage((int)appliedDamage, damage.DamageTypes);
 			}
 
-			HP = (HP - damage.Value).Clamp(0, MaxHP);
+			// The FLOOR, not a modifier — see IDamageFloor for why a percentage cannot do this job.
+			//
+			// EXACT PARITY WITH THE GUARD ABOVE, and it is not optional. The IDamageModifier this
+			// replaced lived INSIDE `if (!ignoreModifiers && damage.Value > 0)`, so it never applied to
+			// a Kill — and Kill is InflictDamage(MaxHP, ignoreModifiers: true) (:Kill below). Honour a
+			// floor there and an indestructible actor stops being merely indestructible-by-damage and
+			// becomes UNKILLABLE: HP floors at 1, IsDead stays false, INotifyKilled never fires and the
+			// actor is never disposed. Vaporizable.ITick then calls self.Kill EVERY TICK behind its
+			// `if (self.IsDead) return;` guard, on an actor that can no longer satisfy it — an
+			// invisible, alive, still-shooting emplacement raising a full-MaxHP AttackInfo forever.
+			// DeveloperMode's kill command and the Lua Actor.Kill() binding would silently do nothing.
+			//
+			// PERF and behaviour otherwise: damageFloors is empty on every actor that does not opt in,
+			// so this resolves to a zero floor and the line is exactly what it always was.
+			var floor = IgnoresDamageFloor(ignoreModifiers, damage.Value) ? 0 : DamageFloor();
+			HP = ApplyDamageToHp(HP, damage.Value, floor, MaxHP);
 
 			// Phase-0 missile audit: attribute this hit to the traced missile whose
 			// warheads are running right now. Off by default — one static bool read.

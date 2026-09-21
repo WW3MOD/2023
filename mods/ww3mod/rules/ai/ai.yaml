@@ -1143,10 +1143,16 @@ Player:
 		# Must exceed ReevaluateInterval with headroom: a commitment that lapses between two evals is
 		# an operator PoiOffensiveBotModule is free to recruit mid-sortie.
 		CommitmentTicks: 500
-		# The ENFORCED leash, in cells: CarrierSlave.MaxDistance on quadcopterdrone
-		# (aircraft.yaml:408), read at CarrierSlave.cs:131,138. NOT CarrierMasterInfo.MaxSlaveDistance,
-		# which has zero readers engine-wide and whose 20c0 was removed from ^DR on 2026-08-27.
-		LeashCells: 25
+		# The ENFORCED leash, in cells: CarrierSlave.MaxDistance on quadcopterdrone, read at
+		# CarrierSlave.cs:131,138. NOT CarrierMasterInfo.MaxSlaveDistance, which has zero readers
+		# engine-wide and whose 20c0 was removed from ^DR on 2026-08-27.
+		# THIS IS A MIRROR, NOT THE AUTHORITY. It must track CarrierSlave.MaxDistance exactly: set it
+		# HIGHER and the bot tasks drones past the real leash, where they are dragged back and blinded
+		# rather than recalled; set it LOWER and reach is silently given away. The invariant is
+		# asserted in DroneLeashCoherenceTest so the pair cannot drift apart unnoticed.
+		# 25 -> 33 (2026-09-15), with the actor and the weapon, so
+		# MaxHoverDistanceCells = min(33, 33 - 3) = 30 clears the operator's 28-cell verifying radius.
+		LeashCells: 33
 		# The leash is re-checked only every MaxDistanceCheckTicks (20), and past it the drone is not
 		# recalled but dragged back and granted lost-connection, which ZEROES ITS VISION — a blind
 		# drone the bot still believes is scouting. Margin keeps it off that boundary.
@@ -1211,6 +1217,30 @@ Player:
 		# this constant to make that scenario pass; >=326 is what would flip it, and CONTROL-ARM.md names
 		# that move tuning-to-pass. The paragraph below on this map being close to a worst case is why
 		# 1.315x is an UPPER bound on the general case and not a general shortfall.
+		#
+		# ===== AND THE GEOMETRY THAT PRODUCED 1.315x HAS SINCE BEEN FIXED (2026-09-15) =====
+		# The shortfall was never really about this constant. A contact only becomes LOST if it is
+		# outside the operator's own 28-cell verifying radius, and the drone could only be tasked 22
+		# cells out, so it could never get closer than 6 cells to the thing it was sent to find and
+		# IntelFalloff took 247 squares down to 178 before any comparison happened. That is a
+		# coherence defect between two constants, not a weighting judgement. LeashCells, the actor's
+		# CarrierSlave.MaxDistance and DroneTargeter's range all moved to put the hover ceiling at 30,
+		# which clears 28. The paragraph above about a contact the drone can park on keeping the full
+		# 247 and winning comfortably was, until that change, describing a situation the lost tier
+		# could never reach. It is now reachable.
+		# THAT PREDICTION (14 + 247 = 261 against 248) WAS THEN MEASURED AND WAS WRONG, BOTH WAYS.
+		# The hunt cell moved to 1 cell from V and IntelFalloff(247,1,28) = 238 exactly as predicted,
+		# but its reveal went 14 -> 0 (a cell nearer V is deeper inside ground the scout just
+		# verified: moving toward the contact buys intel by spending reveal), AND the same raise grew
+		# ChooseTargetCell's box from 45^2 to 61^2, which found a better exploration prize, bestReveal
+		# 248 -> 287. Hunt 192 -> 238; the alternative 248 -> 287. The deficit barely moved and the
+		# rig is re-declared fail-by-merit. The term DOES move the pick — the arms chose different
+		# cells at t200 for the first time — just not to the contact.
+		# WHAT DID NOT CHANGE: LostTrackIntelSquares. TWO independent measurements now sit inside the
+		# pre-registered <=1.5x band — 1.315x at hover 22, and a 1.21x-1.28x BRACKET at hover 30
+		# (a bracket because the launch line prints the intel at the CHOSEN cell, and at hover 30 the
+		# treatment's chosen cell is no longer the reveal argmax; at hover 22 both arms picked the
+		# same cell, which is what made a point estimate sound there). Do not raise it.
 		#
 		# ===== SUPERSEDED: MEASURED ONCE, 2026-09-01 — THE SIZING QUESTION WAS OPEN =====
 		# LostTrackIntelSquares is no longer purely a reasoned estimate, but it is NOT calibrated,
@@ -3298,7 +3328,12 @@ Player:
 		ReevaluateInterval: 200
 		OperatorActorTypes: dr.america, dr.russia
 		CommitmentTicks: 500
-		LeashCells: 25
+		# @stable MOVES TOO, DELIBERATELY. This mirrors CarrierSlave.MaxDistance, which is on the
+		# ACTOR and therefore shared by @stable, @experimental and human players alike — there is no
+		# profile-scoped version of it to hold back. Leaving @stable at 25 would not preserve the old
+		# behaviour; it would make @stable's model disagree with the enforced leash and give away 8
+		# cells of reach against a drone the engine is happy to fly. ai-bench baseline re-take owed.
+		LeashCells: 33
 		LeashMarginCells: 3
 		MinStalenessTicks: 500
 		DroneVisionCells: 28

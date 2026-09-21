@@ -71,6 +71,13 @@ namespace OpenRA.Mods.Common.Traits
 				isActive |= !x.Trait.IsTraitPaused;
 			}
 
+			// THE FINAL EXCHANGE STOPS EVERYTHING. This override does not call base.Tick either, and
+			// the mod's Infantry/Ship/Aircraft queues are all ClassicParallelProductionQueue -- i.e.
+			// most of what the AI was still buying at tick 31110 in the recorded match. See
+			// ProductionQueue.FinalExchangeHalted.
+			if (FinalExchangeHalted)
+				Enabled = false;
+
 			if (!Enabled)
 				ClearQueue();
 

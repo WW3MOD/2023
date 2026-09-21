@@ -141,7 +141,17 @@ def build(scenario, gz, cx, cy, half, fade, seed):
             # bands are annuli and this is a single strike.
             placed[(gx, gy)] = (band[0], vrng.choice(cs.VARIANTS[band[0]]), 0)
 
-    def composite(metric, floor):
+    def edge_tier(a, edges):
+        """SmudgeLayer.EdgeSequenceFor: sparsest tier first, thresholds ascending, the
+        FIRST tier the cell's alpha does not exceed wins. None means the band's own art."""
+        if not edges:
+            return None
+        for i, threshold in enumerate(edges):
+            if a <= threshold:
+                return i
+        return None
+
+    def composite(metric, floor, edges=None):
         out = bg.copy()
         for layer in cs.LAYER_ORDER:
             for (gx, gy), (band, variant, depth) in sorted(placed.items(), key=lambda kv: (kv[0][1], kv[0][0])):
@@ -150,7 +160,14 @@ def build(scenario, gz, cx, cy, half, fade, seed):
                 a = shore_alpha(gx, gy, fade, is_boundary, metric, floor)
                 if a <= 0:
                     continue
-                sp = cs.load_sprite(variant, EXT)[depth]
+                tier = edge_tier(a, edges)
+                if tier is None:
+                    sprite_name = variant
+                else:
+                    # Selected by ORDINAL, as the engine does, so the cell keeps its own
+                    # variant and only thins.
+                    sprite_name = cs.EDGE_VARIANTS[band][tier][cs.VARIANTS[band].index(variant)]
+                sp = cs.load_sprite(sprite_name, EXT)[depth]
                 if a < 1.0:
                     sp = sp.copy()
                     alpha = sp.getchannel("A").point(lambda v: int(round(v * a)))
@@ -159,6 +176,22 @@ def build(scenario, gz, cx, cy, half, fade, seed):
                 py = (gy - y0) * cs.CELL + (cs.CELL - sp.height) // 2
                 out.alpha_composite(sp, (px, py))
         return out
+
+    def tiermap(metric, floor, edges):
+        """Which art each cell draws. Blue = takes no scar, and the three greys are the
+        band's own art, the 50% cut and the 25% cut -- lightest for the thinnest."""
+        colours = [(206, 206, 206, 255), (150, 150, 150, 255)]
+        im = Image.new("RGBA", (w * cs.CELL, h * cs.CELL))
+        for gy in range(y0, y1 + 1):
+            for gx in range(x0, x1 + 1):
+                if (gx, gy) not in placed:
+                    col = (24, 42, 86, 255) if terrain(gx, gy) in WATERY else (40, 40, 40, 255)
+                else:
+                    tier = edge_tier(shore_alpha(gx, gy, fade, is_boundary, metric, floor), edges)
+                    col = (74, 74, 74, 255) if tier is None else colours[tier]
+                im.paste(col, ((gx - x0) * cs.CELL, (gy - y0) * cs.CELL,
+                               (gx - x0 + 1) * cs.CELL, (gy - y0 + 1) * cs.CELL))
+        return im
 
     def alphamap(metric, floor):
         """The fade field itself, as a picture. Grey = drawn at that strength;
@@ -176,7 +209,7 @@ def build(scenario, gz, cx, cy, half, fade, seed):
                                (gx - x0 + 1) * cs.CELL, (gy - y0 + 1) * cs.CELL))
         return im
 
-    return composite, alphamap, (x0, y0, w, h)
+    return composite, alphamap, tiermap, (x0, y0, w, h)
 
 
 HTML = """<!doctype html><meta charset="utf-8">
@@ -244,7 +277,7 @@ def main():
     cx, cy = (int(v) for v in args.centre.split(","))
     scen = os.path.join(cs.REPO, args.scenario)
 
-    composite, alphamap, (x0, y0, w, h) = build(scen, gz, cx, cy, args.half, args.fade, args.seed)
+    composite, alphamap, _tiermap, (x0, y0, w, h) = build(scen, gz, cx, cy, args.half, args.fade, args.seed)
 
     a_img = composite("chebyshev", 0.0)
     b_img = composite("euclidean", args.floor)

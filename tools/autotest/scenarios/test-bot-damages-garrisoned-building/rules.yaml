@@ -1,0 +1,65 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+	PlayerResources:
+		DefaultCash: 15000
+
+	# THE BOT'S ORDER PATH FOR HALF A, re-stated here rather than inherited from ai.yaml so that the
+	# RED rerun is a one-word edit in this file if anyone ever needs to sabotage this half instead of
+	# the YAML under test. IssueDefcon2DirectFire is the ONLY thing on the map that issues an
+	# actor-directed attack order for the bot's ground army: every other order PoiOffensiveBotModule
+	# emits is an AttackMove, which DEFCON 2 classes as autonomous and refuses.
+	PoiOffensiveBotModule@experimental:
+		Defcon2DirectFireEnabled: true
+
+	# EVERY NON-GROUND BOT PATH REMOVED, copied from test-bot-defcon2-breaks-peace for the same reason
+	# it is there: these three are the orders DEFCON 2 permits besides the ground one (AirStates.cs:193,
+	# HelicopterStates.cs:762/:891 issue named Attacks, DroneOperatorBotModule.cs:686 a ForceAttack --
+	# and a FORCE attack would sail straight through the gate under test and score half A on a build
+	# that was still broken). Removing them is what makes "ChurchA took damage" mean the ground path's
+	# non-force order landed.
+	-SquadManagerBotModule@experimental.america.fixedwing:
+	-HelicopterSquadBotModule@experimental:
+	-DroneOperatorBotModule@experimental:
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the player's abrams behaves identically on every machine.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, test-bot-damages-garrisoned-building.lua
+
+	# OPENS AT DEFCON 2. This is the instrument, not the subject -- see the long note in map.yaml.
+	# StartAtDefault rather than the lobby dropdown, for the reason test-defcon-wall states: the
+	# option is registered with its C# default whatever a rules.yaml says, so the field is the only
+	# way in.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 2
+
+E1:
+	# Held silent for the walk in. Redundant with the DEFCON hold and deliberately so: if this
+	# scenario is ever re-pointed at DEFCON 1 to test the auto-acquisition half, the ten men must
+	# still not turn the approach into a firefight that empties the shelter.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+
+V01:
+	# THE PORT-DEPLOYMENT GATE, and a SECOND guard beside DEFCON 2 rather than a replacement for it.
+	# GarrisonManager reads `autoTarget?.Stance` off the BUILDING (GarrisonManager.cs:796, :865,
+	# :1316) and returns before every autonomous deploy path at HoldFire; the soldiers' own stance
+	# does not gate deployment at all. ^CivBuilding ships no AutoTarget, so the trait is ADDED here --
+	# AttackGarrisoned is an AttackFollow and therefore an AttackBase, so there is one to attach to.
+	# DEFCON 2 stays because it does a different job here: it is what makes the bot's named Attack the
+	# only fire on the map.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

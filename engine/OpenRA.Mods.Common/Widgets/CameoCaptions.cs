@@ -34,7 +34,9 @@ namespace OpenRA.Mods.Common.Widgets
 	/// each place themselves. So the badge is reserved out of the width FIRST and the caption is
 	/// centred in what is left, which makes a collision impossible rather than unlikely. It costs
 	/// the caption 14 of its 60 pixels; measured against the captions the mod ships, the widest
-	/// ("6x750 KT") is 31px at the 7px caption font, so nothing is shortened by this.</para>
+	/// ("1.2 MT") is 25px at the 7px caption font, so nothing is shortened by this. It used to be
+	/// the Sarmat's "6x750 KT" at 31px; that caption dropped its count on 2026-09-20 when the
+	/// package size became map-derived, which only widened the margin.</para>
 	/// </summary>
 	public sealed class CameoCaption
 	{

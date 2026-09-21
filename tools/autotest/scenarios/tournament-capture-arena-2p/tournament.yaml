@@ -16,10 +16,21 @@ Matchup:
 	P2Bot: stable
 
 # Match clock — at this real-time second count, the win rule evaluates final
-# scores and declares a winner regardless of game state. 720s = 12 in-game
-# minutes at standard 1× speed; at 6× game speed roughly 2 wall-clock minutes
-# (windowed) or much less headless.
-TimeLimitSeconds: 720
+# scores and declares a winner regardless of game state.
+#
+# RESTATED 720 -> 1080 ON 2026-09-19, AND THE MATCH LENGTH DID NOT CHANGE.
+# written 720 under the 25-tps assumption; 1080 s is what every baseline was measured at
+#
+# TournamentConfig converted this with a hardcoded `* 25`, which is right only at a 40 ms
+# timestep. This file sets no GameSpeed, so it runs at the mod's 60 ms default and 720
+# became 18000 ticks = 1080 real seconds = 18 in-game minutes. The conversion is honest now
+# (TickTime), so the number had to carry the duration instead: 1080 s at 60 ms is the same
+# 18000 ticks every recorded baseline was measured over. The old prose here claimed "12
+# in-game minutes", which was never true of a run.
+#
+# DO NOT copy this restatement into the smoke/sanity/quick/eco/combat variants: those set
+# `GameSpeed: fastest` (40 ms), where the old `* 25` was exact and nothing shifted.
+TimeLimitSeconds: 1080
 
 # Plug-in selection — names match MatchHarness registry keys. To use a different
 # formula or win rule, register an alternative in MatchHarness and put its key here.

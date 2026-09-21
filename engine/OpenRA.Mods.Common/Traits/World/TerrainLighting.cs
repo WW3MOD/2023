@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using OpenRA.Mods.Common.Lighting;
 using OpenRA.Primitives;
 using OpenRA.Support;
@@ -35,6 +36,14 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Size of light source partition bins (cells)")]
 		public readonly int BinSize = 10;
+
+		[Desc("Spread a terrain relight across the thread pool, one contiguous band of vertex rows per worker.",
+			"CHANGES NO OUTPUT, only who computes it: the same cells are notified in the same per-cell order",
+			"and every vertex ends up with the tint the serial sweep would have written, bit for bit. It is a",
+			"switch so that a suspected rendering defect can be bisected from YAML without a rebuild; set it",
+			"false and the sweep runs inline on the calling thread exactly as it did before.",
+			"Ignored on isometric grids and while the perf overlay is sampling - see NotifyCells.")]
+		public readonly bool ParallelSweep = true;
 
 		public override object Create(ActorInitializer init) { return new TerrainLighting(init.World, this); }
 	}
@@ -80,6 +89,43 @@ namespace OpenRA.Mods.Common.Traits
 		readonly float3 globalTint;
 		int nextLightSourceToken = 1;
 
+		// ==== THE SWEEP MEMO ====
+		// CellChanged is a MULTICAST delegate raised ONCE PER CELL, so every subscriber runs for
+		// cell A before the sweep moves to cell B -- and each subscriber is a TerrainSpriteLayer
+		// whose UpdateTint samples the SAME FOUR corner positions of that cell. WW3MOD's world.yaml
+		// carries ~20 of those layers (TerrainRenderer, ShroudRenderer x2, seven SmudgeLayers at
+		// two layers each, ResourceRenderer x2, BuildableTerrainOverlay), so one notified cell costs
+		// ~80 TintAt calls over four distinct arguments: the first layer computes the four, and the
+		// other nineteen recompute the identical numbers.
+		//
+		// Four slots is therefore exactly the working set, and the hit rate is (layers-1)/layers.
+		// What is avoided per hit is the real work in Tint: a SpatiallyPartitioned query at the
+		// sample point plus a falloff evaluation and a blend per light in range -- and during a
+		// nuclear salvo "per light in range" is up to six overlapping fireballs.
+		//
+		// CORRECTNESS. The memo is live ONLY between the entry and exit of the per-partition body in
+		// NotifyCells, which is why it needs no invalidation hook on the six methods that mutate
+		// lightSources: none of them can run inside that window. Within one sweep nothing a Tint
+		// result depends on moves -- CellChanged subscribers write vertices and nothing else -- so a
+		// hit returns bit-for-bit what a recompute would have returned. OUTSIDE the sweep TintAt is
+		// untouched, which is what keeps the per-sprite-per-frame render path
+		// (SpriteRenderable.cs:116) exactly as it was.
+		//
+		// PER-PARTITION, NOT PER-TRAIT, and that is why the state lives in SweepMemo's [ThreadStatic]
+		// fields rather than in fields here. The memo's contents are only valid for the one cell a
+		// sweep is currently on; a row-partitioned sweep has one such cell PER WORKER, and fields on
+		// this trait would have every worker clobbering every other worker's four slots. That failure
+		// would not be a crash but a hit returning another cell's tint -- silently wrong colours.
+		//
+		// THIS IS ALSO STRICTLY SAFER THAN THE FIELDS IT REPLACES: a thread that never called
+		// SweepMemo.Begin sees Sweeping == false and takes the ordinary path, so no caller outside the
+		// sweep can observe a half-written memo. The old shared fields only forbade that by comment.
+
+		// Bumped by every mutation of lightSources or of its partition. Snapshotted around a sweep so a
+		// Debug build can prove the no-mutation invariant the concurrent partition reads depend on,
+		// rather than leaving it as an assertion in a comment. See AssertSourcesUnchanged.
+		int lightSourceVersion;
+
 		public event Action<MPos> CellChanged = null;
 
 		public TerrainLighting(World world, TerrainLightingInfo info)
@@ -118,6 +164,7 @@ namespace OpenRA.Mods.Common.Traits
 			var source = new LightSource(pos, range, intensity, tint, falloff, blend);
 			lightSources.Add(token, source);
 			partitionedLightSources.Add(source, Bounds(source));
+			lightSourceVersion++;
 
 			if (notifyTerrain)
 				NotifyCells(pos, range);
@@ -137,6 +184,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			lightSources.Remove(token);
 			partitionedLightSources.Remove(source);
+			lightSourceVersion++;
 
 			if (notifyTerrain)
 				NotifyCells(source.Pos, source.Range);
@@ -159,6 +207,7 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				source.Range = range;
 				partitionedLightSources.Update(source, Bounds(source));
+				lightSourceVersion++;
 			}
 		}
 
@@ -170,6 +219,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			source.Pos = pos;
 			partitionedLightSources.Update(source, Bounds(source));
+			lightSourceVersion++;
 		}
 
 		/// <summary>Current radius of a live source, or WDist.Zero if the token is not live.</summary>
@@ -206,7 +256,10 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Raises CellChanged for every map cell the light can reach.</summary>
 		public void NotifyCells(WPos pos, WDist range)
 		{
-			if (CellChanged == null)
+			// Snapshotted rather than read twice: the field is a multicast delegate and a subscriber could
+			// in principle be added between the null check and the invoke.
+			var changed = CellChanged;
+			if (changed == null)
 				return;
 
 			// TerrainSpriteLayer samples a cell's lighting at its four CORNERS, half a tile out from the centre in
@@ -218,27 +271,119 @@ namespace OpenRA.Mods.Common.Traits
 			var topLeft = map.CellContaining(pos - new WVec(search, search, 0));
 			var bottomRight = map.CellContaining(pos + new WVec(search, search, 0));
 
-			for (var y = topLeft.Y; y <= bottomRight.Y; y++)
+			var cols = bottomRight.X - topLeft.X + 1;
+			if (cols <= 0)
+				return;
+
+			// ==== WHY THIS MAY BE SPLIT ACROSS THREADS, in four parts ====
+			//
+			// (1) THE WRITES ARE DISJOINT BY ROW. The only thing a subscriber does is write the four
+			//     vertices at TerrainSpriteLayer's `vertexRowStride * V + 4 * U` and set a flag for row V.
+			//     Two cells touch the same bytes only if they share a V, so a partition into contiguous
+			//     bands of V needs no synchronisation at all. A Vertex is 48 bytes and a concurrent store
+			//     to one TEARS, so this is the property the whole change rests on -- hence the grid check
+			//     below, which is the one place it can fail.
+			//
+			// (2) THE PER-LAYER SCRATCH IS GONE. UpdateTint's four corner weights were a field on the
+			//     layer, shared by every cell it was asked about; they are now stackalloc'd per call.
+			//
+			// (3) THE MEMO IS PER THREAD rather than per trait. See its note above.
+			//
+			// (4) THE PARTITION IS READ-ONLY FOR THE DURATION. SpatiallyPartitioned.At is a pure iterator
+			//     over one bin -- it reads, yields and mutates nothing (SpatiallyPartitioned.cs:100-107) --
+			//     so any number of threads may walk it at once PROVIDED no light source is added, removed,
+			//     moved or resized while they do. That invariant is not new: the memo has always depended
+			//     on it, because a source appearing mid-sweep would make an already-memoised corner stale.
+			//     It holds because the mutating methods are all reached from the simulation tick on the
+			//     main thread, which is the thread sitting inside this call. AssertSourcesUnchanged checks
+			//     it for real in Debug rather than leaving it as a promise.
+			//
+			// ROWS OF WHAT, exactly: (1) is about MPos.V, the VERTEX row, and the loop below walks CPos.Y.
+			// Those are the same number only on a Rectangular grid, where CPos.ToMPos is the identity
+			// (CPos.cs:77-78). On RectangularIsometric it is `v = X + Y` (CPos.cs:91), so one CPos row is a
+			// DIAGONAL across vertex rows and two different CPos rows share vertex rows -- a Y partition
+			// there would put two threads on one Vertex and tear it. WW3MOD is Rectangular
+			// (mods/ww3mod/mod.yaml:380) and so is stock RA; TS and D2K are not. Rather than rewrite the
+			// sweep in MPos space for grids this branch cannot test, isometric keeps the serial path.
+			//
+			// AND NOT WHILE THE PERF OVERLAY IS SAMPLING. A sampled TintAt goes through PerfSample, whose
+			// Dispose calls PerfHistory.Increment -> `Items[item].Val += x` (PerfHistory.cs:59) -- a
+			// string-keyed Cache lookup that can INSERT, over a plain Dictionary, plus a non-atomic double
+			// accumulate. Concurrent inserts corrupt a Dictionary rather than merely losing a count.
+			// Falling back to serial keeps that instrument exactly as it was, which is also what the
+			// nuke-perf rig's Profile B is for: it answers "is it the lighting?", while Profile A
+			// (--hidden, unsampled) answers "how much did that cost" and is where this change is measured.
+			var parallel = info.ParallelSweep
+				&& map.Grid.Type == MapGridType.Rectangular
+				&& !PerfHistory.Sampling;
+
+			var version = lightSourceVersion;
+
+			CellRowSweep.Run(topLeft.Y, bottomRight.Y + 1, cols, parallel,
+				(fromRow, toRow) => SweepRows(changed, pos, searchSq, topLeft.X, bottomRight.X, fromRow, toRow));
+
+			AssertSourcesUnchanged(version);
+		}
+
+		/// <summary>One partition of <see cref="NotifyCells"/>: the rows in [fromRow, toRow).</summary>
+		void SweepRows(Action<MPos> changed, WPos pos, long searchSq, int minX, int maxX, int fromRow, int toRow)
+		{
+			// The memo is armed for the duration of this partition and for nothing else. See its
+			// declaration. try/finally rather than a bare assignment because a subscriber is arbitrary
+			// code: one that throws must not leave TintAt memoising forever on this thread, which would
+			// freeze the terrain's lighting at whatever four samples were in the buffer.
+			SweepMemo.Begin();
+			try
 			{
-				for (var x = topLeft.X; x <= bottomRight.X; x++)
+				for (var y = fromRow; y < toRow; y++)
 				{
-					var cell = new CPos(x, y);
-					var uv = cell.ToMPos(map);
+					for (var x = minX; x <= maxX; x++)
+					{
+						var cell = new CPos(x, y);
+						var uv = cell.ToMPos(map);
 
-					// The vertex buffer only has geometry for cells inside MapSize, and TerrainSpriteLayer.UpdateTint
-					// indexes it without a bounds check of its own.
-					if (!map.Tiles.Contains(uv))
-						continue;
+						// The vertex buffer only has geometry for cells inside MapSize, and TerrainSpriteLayer.UpdateTint
+						// indexes it without a bounds check of its own.
+						if (!map.Tiles.Contains(uv))
+							continue;
 
-					// Ground cells are lit by horizontal distance; the light's altitude is irrelevant to which of
-					// them it reaches, and including Z here would shrink the footprint of an airburst to nothing.
-					var delta = map.CenterOfCell(cell) - pos;
-					if ((long)delta.X * delta.X + (long)delta.Y * delta.Y > searchSq)
-						continue;
+						// Ground cells are lit by horizontal distance; the light's altitude is irrelevant to which of
+						// them it reaches, and including Z here would shrink the footprint of an airburst to nothing.
+						var delta = map.CenterOfCell(cell) - pos;
+						if ((long)delta.X * delta.X + (long)delta.Y * delta.Y > searchSq)
+							continue;
 
-					CellChanged(uv);
+						// Each cell brings its own four sample points, so the previous cell's entries are
+						// dead the moment this one starts. Dropping them costs nothing and keeps the
+						// lookup a scan of at most four live slots rather than four stale ones.
+						SweepMemo.NextCell();
+
+						changed(uv);
+					}
 				}
 			}
+			finally
+			{
+				SweepMemo.End();
+			}
+		}
+
+		/// <summary>
+		/// Debug-only detector for part (4) of the argument in <see cref="NotifyCells"/>: nothing may add,
+		/// remove, move or resize a light source while a sweep is reading the partition.
+		/// </summary>
+		// After the fact rather than in the way, because it is a DETECTOR and not a guard: checking per
+		// cell is exactly the kind of cost this branch exists to remove, and a violation is a programming
+		// error to be found in a Debug run, not a condition to recover from at runtime. ConditionalAttribute
+		// compiles it out of Release entirely, so it is free in the build that ships.
+		[Conditional("DEBUG")]
+		void AssertSourcesUnchanged(int version)
+		{
+			if (lightSourceVersion != version)
+				throw new InvalidOperationException(
+					"A light source was added, removed, moved or resized during a terrain relight. " +
+					"The sweep memo and the parallel partition both read the light set without locking " +
+					"and require it to be frozen for the duration of NotifyCells.");
 		}
 
 		/// <summary>Maps a normalised falloff in [0,1] (1 at the centre, 0 at the edge) through the requested curve.</summary>
@@ -271,9 +416,27 @@ namespace OpenRA.Mods.Common.Traits
 		// reading it, and costs ~1 ns otherwise.
 		float3 ITerrainLighting.TintAt(WPos pos)
 		{
-			if (!PerfHistory.Sampling)
-				return Tint(pos);
+			// The sweep memo, checked ahead of the sampling branch on purpose: a hit is the cheapest
+			// thing this method can do and there is nothing worth measuring about it. A MISS is still
+			// sampled exactly as before, so `terrain_lighting` keeps reporting real Tint work -- the
+			// trace gets smaller because the work got smaller, not because it stopped being counted.
+			if (SweepMemo.TryGet(pos, out var memoised))
+				return memoised;
 
+			var tint = PerfHistory.Sampling ? Sampled(pos) : Tint(pos);
+
+			// Only ever four distinct sample points are live at once (the four corners of the cell
+			// currently being notified), and the memo is reset per cell, so this cannot overflow in the
+			// shape NotifyCells produces. Store's own guard is for any future caller that samples a
+			// fifth point inside a sweep: such a point is simply not memoised, which is correct but
+			// slow, rather than silently evicting one that is.
+			SweepMemo.Store(pos, tint);
+
+			return tint;
+		}
+
+		float3 Sampled(WPos pos)
+		{
 			using (new PerfSample("terrain_lighting"))
 				return Tint(pos);
 		}

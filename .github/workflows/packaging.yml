@@ -39,11 +39,118 @@ jobs:
 
     # Always retained, so a workflow_dispatch run proves packaging works
     # without publishing a public release.
+    #
+    # Deliberately BEFORE the two smoke steps below: if a smoke test fails we want the
+    # artifact that failed available for download, and we want the release upload (which
+    # follows them) skipped.
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
       with:
         name: linux-appimage
         path: build/linux/*
+
+    # Guard 2. v0.1.0 shipped unable to reach the main menu: a MapFolders entry pointing at
+    # ^EngineDir|../tools/autotest/scenarios, a dev-checkout directory installers do not
+    # ship. No gate caught it because every other check runs against the git checkout,
+    # where tools/ exists. This one runs against the ARTIFACT.
+    #
+    # Deterministic, offline, ~0.1s, and it cannot flake -- so it runs first and is the
+    # half of the packaging smoke test that is allowed to be load-bearing.
+    - name: Check packaged mounts
+      run: |
+        set -o pipefail
+        cd build/linux
+        chmod +x WW3MOD-"${GIT_TAG}"-x86_64.AppImage
+        ./WW3MOD-"${GIT_TAG}"-x86_64.AppImage --appimage-extract > /dev/null
+        cd "${GITHUB_WORKSPACE}"
+        python3 tools/mount-gate/mount_gate.py check \
+          --tree build/linux/squashfs-root/usr/lib/openra
+
+    # Guard 1. Actually start the packaged build and require it to get past the main menu.
+    #
+    # Red Alert content is NOT optional for this: mods/ww3mod/cursors.yaml declares
+    # mouse.shp, which no packaged tree contains (it lives in RA's local.mix), and
+    # CursorProvider builds every CursorSequence eagerly in its constructor
+    # (engine/OpenRA.Game/Graphics/CursorSequence.cs:35) -- so mod load throws
+    # FileNotFoundException on a bare runner, long before any menu. Fetching quickinstall
+    # is therefore a prerequisite, not a nicety, and it puts a third-party mirror
+    # (openra.net) in the release path. If that mirror is the thing that breaks a release
+    # job, this step is why.
+    #
+    # The positive signal is a file, not a timeout: Test.OpenSkirmishLobby makes
+    # MainMenuLogic click through to the lobby once the menu's logic has run
+    # (MainMenuLogic.cs:598), and LobbyLogic writes Test.LobbyReadyFile once the map is
+    # playable (LobbyLogic.cs:999-1003). Both of those are past the point v0.1.0 died.
+    - name: Smoke test the AppImage
+      # NON-BLOCKING by decision (2026-09-20): this step fetches the RA freeware content from
+      # openra.net's mirrors, so an outage there must surface as a warning on the run, not as a
+      # failed release. The static mount-gate in `make test` remains the blocking guard for the
+      # v0.1.0 class (a mount that does not exist in the packaged tree); this launch is the only
+      # check that the SHIPPED tree can start at all, so read its annotations when it goes red.
+      continue-on-error: true
+      run: |
+        set -o errexit -o pipefail
+        sudo apt-get install -y xvfb unzip
+        SMOKE="${RUNNER_TEMP}/smoke"
+        mkdir -p "${SMOKE}/Content/ra/v2"
+
+        # Red Alert freeware content, same package the in-game installer downloads
+        # (mods/ww3mod/installer/downloads.yaml, quickinstall). Try each mirror in turn.
+        curl -fsSL --retry 3 http://www.openra.net/packages/ra-quickinstall-mirrors.txt -o mirrors.txt
+        got=""
+        while read -r mirror; do
+          [ -n "${mirror}" ] || continue
+          echo "Trying content mirror: ${mirror}"
+          if curl -fsSL --retry 2 "${mirror}" -o quickinstall.zip; then got=1; break; fi
+        done < mirrors.txt
+        if [ -z "${got}" ]; then echo "::error::no Red Alert content mirror reachable"; exit 1; fi
+        unzip -qo quickinstall.zip -d "${SMOKE}/Content/ra/v2"
+
+        cd build/linux/squashfs-root
+        set +e
+        timeout 180 xvfb-run -a ./AppRun \
+          Game.Mod=ww3mod \
+          Engine.SupportDir="${SMOKE}/" \
+          Graphics.Mode=Windowed \
+          Test.Mode=true \
+          Test.Name=packaged-smoke \
+          Test.ResultPath="${SMOKE}/result.json" \
+          Test.OpenSkirmishLobby=true \
+          Test.LobbyReadyFile="${SMOKE}/lobby-ready" \
+          > "${SMOKE}/stdout.log" 2>&1 &
+        GAME_PID=$!
+
+        # Poll for the marker rather than blind-sleeping, and give up the moment the
+        # process dies -- a crash must be reported as a crash, not as a timeout.
+        ok=""
+        for _ in $(seq 1 180); do
+          if [ -f "${SMOKE}/lobby-ready" ]; then ok=1; break; fi
+          kill -0 "${GAME_PID}" 2>/dev/null || break
+          sleep 1
+        done
+        kill "${GAME_PID}" 2>/dev/null
+        wait "${GAME_PID}" 2>/dev/null
+        RC=$?
+        set -e
+
+        echo "----- stdout -----"; tail -n 200 "${SMOKE}/stdout.log" || true
+        if [ -f "${SMOKE}/Logs/exception.log" ]; then
+          echo "----- exception.log -----"; cat "${SMOKE}/Logs/exception.log"
+          echo "::error::the packaged build threw during startup"; exit 1
+        fi
+        if [ -z "${ok}" ]; then
+          echo "----- debug.log -----"; tail -n 200 "${SMOKE}/Logs/debug.log" || true
+          echo "::error::packaged build never reached the skirmish lobby (exit ${RC})"; exit 1
+        fi
+        echo "Packaged build reached the skirmish lobby."
+
+    - name: Upload smoke logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-smoke-logs
+        path: ${{ runner.temp }}/smoke/**/*.log
+        if-no-files-found: ignore
 
     - name: Upload Packages
       if: startsWith(github.ref, 'refs/tags/')

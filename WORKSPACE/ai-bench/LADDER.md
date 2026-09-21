@@ -660,12 +660,12 @@ rather than score it.
 | Scenario | River Zeta rung, scenario TBD at S3 standup (reuse the S2 `tournament-s2-combat-river-zeta` map + 720s clock, or a dedicated `tournament-s3-*-river-zeta`), + mirror (essential here) |
 | **Regime (2026-07-21)** | Same new regime as S1/S2 when S3 stands up: **Motorized start, same faction US-US, opponent = `@stable`**. The map-bias gate below becomes **Stable-vs-Stable ~0.50** (not Normal-vs-Normal). |
 | Contestants | P1 Experimental (`@experimental`) vs P2 **Stable** (`@stable`, frozen control) — *was* P2 Normal `[pre-regime]` |
-| Match length | **12 minutes** — `TimeLimitSeconds: 720` (the committed default config) |
+| Match length | **18 minutes** — `TimeLimitSeconds: 1080` (the committed default config). Restated from `720` on 2026-09-19 with no change to the match: `TournamentConfig` converted at a hardcoded 25 tps, so `720` was 18000 ticks = 1080 real seconds all along, and the "12 minutes" here described a match nobody ever ran. Tick count and every recorded result are unaffected. |
 | **Metric** | **Experimental win-rate** (fraction of matches where `winner_name` is the Experimental player), from `summary.json` |
 | N runs | **20** (a win-rate needs statistical power; 20 is the harness's canonical sanity size) |
 | Seeds | `1017 … 20017`; even primary, odd mirror — **mandatory**, so win-rate isn't spawn-side artifact |
 | Advancement | **win-rate ≥ 0.55** (beats the 50/50 even-match null by a 5-point margin), AND **Stable-vs-Stable** on this scenario is verified ~0.50 (map isn't biased) — `[pre-regime]` map-bias findings do not carry over |
-| WinRule | `score_or_sr_capture` (the committed `tournament.yaml` — score at 720s, or instant win on SR capture) |
+| WinRule | `score_or_sr_capture` (the committed `tournament.yaml` — score at 1080s, or instant win on SR capture) |
 
 **Why a win-rate and why 0.55:** scenarios 1–2 measure *facets*; this measures
 the *whole*. 0.55 is deliberately modest — the user explicitly accepts early

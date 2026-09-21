@@ -39,8 +39,13 @@ namespace OpenRA.Test
 		[Test]
 		public void RuleLinesAreApprovedCopy()
 		{
-			// Verbatim from the wording table in WORKSPACE/mockups/defcon-hud-directions.html.
-			Assert.That(DefconReadoutModel.RuleLine(3), Is.EqualTo("The border is closed. Neither side may cross it."));
+			// Verbatim from the wording table in WORKSPACE/mockups/defcon-hud-directions.html, EXCEPT
+			// at DEFCON 3. That line gained its second clause on 2026-09-19 because the phase gained a
+			// second rule three days earlier -- 5fef37dc gates Armament.CanFire at the Positioning
+			// level, so nothing fires there by any path, and the table's line described only the
+			// border. RuleLine's own comment carries the argument. Do not "restore" the table's
+			// wording: it would put the HUD back to stating one of the two rules in force.
+			Assert.That(DefconReadoutModel.RuleLine(3), Is.EqualTo("The border is closed. Nothing may cross it, and nothing may fire."));
 			Assert.That(DefconReadoutModel.RuleLine(2), Is.EqualTo("Your units will not fire on their own. Every shot is one you order."));
 			Assert.That(DefconReadoutModel.RuleLine(1), Is.EqualTo("Everything is released. Units engage on sight."));
 		}

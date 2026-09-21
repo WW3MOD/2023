@@ -70,7 +70,26 @@ namespace OpenRA.Mods.Common.Warheads
 			// Draw the smudges:
 			foreach (var sc in allCells)
 			{
-				var smudgeType = world.Map.GetTerrainInfo(sc).AcceptsSmudgeType.FirstOrDefault(SmudgeType.Contains);
+				// PERF: this was `AcceptsSmudgeType.FirstOrDefault(SmudgeType.Contains)`, and the
+				// method group is the problem rather than the LINQ. `SmudgeType` is an INSTANCE field,
+				// so `SmudgeType.Contains` is an instance method group over a field read, which Roslyn
+				// does NOT cache the way it caches a static one -- a fresh Func<string, bool> was
+				// allocated on every cell, alongside the enumerator. The nuclear scar warheads are
+				// what make that count: five LeaveSmudge warheads per NukeSarmatRV over roughly 800
+				// cells each, six warheads per salvo.
+				//
+				// Same enumeration order over the same HashSet, same first match, same null when
+				// nothing matches -- this is what the LINQ was doing.
+				string smudgeType = null;
+				foreach (var accepted in world.Map.GetTerrainInfo(sc).AcceptsSmudgeType)
+				{
+					if (SmudgeType.Contains(accepted))
+					{
+						smudgeType = accepted;
+						break;
+					}
+				}
+
 				if (smudgeType == null)
 					continue;
 

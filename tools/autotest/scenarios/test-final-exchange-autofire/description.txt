@@ -1,0 +1,38 @@
+TEST: an unplaced strike package fires at the ENEMY, on the same cascade as the placed one.
+
+The 2026-09-20 redesign of the Escalation endgame, in the two claims it turns on.
+
+  AT THE ENEMY. A side that places nothing during the final-exchange window has its OWN
+  game-ender fired for it, aimed at the OTHER side's half of the map. What this replaced --
+  "Dead Hand" -- built ONE map-wide salvo with no owner over every derrick, Supply Route and
+  city on the map, so it bombed the side that had just declined to aim exactly as hard as it
+  bombed their enemy. No test could see that: the salvo had no owner to attribute a warhead to.
+
+  ONE CASCADE. Every warhead of BOTH packages lands on a slot of one evenly-spaced sequence,
+  anchored past the window's close. The old shape had two unrelated clocks -- Dead Hand flew on
+  a 30-tick lead-in while a Sarmat carries MissileDelay 500 -- so the machine's warheads landed
+  roughly eight and a half seconds before the player's own, on every map, every time. That is
+  what the user watched happen and reported.
+
+WHAT IT DOES. USA and Russia hold one Supply Route each on a 64x32 map with the DEFCON border
+derived down the middle. The Time Limit expires at tick 100 and the window opens; USA places its
+B83 at tick 130 and Russia deliberately places nothing. At tick 350 the window closes and
+Russia's own Sarmat is fired for it.
+
+WHAT IT ASSERTS.
+  1. The window is exactly FinalExchangeWindowTicks long and reaches phase Closed.
+  2. USA is recorded as having placed; Russia is not, and exactly N aim points are chosen for it.
+  3. Every one of Russia's aim points is nearer USA's Supply Route than its own, and none is
+     inside the border band.
+  4. Every warhead of both packages is scheduled inside [anchor, anchor + (2N-1) * spacing], and
+     the anchor is strictly after the window's close.
+  5. The match resolves: SalvoInProgress goes true and then false.
+
+PASS is the answer. Each fault message names the one mechanism that produces it and what to read
+in debug.log; there is no shared failure mode between the five.
+
+READ FIRST if changing it: map.yaml's header for the border geometry and the HomeLocation trap
+that would otherwise make the whole run vacuous, and rules.yaml for why every compressed clock is
+the value it is.
+
+  ./tools/autotest/run-test.sh --hidden test-final-exchange-autofire

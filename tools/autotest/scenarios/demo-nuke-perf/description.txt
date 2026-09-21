@@ -1,0 +1,29 @@
+NUKE PERF RIG -- one full six-RV RS-28 Sarmat salvo, fired at a pinned tick onto a 128x128 map
+carrying 665 actors.
+
+This scenario exists to be MEASURED, not watched. It is instrumentation: RUSSIA fires one nuclear
+order from tick 60, the six re-entry vehicles land ~186 ticks later, and the run then carries on
+for 940 ticks past the order doing nothing else at all -- so every millisecond after the impact is
+a millisecond the engine spent on the detonation.
+
+RUSSIA FIRES, NOT USA, AND THAT IS NOT INTERCHANGEABLE. MissileStrikePower@Sarmat declares
+`Prerequisites: powers.event, player.russia` (player.yaml:238-239) and prerequisites are ANDed. A
+`player.<faction>` name is an identity provided by faction alone and NEVER by the sandbox option
+(player.yaml:227-230), so an america player can never be handed this power by any lobby setting.
+The rig spent three launch slots firing nothing before that was read rather than assumed.
+
+Russia also nukes its own army here, on purpose: all 448 combat actors are Russia's, and
+Warhead.ValidRelationships defaults to Ally|Neutral|Enemy (Warhead.cs:36), so ownership changes
+nothing about what the detonation costs. Do not re-own the army to "fix" it -- the actor count is
+an input to every number taken against this rig.
+
+HOW TO RUN IT AND WHAT THE NUMBERS MEAN: tools/nuke-perf/README.md. Do not run this scenario
+without reading that file; the useful output is not the verdict, it is two log files that are
+only written when the right launch arguments are set and only survive a clean exit.
+
+It ends on Test.Skip rather than on no verdict at all -- against DEMO.md's rule and for a
+mechanical reason: the benchmark CSVs are written from World.Dispose (World.cs:726), so a run the
+watchdog kills produces nothing. SKIP is not a claim that anything passed.
+
+Sibling arm: demo-nuke-perf-single, identical in every respect except that it fires ONE warhead
+instead of six. Run both; the pair is what answers "does six cost six times one, or worse?"

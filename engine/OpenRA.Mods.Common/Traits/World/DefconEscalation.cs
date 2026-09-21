@@ -119,13 +119,59 @@ namespace OpenRA.Mods.Common.Traits
 			"a key that stops existing silently discards every stored value set to it.",
 			"",
 			"There is NO zero. A no-rush period of nothing is the Skirmish game, which is a mode",
-			"rather than a duration -- and the 3 -> 2 clock is required positive by " + nameof(IRulesetLoaded) + ".")]
+			"rather than a duration -- and the 3 -> 2 clock is required positive by " + nameof(IRulesetLoaded) + ".",
+			"",
+			"WHAT THE STOPS MEAN, MEASURED RATHER THAN CHOSEN (WORKSPACE/audit/",
+			"escalation-gameplay-review-260919.md Part 1). The quantity that decides this phase's",
+			"length is how long a called-in force takes to be IN POSITION at the border -- queue",
+			"time, plus the walk from the map edge to the Supply Route, plus the drive to the line:",
+			"",
+			"  * Nothing is built at the SR. ProductionFromMapEdge spawns on the closest edge cell",
+			"    and walks in, and BuildDuration is unset on every unit so queue time is cost/10",
+			"    ticks. The Vehicle queue is SEQUENTIAL with one producer, so vehicles add up: a",
+			"    4 MBT + 2 IFV + 1 APC push is 1370 ticks (82 s) for America, 1280 (77 s) for Russia.",
+			"  * An Abrams makes 63 WDist/tick on Clear (Speed 90 at heavytracked's 70 %), i.e.",
+			"    1.03 cells/s, and is the pace-setter of a mixed group. Infantry ON FOOT is 0.36 and",
+			"    is why the reference group rides transports.",
+			"  * The border is the perpendicular bisector of the two sides' homes, so the distance to",
+			"    it is half the spawn separation: 11 to 77 cells across the ten shipped maps.",
+			"",
+			"That puts the wave in position at 1:42 - 2:56 on EVERY shipped map and pairing -- a 1:14",
+			"spread over a 7x spread in distance, because the 82 s of queue is a constant every map",
+			"pays. So the stops fall in three bands and the list brackets them deliberately:",
+			"",
+			"    2  the phase does not FINISH on any 2-spawn map or any widest pairing. It does",
+			"       clear the closest seats of the 4- and 6-spawn maps (1:42 on river-zeta s0), so",
+			"       it is the aggressive stop rather than a dead one",
+			"    3  BARELY        the tightest stop that clears every map, and by only 4 s",
+			"    5  COMFORTABLY   in position with 2:04 to 3:18, and income pays for a second wave",
+			"    7  slack         a third wave; the front is decided by stacking, not by timing",
+			"  10+  DEAD AIR      unspent credits, a wall, and nothing on the map that may fire",
+			"",
+			"DO NOT DELETE 10 OR 15 TO 'FIX' THE DEAD AIR. They are wire keys, and an out-of-set",
+			"value throws KeyNotFoundException on the next client join (LobbySettingsNotification.cs",
+			":39 indexes Values unchecked). Adding a key is safe; removing one is not.")]
 		public readonly int[] NoRushOptions = { 2, 3, 5, 7, 10, 15 };
 
 		[Desc("Default no-rush period in minutes. Must be one of " + nameof(NoRushOptions) + ".",
 			"",
-			"FIVE, which is what the retired Standard pace was worth (5000 ticks = 300 s at the mod's",
-			"60 ms timestep), so the shipped default match is unchanged in length by this rework.")]
+			"FIVE = 5000 ticks = 300.0 s, AND IT IS NO LONGER AN INHERITED NUMBER. It arrived here as",
+			"'what the retired Standard pace was worth' and was re-derived from the deployment",
+			"arithmetic on 2026-09-19; the derivation produced the same value, so nothing moved. See",
+			"the stop table on " + nameof(NoRushOptions) + " above: 5 is the COMFORTABLY band -- the",
+			"slowest wave on any shipped map is in position at 2:56, which leaves 2:04 of slack on the",
+			"worst map and 3:18 on the median, and passive income (2000/min) pays for a second wave",
+			"inside the same clock. Those slack minutes are not idle: the Supply Route sells Building",
+			"and Defense during Positioning, and the minelayer works, so the phase's second half is",
+			"fortify-and-mine rather than waiting.",
+			"",
+			"WHAT WOULD MOVE IT. Two configurations make 5 slack rather than comfortable and neither",
+			"is coupled to this field: a closest-pairing seat on a 4- or 6-spawn map (as little as 11",
+			"cells to the line on river-zeta), and Forward Deployment, which lands the force 0.15x the",
+			"spawn separation short of the border and collapses every map's wave to 1:31 - 1:55. A",
+			"map-derived default is possible -- ILobbyOptions.LobbyOptions already receives the",
+			"MapPreview -- and is filed rather than built, because a default that cannot be read off",
+			"the mod files costs something too.")]
 		public readonly int NoRushDefault = 5;
 
 		[Desc("Prevent the no-rush period from being changed in the lobby.")]
@@ -152,7 +198,18 @@ namespace OpenRA.Mods.Common.Traits
 			"TEN, WHICH IS THE USER'S OWN RULING (decision 17.1) AND NOT THE AGENT'S RECOMMENDATION:",
 			"nuclear weapons are a mid-game tool rather than a late development. It is also exactly",
 			"what the retired fixed field was worth -- 10000 ticks at 60 ms -- so this default changes",
-			"no shipped behaviour, only who may change it.")]
+			"no shipped behaviour, only who may change it.",
+			"",
+			"CHECKED AGAINST THE MATCH CLOCK on 2026-09-19 and it holds. This is an offset from DEFCON",
+			"1 (decision 21), and DEFCON 2 ends on the first casualty rather than on a clock -- which",
+			"in practice is seconds, because Positioning delivers both armies to the border. So at the",
+			"default 5-minute no-rush, warheads arrive at about 15:30 on the match clock, by which",
+			"time each side has had roughly 51000 credits (20000 opening plus 2000/min) through its",
+			"hands: late enough that a conventional decision has been attempted, early enough that the",
+			"losing side still has an army worth saving, which is what the exchange model assumes.",
+			"Playing the ladder out from there at the shipped Flexible cooldowns (5/7/9/12 min) puts",
+			"the earliest apocalypse at about 29:30. WORKSPACE/audit/escalation-gameplay-review-260919",
+			".md Part 1.5 has the arithmetic for all three postures.")]
 		public readonly int FirstWarheadsDefault = 10;
 
 		[Desc("Prevent the first warheads delay from being changed in the lobby.")]
@@ -287,12 +344,34 @@ namespace OpenRA.Mods.Common.Traits
 			// the only thing that makes a checkbox. There is no integer option type in this engine, so
 			// even the two minute clocks are enumerated string dropdowns keyed on the stringified
 			// number of minutes, exactly as `timelimit` and `nuclear-unlock-interval` already are.
+			//
+			// SANDBOX IS NOT ON THE MENU (2026-09-19). It was a third entry here and it offered a host
+			// nothing a host wants: its whole content is "pin the level and never escalate", and the two
+			// levels it can be pinned at that mean anything are the two the fire rules key on -- so the
+			// shipped default, Start At = Positioning, was a match in which no weapon on the map could
+			// fire, from the first tick to the last, with no clock anywhere that could lift it. That
+			// half is fixed in DefconFireDiscipline; this half is that a developer setting does not
+			// belong in a player's Game mode list, next to the two modes that are the game.
+			//
+			// THE ENUM VALUE STAYS, and is not dead: DefconEscalationState still pins on it, the lobby
+			// still hides the phase rows for it, and NuclearExchange and the readout still test for it.
+			// It is reachable by SETTING ModeDefault in a map or scenario's rules -- which is the one
+			// caller it was ever right for -- and the line below is what keeps that reachable safely.
+			//
+			// A DEFAULT THAT IS NOT A KEY OF ITS OWN VALUES THROWS ON CLIENT JOIN: LobbyOption.Label
+			// indexes Values unchecked (TraitsInterfaces.cs:717) and LobbyCommands calls it on
+			// o.DefaultValue for every option when a client connects (LobbyCommands.cs:770). So the
+			// entry is admitted exactly when ModeDefault names it, rather than dropped unconditionally
+			// -- which would have turned `ModeDefault: Sandbox` from a supported opt-in into a
+			// KeyNotFoundException that no lint and no build could see.
 			var modes = new Dictionary<string, string>
 			{
 				{ nameof(DefconGameMode.Escalation).ToLowerInvariant(), "Escalation" },
 				{ nameof(DefconGameMode.Skirmish).ToLowerInvariant(), "Skirmish" },
-				{ nameof(DefconGameMode.Sandbox).ToLowerInvariant(), "Sandbox" },
 			};
+
+			if (ModeDefault == DefconGameMode.Sandbox)
+				modes[nameof(DefconGameMode.Sandbox).ToLowerInvariant()] = "Sandbox";
 
 			// The levels are LABELLED BY WHAT THEY DO and keyed by the number, which is the whole of
 			// decision 18 in one dictionary: the wire keeps "3" and the host reads "Positioning".
@@ -463,7 +542,7 @@ namespace OpenRA.Mods.Common.Traits
 			// ReportCasualty deliberately does NOT do this: it only ever moves 2 -> 1, the direction that
 			// RESTORES autonomous fire. Starting a match AT DEFCON 2 is not a transition either -- nothing
 			// is engaged on the opening tick.
-			if (DefconFireDiscipline.HoldsFire(Level))
+			if (DefconFireDiscipline.HoldsFire(Mode, Level))
 				CeaseAutonomousFireEverywhere(self);
 		}
 

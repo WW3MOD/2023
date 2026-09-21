@@ -37,3 +37,22 @@ E1:
 # because AttackGarrisoned drives the port from the building. Leaving MT at its shipped stance
 # keeps the one behaviour the scenario depends on (the Gunner stays deployed while Trigger is
 # alive) exactly as it ships.
+
+# THE SHOOTERS MUST SURVIVE THE STAGING, and nothing else in this file makes them.
+# HouseE1's garrison is a plain rifleman: 5.56mm.E3 reaches 10c0 with NO minimum range, so it
+# shoots the control's behind shooter at 6 cells for the entire run. Run 260915_215050 died on
+# exactly that -- "Actor 'e1 (dead)' does not define a property 'Attack'" -- AFTER both central
+# limbs had already answered correctly. The MT house is immune only because 60mm_Mortar carries
+# MinRange: 8c0 and every shooter there stands inside it.
+#
+# Raising e1 health is the smallest lever that does not touch the mechanism under test. Every
+# measurement in this scenario is taken on the TARGET's health (the garrisoned mt, the garrisoned
+# rifleman, the mt in the open) and never on a shooter's, so a shooter who cannot die changes no
+# verdict -- it only stops the staging killing the instrument. It also keeps Bait alive, which the
+# scenario silently depends on: he is the only target the north-east ports can confirm, and a dead
+# Bait recalls the Gunner from his port mid-measurement.
+#
+# Deliberately NOT applied to MT: the Gunner's and OpenMT's health ARE the measurement.
+E1:
+	Health:
+		HP: 1000000

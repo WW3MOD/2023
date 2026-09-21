@@ -1,0 +1,62 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON RIVER ZETA IS THE RIVER ITSELF --------------------------------
+	# The derived bisector in world.yaml is the right border on an open map and the wrong one
+	# here: it is the perpendicular bisector of the two sides' spawn centroids, so on a map whose
+	# natural division is a river it cuts across the water at whatever angle the spawns imply.
+	# Authoring either region field below switches this map to the region path and neither
+	# Start/End nor DeriveFromSpawns is consulted at all (DefconWallInfo.RegionTerrainTypes).
+	#
+	# POSITIONING-PHASE ONLY. DefconWall writes Map.CustomTerrain and restores it cell by cell
+	# when the level leaves ActiveLevels, which is 3 alone. No terrain is edited and nothing here
+	# survives DEFCON 2 -- the bridges reopen and the crossings decide the match.
+	DefconWall:
+		# The river, its two bridge decks and the standing water. 634 cells on this map
+		# (588 Water + 22 River + 24 Bridge), of which 620 are inside Bounds.
+		RegionTerrainTypes: Water, River, Bridge
+		# ---- WHY THERE ARE 210 HAND-AUTHORED CELLS, AND WHY THE BORDER DOES NOT EXIST WITHOUT
+		# THEM. Water + River + Bridge alone leaves the map in ONE piece, and that is not a
+		# tuning preference -- DefconWallRegion.IsDegenerate is `ComponentCount < 2`, and on a
+		# region that divides nothing DefconWall.BuildRegion logs and leaves the wall DOWN.
+		# Measured statically (tools/nav-guard/defcon_wall_audit.py, and the same flood by hand):
+		# blocking only those three types leaves one 7060-cell component holding all six spawns.
+		#
+		# THE REASON IS FOUR DRY CROSSINGS OF THE CHANNEL, not a gap round the ends of the river.
+		# Capping the end rows does nothing; the river runs to both map edges. What it has instead
+		# is two ROCK-AND-ROAD FORDS (y3-5 in the north, y77-79 in the south) where a dry bar
+		# spans the water, and two BRIDGES whose decks are flanked on both sides by Rock lying
+		# inside the channel -- so blocking the deck leaves a rock ramp beside it. `foot` lists
+		# Rock in its TerrainSpeeds and no wheeled or tracked locomotor does, which is the entire
+		# infantry-versus-vehicle split on this map: with only the three terrain types blocked
+		# every vehicle is already separated 2667/2622 and every foot class still walks across.
+		#
+		# ADDING `Rock` TO THE TYPE LIST ABOVE WOULD ALSO SEPARATE, AND IS NOT DONE ON PURPOSE.
+		# Measured: the map's 87 Rock cells form 24 8-connected clusters of which only 9 touch the
+		# water at all, so the type list drags in 15 rock islands with no connection to the river
+		# -- and the border then strands 64 cells for `foot` (bbox x42-56 / y33-47) against the 31
+		# the cells below strand. Blunter AND worse. The cells below are the same four crossings
+		# closed by hand.
+		#
+		# EACH CROSSING IS COVERED BANK TO BANK RATHER THAN PLUGGED. A 12-cell minimum vertex cut
+		# does separate the map -- (31,3-5), (39,35) (42,35) (43,35), (52,48) (55,48) (56,48),
+		# (59,77-79) -- and was measured pocket-free, but it leaves the dry bar in the middle of
+		# each ford open and attached to ONE bank, so the eastern player would own a beachhead
+		# sitting inside the river while the band drawn over it showed a hole. Covering the whole
+		# channel is also what was asked for: the whole river, not a line down the middle of it.
+		#
+		# NONE OF THESE IS A ONE-CELL DIAGONAL. The cell set was chosen and verified in the SAME
+		# 8-connected graph DefconWallRegion.Label floods, so a corner-touching staircase cannot
+		# read as sealed here the way HalfWidth 512 once did on 131 map/locomotor combinations.
+		#
+		# Verified statically at ab2ac8b8: exactly 2 components, 3 spawns each --
+		# (9,45) (16,6) (23,75) against (74,5) (81,76) (88,35) -- and `RESULT: the region
+		# separates the spawns on every locomotor that can reach them`, exit 0, all 15 locomotors.
+		#
+		#   north ford          53 cells   x31-40  y1-7
+		#   bridge A abutments  63 cells   x38-56  y27-41
+		#   bridge B abutments  40 cells   x49-59  y42-54
+		#   south ford          54 cells   x59-69  y74-80
+		# THE 210 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.

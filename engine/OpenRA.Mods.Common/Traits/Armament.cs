@@ -144,6 +144,19 @@ namespace OpenRA.Mods.Common.Traits
 			"Use for low-priority self-defense weapons (e.g. drone jammer) that shouldn't override player intent.")]
 		public readonly bool NoSelfDefenseInterrupt = false;
 
+		[Desc("This armament keeps working during the DEFCON 3 'Positioning' phase, when every other " +
+			"weapon in the match is silent — no autotarget, no ordered attack, no force-fire at ground. " +
+			"IT IS AN OPT-OUT FOR THINGS THAT ARE NOT REALLY WEAPONS: the drone operator's targeter, the " +
+			"medic's Heal, the engineer's Repair, the mine-clearing charge. ",
+			"",
+			"EXPLICIT ON PURPOSE, AND DO NOT REPLACE IT WITH A HEURISTIC. Zero damage does not mean " +
+			"inert — IskanderTargeter and HIMARSTargeter deal Damage: 0 and are described in-file as " +
+			"dummy triggers, but firing one spawns a live ballistic missile via MissileSpawnerMaster's " +
+			"INotifyAttack.Attacking hook (MissileSpawnerMaster.cs:77), so they must NOT carry this. " +
+			"Negative damage does not mean real — Heal and Repair are the healers and must. A rule over " +
+			"the damage number, or over the 'Targeter' name suffix, gets both of those backwards.")]
+		public readonly bool FiresDuringCeaseFire = false;
+
 		public WeaponInfo WeaponInfo { get; private set; }
 		public WDist ModifiedRange { get; private set; }
 
@@ -196,6 +209,12 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Actor self;
 		Turreted turret;
 		BodyOrientation coords;
+
+		// THE DEFCON 3 CEASE-FIRE, read from the World actor. Resolved once in Created rather than per
+		// shot; the level itself is a live property on the trait, so this stays current. Deliberately
+		// TraitOrDefault -- a map or scenario that strips DefconEscalation must leave the guard in
+		// CanFire inert rather than throwing. Same idiom, and the same reasoning, as AutoTarget.cs:568.
+		DefconEscalation defconEscalation;
 		INotifyBurstComplete[] notifyBurstComplete;
 		INotifyMagazineComplete[] notifyMagazineComplete;
 		INotifyAttack[] notifyAttacks;
@@ -316,6 +335,11 @@ namespace OpenRA.Mods.Common.Traits
 
 			turret = self.TraitsImplementing<Turreted>().FirstOrDefault(t => t.Name == Info.Turret);
 			coords = self.Trait<BodyOrientation>();
+
+			// WorldActor is valid here: this is a per-actor trait, so the world actor was constructed
+			// long before any unit was. (The opposite is true inside a WORLD-actor trait's Created, where
+			// World.WorldActor is still null -- DefconWall.cs:263-271 records that crash.)
+			defconEscalation = self.World.WorldActor.TraitOrDefault<DefconEscalation>();
 			notifyBurstComplete = self.TraitsImplementing<INotifyBurstComplete>().ToArray();
 			notifyMagazineComplete = self.TraitsImplementing<INotifyMagazineComplete>().ToArray();
 			notifyAttacks = self.TraitsImplementing<INotifyAttack>().ToArray();
@@ -392,9 +416,44 @@ namespace OpenRA.Mods.Common.Traits
 				a(b);
 		}
 
+		/// <summary>Current match DEFCON level, or NoLevel when the mode is not in play -- Skirmish, or no
+		/// DefconEscalation on the World actor at all. NoLevel is not the Positioning rung, which is what
+		/// makes the guard below a single int compare and the whole cease-fire a strict no-op outside the
+		/// mode.</summary>
+		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
+
+		/// <summary>May this armament fire at all, at the current DEFCON level? See
+		/// <see cref="DefconFireDiscipline.PermitsWeapon"/>; false only during the DEFCON 3 Positioning
+		/// phase, and only for armaments that have not opted out as not-really-weapons.</summary>
+		public bool PermittedByDefcon => DefconFireDiscipline.PermitsWeapon(DefconMode, DefconLevel, Info.FiresDuringCeaseFire);
+
 		protected virtual bool CanFire(Actor self, in Target target)
 		{
 			if (IsReloading || IsWaitingBurst || IsAiming || IsTraitPaused)
+				return false;
+
+			// THE DEFCON 3 CEASE-FIRE, AND IT IS HERE BECAUSE THIS IS WHERE EVERY FIRING PATH MEETS.
+			// Autotarget, a player's explicit attack order, an attack-move contact shot, a garrison
+			// port's own scanner and a force-fire at bare ground all reach a projectile only through
+			// CheckFire, which returns on !CanFire before a single shot is built -- so one test here
+			// closes all of them without knowing which one it is answering. Provenance is deliberately
+			// NOT consulted: at this rung "somebody ordered it" is not a defence, and force-fire at
+			// ground is the specific bypass the rule exists to close.
+			//
+			// NEITHER PAUSED NOR DISABLED, chosen deliberately. Pausing would make AttackBase.GetMaximumRange
+			// (:591-611) skip the armament and collapse the unit's range circle to zero for the whole
+			// phase -- and Positioning is precisely when a player wants to see weapon reach while placing
+			// units. Disabling would additionally empty ChooseArmamentsForTarget and IIssueOrder.Orders,
+			// which is more than the rule asks and would hide the attack cursor rather than refuse it.
+			// It would also trip AbandonWhenArmamentsPaused on the medic (infantry.yaml:2362). A plain
+			// refusal here leaves every range circle, cursor and tooltip exactly as it is outside the
+			// mode; AttackBase's targeter refuses the ORDER separately so the cursor does not lie.
+			if (!PermittedByDefcon)
 				return false;
 
 			if (turret != null && !turret.HasAchievedDesiredFacing)
@@ -448,7 +507,8 @@ namespace OpenRA.Mods.Common.Traits
 						| (turret != null && !turret.HasAchievedDesiredFacing ? 16 : 0)
 						| (!target.IsInRange(self.CenterPosition, MaxRange()) ? 32 : 0)
 						| (Weapon.MinRange != WDist.Zero && target.IsInRange(self.CenterPosition, Weapon.MinRange) ? 64 : 0)
-						| (!Weapon.IsValidAgainst(target, self.World, self) ? 128 : 0);
+						| (!Weapon.IsValidAgainst(target, self.World, self) ? 128 : 0)
+						| (!PermittedByDefcon ? 256 : 0);
 
 					if (blockMask != lastBlockMask)
 					{
@@ -460,7 +520,8 @@ namespace OpenRA.Mods.Common.Traits
 							+ $" [reloading={IsReloading} waitingBurst={IsWaitingBurst} aiming={IsAiming}"
 							+ $" paused={IsTraitPaused} outOfMaxRange={!target.IsInRange(self.CenterPosition, MaxRange())}"
 							+ $" insideMinRange={Weapon.MinRange != WDist.Zero && target.IsInRange(self.CenterPosition, Weapon.MinRange)}"
-							+ $" invalidTarget={!Weapon.IsValidAgainst(target, self.World, self)}]");
+							+ $" invalidTarget={!Weapon.IsValidAgainst(target, self.World, self)}"
+							+ $" defconCeaseFire={!PermittedByDefcon}]");
 					}
 				}
 

@@ -63,7 +63,7 @@ namespace OpenRA.Mods.Common.Traits
 		public void EnterSpawner(Actor self, bool forced = false)
 		{
 			// Hopefully, self will be disposed shortly afterwards by SpawnerSlaveDisposal policy.
-			if (Master == null || Master.IsDead)
+			if (!HasLiveMaster)
 				return;
 
 			// Proceed with enter, if already at it.
@@ -128,6 +128,24 @@ namespace OpenRA.Mods.Common.Traits
 
 		void ReturnWithinDistance(Actor self)
 		{
+			// NO MASTER, NO LEASH — and this is a crash guard, not a tidiness one. Everything below
+			// is measured FROM Master.Location, and this method dereferenced it unguarded while its
+			// neighbour EnterSpawner had carried the same check since it was written. A slave that
+			// was never linked (map-placed, or script-created, which is how this was found) reaches
+			// here as soon as maxDistanceCheckTicks runs out and throws a NullReferenceException at
+			// CarrierSlave.cs:136 from Tick.
+			//
+			// IT GOES ABOVE THE COUNTER DECREMENT DELIBERATELY. `--maxDistanceCheckTicks` has a side
+			// effect; running it for a slave that can never act on the result is pointless, and the
+			// counter starts at 0 so a later LinkMaster still gets its first check on the next tick.
+			//
+			// "Maximum range from master" is undefined without one, so doing nothing is the whole
+			// correct behaviour. In particular do NOT grant `lost-connection` here as a consolation:
+			// that zeroes the slave's vision (VisionModifier@OperatorLostContact), and a masterless
+			// drone is not a drone that lost its link — it never had one.
+			if (!HasLiveMaster)
+				return;
+
 			if (!self.IsInWorld || Info.MaxDistance == 0 || --maxDistanceCheckTicks > 0)
 				return;
 

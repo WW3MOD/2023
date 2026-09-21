@@ -411,13 +411,12 @@ HIMARSTargeter:
 
 SurfaceToAirMissile:
 	Inherits@MediumAAMissileEffects: ^MediumExplosionEffectsAir
-	ValidTargets: Air
+	ValidTargets: Air, ICBM
 	Range: 35c0
 	Burst: 1
 	BurstDelays: 1
 	BurstWait: 100
 	Report: missile1.aud
-	ValidTargets: Air, ICBM
 	Projectile: Missile
 		MaximumLaunchSpeed: 50
 		Acceleration: 35

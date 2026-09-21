@@ -138,8 +138,59 @@ Two different things carry names here, and only one of them is a scenario:
 - **`python tools/lua-gate/lua_gate.py check`** re-derives the binding surface from the C# on every run, so it gives the true answer in seconds with no build, no launch and no judgement call. It is the authority for *what exists* and for *what a scenario calls that does not* — it reported exactly two real callers of the missing `Trigger.OnTick` where a grep had reported eight (the other six contained the string only inside a comment saying it did not exist, beside the hand-rolled `AfterDelay(1, reschedule)` loop they used instead). **Run the gate before counting Lua API breakage by grep.** What it cannot tell you is whether a binding's return value marshals back into Lua — see [`conventions.md`](conventions.md#scenarios-are-not-maps-to-some-tooling--but-the-windows-merge-gate-does-lint-every-one-of-them).
 - **`git log -S` settles direction.** `git log -S "OnTick" -- engine/OpenRA.Mods.Common/Scripting engine/OpenRA.Game/Scripting` returned **no commits at all**, so the string had never been added or removed: not a removal, but eight authors independently reaching for an API that felt like it should exist — which is what made *adding* it the right fix rather than rewriting call sites.
 
+**A STOCK OpenRA BINDING IS A BAD PRIOR IN THIS MOD — check `TestGlobal.cs` before reaching for one.**
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* Three consecutive stock APIs turned out not to
+exist here, each killing a scenario at its first use with a runtime *"Actor 'x' does not define a property
+'y'"*:
+
+- **`actor.Build`** — `ProductionProperties.Build` is an **actor** property whose constructor does
+  `self.TraitsImplementing<ProductionQueue>()`, so it exists only on an actor that itself holds queues. WW3MOD
+  has no factories: the Supply Route is a spawn point and the queues live on the **player**.
+- **`actor.Sell`** — `SellableProperties` requires `SellableInfo`, and in this mod `Sellable` is on
+  **structures only**. No vehicle or infantry actor has it.
+- **`Evacuate`** — not a Lua property at all; nothing of that name exists under
+  `engine/OpenRA.Mods.Common/Scripting/`. It is a raw order string issued by bot modules, reachable from a
+  scenario only through the command bar (`TestHarness.Select` then `Test.PressHotkey("Evacuate")`).
+
+The mod ships `Test.*` (`Scripting/Global/TestGlobal.cs`) *precisely because* the stock bindings do not cover
+what this mod does — `QueueProduction`, `PressHotkey`, `SelectActors`, `ClickOrder`, `IssueMoveOrder`,
+`IssueResupply`, `ClickProductionIcon` and ~50 more. **Grepping the scenarios for prior art misleads rather
+than helps**: `grep -rn "\.Build(" tools/autotest/scenarios/` returns four confident-looking hits, all of them
+a scenario-local helper of the same name with no relation to either binding. Four call sites reads as an
+established idiom. Confirm a scripting API in `engine/OpenRA.Mods.Common/Scripting/`, never by counting
+scenario hits.
+
+**Two `Test.QueueProduction` traps, and both fail SILENTLY.** It returns `void` and simply returns when
+`FindQueueForActor` finds no enabled queue, so a scenario waits forever and reports a generic timeout that
+blames whatever it was really asserting. And it looks the actor up with a plain `TryGetValue` on
+`Rules.Actors`, **whose keys are `ToLowerInvariant`** (`Ruleset.cs:126`) — passing an actor name in its YAML
+casing (`"HELI"`) finds nothing. Assert that something was produced, and name that cause in the failure string.
+
 **The rule worth carrying past Lua: when a scenario comment asserts an engine limitation, treat it as a dated claim about the engine, not as a fact about it.** The comment is written once, at the moment of frustration, and then survives every change to the thing it describes — and the more confidently it is phrased, the less likely the next author is to re-check it. The scenario-authoring view of the same surface is [`AUTOTEST.md` §Lua API](../recipes/AUTOTEST.md).
 
+
+### `Rules.Actors` contains the `^` inherit templates, so any per-type table built from it grows phantom rows
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `world.Map.Rules.Actors.Values` yields the
+abstract `^Foo` templates alongside real actors. Any trait that enumerates the ruleset to build a per-type
+table must filter them or it silently creates entries for `^GainsExperience`, `^CrewMember` and friends —
+nothing warns you, and a template that happens to carry the traits you filter on simply becomes a row. The
+house pattern is `ai.Name.StartsWith("^", StringComparison.Ordinal)` (`ControlField.cs`, `DangerFieldLayer.cs`,
+`Lint/CheckUnitRoleTable.cs`). The lowercase-key trap on the same dictionary is under §"Key Lua APIs used"
+above.
+
+Two adjacent rank-system facts from the same build:
+
+- **`ProducibleWithLevel` cannot deliver a DYNAMIC level.** `InitialLevels` is a `TraitInfo` field read at load
+  time, so it can only ever express a constant. The near-miss alternative, `ExperienceInit`, carries raw
+  *experience points* rather than levels, and the thresholds are `Conditions` keys multiplied by `Valued.Cost`
+  (`GainsExperience.cs:87-89`) — using it means duplicating that derivation at the call site and keeping the
+  copy in step by hand.
+- **`GainsExperience.GiveLevels` clamps, so two independent level sources compose safely** —
+  `newLevel = Min(Level + n, MaxLevel)` (`:102`), order-independent. Its *non-silent* path branches on
+  `self.Owner == self.World.RenderPlayer` (`:128`), which is client-local; it guards only a sprite effect and a
+  sound, so it is not a desync (see §"`RenderPlayer` is render-side only"), but granting silently means that
+  branch is never reached at all.
 
 ### A scenario phase must advance on an OBSERVABLE, not on a tick count
 
@@ -205,6 +256,37 @@ a convoy-spacing metric, and any "how far apart were they" assertion whose popul
 reached the thing being measured* all have it. It is the measurement-side twin of
 §"A scenario phase must advance on an OBSERVABLE" above — there the budget hid the fault, here the population
 does.
+
+**3. A spread or extent statistic read at the moment the FASTEST member arrives is a measurement of the
+SPEED RATIO, not of coordination — and it degrades linearly with distance.** *(Promoted 2026-09-20 from
+DISCOVERIES, re-read at `a21583fd`.)* `test-push-departs-together`'s `d2` — Chebyshev extent over the push at
+the tick the first unit crosses the midline, PASS ≤ 8 — was read for weeks as the clause still doing real work
+on departure discipline. It measures no such thing. An `abrams` is `Speed: 90`
+(`ingame/vehicles-america.yaml:521`); a rifleman is `Speed: 25`, inherited unmodified down
+`E3.america → ^E3 → ^CamoSoldier → ^Soldier → ^Infantry` (`ingame/infantry.yaml:47-48`, no override on that
+chain). **Nothing paces them**: a grouped `AttackMove` runs through `CohesionMoveModifier`, which assigns each
+unit its own destination slot and then lets each travel at its own speed. So at the instant the tank has
+covered the 29 cells to the line, the rifleman has covered `29 × 25/90 ≈ 8`, and the box is ~21 cells wide.
+**That is arithmetic, not tuning: `d2 ≤ 8` over a 29-cell run is unreachable while the fast element does not
+wait, whatever the departure logic does.** The only mechanism that could move it is a lead-hold (armour holding
+at a bound until the infantry close up), which exists nowhere in the bot modules. Any *"how far apart were
+they"* clause must say whether it means spread or coordination, and if it means coordination it has to be read
+at a moment **neither element chooses alone**.
+
+**4. An assertion about a CONSUMABLE quantity must read a history, not the live value.** *(Promoted
+2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `test-rank-accumulation` returned *"the bank was still
+empty … the accrual timer is not running"* on a run whose own log showed the bank rising to 1 and holding
+there for 300 ticks. The timer was fine; the later purchase had **spent** the stock, which is the feature
+working. The guard was `#produced < 2 and stockNow == 0 and now > deadline`, and the spend and the production
+notification land on the same simulation tick while the scenario deliberately deferred reading the produced
+unit to the following poll — a one-tick window in which the consumable reads 0 and the counter of what consumed
+it has not caught up. **For "did it ever happen", assert on an append-only history; for "was it consumed",
+assert on a value sampled at the consuming event. Never on the live quantity, which is by definition the one
+thing a working spend and a dead producer both drive to zero.** Applies identically to ammo, cash, supply and
+charge. Corollary on the verdict string: **never hardcode a tuning value into one** — the same run quoted a
+scenario-local staging override as though it were the shipped constant, which made a correct configuration
+read as a 20 % deviation. Derive the number in the message from the constant the scenario actually runs, and
+prefer running the shipped configuration over a staged one that makes the schedule land on round numbers.
 
 ### A `Test.*` binding must return ONE thing
 
@@ -288,6 +370,10 @@ That command is now purely an optimisation — it fills the cache so a later loa
 - **Cameo canvas size is a convention, not an engine constraint.** `IconSize: 62, 46` (`chrome/ingame-player.yaml:21`, `:1297`) sizes the *slot*; the sprite is drawn by `WidgetUtils.DrawSpriteCentered` (`WidgetUtils.cs:86-89`) at `pos - 0.5 * s.Size`, **never scaled and never clipped**. Shipped cameos are a mix of 64×48 (176 files) and 60×48 (40 files) and both overhang the 46 px slot by a row.
 - **Single-frame full-canvas assets survive SHP→PNG→PngSheet**, so the "auto-sliced PNG loses the anchor" trap above does not reach a cameo: `--png` exports at `frame.FrameSize` and re-applies `frame.Offset` into the padded image, and the result reloads as one frame at `Offset = 0`, centred — the same place.
 
+**Chrome art is resolved by DPI, so a screenshot samples the 2x sheet, not the one you edited.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `ChromeProvider` picks `Image3x` when `dpiScale > 2` and `Image2x` when `dpiScale > 1`, falling back to the base image otherwise (`engine/OpenRA.Game/Graphics/ChromeProvider.cs:115-122`, `dpiScale` from `Game.Renderer.WindowScale` at `:63-71`). On a Retina display an autotest capture requested at `--size 1280x800` comes back 2560x1600 and draws from `glyphs-2x.png` — `glyphs.png` is never touched. **Chrome art edited to be verified by a screenshot must be edited at the density the capture will actually sample**, or the shot shows the unedited sheet and reads as a no-op fix.
+
+**"Transparent" is not "unclaimed" on a shared sprite sheet.** A region rectangle may point at blank pixels *on purpose* — `checkmark-mute`'s four regions sit inside a fully transparent band because a muted checkbox is supposed to draw nothing — so an alpha scan alone will hand you a cell that is already spoken for. Before placing new art in apparently free space, **scan the alpha channel *and* resolve every region rectangle in every collection that inherits the sheet** (including its `-highlighted` twins). Note also that the 3x sheets are padded: a canvas larger than `3 × base` holds the 3x content in one corner, so a naive `len(raw) / 4 / (base * 3)` stride mis-reads the row width and reports phantom opaque rows — read the PNG header rather than assuming the stride.
+
 **The load screen is a compositor, not a full-screen image.** `LoadScreen: LogoStripeLoadScreen` with `CustomBar: true` (`mod.yaml:260-265`) draws exactly three things (`LoadScreens/LogoStripeLoadScreen.cs`): a logo sprite cut from rect `(0,0,256,256)` of the sheet (`:51`), a stripe cut from `(258,0,253,256)` (`:52`), and text. **There is no code path in this class that renders a full-screen background** — the rest is black, so handing it a 1920×1080 painting cannot work without a new `SheetLoadScreen` subclass. `CustomBar: true` additionally replaces the stripe with a solid drawn bar (`:62-79`), leaving the right-hand 253×256 region of the PNG loaded and never drawn. **The extra pixels in the 2x/3x files buy sharpness only, never size:** `SheetLoadScreen` picks Image/Image2x/Image3x purely from `Game.Renderer.WindowScale` (`:47-77`) and `CreateSprite` multiplies the rect by `density` **and** scales the sprite by `1f/density` (`:85-89`) — the logo is always 256×256 *logical* px, centred, at every window size, and the 2x/3x files must place their regions at `density × rect` (stripe starts at x=516 for 2x, x=774 for 3x, not 2×256). Related: **there is no runtime window icon to author** — `SDL_SetWindowIcon` is called nowhere in `engine/`, and `<ApplicationIcon>$(LauncherIcon)</ApplicationIcon>` (`OpenRA.WindowsLauncher.csproj:4`) resolves empty because `LauncherIcon` is defined nowhere in the repo, so the exe icon comes solely from rcedit at packaging time.
 
 **A SHP sprite's drawn size is the PADDED TRIM RECT, not its ink.** *(Promoted 2026-09-04 from
@@ -341,6 +427,20 @@ why a sprite `Offset: 0,-1900,0` reads as airburst compensation and is not.
 **The #1 debugging trap: a track whose file cannot be opened is dropped from the jukebox with no log message at all.** `MusicInfo.Load` returns early and leaves `Exists` false if `TryOpen` fails (`:43-44`), and `Ruleset.InstalledMusic` filters on `Exists` (`GameRules/Ruleset.cs:95`). So `music.yaml` is a *superset declaration*, not a manifest of what ships — a typo in the filename or a missing `Extension: ogg` makes the entry simply vanish. Distinguish the two failure shapes: **absent from the list** = file not found; **present but showing `0:00` and silent** = file found but no registered loader could parse it (`Exists` is set before the parse loop, `:48-57`) — check `SoundFormats`.
 
 **Loose files override `scores.mix`.** `FileSystem.TryOpen` resolves to the *last* mounted package containing the name (`FileSystem.cs:195, 246`), and `~scores.mix` mounts at `mod.yaml:33` while `bits/sounds/music` mounts at `:83`. Dropping `journey.ogg` beside a `journey` entry does not automatically replace the `.aud`, though — `Extension` decides the filename, so the migration path off the Westwood tracks is: add the `.ogg` file, then point the existing entry at it (or add a new key and delete the old entry).
+
+### A misspelled notification is a CRASH, not a silence — and the lint that would catch it cannot see widgets
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`; the entry's cites had drifted by ~35 lines.)*
+
+**`Sound.PlayPredefined` throws on a name it cannot find.** `NotificationsPools.Value.TryGetValue(definition, out var p)` and, on a miss, `throw new InvalidOperationException($"Can't find {definition} in notification pool.")` (`engine/OpenRA.Game/Sound/Sound.cs:390-391`; the voice pool does the same at `:383-384`). There is no fallback path.
+
+**And the usual safety net does not cover widgets.** `CheckNotifications` walks `TraitInfo` fields carrying `[NotificationReference]` (`engine/OpenRA.Mods.Common/Lint/CheckNotifications.cs:36-42`). **A notification name living on a widget field — which is exactly where a chrome yaml can override it — is invisible to `make test`** and reaches the player as an exception thrown at the precise moment the UI was supposed to speak. Route a widget's notification through a helper that checks the pool first and logs on a miss, rather than calling `Game.Sound` directly.
+
+**The `player` argument is a FILTER, and it is late in the function.** `PlayPredefined` uses `player` for variant and prefix selection in its first half and only then tests `player == null || player == player.World.LocalPlayer` before playing (`Sound.cs:411`). Reading the first half alone — easy to do, it is thirty lines — gives the wrong conclusion that the argument is cosmetic and that any caller broadcasts to every client. It does not: **`null` plays unconditionally on the local machine**, which is what lets an observer (where `LocalPlayer` is null) hear a notification at all.
+
+**`TextNotificationsManager` filters the same way, but `AddFeedbackLine` does NOT.** `AddTransientLine` tests `player == null || player == player.World.LocalPlayer` (`engine/OpenRA.Game/TextNotificationsManager.cs:54`); `AddFeedbackLine` has **no player parameter at all** (`:58`). Since `AddFeedbackLine` was for a long time the only one taking `params object[] args`, a caller needing a *formatted* line would naturally reach for it and would silently show every client a line meant for one. Both take args now (`:49`), so the formatted case keeps the filter — but check which one you are calling.
+
+**Fluent args are NAME/VALUE PAIRS and an odd count throws.** `FluentBundle.TryGetMessage` walks `args` two at a time, requires `args[i]` to be a non-empty string key and `args[i+1]` to be non-null, and throws `ArgumentException` when `args.Length % 2 != 0`. `GetMessage(key, "20 kt", "3:00")` is not "two positional arguments" — it is **one argument named `20 kt`**, and the message renders with its placeholders unsubstituted at best.
 
 ## Key engine modifications
 
@@ -434,6 +534,60 @@ Use velocity-based movement with acceleration/deceleration:
 - Pitch applied during horizontal movement in Aircraft.Tick (FlyTick isn't called for CanSlide)
 - **CRITICAL**: Never use FlyTick for CanSlide without zeroing CurrentVelocity first (double movement)
 
+**A `CanSlide` airframe is VELOCITY-DRIVEN, not STEERED — so a corner is a chord in velocity space and
+vehicle-dynamics formulae do not apply.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.
+Algebra plus an integer simulation over read code; never launched.)* Every reference on corner-cutting gives
+the tangent distance to a constant-radius arc, `r·tan(θ/2)` with `r = v²/a`, which models a steered vehicle
+holding constant lateral acceleration. `Aircraft.CalculateAccelerationToWaypoint` (`Traits/Air/Aircraft.cs`)
+instead returns `MaxAcceleration` in the direction `(desiredVelocity − CurrentVelocity)`, where
+`desiredVelocity` for a plain move leg is the full-speed vector at the *next* waypoint. That target is constant
+across the corner, so acceleration stays parallel to one difference vector and the velocity tip travels a
+straight **chord**, shortening at exactly `a` per tick:
+
+    d = (v² / a) · sin(θ/2)
+
+`tan` diverges at 180° and overshoots badly well before it; `sin` is bounded by `v²/a` at every deflection. At
+a right angle the two differ by **41 %** — about 1.7 cells of lead for a live helicopter, the difference
+between rejoining the outbound leg and sailing past it. The derivation needs no Euler correction: the engine
+adds acceleration then moves by the new velocity, and the extra half-step lies along the chord, which is
+perpendicular to the bisector for two equal-length vectors and contributes exactly zero.
+
+Three consequences worth carrying:
+
+- **Check whether the thing is STEERED or VELOCITY-DRIVEN before reaching for a dynamics formula.** Ground
+  `Mobile` units turn; `CanSlide` aircraft do not, and a formula that assumes a turn radius is answering a
+  question the code never asks.
+- **`TurnSpeed` is not load-bearing for a slider, and this is easy to get backwards.** `Aircraft.Tick` sets
+  `Facing` from `CurrentVelocity.Yaw` *after* the move, so on a `CanSlide` airframe facing is a **consequence**
+  of the trajectory and never an input to it. Tuning `TurnSpeed` to change how a helicopter corners changes
+  only which way the sprite points.
+- **There is NO closed form for the off-axis excursion, and the obvious one is wrong by 3×.** The same
+  reasoning suggests a sideways displacement of about `v·sin(θ/2)` (~0.17 cells through a right angle at the
+  shipped default); simulating the actual integer path with the engine's own `WAngle` tables, `Exts.ISqrt` and
+  C# truncating division measures **~0.50 cells, 3.0× the closed form**, stable within ±40 WDist across
+  sampling windows. The mechanism is not established — the leading candidate is that the code recomputes
+  `direction` from the *current* position every tick, so `desiredVelocity` chases a point rather than being the
+  constant vector the derivation assumes. **Take any lateral-deviation threshold from a simulation, never from
+  `v·sin(θ/2)`.** A related bound that IS geometry and does hold: minimum speed through a corner is
+  `v·cos(θ/2)`, so a min-speed threshold is tied to the corner angle it was derived for and does not transfer.
+
+The model's cross-check is worth knowing, because the derivation is otherwise unfalsified: it puts the start of
+proportional braking at `v²/2a` = **2.93 cells** for the live `HELI` (`Speed: 245`, `MaxAcceleration` 10 — the
+trait default, unoverridden anywhere in `mods/`), and commit `02006314`, written by someone watching the game,
+independently states helicopters *"smoothly brake over ~2.7 cells"*. Two routes to the same number, one
+algebraic and one observational. **That is evidence the model matches the shipped controller; it is not
+evidence that any particular release distance looks right on screen.**
+
+**Two pre-existing determinism hazards sit on this path and were deliberately left alone** — both IEEE floats
+inside the synchronised simulation, both landing in `CurrentVelocity`, which is integrated into position:
+`(int)Math.Sqrt(2.0 * Info.MaxAcceleration * distance)` in `CalculateAccelerationToWaypoint`, whose result
+selects `desiredVelocity`; and `(float)Info.Speed / horizontalSpeed` in `Aircraft.Tick`, **single** precision,
+the speed-cap ratio applied to `CurrentVelocity` — easy to miss next to the first. Same class as the defect
+`afac22a8` removed from the ground movement path, and the same argument applies: the risk is not that they
+currently miscalculate but that nothing stops them. `Exts.ISqrt` is the in-tree integer replacement for the
+first. Changing either moves every helicopter approach in the game and belongs in its own branch with its own
+before/after.
+
 ### Fixed-wing (CanSlide = false)
 
 Use traditional step-based movement:
@@ -477,10 +631,53 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 
 **The mechanism for the asymmetry is `Activity.TickOuter`, not anything in `AttackFollow`.** With `ChildHasPriority` (FlyAttack's default) the parent tick is short-circuited by `lastRun = TickChild(self) && (finishing || Tick(self));` (`engine/OpenRA.Game/Activities/Activity.cs:124-126`), so `FlyAttack.Tick` does not run while a child activity is alive — and FlyAttack's own abort check for exactly this case (*"Check that AttackFollow hasn't cancelled the target"*, `FlyAttack.cs:99-102`) lives in that tick. A `Default`/`!CanHover` aircraft is inside `MoveWithinRange` and then `FlyAttackRun`, so the check cannot be consulted until the run ends; `FlyAttackRun.Tick` self-cancels only when the target becomes *invalid* or has no valid weapons (`FlyAttack.cs:270-275`), and a critically damaged target is neither. A `Hover` aircraft queues no run child, so the check is live every tick. The **trait-level** guard runs regardless, which is why the guns stop in both classes even though the flight path only responds in one. **Do not read "break off" as "disengage"** — in both classes the airframe stays in hostile airspace over an enemy it has decided not to kill.
 
-- **Strafe aircraft look structurally EXEMPT — read off the code, NOT observed.** `A10.Airstrike` and `FROG.Airstrike` are `AttackType: Strafe`, a third shape neither lane covered. `StrafeAttackRun.Tick` calls `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target), true)` **every tick** (`FlyAttack.cs:325`). The guard's predicate needs `RequestedTarget.Type == TargetType.Actor` *and* `BreakOffApplies(source, forceAttack)` = `!forceAttack && source != Default`; a strafe run fails **both** clauses independently — the re-set target is a position, and the re-set is a force-attack from the default source. Measure this before relying on it.
+- **Strafe aircraft look structurally EXEMPT — read off the code, NOT observed.** `A10.Airstrike` and `FROG.Airstrike` are `AttackType: Strafe`, a third shape neither lane covered. `StrafeAttackRun.Tick` calls `attackAircraft.SetRequestedTarget(Target.FromTargetPositions(target), true)` **every tick** (`FlyAttack.cs:325`). The guard's predicate needs `RequestedTarget.Type == TargetType.Actor` *and* `BreakOffApplies(source, forceAttack)` = `!forceAttack && source != Default`; a strafe run fails **both** clauses independently — the re-set target is a position, and the re-set is a force-attack from the default source. Measure this before relying on it. **The exemption is scoped to the RUN, not to the engagement** — `FlyAttack.Tick` writes the real actor target and source every tick (`FlyAttack.cs:108`), and while the queued child is `MoveWithinRange` nothing overwrites it, so a break-off fires normally during the APPROACH. That is the trap for anyone testing this: a scenario that dooms the target before the aircraft is in range observes a perfectly good break-off and concludes strafe airframes are fine. Key the trigger on something that can only happen inside a live run — the lane's first ammo decrement works, because `FlyAttack.cs:180` pins `minimumRange` to zero for Strafe so `:182-183` reduces to "in max range?", and out of range the airframe cannot fire at all.
   - **The exemption was UNOBSERVABLE until 2026-09-02, because no `AttackType: Strafe` airframe had ever fired a shot.** *(Promoted 2026-09-02 from DISCOVERIES, re-read at `main @ 26f9cec0`.)* Rebuilding the positional target every tick does more than dodge the break-off guard. `Armament.CheckFire` treats "not `Equals` to last tick's target" as a fresh acquisition and restarts the aim countdown (`Armament.cs:415-429`); `Target`'s equality compares a terrain target's `terrainPositions` array **by reference**, and `Target.FromTargetPositions` allocates a new one per call. So `AimingDelay` reset every tick and the guns never came off cooldown. Fixed by locking the aim point for the duration of the run (`StrafeAttackRun.aimPoint`), with a PITFALL now carried at the `Armament` site. **The rule generalises past strafing: if you hand `CheckFire` a target, hand it the SAME value while the engagement lasts** — a positional target rebuilt per tick is a permanent no-fire, and it presents as a unit that tracks its victim perfectly and never shoots.
 - **`IsIdle` is useless as an observable for aircraft.** `ticksToIdle` was `-1` and `idleSpans` `0` in **every** arm including RED: an idle airframe is running `FlyIdle`/`Hover`, which is an activity, so `IsIdle` never goes true. Use a **position trace**, and sample it — a min/max pair cannot separate "flew over once and left" from "flew over, came back, flew over again", which is exactly the fixed-wing behaviour.
 - **Every vehicle bleeds out below 50% HP, and it silently confounds any "hold a unit at critical damage" scenario.** `ChangesHealth@CriticalDamage` on `^Vehicle` (`vehicles.yaml:184-187`: `PercentageStep: -1`, `Delay: 5`, `StartIfBelow: 50`) is irreversible, so a target parked at 15% **dies on a fixed ~75-tick clock with nothing shooting it**. Two runs of the scenario above ended with a dead target on *both* lanes — including the lane that fired zero shots — so two thirds of each observation window measured an aircraft against a corpse. The tell was the zero-shots lane also reporting a dead target; nothing in the verdict flagged it. Add `-ChangesHealth@CriticalDamage` to any such scenario. This is also what makes "already doomed" literally true in WW3MOD and is the premise the whole break-off feature rests on.
+
+### `CanSlide` splits the aircraft code in half, and an `ISpeedModifier` reaches only ONE of the halves
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* Helicopters set `CanSlide`
+(`^Helicopter`, `aircraft.yaml:198`, and helicopter husks at `husks-aircraft.yaml:33`); the C# default is
+`false` (`Aircraft.cs:118`, which carries a PITFALL at `:117` saying the flag switches the entire movement
+codepath), so fixed-wing and `^Drone` are on the other one.
+
+- **Fixed-wing move inside the activity.** `Fly.Tick`'s else-branch calls `FlyTick`, which steps by
+  `aircraft.FlyStep(...)` (`Aircraft.cs:835-840`) — and `FlyStep` uses `MovementSpeed` (`:826`), which applies
+  every `ISpeedModifier` (collected at `:405`).
+- **Helicopters never move horizontally inside the activity at all.** `Fly.Tick`'s slider branch only writes
+  `aircraft.RequestedAcceleration` (`Fly.cs:294`); `Aircraft.Tick` integrates it a tick later (`:523-541`).
+  **That path never reads `MovementSpeed`** — `CalculateAccelerationToWaypoint` uses `Info.Speed` (`:467`) and
+  so does the max-speed clamp (`:530`).
+
+**So an `ISpeedModifier` of 0 stops a fixed-wing dead and leaves a helicopter flying at full speed.** It also
+zeroes `GetTurnSpeed` (`:293`) — and `Aircraft.Tick`'s own facing update (`:555`) uses `Info.TurnSpeed`
+directly rather than `GetTurnSpeed`, so the helicopter keeps turning too. **Anything reaching for a speed
+modifier to immobilise aircraft — EMP, jamming, a no-fly rule, a stasis effect — is half a feature on this
+mod's airframes, and the half that fails is the one players notice.**
+
+**The chokepoint that does hold is `Aircraft.SetPosition` (`:1017`).** `CenterPosition` is a private-set auto
+property (`:287`) assigned in exactly one place, and both other public entry points delegate to it, so every
+horizontal, vertical and teleporting position change of anything carrying `Aircraft` passes through it —
+including the falling husk, the crash-landing helicopter, the repulsion nudge, the arrival-snap teleports and
+creation placement. **It is verifiable by exhaustion rather than by inference**, which is why the DEFCON 3
+wall's hard layer lives there. **Rejecting a write there must also zero `CurrentVelocity`**, and that is
+load-bearing rather than tidiness: a helicopter holding a non-zero synced velocity while its position stops
+changing computes `MovementType.None` while still holding speed, so the animation stops agreeing with the
+simulation — this mod has shipped a bug of exactly that family. The reasoning is carried in-code at the site.
+
+**And the map edge is not a wall.** Aircraft leave the map routinely and by design (`FlyOffMap`, and
+`RotateToEdge` deliberately targets a point past the boundary); the scattered `Map.Contains` checks are guards
+against operating off-map, not barriers. The only pushback is a repulsion nudge gated on `Info.Repulsable` and
+on cruising (`Aircraft.cs:679`, `:701`) — **`Repulsable` defaults to `true` (`:32`), and at `a21583fd` exactly
+two things in the mod turn it off** (`^SummonerDummy`, `defaults.yaml:1218`, and the Badger,
+`aircraft.yaml:561`), while the quadcopter drone sets it explicitly on. *(A 2026-09-09 entry claimed it was
+off on `^NeutralAirborne` and `^Drone`; neither holds here — `^NeutralAirborne` is not a template in
+`defaults.yaml` at all — so do not reason from "most airframes are not repulsable".)* **The only enforced
+leash in the mod is `CarrierSlave.MaxDistance`** (`CarrierSlave.cs:149-156`, live on the quadcopter), and it
+works by issuing an unqueued `MoveTo` back inside on an interval — so it overshoots by design and is soft
+rather than hard.
 
 ## Suppression system
 
@@ -507,6 +704,37 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 - FireAtWill: fire at any valid target in range
 - Conditions: `stance-fireatwill`, `stance-ambush`, `stance-holdfire`
 
+### Two autonomous fire paths that no `UnitStance` predicate covers
+
+*(Promoted 2026-09-20 from DISCOVERIES; both re-read at `main @ a21583fd`, where one of the entry's three
+claims no longer reproduces — see the note at the end.)*
+
+**A garrison building set to `HoldFire` keeps shooting, because the stance test is on the DEPLOY paths and not
+on the hot one.** `GarrisonManager` runs its own scanner — `ScanForTarget`
+(`Traits/Garrison/GarrisonManager.cs:1016`, a raw `FindActorsInCircle` at `:1076`) — rather than
+`AutoTarget.ChooseTarget`, and `AttackGarrisoned` fires at `PortState.CurrentTarget` directly, so **none of
+`AutoTarget`'s guards can see it.** The `buildingStance` checks live at `:867-871` (empty-port auto-deploy)
+and `:936-940` (`PromoteFromShelter`), both deploy paths. The already-occupied branch (`:816-818`) goes
+straight to `UpdatePortTarget` (`:957-1011`), which re-acquires at `:1009` with **no stance predicate
+anywhere**. So a `GTWR`/`PBOX`/`HBOX` with a soldier already in the port ignores the stance entirely. **Two
+copies of the test, and the one on the hot path is missing**; no comment says whether that is deliberate.
+(`ScanForTarget` does gate on `DefconFireDiscipline.HoldsFire`, so the DEFCON rules reach it — the gap is
+specifically `UnitStance`.)
+
+**`AttackFollow.ClearRequestedTarget` does not clear — it PROMOTES**, and the branch that fires the promoted
+target carries no stance predicate either. The method assigns the finished `RequestedTarget` to
+`OpportunityTarget` under `Info.PersistentTargeting` (`Traits/Attack/AttackFollow.cs:78-95`, and the PITFALL
+is in-file at `:82-85`), and the fire branch at `:238-240` gates only on `DefconFireDiscipline.Permits`. The
+only thing that drops it is a stance-change notification, which returns early for force-attacks. **So a
+Ctrl-clicked target keeps being shot at through a stance drop** — and `FlyAttack.OnLastRun` deliberately uses
+this on the way home, so aircraft returning to base still fire. Carry the attack SOURCE across the promotion
+or the promoted target looks deliberate and can never be re-evaluated.
+
+> **The entry's third claim — "ambush by proxy ignores the neighbour's own stance" — does NOT reproduce at
+> `a21583fd` and must not be cited.** `AutoTarget.TriggerNearbyAmbushAllies` (`:1016`) sets the latch only on
+> allies whose `Stance == UnitStance.Ambush`, and `GarrisonManager.TriggerAmbush` (`:1376`) returns unless the
+> building is itself in `Ambush`. Both are additionally guarded at the source by `DefconHoldsFire`.
+
 ## Directional / rear armor
 
 `DamageWarhead.ArmorDirectionPercent` (`DamageWarhead.cs:121-198`) scales effective armor by the shot-vs-facing angle, reading a 5-element `Armor.Distribution` `[front, side, rear, top, bottom]` (only applied when `Distribution.Length == 5`). A heavy tank's `100,50,25,10,10` means a rear shot lands ~4× the front damage. This runs inside the normal damage pipeline, so rear/flank bonuses are **automatic** from geometry — no special warhead flag or code path is needed; putting the shooter behind the target is the whole trigger.
@@ -519,6 +747,24 @@ The engine already stands a hovering/sliding attack aircraft off at weapon range
 - HoldPosition: never auto-reposition, only fire from current cell
 - Hotkeys: Alt+A/G/F (fire), Ctrl+Alt+A/D/F (engagement)
 - Engagement stance drives `allowMove` in AutoTarget scanning and movement decisions in Attack activity
+
+**"Fire at will vs Hunt" is a FALSE CHOICE — those are values of two different enums on two different axes.**
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `UnitStance { HoldFire, Ambush, FireAtWill }`
+(*may I act?*) and `EngagementStance { HoldPosition, Defensive, Hunt }` (*how far do I roam?*) are declared
+side by side at `Traits/AutoTarget.cs:22-24`, and **a unit holds one of each simultaneously**, so a question of
+the form *"should this behaviour run on Fire at will, or on Hunt?"* has no answer as posed. The shipped
+defaults for a human-owned unit are **FireAtWill + Defensive**; bot-owned and non-playable owners read the
+separate `InitialStanceAI` / `InitialEngagementStanceAI` pair (`:72`, `:75` and the AI twins), which carry the
+same two values today but are free to diverge.
+
+**The generalisable design rule: gate on `UnitStance`, SIZE on `EngagementStance`.** Any new autonomous
+behaviour then gets a free off-switch (HoldFire), a free stay-put (HoldPosition → radius 0) and a free
+eagerness dial (Hunt → longer radius) without inventing a single new control. The precedent already existed and
+was simply not written down — `AutoFollowAlly` reads HoldPosition this way through `FollowStances`, and
+`SupplyHuntMath.StancesPermitHunt` already takes both axes plus `ResupplyBehavior` as three separate arguments.
+**Corollary: "default ON" is cheap when the default stance is permissive** — a trait gating on
+`UnitStance != HoldFire` is on for every fresh unit with no YAML at all, which is how a default-ON requirement
+is met without a per-actor field.
 
 **Cohesion stances (3 stances — controls HOW close together, Phase 1 UI only):**
 - Tight, Loose (default), Spread
@@ -616,14 +862,61 @@ not about the one you just added.** Enumerate them by priority before concluding
 Grepping today's callers is not equivalent — a bot module's actor-type list is a fact about today's modules,
 where the order string is a fact about the string.
 
+**A refusal branch that means TWO different things is the shape to look for, and `Captures` has one.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `Captures.CaptureOrderTargeter.CanTargetActor` has a single refusal branch — `if (targetManager == null || !captures.CaptureManager.CanTarget(targetManager))` — which writes `EnterBlockedCursor` and then `return false`, discarding the write (`Traits/Captures.cs:144-149`). It fires both when the target carries **no `CaptureManager` at all** and when it carries one this unit cannot take. **`EnterAlliedActorTargeter` is NOT the analogous pattern and must not be cited as one:** it splits the two, running its *kind* test first and returning false there (`Orders/EnterAlliedActorTargeter.cs:44-45`), so it only reaches its own blocked-cursor line (`:56`) for targets that genuinely are of the right kind. Nothing upstream narrows `Captures`' branch either — `UnitOrderTargeter.CanTarget` filters only on target kind, the ForceAttack modifier and ally/enemy gating, and the targeter is constructed `targetEnemyUnits: true, targetAllyUnits: true` (`Captures.cs:137`), so **every actor click reaches it.** Consequence for anyone tempted by the one-token change of returning `true` to surface the blocked cursor: `Captures` sits at `OrderPriority` **6** (`:81`), tying `AttackBase`'s targeter at 6 (`Attack/AttackBase.cs:519`) — and `OrderForUnit` sorts `OrderByDescending` (`Orders/UnitOrderGenerator.cs:361`), a stable sort, so the tie would be broken by YAML trait declaration order — and outranking `Passenger`'s `EnterTransport` at 5 (`Passenger.cs:86-88`) and `Mobile`'s move at 4 (`Mobile.cs:1258`). Boarding your own APC is a capturer clicking a capturable transport, so accepting every actor click breaks it for every infantryman who is also a passenger. **The correct fix is the `EnterAlliedActorTargeter` split — return `false` for `targetManager == null` — not a changed return value on the combined branch.** One grep trap while sizing this: `^CivBuilding` looks like it carries both `Capturable` and `Cargo` and does not, because `civilian.yaml:12-16` removes the capture traits; any resolver answering "which actors have both" must honour `-Trait:` removals **in inheritance order**.
+
 **Two related traps in the same area.**
 
 - `Test.IssueMove(actor, cell, force: true)` sends the order string **`"ForceMove"`**, which is `Mobile`'s
-  (`Traits/Mobile.cs:1222`). The force-move *modifier* on a building produces an ordinary `"Move"` from the
+  (`Traits/Mobile.cs:1086`). The force-move *modifier* on a building produces an ordinary `"Move"` from the
   targeter. A scenario using `IssueMove(force: true)` to test a force-move undeploy therefore tests nothing.
 - On an actor carrying both `RallyPoint` and `TransformsIntoMobile`, the two compete by `OrderPriority`
   (0 vs 4). The transform targeter is asked **first**, and `RequiresForceMove` is the only thing that makes
   it decline, after which the plain click falls through to `SetRallyPoint`.
+
+### A MODIFIER that no targeter consults does not select an order — and one selection gets ONE cursor
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* Two facts that compose into "the cursor is gone but the order still issues", a symptom that feels intermittent and is unconditional.
+
+**The cursor and the order are the SAME resolution, so a split between them is not a race — it is an arity difference.** `UnitOrderGenerator.GetCursor` and `.Order` both call `OrdersForSelection` on the same target (`Orders/UnitOrderGenerator.cs:193`, `:98`), so no timing or caching separates them. What separates them is that `Order()` issues **per unit**, while `CursorForOrders` collapses the whole selection to **one** string by `MaxByOrDefault(o => o.Order.OrderPriority)?.Cursor` (`:301-304`). **One unit resolving a higher-priority order therefore names the cursor for every other unit in the selection, while those units still get — and still execute — their own order.** The symptom is selection- and hover-dependent, which is what makes it feel intermittent to a player who changed neither on purpose.
+
+**And `UnitOrderTargeter` consults `ForceAttack` and nothing else — `TargetModifiers.AttackMove` appears nowhere in it** (`Orders/UnitOrderTargeter.cs:40-66`; the gates are the `ForceAttack` match at `:49` and the two relationship tests at `:63`, `:66`). `AttackMoveTargeter.CanTarget` refuses anything that is not `TargetType.Terrain` (`Traits/AttackMove.cs:209`) at `OrderPriority => 4` (`:201`), so over an *actor* attack-move is reachable only through `OrderForUnit`'s second pass, which rewrites the click to a cell — and **the first pass returns on the first targeter that accepts.** So holding the modifier does not make attack-move win; it does not even enter the contest until everything above it has declined, and two shipped combinations beat it outright on a mixed selection (`AttendAlly` at priority 7 with `targetAllyUnits`, and `EnterTransport` at 5 via `EnterAlliedActorTargeter<CargoInfo>`, which `defaults.yaml` grants to nearly every infantry).
+
+> **`conventions.md` already warns that a right-click resolves through an `OrderPriority` contest and states it as a hazard for tests that name an order. It is equally a hazard for MODIFIERS: a modifier that selects an order but is not consulted by the targeters that outrank it does not select that order — it only selects it where nothing else applies.** Before treating a modifier as an override, grep the base targeter for the modifier's own name. `ForceAttack` is in `UnitOrderTargeter` and `AttackMove` is not, and that asymmetry is the whole of it.
+
+**A separate cursor path exists and is the reason a focus change can look like a fix.** When an order-generator *mode* is installed (`AttackMoveOrderGenerator`), its `GetCursor` is cell-only and never inspects actors, so in that mode the cursor cannot vanish over a unit at all. The mode is installed on modifier KeyDown and cancelled on KeyUp — and **an alt-tab sends the KeyUp to the window manager, not to the game**, leaving the mode installed. "I alt-tabbed and now it works" is therefore consistent with the diagnosis rather than evidence against it. Whether the command bar's attack-move button is **lit** is a free, decisive discriminator between the two paths and should be the first thing asked of any report of this shape.
+
+> **These two sections are about the same modifier and do not overlap.** The one above is the CONTEST — which
+> targeter gets asked, and what a multi-unit selection does to the cursor. The one below is the PIPELINE — who owns
+> the tag once an order carries it, and which owner can disagree with the others while still looking correct.
+
+### A player-visible order modifier has four owners — producer, encoder, renderer and REPLAYER — and only the replayer can disagree with the other three while still looking correct
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* Reported as *"Alt-queueing from the SR turns
+the line red, but helicopters get a plain move order instead"*. **The red line was never evidence about the
+order the unit runs.** The rally line is drawn by `RallyPointIndicator` from the waypoint's own
+`RallyOrderType`, which `RallyPoint.ResolveOrder` stored correctly; modifier detection, `Order.ExtraData`
+encoding and rendering were all right for aircraft. The tag was discarded at the very last step — the
+waypoint-replay activity gated attack-move on `case RallyOrderType.AttackMove when move is Mobile:`, and an
+aircraft's `IMove` is `Aircraft`, so every airframe fell through to the plain-Move arm **and its green target
+line**. Ground units were unaffected, which is why it read as an aircraft bug rather than a rally bug.
+
+**When a player reports "the UI says X but the unit does Y", the UI is testimony about the ENCODER, not about
+the executor — start at the executor.**
+
+**`move is Mobile` is not a synonym for "can attack-move" and never was.** `AttackMoveActivity` drives an
+`IMove` and never mentions `Mobile`; the player's own Alt+click path applies no locomotor guard; and the engine
+already queues an `AttackMoveActivity` for aircraft on the normal production rally path. The guard's comment
+asserted *"aircraft don't have a meaningful AttackMove path"*, which those three sites each independently
+contradict. The correct predicate is **`AttackMove.CanBeOrderedToAttackMove(actor)`** (`Traits/AttackMove.cs:174`)
+— the same one the cursor and the order resolver consult, so the replay agrees with the click by construction
+rather than by coincidence. The replay decision is now a pure function fed exactly that
+(`Traits/Buildings/RallyOrderReplayMath.Resolve`, called at `Traits/ProductionFromMapEdge.cs:216`).
+
+**It was never a YAML gap, in case anyone re-derives it from the rules.** Resolving `Inherits@`/`-Key:` across
+`mods/ww3mod/rules/` gives 100 producible actors, 79 of them mobile, and **all 79 carry `AttackMove`** — every
+helicopter and plane included, through a bare `AttackMove:` on `^NeutralAirborne` that `^Helicopter` reaches
+via `^Airborne`. The only mobile producible without it removes it deliberately (`LCCV`); no naval unit is
+producible at all.
 
 ## Support powers
 
@@ -692,6 +985,61 @@ autotest before `Test.ActivateSupportPower(player, orderKey, cell)` was added �
 `SelectGenericPowerTarget` emits on a left-click and returns a status string so a scenario can print **why**
 a power did not fire.
 
+### Three independent gates decide readiness — tier, condition, magazine — and `Permitted` hides one of them
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; every citation re-read at `main @ a21583fd`, where several had drifted by 130+ lines. `SupportPowerManager.cs` is `engine/OpenRA.Mods.Common/Traits/SupportPowers/SupportPowerManager.cs` throughout.)*
+
+**`Permitted` ANDs a latency problem and a permanent one, which is why a retry budget reads like a fix for both and is a fix for only one.** `Permitted` is `PermittedIgnoringPrerequisites && (prereqsAvailable || DevMode.AllTech)` (`:183-184`), and the left arm folds in `instancesEnabled` (`:204-206`). A `RequiresCondition` is a latency problem: grant it and `instancesEnabled` flips within a tick. A **prerequisite no faction provides never resolves at all** — and `MakeReady`, the one call that sets `prereqsAvailable` (`:329`), sits behind the flag it would have cleared. So the natural "skip anything not yet `Permitted`, retry for a few ticks while the condition catches up" loop silently makes the prerequisite permanent. **Any grant path must open all three gates explicitly: the tier, the condition, and — for a `RequiresPurchase` power — the magazine.**
+
+**`MakeReady` sets `prereqsAvailable` WHOLESALE, so every caller owes its own ownership check.** `Prerequisites:` is ANDed (`Traits/Player/TechTree.cs:65-70`), and the two halves of a line like `powers.event, player.russia` are different kinds of thing: `powers.event` is a **shop shelf** deliberately left empty (`mods/ww3mod/rules/player.yaml:144`), `player.russia` is an **identity** granted by faction alone. `MakeReady` cannot tell them apart, so a bypass written for the first also bypasses the second — the failure mode being "the player got the *enemy's* warhead" rather than "the player got nothing". This is why the override is a **named list** (`DoomsdayStrikeInfo.OverriddenPrerequisites`) rather than a boolean. Two further notes on the shape:
+
+- **An "every prerequisite is satisfied" check has an empty case, and its polarity is a design decision rather than a degenerate one.** `required minus overridden` coming back empty reads naturally as "nothing left to check, so yes" — which is what `HasPrerequisites(empty)` does. Under an override list it means something else: *this power named nothing but the tier we were licensed to ignore*, i.e. it belongs to nobody in particular. Whether that is **everybody** or **nobody** is one `return` away either direction and no compiler or type will ever ask. Pin it with a test whose message says which one it is.
+- **"Which things are X" and "who may be handed an X" are two predicates, and folding them breaks a caller you are not looking at.** A yield-based `NuclearGameEnders.Is` has a third caller — `DoomsdayStrike.ReportExchangeLaunch` asks it of a warhead somebody just *fired*, to decide whether that side placed its own and should come off the Dead Hand list. Adding an attribution rule to `Is` would have made a player who fired an unattributed ender stop counting as having placed, and Dead Hand would have dropped a second salvo on top of theirs. **The tell is that the two questions have different tenses**; anything taking extra arguments is a different predicate and needs a different name.
+
+**`Permitted` governs whether an icon EXISTS; `Ready` governs whether it RESPONDS — and a player cannot tell the two apart.** `Disabled => !bank.IconVisible(Permitted)` (`:215`) and `SupportPowersWidget` filters its icon list on `!p.Disabled` (`Widgets/SupportPowersWidget.cs:211`), rebuilt unconditionally every tick, so there is no stale icon list to go out of date. `Ready => Active && RemainingTicks == 0` (`:226`) is a separate question that `Disabled` does not consult. **Consequence for diagnosis: "nothing appeared" does not localise a support-power bug** — a cameo that is `Permitted` but not `Ready` is present, dark and unclickable, which a player reports the same way as an absent one.
+
+**A block at READINESS leaves no trace, where a veto at resolution leaves a line.** `SupportPowerInstance.Target()` opens `if (!Ready) return;` (`:427-429`), so no order is ever issued and no downstream refusal path is reached. **The absence of a refusal line in a log is therefore evidence about which layer refused**, not evidence that nothing refused — and a hypothesis that predicts a log line which does not exist is refuted by that absence.
+
+**A disabled power's timer is PINNED AT FULL, not running down.** `Tick` recomputes `instancesEnabled = Instances.Any(i => !i.IsTraitDisabled)` and, when false, assigns `remainingSubTicks = TotalTicks * 100` **on every such tick** (`:399-401`). So the intuitive model — the power charges quietly behind its condition and is ready when the condition lands — is exactly backwards: it is held at a complete `ChargeInterval` and starts from scratch the moment it is enabled. **Anything that grants a gating condition and expects a usable power inside a short window must zero the timer itself**; granting the condition alone buys a power a whole interval away from firing. The same pin is why counting a not-yet-permitted power's `RemainingTicks` in a readout draws a countdown that never moves: **test `Permitted`, not `Ready`, before counting a timer.** Keep "no power at this band" distinct from "ready now" as well — both are naturally zero and they are different facts, and collapsing them gives a box captioned `0:00` forever.
+
+**`TotalTicks` is a CEILING, not just a duration, and the truncation happens one tick LATER than the write.** `Tick` ends with `remainingSubTicks = (remainingSubTicks - 100).Clamp(0, TotalTicks * 100)` (`:412`), so a caller that assigns a longer countdown sees it hold for exactly one tick and then snap down. Nothing fails, nothing logs, and the number you read back is not the number you wrote — **the shape that survives a unit test (the state class agrees with itself) and a code review (the assignment is right there), and surfaces only as a weapon coming back early in a real match.** `TotalTicks` is therefore `{ get; private set; }`, writable only through `SetCooldown(int)` (`:255-270`), which writes both numbers together. Writing `remainingSubTicks` alone is wrong for a second reason as well: the cameo's clock **wipe** is drawn as the ratio to `TotalTicks` (`Widgets/SupportPowersWidget.cs:292-293`) while the number **under** it is `RemainingTicks` (`:358`), so a caller moving one of the two draws an arc that disagrees with its own caption.
+
+> **Generalise: when two independent gates control one readiness, the gate with an EDGE handler must re-apply the other.** A level that rises when the enemy acts and a cooldown that starts when you act move for different reasons. The level rise needs an edge handler, because a band that has been dark all match has its timer pinned to full and would otherwise wait a whole interval after being granted. But the obvious edge handler — make the newly granted band ready — **opens a free shot inside a cooldown that was already running**, and being shot at while reloading is the ordinary case rather than an edge case, so the defect is live in most matches. The fix is to grant at the owed cooldown rather than at zero. It is invisible to a state-machine unit test, because the state was right; it was the **projection onto the engine** that dropped a term.
+
+**A readout must ask the STATE, not the projection.** A countdown assembled by walking `SupportPowerInstance.RemainingTicks` across a side is perturbable by things that are not the rule — `DevMode.FastCharge` clamps any countdown over 2500 subticks (`:408-409`), and a disabled power is pinned to full every tick — so it can disagree with the number the launch gate actually tests. **A readout reporting a quantity the RULE does not use can contradict the rule while both are working as written.** If it must be gathered per side, walk the keys in a declared ordinal order rather than dictionary order, or two clients reading two equal timers can disagree.
+
+**`RequiresPurchase` pins `TotalTicks = 0`, so a purchased power has no timer at all — not a long one, none.** The constructor is `TotalTicks = purchased ? 0 : (escalationCooldown >= 0 ? escalationCooldown : info.ChargeInterval)` with `purchased = info.RequiresPurchase && escalationCooldown < 0` (`:366`, `:377`). With `TotalTicks == 0` the clamp at `:412` is `Clamp(0, 0)`, so `Ready` reduces to `Active`, i.e. permitted-and-stocked. **For such a power the band condition gates *purchasability*, not readiness**, and a lobby knob scaling "cooldowns" scales nothing until one of them carries a `ChargeInterval`. Revocation needs no code either: `Permitted` folds in `instancesEnabled`, so a time-boxed band grant expires through the condition alone — what survives is the *charge*, and anything tempted to confiscate that should first check whether it can distinguish a charge the engine granted from one the player paid for.
+
+**And a grant path cannot leak into the buy tab in Escalation — by construction rather than by care.** `Purchasable` is `bank.CanPurchase(Permitted)`, which is `Enabled && permitted` (`SupportPowerChargeBank.cs:80-83`), and the constructor builds the bank **disabled** for any nuclear power in Escalation (`:368`). `SupportPowerProductionQueue` filters both `AllItems()` and `BuildableItems()` on it, so **either gate makes an entry ABSENT from the shop rather than greyed out**, and a guard added against that leak would be dead code. The same arithmetic runs the other way on visibility: with the bank disabled, `HidesIcon => Enabled && Charges == 0` (`SupportPowerChargeBank.cs:68`) is always false, so `IconVisible(permitted)` reduces to `permitted` — **there is no purchase gate on visibility in Escalation at all.**
+
+**`~` is INERT on a support power.** `TechTree.HasPrerequisites` strips `~` before testing (`Traits/Player/TechTree.cs:68-69`), so it never affects satisfaction; all it drives is the hidden/visible **edge** notification, and `SupportPowerManager` implements `PrerequisitesItemHidden` and `PrerequisitesItemVisible` as **empty methods** (`:137-138`). For a buildable `~` matters; for a support power it is decoration, and the cameo's absence already comes from `Permitted → Disabled`. Relatedly, the override *sticks* as a property of `TechTree` rather than by luck: `Watcher.Update` notifies only on an **edge**, and the real prerequisite state never changes, so nothing re-issues `PrerequisitesUnavailable` and undoes it.
+
+**`OverriddenPrerequisites` is read on the TOP RUNG ONLY, and that scoping is load-bearing.** `NuclearExchange.ArmableAtTopRung` is its sole consumer. Two shipped event-tier powers therefore look symmetric and are not: at a lower band the tier simply refuses the power, while at the top rung the waiver applies and what refuses it instead is an **empty owner set** after the waived name is subtracted. **If that override were ever widened below the top rung it would hand every side a free warhead at that band, and nothing in the lobby would be left to stop it.**
+
+**A bot's single-target order on a MIRV power is already a real MIRV.** `MissileStrikePower.ResolveAimPoints` has an explicit single-target branch for a bot, a Lua binding, or a pre-feature replay: it takes `order.Target.CenterPosition` as warhead 1 and lays the rest on a ring of `AimPointFallbackSpread`, clamped by `MaxAimPointSpread` (`Traits/SupportPowers/MissileStrikePower.cs:416-422`). **So what a bot gains by serialising its own aim-point list is aim-point CHOICE, not the salvo** — and because that order shape carries aim point 1 in `Target` with `TargetString` authoritative, a receiver reading only `Target` degrades to a valid single-point strike rather than a malformed one.
+
+### Every live support power is a `MissileStrikePower`, and it reveals its own target area before it lands
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* **All `AirstrikePower@` blocks in
+`player.yaml` are commented out**, so every shipped power — including the GBU-57, which reads like a bomber
+payload — is a `MissileStrikePower`. **Do not assume a power that "is an airstrike" flies the airstrike
+geometry**; when sweeping for anything geometry-dependent, the discriminator is the power TYPE, not the
+scenario name and not the missile actor.
+
+**And the trap for any fog- or visibility-related work at a strike's aim point: the strike deletes the fog
+there before the thing you are watching arrives.** `MissileStrikePower` spawns a `RevealShroudEffect` of
+`CameraRange` radius `CameraSpawnAdvance` ticks BEFORE impact, and the shipped high-yield nuke sets a large
+`CameraRange`. A scenario built to observe fog behaviour at that point captures a uniformly lit map — i.e. it
+looks as though the fog setting simply did not apply, which sends the author back to re-check lobby options.
+`CameraRange: 0` disables it cleanly (the effect is constructed only `if (info.CameraRange != WDist.Zero)`).
+The same field exists on `NukePower` and `AirstrikePower`. *(For a scenario that needs an indestructible
+vision source instead, the `CAMERA` actor (`rules/misc.yaml`) inherits `^StandardVision` and carries no
+`Health` and no `Targetable`, so a warhead cannot remove it — a normal unit used as the observer is vaporised
+on the first tick and takes the vision boundary with it at the exact moment the effect appears. Reference it
+from a map's `Actors:` block as lowercase `camera`: `Ruleset.cs:126` keys `ActorInfo` by
+`k.Key.ToLowerInvariant()`, and the lowercasing runs after MiniYaml merging, so `Inherits: CAMERA` is correct
+inside the rules while `CAMERA` in a map is a lookup failure rather than a case-insensitive match.)*
+
 ## Production queues: autobuild, the parallel throttle, and pre-loaded transports
 
 *(Promoted 2026-09-04/05 from DISCOVERIES; citations re-read at `main @ 95bdffb2`.)*
@@ -727,6 +1075,20 @@ observed: the infantry countdown therefore under-reports by 2x with two or more 
 `RemainingTimeActual` reports `remaining x n`.)* The `BuildingCountBuildTimeMultipliers` on the same queue is
 **dead config**: `GetBuildTime`'s use of it is gated on `SpeedUp` (`:216`), which defaults to `false` and is
 set nowhere in `mods/`.
+
+**The same `SpeedUp` gate kills `BuildTimeSpeedReduction` on the SERIAL queues too** *(promoted 2026-09-20
+from DISCOVERIES, re-read at `a21583fd`)*. The array is authored on five `ClassicProductionQueue` blocks
+(`rules/player.yaml:34`, `:44`, `:56`, `:81`, `:93`) and read only inside `if (info.SpeedUp)`
+(`ClassicProductionQueue.cs:147`); `SpeedUp` defaults `false` (`:27`) and the only occurrence of that string
+anywhere in `mods/` is an unrelated notification key. So **every build-time array in `player.yaml` is authored,
+plausible and never consulted** — the base time is `BuildableInfo.BuildDuration`, or `GetProductionCost / 10`
+when it is left at its `-1` default (`ProductionQueue.cs:605-609`). The one production-time modifier that *is*
+live is `HandicapProductionMultiplier`, which scales both cost and time but returns 100 at handicap 0
+(`Multipliers/HandicapProductionMultiplier.cs:19-30`), i.e. the default. **Per-actor deviations are therefore
+the only real ones**: `msar`'s `BuildDurationModifier: 50` (`ingame/vehicles.yaml:432`) among units, and the
+support powers, which author `BuildDuration` explicitly rather than derive it (`rules/powers.yaml:236`, `:259`,
+`:281`, `:305`, `:341`, `:384`, `:409`, `:430`, with the reasoning at `:145` — a 60000-credit warhead would
+otherwise take six minutes purely as an arithmetic side effect).
 
 **The cancel refund does not survive completion.** Every cancel path refunds `TotalCost - RemainingCost` —
 what was actually paid, since money drips per tick during the build (`:823-828`; paths at `:189`, `:391`,
@@ -768,6 +1130,19 @@ does **not** call `GetBuildTime` (`:62-70`), so neither queue's multipliers can 
 (`:245`) every time a veteran of that type comes home alive. `Caps = {3, 2, 1}` (`:303`) governs *accrual*
 only. **Any readout showing a rank count must budget for two digits.**
 
+### A zero build time is a ONE-TICK build, and a zero speed modifier means that tick never arrives
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `ProductionItem` starts at
+`RemainingTime = TotalTime = 1` (`ProductionQueue.cs:838`) and only overwrites it for a positive build time
+(`:855`), so **`GetBuildTime` returning 0 is a one-tick build rather than a broken one** — and the cost
+arithmetic keys off `RemainingTime == 1` as the last-instalment case (`:879`), so the money is still taken in
+full on that tick.
+
+**Zeroing build time is therefore not sufficient for "no delay".** `SupplyRouteContestation` returns 0 from
+`IProductionSpeedModifier` on an empty control bar, and at a modifier of 0 `TickInner` does not tick the queue
+at all (`:409`, under the `speedModifier >= 100` / `> 0` / else ladder at `:394-409`) — so **a one-tick item
+never gets its one tick, and a contested Supply Route freezes even an instant purchase.**
+
 ## AI configuration
 
 AI is configured entirely via YAML in `mods/ww3mod/rules/ai/`:
@@ -798,6 +1173,28 @@ Now: `AirframeReadiness` (`Traits/BotModules/AirframeReadiness.cs`) answers host
 **Out-of-ammo evac is a unit-level `AmmoPool` behaviour, invisible to bot modules.** `AmmoPool.AutoRearmIfAllEmpty` `case Evacuate` queues `RotateToEdge` (`AmmoPool.cs:197-204`); WW3MOD vehicles opt in via `InitialResupplyBehaviorAI: Evacuate`. No bot module reads the resulting state, and the evac path never commits the unit to the `PoiGoalGuard` ledger — so an evacuating unit is "free" to any module that lacks an ammo filter and can be recruited back onto an axis, overwriting its retreat. `LayeredDefenceBotModule` is the only module that guards it (`SkipOutOfAmmoUnits`, default true, `:102,277`; `IsOutOfAmmo` = all pools at 0, `:469`). Any module pulling units by proximity/idle needs this guard or a shared evac reservation.
 
 **This engine auto-evac never fires for AIRCRAFT.** `AutoRearmIfAllEmpty` hard-returns on `self.Info.HasTraitInfo<AircraftInfo>()` (`AmmoPool.cs:173`), and its `INotifyAttack` trigger guards on aircraft too (`:247`) — so no stance, including `Evacuate`, ever auto-rotates a spent heli to the edge. With no HPAD to rearm at, a spent attack heli `ReturnToBase`s and (nothing `Reservable`) `FlyIdle`s in place indefinitely, draining upkeep the whole time (`InfersUpkeep` charges from spawn until `RemovedFromWorld`, `InfersUpkeep.cs:83-89`). A heli therefore has **no engine evac path at all** — evacuating it (and thereby both banking the HP-scaled salvage via `RotateToEdge`'s `fixedRefund`, `RotateToEdge.cs:280`, and ending the upkeep drain) requires an explicit bot-module order, unlike a ground unit whose `Evacuate` stance handles it automatically.
+
+### A bot's Info surface is `Type` and `Name` and nothing else — a `Description:` in `ai.yaml` stops the mod loading
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `IBotInfo`
+(`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:421-425`) exposes exactly `Type` and `Name`; `ModularBotInfo`
+has no `Description` and no `Difficulty`. Because `FieldLoader.UnknownFieldAction` **throws** by default
+(`FieldLoader.cs:62-63`, reached at `:646`), writing a description into `ai.yaml` does not merely fail to
+render — **it is a `NotImplementedException: FieldLoader: Missing field 'Description' on 'ModularBotInfo'` at
+mod load.** Anyone estimating bot-description work as a YAML edit is estimating a change that cannot be made.
+
+**Nor can the text be smuggled into `Name`:** `Player.ResolvePlayerName` uses `IBotInfo.Name` as the in-game
+player NAME, and `LobbyUtils.SetupEditableSlotWidget` truncates it to the slot button width. **And there is no
+render site in the picker:** `LobbyUtils.ShowSlotDropDown` → `LABEL_DROPDOWN_TEMPLATE`, whose item template is
+one `Label@LABEL` at `Height: 25` with `SetupItem` setting only that label's text. The tooltip path is **one
+YAML line short** of working, which is worth knowing because from the C# it looks as though it already does:
+`ScrollItemWidget : ButtonWidget` inherits `TooltipContainer`/`TooltipTemplate`/`TooltipDesc` and its `Setup`
+clones the template so the copy ctor carries them, `TOOLTIP_CONTAINER` exists in the lobby tree,
+`Widget.GetOrNull` is recursive, and the stock `BUTTON_TOOLTIP` already has both a `Label@LABEL` and a
+`Label@DESC` — **but `TooltipContainer` is `readonly`, i.e. YAML-only, and the dropdown template does not set
+it, so `ButtonWidget.MouseEntered` early-returns and nothing draws.** The worked example is one widget away in
+the same file: `DropDownButton@HANDICAP_DROPDOWN` sets `TooltipContainer: TOOLTIP_CONTAINER` plus
+`TooltipText:` and works; `DropDownButton@SLOT_OPTIONS` does not.
 
 ### AI production: `UnitsToBuild` weights are share *ceilings*, not priorities
 
@@ -835,6 +1232,8 @@ A guaranteed "keep N of type X ready" therefore requires **code**, via the `IBot
 - **An accept/reject handshake:** `IBotRequestPriorityUnitProduction.RequestPriorityUnitProduction` returns `false` when `IsTraitDisabled` (`UnitBuilderBotModule.cs:154-164`), and `CaptureCoordinatorBotModule` routes to the first twin that returns true (`:694`) — the request lands on the enabled UnitBuilder. That module's priority drain is peek-don't-pop (a busy queue keeps the request at the head for the next free slot) so delivery is non-lossy.
 
 **Reactive counters come from `AdaptiveProductionBotModule`, not the static composition.** It scans the *fog-legal* enemy composition each cycle (`ScanEnemyComposition`, only actors passing `CanBeViewedByPlayer`, `AdaptiveProductionBotModule.cs:200,213`) and pushes threat-scaled requests through the same `IBotRequestUnitProduction` demand queue. AA is illustrative: it requests anti-air **only when `enemyAir > 0`** and caps at `aaCount < enemyAir*2` (`:145,149`). So the "several SHORAD/Tunguska sitting at the start" a player sees is **not** AdaptiveProduction over-reacting — with no enemy air sighted it requests zero AA. That early AA is the *static* `UnitsToBuild` share composition building toward its fixed weight regardless of threat. The two AA sources are independent: composition is the always-on baseline, AdaptiveProduction is the sighted-threat reactive top-up. The `@experimental` twin adds a separate **SR-defense** path (default-off `SupplyRouteDefenseEnabled`) that reads the *believed* belief store to classify an incoming rush by attacker **identity** and pre-buy the matched counter, bypassing `MinEnemySightings` — see [influence-stack.md](influence-stack.md#experimental-consumers-beyond-def).
+
+**A dead `UnitsToBuild` lane is not dead code — it is RNG ballast, and deleting it shifts the seeded stream.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `ChooseUnitToBuild` opens with `Info.UnitsToBuild.Shuffle(world.LocalRandom)` (`UnitBuilderBotModule.cs:1852`), and `Shuffle` is a **lazy** Fisher-Yates that draws one `random.Next` per element it yields (`engine/OpenRA.Mods.Common/Util.cs:184-198`). When no listed type is currently buildable the `foreach` runs to exhaustion, so the lane burns one `LocalRandom` draw **per entry, per production cycle, on every profile**, and returns null. `LocalRandom` is excluded from the sync hash but **is** seeded from the lobby seed (see §"Bot decisions ARE seed-reproducible"), so removing an obviously-inert lane is not behaviour-neutral: it shifts the stream and silently invalidates any seeded benchmark baseline. Re-take the baseline knowingly, or leave the lane. A lane goes inert without any of this being visible from `ai.yaml`: a listed type carrying `Buildable.Prerequisites: ~disabled` never enters `queue.BuildableItems()`, so the `buildableThings.Any(...)` test at `:1853` cannot pass. **Check WHERE the `~disabled` sits before concluding a lane is inert** — on a `^Template` it may be replaced outright by a faction variant that redeclares `Buildable`, per [`conventions.md` §"A faction variant REPLACES the whole value of a field it redeclares"](conventions.md). The four lanes above are not that case: the blocks sit on the base actors `FROG`/`MIG`/`A10`/`F16` themselves, and nothing in the mod ever grants `disabled` (*as of `a21583fd`*) — and the prerequisite lives in a different file, in a different subsystem, from the weights. Neither the build, NUnit nor the lint relates the two, which is why **"is this path reached?" and "can this path produce anything?" must be asked separately**: a defect can be real while every step of its stated mechanism is false.
 
 ### Call-in bookkeeping: what bounds a repeat purchase (and what does not)
 
@@ -888,6 +1287,31 @@ The flag **defaults to false** (`Traits/Player/PlayerStatistics.cs:258`), and th
 
 `ModularBot@experimental` and `ModularBot@stable` (`ai.yaml:41-46`) share the same trait classes; `@stable` is the **benchmark control** — a fixed, known, *versioned* configuration. **It is not "frozen".** `b8d2e601` (2026-08-02) promoted `@stable` to full `@experimental` parity under user authorisation, and the profile display name is versioned to match (`Name: Stable AI 0802`, `ai.yaml:50`, previously `0730`) precisely so a benchmark artefact identifies which control it ran against. **Never write "`@stable` is frozen / byte-identical"** — a byte-identity claim is a statement about *YAML*, not about the C# it sits next to, which is why such claims survive next to correct-looking code citations. Write "as of `<sha>`, `@stable` sets X", or better, phrase flag-relative ("when this flag is off, the path is the pre-feature one"), which stays true across promotions and needs no maintenance. A new Info field with a non-baseline **code default** (e.g. `PoiOffensiveBotModule.ApproachCohesion = Spread`, `:96`) therefore leaks into `@stable` even when its YAML is untouched — silently mutating the control. Rule: **any behavioural Info field added to a shared trait must default to the frozen/baseline behaviour and be opted in per-profile via YAML.** The dispersion work does this with `CohesionSwitchEnabled` (default `false`, `:87`; the dispersion path is gated on it at `:424`), flipped `true` only on `@experimental`.
 
+**The intended lifecycle is that `@stable` is a periodically RE-SYNCED COPY of `@experimental`, so a gap
+observed in `@stable` is usually drift the next re-sync closes — not a design decision to re-litigate and not a
+bug to fix in `@stable`.** *(User ruling 2026-09-05; promoted 2026-09-20.)* The right response to *"`@stable`
+does not do X"* is to check whether the twin has since been promoted. `ai.yaml`'s own header records the
+re-sync in which six modules gained a `@stable` twin at once.
+
+**But re-syncing cannot carry a behaviour whose gate is NOT the YAML — and there is a standing class of those.**
+A module registered as a single `enable-ai-any` instance is shared by *both* profiles, so a per-profile YAML
+flag on it hits both at once; the only way to confine such a behaviour is a **C# bot-type comparison**
+(`player.BotType == InfluenceStack.ExperimentalBotType`) inside the module. **Setting the YAML flag on a
+`@stable`-reachable block is then INERT**, and reads in the diff as though it did something. Two shipped
+instances *(as of `a21583fd`)*:
+
+| behaviour | resolves the bot type | pure gate | flag that is inert for `@stable` |
+|---|---|---|---|
+| idle-truck hunt | `SupplyFollowerBotModule.cs:757`, read at `:1057` | `SupplyTruckHuntMath.ShouldHunt` (`:219`) | `IdleTruckHunt` |
+| garrison commit-on-order | `GarrisonBotModule.cs:228` | `CommitOnOrderMath.ShouldCommitShared` (`PoiGoalGuard.cs:305`) | `CommitGarrisonedUnits` |
+
+The distinction is exactly the `ShouldCommit` / `ShouldCommitShared` pair documented under §"The PoiGoalGuard
+commitment ledger": a **per-profile trait twin** is confined by the `@stable` twin simply omitting the flag,
+while a **shared singleton** needs the extra bot-type term. Closing one of these gaps means splitting the
+module or widening the comparison — an engine change, not a YAML edit. **Grep for the comparison before
+concluding a `@stable` gap is mere drift.** *(`ai.yaml`'s header at `:49-58` lists both under "NOT AT PARITY";
+its `SupplyFollowerBotModule.cs:704` citation has drifted and is superseded by the table above.)*
+
 ### A per-VALUE budget share cannot size a fleet whose workload scales with customer count
 
 `ChooseByDeficit` takes a census of what the bot owns, compares it against designer-authored target shares, and buys whatever is furthest below target. **Those shares are per-mille of army VALUE, not of head count**, and `ForceCompositionMath`'s own header says why: *"Ten riflemen are not 'ten times the army' of one tank, so both census and targets are per-mille of army VALUE."* That is the right call for combat types — composition is a budget statement.
@@ -913,6 +1337,49 @@ Two independent facts, both of which read the wrong way from the AI config.
 - **Bots capture with technicians only, and this is structural on both profiles.** `CapturingActorTypes` appears in exactly two places in `mods/`, both `tecn,tecn.russia,tecn.america` (`ai.yaml:113`, `:2049`), and both twins additionally set `UseUnitRoles: true`, which draws the capturer pool by `UnitRole.CaptureSpecialist` instead — resolved from `CapturesNeutral`, the neutral-tech capture TYPE, explicitly *not* mere `Captures` presence, "because line infantry also carry Captures for occupied buildings" (`Traits/World/UnitRoleResolver.cs:349-352`). So both the list path and the role path exclude soldiers. Consequence worth carrying: **a change to soldier-capture (the occupied-building clear) is human-player-facing only on the issuing side and cannot drift `@stable`.** Bots are still affected as victims — they have no reclaim logic and a technician floor of three. Note also that the legacy `CaptureManagerBotModule` is instantiated **nowhere** in `mods/`; the `ai.yaml:120` comment describing it as "competing" for TECN is stale.
 
 **`Capturable@occupied` reaches 23 actors, not the five tech buildings — check the RESOLVED inheritance graph, never a hand-trace.** The trait rides `^NeutralOrOccupiedCapturable` on `^BasicBuilding` (`ingame/structures.yaml:10`), which `^Building` and in turn `^Defense` inherit, so it reaches far past the income set above. Resolved mechanically over `mods/ww3mod/rules/**` (2026-08-19, re-derived rather than copied — 679 concrete actor definitions, 23 carry it): `AFLD, AGUN, AMMOBOX1-3, BARL, BIO, BRL3, CRAM, CTFLAG, FCOM, FTUR, GUN, HGATE, HOSP, HPAD, HSAM, LOGISTICSCENTER, MISS, MSLO, OILB, SAM, VGATE`. Only four definitions strip it (`ingame/civilian.yaml:8` for `^CivBuilding`, and `structures-defenses.yaml:83/:173/:259` for the three towers). **Only `OILB`/`FCOM`/`BIO` carry `CashTrickler`, so "money structure" and "capturable" are wildly different sets** — anything scoped as "affects capturable buildings" (a balance change, a capture-time tweak, a UI filter) hits defences and gates too. Hand-tracing MiniYaml inheritance produced the wrong number twice; resolving it with a script is ~40 lines and is the only reliable method whenever a template on `^BasicBuilding` is in play.
+
+**`CashTrickler.Amount` is the ONLY value signal on a tech building — they carry no `Valued` at all.**
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `OILB` and its neighbours inherit
+`^TechBuilding` and define no `Valued` trait anywhere in `ingame/structures-neutral.yaml`, so `Valued.Cost` —
+the reflex answer to *"what is this structure worth"* — is absent for exactly the structures anyone wants to
+score. What distinguishes a derrick is `CashTrickler: Amount: 50`. The bot sidesteps this by **not asking the
+actor**: `CaptureCoordinatorBotModule.GetIncomeWeight` reads a designer-authored `IncomeWeights` dictionary off
+its own `Info`. **That makes the bot's scoring unreusable from player-facing code** — it is bot YAML, not a
+property of the structure — which is worth knowing before writing *"reuse the bot's capture scoring"* into a
+brief. `CaptureReclaimMath` does not help either: its public surface is budget/demand arithmetic
+(`CombinedCaptureDemand`, `ReclaimBudget`, …) and none of it ranks a target.
+
+### A demand gate whose inputs are all SUPPLY-SIDE quantities is not a demand gate — grep the inputs, not the identifier
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* Two shapes of the same class, and the
+difference between them is the useful part.
+
+**(1) A gate that was never written, reading as a gate that was mistuned.**
+`LogisticsCenterBotModule.MaintainCenterDemand` is commented *"THE DEMAND GATE"* and tested exactly two things:
+a quota (`centers + mcvs + pending >= DesiredCenters`) and a balance (`funds >= MinCashToRequest`). With
+`DesiredCenters: 1` and `MinCashToRequest: 3000` against the default opening balance, the **first** evaluation
+buys — at a `ScanInterval` of 100 ticks, ~6 s into the match. There was nothing to mistune, because there was
+no need term at all. **The name of the method is what made this survive review.**
+
+**(2) A gate that WAS written, wired correctly, and reading the wrong constant.** The supply-truck ammo gate
+shipped live and correct in shape, but the bar it feeds is `UnitBuilderBotModule.ResupplyNeedThreshold`
+(default 0.05) against a `ResupplyDemand.UnitNeed` that returns *missing/capacity* — so 0.05 means *"has fired
+5 % of his magazine"*. It is a faithful implementation of a 2026-08-14 ruling ("below full ammo") that a later
+ruling superseded ("below half ammo" = 0.5). **A correct implementation of a superseded ruling looks identical
+to a bug from the outside**, and `git log --grep` finds the commit proving the feature exists while saying
+nothing about whether its constant still matches what the user now wants.
+
+**The trap the two share: before editing a threshold, grep every READER of it.** `ResupplyNeedThreshold` is
+read both by the opening gate (`AnyFieldedUnitNeedsResupply`) and by the needy-customer count that sizes the
+standing fleet (`SupplyFleetUnderDesired` → `SupplyPrecedenceMath.SizingCustomers`), so raising it in place to
+honour an *opening* ruling silently shrinks the *mid-match* reserve. The field name says what it measures, not
+how many decisions hang off it; the fix was a separate `FirstTruckNeedThreshold` scoped to the first truck.
+
+**Corollary for scenarios: a negative-gate change silently invalidates every existing scenario that depended on
+the positive behaviour as a PRECONDITION rather than as its subject.** `test-experimental-lccv-logistics`
+asserts the siting descent and reaches it only by first getting an LCCV bought; its map parks the whole
+pre-placed force 2–4 cells from the SR, so the new demand terms are zero there and the buy is correctly
+refused — which would have read as a siting regression.
 
 ### `AIUtils.BotDebug` is default-off AND chat-only, so a lane instrumented only with it is structurally unmeasurable
 
@@ -972,11 +1439,25 @@ Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in the single i
 
 **"Which module issued the order" is not answerable from the module you suspect — and the discriminator is already in the log.** *(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 9cb423d4`.)* Item 64 spent two recon passes and a shipped fix aimed at `StageFreePool` before the lone opening tank turned out to be `LaneAmbushBotModule`'s: it posts a lane at tick 100, ledger-committing the unit under an `ambush:` key, so `BuildFreePool` excludes it and the offensive stager **never sees it at all**. Any gate on `StageFreePool` is structurally unreachable for that order. The cheap discriminator costs one grep: `[exp-offense] reeval … pool=N` (`PoiOffensiveBotModule.cs:1826`). **A `pool=0` on a player that demonstrably owns units means somebody else owns them**, and the ledger's disjoint objective prefixes (above) are the list of candidates. Grep the pool count before theorising about the stager.
 
+**When a pool is filtered by a shared claim, log the CLAIMANT, not the survivor count — because a COUNT IS NOT
+AN IDENTITY.** *(Promoted 2026-09-20 from DISCOVERIES.)* A three-day reading that a mission-held axis's units
+were being marched back to the muster was built entirely from three log lines that co-occurred on one tick —
+`hold … units=2`, `reeval … free=2`, `[exp-staging] idle=2 staged=2` — with two equal cardinalities taken as
+identity. They are not: nothing in `[exp-staging]` says *which* units it staged, and `free=2` names a size, not
+a membership. The code in fact forbids the reading outright (`PartitionHeldAxes` ledger-commits every unit of
+every held axis before `BuildFreePool` is reached, and `BuildFreePool` excludes every committed actor). **Co-
+occurrence plus a matching cardinality is the cheapest false positive in log mining**, and this one survived
+into three documents because each cited the next. The instrument that closes it costs ~25 lines: `[exp-ledger]`
+in `BuildFreePool` tallies the units this module *would* have taken but for a live claim, **bucketed by the
+owner prefix of their ledger key** (`offense:` / `bombard:` / `garrison:` / `ambush:` / `defend-line:` /
+`capture:` / `transport:`). One line per eval separates *"the offense never recruited them"* from *"another
+module is holding them"* — a distinction the free-pool count alone can never draw.
+
 **Two opening-push under-fill leaks, same shape, two modules — both now gated, both default-off in C#.** Each takes whatever units are free and acts on `count > 0` with no floor:
 
 | leak | why it fires at the opening | gate | shipped value |
 |---|---|---|---|
-| `StageFreePool` AttackMoves the reserve forward **one order per unit** (`:2810`, `groupedActors: new[] { u }`) | `PoiOffenseMath.DesiredAxisCount` (`:5025`) returns 0 below `EarlyMinAxisSize` (`:83`, 2), so the first reinforcement forms no axis and falls to the free pool. Attack axes have an under-min retire gate; staging had none | `FreePoolMinAdvanceUnits` (`:610`) via pure `ForwardStagingMath.FreePoolMayAdvance` (`:370`), read at `:2720` | `0` in C#, `2` on both profiles (`ai.yaml:738`, `:2976`) |
+| `StageFreePool` AttackMoves the reserve forward **one order per unit** (`:2810`, `groupedActors: new[] { u }`) | `PoiOffenseMath.DesiredAxisCount` (`PoiOffensiveBotModule.cs:5479`, class at `:5474`) returns 0 below `EarlyMinAxisSize` (`:83`, 2), so the first reinforcement forms no axis and falls to the free pool. Attack axes have an under-min retire gate; staging had none | `FreePoolMinAdvanceUnits` (`:610`) via pure `ForwardStagingMath.FreePoolMayAdvance` (`:370`), read at `:2720` | `0` in C#, `2` on both profiles (`ai.yaml:738`, `:2976`) |
 | `LaneAmbushBotModule` fills a lane with `Take(need)` from whatever is free and posts on `Units.Count > 0` | its header argues `MaxAmbushes × UnitsPerAmbush = 4` is "small so offense keeps the rest" — true only when offense **has** units to spare. At the opening the lane takes 100% of a one-unit army | `MinUnitsPerAmbush` (`LaneAmbushBotModule.cs:100`) via pure `AmbushLaneMath.LaneMayPost` (`:697`), read at `:387` | `0` in C#, `2` on both profiles (`ai.yaml:1039`, `:3030`) |
 
 **A related lever that reads as though it governs the opening and does not: `ImmediateReinforcementCommit` (`:768`).** `DamperShouldHold` (`:4475`) is `!SpawnFlowMath.SuppressMassingHold(…) && RetreatDamperMath.ShouldHold(…)`, and `ShouldHold` reaches its massing arm only when `FillIncomplete(currentUnits, allocatedUnits)` — `allocatedUnits > 0 && currentUnits < allocatedUnits` (`RetreatDamperMath.cs:101`, tested at `:163`). But `AllocatedSize` is written every eval by `AllocateProportional` over the pool that exists **that eval** (`PoiOffensiveBotModule.cs:1699`), and the very next loop tops the axis up to that allocation in the same pass. **So the hold waits for allocated units still walking up; a reinforcement not yet called in was never allocated, cannot make an axis under-filled, and cannot arm the hold.** Reverting the flag restores a gate that is structurally blind to the staggered arrival it would be asked to fix — and a measured A/B of HEAD against the flag dropped came back identical within noise. The general form is catalogued in [`conventions.md` §"A change believed made, documented as made, and inert"](conventions.md#a-change-believed-made-documented-as-made-and-inert): **"the comment describes the mechanism accurately" is not "the mechanism is reachable on this input"** — every document in that chain is correct about what it says, and the gap only appears when you ask *what state actually reaches this predicate*.
@@ -988,6 +1469,7 @@ Every `bot.QueueOrder(...)` call across the ~25 BotModules lands in the single i
 - **Commit-on-order is a PAIR, not a single act** (`CommitOnOrderMath`, `PoiGoalGuard.cs:285-300`). Every executor must (a) commit every unit it orders AND (b) recruit only from the ledger-checked free pool — *both halves*. Commit-alone still lets a writer poach a unit another already committed (its own `Commit()` overwrites the prior objective); recruit-check-alone leaves the reverse steal channel open. The gate seams are `ShouldCommit(flag, ledgerAvailable)` (per-profile twin) and `ShouldCommitShared(flag, ledger, isExperimentalBot)` (adds a runtime `BotType == experimental` term for a module that is a single `enable-ai-any` instance, e.g. Garrison, which a per-profile YAML flag can't confine). Objective keys are **disjoint prefixes** so claims stay attributable and never collide: `offense:` / `capture:` / `capture-escort:` / `capture-defend:` / `transport:` / `garrison:` / `defend-line:<x>,<y>` (cell-based) / `ambush:`.
 - **The ledger only arbitrates between modules that BOTH WRITE it — "I read the ledger" is not a claim.** A flag that gates ledger *resolution* silently gates participation: `MountedTransportBotModule` resolves `goalGuard` only under `CommitPassengers` (`:313`), which the `@poi`/stable twin does not set (`ai.yaml:949`), so on `@stable` that module neither reads nor writes and the ledger cannot mediate between it and the heli lift — both draw passengers from the same reserve bubble and each would yank the other's boarder. Read-only participation is asymmetric and secures nothing. The two-way conflict is resolved instead by **direct reservation seams** that do not depend on either flag: `MountedTransportBotModule.IsPassengerReserved` (`:182`, also consulted by `LayeredDefenceBotModule:393`) is now consulted by `HelicopterSquadBotModule:1603`, and the symmetric `HelicopterSquadBotModule.IsPassengerReserved` (`:1635`) by `MountedTransportBotModule.TryAssignNewTasks` (`:567`). Two related traps in the same area: `StateBase.ExcludeTacticallyCommitted` (`Squads/States/StateBase.cs:155-171`) honours only `tacpos:` keys, so ground squads would not respect a `transport:` claim — harmless today only because every `SquadManagerBotModule` in `ai.yaml` sets `IgnoreGroundUnits: true`; and a ledger-committed unit is invisible to `BuildFreePool`, so a module carrying units forward across evals must explicitly RELEASE any it does not re-task or they strand committed forever.
 - **Three-tier timer ordering: `ReevaluateInterval` (100) < `AxisCommitmentTicks` (250) < `MissionCommitmentWindowTicks`.** The abort/reassign triggers are tested only at re-eval ticks (`PoiOffensiveBotModule` early-returns until a countdown hits 0, then re-evals every `ReevaluateInterval` `:57/:636-640`). Each re-eval a held axis re-asserts its ledger claim with a fresh `AxisCommitmentTicks` TTL (`:87`, `Ledger.Commit(..., AxisCommitmentTicks)` `:1245/:1518`). **If `ReevaluateInterval >= AxisCommitmentTicks` the claim lapses in the gap between two re-evals** and the unit is released mid-mission before any trigger can fire — the commitment window collapses to zero. `MissionCommitmentMath.ShouldReassign` (`PoiGoalGuard.cs:243`, NOT `ShouldRelease`) force-releases a held axis once `commitWindowTicks > 0 && currentTick − commitTick >= commitWindowTicks` (`:253-254`) — a bounded outer backstop that must sit ABOVE the ledger TTL so triggers get several samples first. The engine-class default `MissionCommitmentWindowTicks = 0` is **inert** (pure-trigger hold; `@experimental` sets 400 for ~3 held re-evals then a mandatory re-plan); all three fields live only on `PoiOffensiveBotModule@experimental`, so `@stable` (which omits them) is byte-identical.
+- **The freeze had a second half nobody wrote down: a held axis could not be TOPPED UP, and at one POI no axis could form for anybody.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `PartitionHeldAxes` removes the axis from `axes` **before** the sizing and top-up steps, so for the whole `MissionCommitmentWindowTicks` window (400 = 4 evals at `ReevaluateInterval` 100) the allocator never sizes it and the top-up loop never sees it. The freeze exists to stop RE-DECISION — *"neither re-sized nor re-ordered this eval, its in-flight order stands"* — and refusing STRENGTH is a side effect of the exclusion, not something the doctrine asks for. **It is worse than a delay on the opening push, because of a term that only bites at `poiCount = 1`:** `PartitionHeldAxes` also strips held *targets* from `targets`, so with one offensive POI in the world the held axis takes it, `targets` empties, and `DesiredAxisCount` is handed `poiCount = 0` — which returns 0 on its first line (`PoiOffensiveBotModule.cs:5481-5482`). No axis can form for **anybody**, every reinforcement falls to the free pool, and `StageFreePool` walks it to the muster and leaves it there. The symptom looks exactly like a march-back: the reserve genuinely is at the muster and genuinely is not advancing, because the module never ordered it anywhere else. Closed by `MissionReinforceEnabled` (C# default `false` at `:1044`, `true` on **both** profiles — `ai.yaml:409`, `:3054`), which sizes a held axis with the same pure `AllocateProportional` the live path uses and tops it up from what the live axes did not want. **Every property the freeze was protecting survives, and the list is the point:** the axis is never re-targeted, never SHED from (`HeldAxisReinforceCount` floors at zero), the units already en route are never re-ordered (the `AttackMove` is grouped over the RECRUITS ONLY and aims at `axis.OrderedCell`, the cell the axis itself last chose), and no gate is re-run. This moved `@stable` deliberately.
 
 ### Two modules drawing on one free pool: a per-consumer FLOOR is not a share
 
@@ -1085,6 +1567,104 @@ The trait has **exactly one mover**: `self.QueueActivity(new Move(…))` at `Sta
 
 `World.cs:222` seeds `SharedRandom` from the lobby `RandomSeed` (deterministic, network-synced); `World.cs:231` now also seeds `LocalRandom` — from that same `RandomSeed` via a fixed decorrelating transform `(int)(RandomSeed*6364136223846793005 + 1442695040888963407)`, guarded on `RandomSeed != 0` so normal gameplay (seed = `DateTime.Now`) still varies per launch. The bot modules make their *decisions* off `world.LocalRandom` (e.g. `UnitBuilderBotModule` picking which unit to call in; squad / layered-defence / support-power scan timing and target choice), so before this fix `LocalRandom` was unseeded (`new MersenneTwister()` → `Environment.TickCount`) and two same-`Test.RandomSeed` runs diverged within ~125 ticks. **Now a fixed seed is a *reproduction*:** verified byte-identical verdicts (and tick-by-tick score logs) across two seed-1017 hidden Mode-B matches, with a different-seed negative control diverging as expected (`WORKSPACE/ai-bench/runs/260720_seeded_determinism_verify.md`). The derived seed is decorrelated from `SharedRandom`'s combat rolls so the two MT streams stay independent. The verdict JSON records the seed (`verdict_version` 5). Note: OpenRA's off-thread (async) pathfinding did **not** need any extra work for this — it applies its results deterministically on the sim thread even with WW3MOD's modified movement, so seeding the single unseeded `LocalRandom` was sufficient for full byte-identical replay. Aggregate-over-N benchmarking is still the right way to *evaluate a code change* (one seed is one battlefield); what seeding buys is a *stable* mean over a fixed seed-set. Note: `LocalRandom` is "local" (non-synced) by OpenRA design — this makes a single-client benchmark reproducible, not a multiplayer match synced. **Do not "fix" this by routing bot decisions through `SharedRandom`.** `LocalRandom` is excluded from the sync hash — `World.SyncHash()` (`World.cs:549-578`) folds only Actors, `ISync` fields, synced effects, and `SharedRandom.Last` — so reseeding it cannot affect multiplayer sync, and bots emit their choices as *orders* (which synchronize peers/replays), not as RNG draws. Moving bot draws into `SharedRandom` would instead shift every subsequent combat roll and break the frozen `@stable` A/B baseline's RNG-stream byte-identity (the baseline was recorded *on* the seeded-`LocalRandom` build `2d3c8fe0`, so the decorrelated-seed fix is already baked in). Re-investigated and closed HOLD 2026-08-03: the safe fix is already in `main`, so re-implementing is a no-op.
 
+## The Escalation endgame: one cascade, one window, and who counts as a side
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; every claim below re-read against code at `main @ 554895ba`.)* Shipped by `211da87c` (final exchange, map-scaled packages, Trident II/W88) and `b2602fb4` (painted DMZ zones). The player-facing rules — package size, window length, which weapon each nation ends with — live in [`game-model.md` §"The Escalation endgame"](game-model.md); this section is the machinery behind them.
+
+### Two subsystems that must agree about WHEN: give ONE the answer, and let the other derive its input from it
+
+The endgame's original ordering bug was that the machine's warheads always landed before the player's, whatever the player did. Neither schedule was wrong: the auto-fired salvo flew on a short lead-in while a player-ordered Sarmat paid `MissileDelay` — a warning time that exists so a strategic weapon is reactable — so the two clocks simply disagreed by hundreds of ticks. **No value of either constant fixes that, because the defect is the existence of the second clock.**
+
+The shipped shape inverts the derivation. `FinalExchangeCascade` (`engine/OpenRA.Mods.Common/Traits/World/FinalExchangeCascade.cs:63`) owns one staggered sequence of impact slots: `Reserve(naturalImpactTick)` (`:112`) hands back the tick a warhead will land on, and `LaunchDelayFor(now, impactTick, flightTicks)` (`:127`) solves the launch backwards from it. `MissileStrikePower.Activate` routes every game-ender fired inside the window through `DoomsdayStrike.ScheduleExchangeImpact` (`MissileStrikePower.cs:689`) rather than through its own `MissileDelay`. **Old code: both sides derived an arrival from their own launch. New code: both derive a launch from a shared arrival.** It is the same inversion `MissileStrikePower.ApproachDistance` already made for flight time (shorten the flight, lengthen the wait, keep the sum), which is why that field needed no change.
+
+**The anchor is FLOORED, and the floor is what makes the property reachable rather than merely stated.** The design ruling was that the cascade anchors on "the trigger's first impact tick". Taken literally that breaks the property it exists to create: a responder placing on the LAST tick of the window cannot reach an anchor fixed a whole window earlier — its flight has not started — so it clamps to "launch now" and arrives outside the cascade, which is the original defect with the sides swapped. `SetFloor` (`:97`) raises the anchor to at least `close + FinalExchangeFlightTicks` on both doors; it is still the trigger's first impact whenever that is late enough. Pinned by `FinalExchangeCascadeTest.BothPackagesLandInsideOneBoundedSpanFromAnyPlacementTime`, which sweeps every placement tick against both missile speeds and asserts **both** that the impact is in range and that the launch delay is non-negative — the second half is what catches a schedule that is satisfiable on paper and unreachable in fact.
+
+> **The generalisable rule, which is not about nukes.** When two subsystems must agree about *when*, do not tune their two clocks into agreement — delete one, make the surviving one authoritative over the shared quantity, and have the other derive its own input from it.
+
+### Auto-fire at the close is PER SIDE, and it feeds the same cascade
+
+The separate salvo is gone as a *schedule*, but not as a concept, and the code still calls it Dead Hand. At the window's close any surviving side that did not place its own package has one auto-fired for it: `DoomsdayStrike.autoFire` (`DoomsdayStrike.cs:346`) is appended per player, `AnnounceAutoFire` (`:1256`) reports it, and `FinalExchangeWindow.SidesPlacedForByDeadHand()` (`FinalExchangeWindow.cs:168`) is the ledger a scenario asserts on — disjoint from `SidesThatPlaced()` by construction (`FinalExchangeWindowTest.cs:175`). Auto-fired warheads take cascade slots like any other, so **there is no longer a "machine salvo" that can arrive on its own timeline.** Seat order decides slot order (`DoomsdayStrike.cs:941-947`).
+
+### `CountsAsASide`, NOT `Playable` — and the difference produces nothing rather than something wrong
+
+**`Playable` is a statement about a lobby SLOT, never about who is in the match.** `CreateMapPlayers.cs:108-121` walks `LobbyInfo.Slots` and creates a `Player` only for a slot a client occupies, so a `Playable: True` reference nobody fills produces no `Player` at all; and a scripted or map-authored combatant that owns actors and fights is `Playable: false`. It is wrong in both directions: an Observer slot is authored `Playable: True, Spectating: True` and passes.
+
+The mod's one answer is `CombatantSides.CountsAsASide` (`engine/OpenRA.Mods.Common/Traits/World/CombatantSides.cs:58`), which is `!nonCombatant && !spectating && !authoredNonCombatant && !authoredSpectating` (`:78-80`) — **four flags, because the runtime `Player` pair does not always reflect the map's `PlayerReference`.** The pure overload carries the whole rule so it can be pinned without a `World`; the `Player` adapter only unpacks fields. Consumers: `DefconWall.cs:435`, `DoomsdayStrike.cs:760`, `BotVsBotMatchWatcher.cs:234`, `TestGlobal.cs:2143`.
+
+This was found when `SpawnForwardDeployment` (filtering on `q.Playable`) saw no enemy at all in the same tick `DefconWall` derived a border "from 2 home(s) in 2 group(s)" on the same map. **When two traits must agree about a population they must share the PREDICATE, not merely both look correct** — the disagreement produced zero units, which reads as a broken feature rather than as a wrong answer.
+
+**A related closed door, because it is the obvious escape and it does not exist.** `Game.CreateAndStartLocalServer` calls `CreateLocalServer(mapUID)` with `isSkirmish` defaulting to false, so an autotest server is `ServerType.Local` and `SkirmishLogic.ClientJoined` early-returns: **no bot is ever auto-seated in an autotest launch.** You cannot fill a second `Playable` slot by leaving it empty. The scenario-authoring consequence is in [`conventions.md` §"A single-client autotest launch seats ONE slot"](conventions.md).
+
+### `DefconWall`: THREE region sources, unioned — and a level-independent side accessor
+
+`RegionCells` is not the only border source and has not been since `b2602fb4`. **The three are UNIONED, not ranked** (`DefconWall.cs:106-121`): the map's painted `Zones: DMZ` cells (`:518`), `RegionTerrainTypes` (`:520-525`), and `RegionCells` (`:537`). A map may paint a band in the editor *and* keep `RegionTerrainTypes: Water` to pull a river in, which is exactly what `river-zeta-ww3` does. `UsesRegion(...)` (`:410`) decides region-vs-line from all three lengths. Prefer the painted zone: `RegionCells` lives in the map's `rules.yaml`, which **the map editor has no path to write** — which is why the nine shipped borders were routed by `tools/nav-guard/defcon_border_designer.py` and pasted in by hand. *Generalisable: map geometry that lives in `rules.yaml` is permanently un-editable, and the cost shows up as a bespoke authoring tool.* The fix shape is a `Map.YamlFields` entry — one line plus a member, and `Map.Save` persists it for free.
+
+**The side accessors are NOT gated on the DEFCON level**, which is the point of that surface — a consumer at world load can ask where the border is in a match that will never raise one. `HasBorder` (`:848`), `SideOf(CPos)` (`:862`), `SideOf(WPos)` (`:882`), `SideOf(Player)`, `IsInBand(CPos)`, and the single sentinel `DefconWall.NoSide = -1` (`:836`). That constant exists because the two geometries disagree natively — the line's `NoSide` is 0 with sides -1/+1, the region's `Unlabelled` is -1 with component ids from 0 — and `NoSideValue` (`:772`) is the normaliser.
+
+**Do NOT resolve a player's side through `Player.HomeLocation`.** `PlayerReference.HomeLocation` defaults to `CPos.Zero` and `Player.cs:213` falls back to the `PlayerReference` whenever no `IAssignSpawnPoints` trait exists — which is *every* scenario under `tools/autotest/scenarios`, all of which strip `MapStartingLocations`. Both sides then read cell (0,0), the accessor answers the same value twice, and on a region map (0,0) is `Unlabelled`, so every side query silently returns `NoSide`. Resolve through an **anchor** instead — the `CenterPosition` of the player's lowest-ActorID `BaseBuilding`, i.e. their Supply Route (`DoomsdayStrike.AnchorOf`). On every shipped map the two agree *exactly*, because the SR sits on its owner's spawn cell (see [`game-model.md`](game-model.md)); the anchor differs only where `HomeLocation` is absent, which is where it is also the only one that is right.
+
+**A validity readout must BE the production predicate, not a reimplementation of it.** A border that does not split the map is not a weak border, it is no border: `DefconWallRegion.IsDegenerate` is `BlockedCells.Count == 0 || ComponentCount < 2` (`DefconWallRegion.cs:125` — corrected 2026-09-20, this doc previously gave only the second disjunct), and `BuildRegion` then logs one line, sets `region = null` and leaves the wall down for the whole match (`DefconWall.cs:555-564`). The editor's live *"DMZ splits the map into N areas"* readout therefore computes N by **constructing `DefconWallRegion` itself** (`ZoneLayerOverlay.ComponentCount`) with the same `Map.Contains` passability predicate `BuildRegion` passes. A lookalike flood differing in 4-vs-8 connectivity, `Bounds` vs `AllCells`, or the predicate would tell the mapper their border is fine and then not raise it — *a readout that can disagree with the runtime is worse than none, because it is trusted.*
+
+**A border is a SHORTEST PATH, not a min-cut.** A set of blocked cells separates the map in the 8-connected graph `DefconWallRegion.Label` floods **if and only if** it contains a 4-connected chain of them running from one `Bounds` edge to another. That duality is the whole authoring method and is what makes the problem tractable by hand: price terrain a player already reads as a barrier near zero, run Dijkstra on the 4-connected grid, and the route hugs whatever the map has. Dilating the chain by one cell gives a three-cell band, which is what the shipped `HalfWidth: 1024` produces and which clears the `sqrt(2)/2` floor below which a diagonal band leaks through its own corners (`tools/nav-guard/defcon_border_designer.py`). **The fairness number is not area — it is Chebyshev distance from each spawn to the band**, because the derived bisector is equidistant by construction and an even area split does not imply it.
+
+**A REGION border has TWO separation tests, and the one that decides whether the wall exists at all is the OPEN graph.** *(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* `BuildRegion` hands `DefconWallRegion` a passability predicate of `w.Map.Contains` **and nothing else** (`DefconWall.cs:551`), deliberately and with the argument written out at the call site (`:542-550`): passability is a property of a locomotor, and a World-actor trait would have to pick one arbitrarily. So the engine floods a grid in which every in-`Bounds` cell that is not a border cell is passable, and `IsDegenerate` then decides whether the region is kept at all.
+
+**That grid is strictly MORE connected than any locomotor's, so the implication runs one way only.** A path in a locomotor's graph is also a path in the fully-open graph; the converse fails. Open-graph separation therefore implies separation for every locomotor, and **a green per-locomotor audit implies nothing whatsoever about the engine gate.** A region can pass every locomotor line, exit 0, and never raise a wall in game — silently, because the only trace is one `Log.Write("debug", …)`. `tools/nav-guard/defcon_wall_audit.py` mirrors the gate directly (`engine_load_gate`, `:437`) and prints it above the per-locomotor block for this reason.
+
+**And the per-locomotor axis is NEW with regions, which is why nothing existing covered it.** A *line* border is a statement about POSITION: `SideOf` is a sign test that gives the same answer for every actor. A *region* border is a statement about REACHABILITY, and reachability is a property of the **mover** — so a region that separates the map for one locomotor may not for another, and **"does this border divide the map" has no single answer.** A connectivity number quoted without a locomotor beside it is not a fact about the map, and a region checked against one locomotor is not checked.
+
+**Authored cells OUTSIDE `Bounds` are silently DROPPED, and the comment in `BuildRegion` claiming otherwise is wrong.** `DefconWall.cs:515-517` and `:534-536` state that painted-zone and `RegionCells` entries are added unconditionally including cells outside `Bounds`, "because a border that stopped at Bounds would leave a one-cell seam". They are added to the list and then discarded: the region is constructed over `bounds.Left/Top/Width/Height` (`:551`), `DefconWallRegion.IndexOf` is Bounds-local and returns `-1` outside it (`DefconWallRegion.cs:177-185`), and the constructor does `if (i < 0 || isBlocked[i]) continue;` (`:153-160`). Such a cell never enters `BlockedCells`, never reaches `CustomTerrain` and is never drawn — **the border ring is not closed by this mechanism.** (The `RegionTerrainTypes` scan cannot contribute one in the first place; it already filters on `w.Map.Contains` at `:530`.) `RenderAnnotations`' own `Map.Contains` guard, written for the line path where the overwritten set really does span `Map.AllCells`, is dead code on the region path for the same reason.
+
+**When a barrier leaks, ask the PATHFINDER where it went — do not scan the barrier for holes.** A scan shows you every gap, including all the ones nothing is using, and *the gap being used may not be a gap in the barrier at all but a passable terrain type within it*. The shipped worked case: a river border separated every vehicle locomotor cleanly while leaving all the foot classes in one component, and the obvious explanation (the river stops short of the map edge — it really does) was **refuted by being acted on**, with end caps from 66 up to 126 cells producing a byte-identical failure list. The actual crossing was mid-river over dry `Rock` outcrops *inside* the channel, and `Rock` is in `foot`'s `TerrainSpeeds` while `heavywheeled`'s omits it. One terrain difference, attributed to fording ability for two rounds of geometric reasoning. A breadth-first walk from one spawn to an opposed one, printing the cells it used, localised it in one run. Relatedly: **a row scan reporting each row's extent as `min(x)..max(x)` silently asserts the span is solid**, and that assertion is exactly what such a barrier violates.
+
+Two facts about reading a connectivity audit of one of these, both of which look like defects and are not:
+
+- **`immobilepara` is not a mover, and its connectivity numbers mean nothing.** It appears in every `defcon_wall_audit.py` and nav-guard per-locomotor listing beside `foot` and `heavytracked`, and on `polar-disorder-ww3` it was the only locomotor reporting a sealed region — 350 cells, against zero for all fourteen others. It belongs to `^SummonBase` (`mods/ww3mod/rules/defaults.yaml:1228`), whose `Mobile` has `Speed: 0`, `TurnSpeed: 0` and `PauseOnCondition: !parachute` (`:1235-1238`): it is the descending-summon placeholder and never walks anywhere. Its `TerrainSpeeds` are `Clear`, `Road`, `Beach` only (`world.yaml:242-246`), the narrowest list in the mod, which is why it fragments where nothing else does. **When one locomotor disagrees with all the others in a connectivity audit, read its `Mobile` before believing it.**
+- **`arena-tank-duel` and `shellmap-open-field` cannot run Escalation at all**, so nothing DEFCON-gated is observable on either. Both are `Visibility: Shellmap` rather than `Lobby` (`mods/ww3mod/maps/arena-tank-duel/map.yaml:15`, `mods/ww3mod/maps/shellmap-open-field/map.yaml:15`), every lobby map chooser filters on `MapVisibility.Lobby`, and the game mode is a lobby option whose `ModeDefault` is `Skirmish` — which pins the level at `NoLevel` forever, so `DefconWall.Apply` never raises. The menu-background path is no escape: `Game.LoadShellMapInner` resets the session and injects only the `scenario` option. **Worth carrying beyond the wall: any feature gated on the DEFCON level is unreachable on these two maps**, so neither is a valid fixture for testing one.
+
+### The terrain relight sweep parallelises by VERTEX row, and `CPos.Y` is not that row
+
+`TerrainSpriteLayer.UpdateTint` writes exactly four consecutive vertices at `vertexRowStride * uv.V + 4 * uv.U` (`engine/OpenRA.Game/Graphics/TerrainSpriteLayer.cs:163`, again at `:273`, invariant documented at `:208`). Two cells collide there **only if they share `V`**, which is the entire premise that makes `TerrainLighting.NotifyCells` parallelisable without locking.
+
+**And `NotifyCells` does not iterate `V` — it iterates `CPos.Y`**, converting each cell with `cell.ToMPos(map)`. Those are the same number only on a `Rectangular` grid, where `ToMPos` returns `new MPos(X, Y)` verbatim (`engine/OpenRA.Game/CPos.cs:76-78`). On `RectangularIsometric` it is `u = (X - Y) / 2; v = X + Y` (`:90-91`), so one CPos row is a *diagonal across vertex rows* and two different CPos rows (`x+1, y-1` and `x, y`) land on the same `v`. A `Y` partition there hands two threads one vertex row — and the failure is not a lost update: `Vertex` is a 48-byte `readonly struct` of eleven floats plus a uint (`Vertex.cs:17-30`) and `vertices[offset + i] = new Vertex(...)` is a non-atomic 48-byte store, so concurrent writers **tear** it. Half of one cell's tint and half of another's in one vertex draws as a bright or black speck, not as anything that looks like a threading bug.
+
+The sweep is therefore gated on `map.Grid.Type == MapGridType.Rectangular` and isometric keeps the serial path (`TerrainLighting.cs:316-318`). WW3MOD and stock RA are both Rectangular, but `TerrainSpriteLayer` lives in `OpenRA.Game` and `ts`/`d2k` are isometric and in-tree. Doing it properly for isometric means rewriting the sweep in MPos space, which is not free: `u = (X - Y) / 2` truncates toward zero, so `CPos → MPos` is not injective there.
+
+> **The general rule: "these writes are disjoint by row" is a claim about the INDEX SPACE OF THE ARRAY, not about the loop variable that happens to be called a row.** Two coordinate systems with the same name is exactly the shape that survives review — the loop says `y`, the array says `V`, and on the grid you happen to be testing they are equal, so every test passes and the bug ships to the mod nobody ran.
+
+**Second gate on the same path: `PerfSample` is not thread-safe.** `PerfSample.Dispose` calls `PerfHistory.Increment`, which is `Items[item].Val += x` (`engine/OpenRA.Game/Support/PerfHistory.cs:59`) — a string-keyed `Cache` over a plain `Dictionary` that **inserts on a miss**, plus a non-atomic `double` accumulate. Concurrent inserts corrupt the `Dictionary` outright; a lost count is the benign version. So the parallel sweep also refuses to run while `PerfHistory.Sampling` is true (`TerrainLighting.cs:318`). Which profiles that covers — and why it silently changes what a benchmark measures — is in [`conventions.md` §"`Launch.Benchmark` forces the SERIAL relight path"](conventions.md).
+
+## `CustomTerrain` is what the simulation READS; it is not what the renderer DRAWS
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; every citation re-read at `main @ a21583fd`.)* In this engine **terrain names two independent things**, and a `CellLayer` write only ever moves the first.
+
+`Map.GetTerrainIndex` consults `CustomTerrain` before falling back to the tile — `custom != byte.MaxValue ? custom : Rules.TerrainInfo.GetTerrainInfo(Tiles[uv]).TerrainType` (`engine/OpenRA.Game/Map/Map.cs:1729-1739`, cache invalidated from `CustomTerrain.CellEntryChanged` at `:674`), and `GetTerrainInfo` is a thin wrapper over it (`:1742-1745`). That reaches locomotor cost, the pathfinder and `GrantConditionOnTerrain`. **It reaches no renderer at all:** `TerrainRenderer` renders each cell from `map.Tiles[cell]` and subscribes only to `map.Tiles.CellEntryChanged` and `map.Height.CellEntryChanged` (`Traits/World/TerrainRenderer.cs:92-93`). The map's own tile stays on screen forever.
+
+**The proof by contrast is already in the tree, and it is why no existing writer exposed this.** `BuildableTerrainOverlay` needs its *own* `TerrainSpriteLayer` **and** its own `world.Map.CustomTerrain.CellEntryChanged` subscription (`Traits/World/BuildableTerrainOverlay.cs:70-73`) precisely because writing the layer paints nothing. Every other writer is paired with visuals from somewhere else — `Bridge`/`GroundLevelBridge` have a bridge actor with sprites, `ResourceLayer` has `ResourceRenderer`, `CliffBackImpassabilityLayer` marks cells behind art that is already drawn, `ChangesTerrain` sits on an actor you can see. **The DEFCON wall is the first writer in this codebase with no art of its own, so it is the first one for which "I changed the terrain" and "the player can see it" came apart.** *Before believing a terrain change is visible, name the renderer that subscribes to the layer you wrote; if you cannot, it is invisible.* A rule the player is **told** about and cannot see is worse than one that is neither — a readout asserting a border in words, over an unmarked stretch of grass that units silently refuse to enter, was the shipped state of exactly this.
+
+### A terrain decal cannot be raised over an actor, and `IRenderAboveWorld` is the seam that can
+
+**The pass structure this rests on is banked once, in [§"The render pass order, and what each pass can and cannot reach"](#the-render-pass-order-and-what-each-pass-can-and-cannot-reach)** — `IRenderOverlay` (and therefore every `SmudgeLayer`) is pass 1, actors are pass 3, they are sequential passes rather than one sorted list, and no `ZOffset` reorders across them. What follows is only what that costs a `CustomTerrain` writer.
+
+**The tempting lever points the other way.** The mod already carries `WithSpriteBody.ZOffset: -8192` on `^CivField` with a long comment explaining why fields must render *under* units, which makes "make the scar draw over the field" look like a sorting problem with an obvious dual. It is not one: **a smudge on a cell occupied by any actor whose sprite covers the cell is placed, is present in the layer, and is invisible.** On farmland that is most of the map, so nothing was ever going to show it.
+
+**The seam that does work is `IRenderAboveWorld` (`WorldRenderer.cs:396`)**, the pass immediately after actors, which `BuildableTerrainOverlay` and `WeatherOverlay` already use; a second `TerrainSpriteLayer` drawn from there lands on top of actor sprites. Two costs worth knowing before adding one: **`TerrainSpriteLayer` allocates eagerly in its constructor** (four 48-byte `Vertex` per map cell plus a GPU vertex buffer), so a second layer per smudge type is a real memory cost on maps that never use it and wants lazy allocation on the first qualifying cell; and `ActorMap.CellUpdated` is **already a live event** (`Locomotor` and `HierarchicalPathFinder` subscribe unconditionally), so subscribing adds a handler to a hot event rather than switching on a dormant path.
+
+### A rule that forbids a REGION is not enforceable through destination-cell feedback, and the two order strings fail differently
+
+**Destination-cell validity is the wrong predicate for feedback about a route.** `Mobile`'s `MoveOrderTargeter` already paints `move-blocked` over cells *inside* a `Wall` band, because `Wall` is in no locomotor's `TerrainSpeeds` so `MovementCostForCell` returns the unreachable sentinel — covering the case a player rarely clicks. The case they actually click, a perfectly legal cell on the *far* side, gets an ordinary cursor, an accepted order and a unit that then never moves, because the refusal happens in the pathfinder where nothing reports. **When a rule forbids a region rather than a cell, check the rule, not the reachability of the click.**
+
+**And the two movement order strings produce the same observable by opposite routes, which is what makes a reader who has internalised one mis-diagnose the other.**
+
+- **`Move` is REFUSED OUTRIGHT.** `Mobile.ResolveOrder` tests `IsBeyondDefconWall` and returns before the activity is queued at all (`Traits/Mobile.cs:1111-1113`, and again for `ForceMove` at `:1130-1132`). The notification that follows is invisible to a bot: `TextNotificationsManager.AddTransientLine` tests `player == null || player == player.World.LocalPlayer` (`engine/OpenRA.Game/TextNotificationsManager.cs:54`) and `Sound.PlayPredefined` tests the same (`Sound/Sound.cs:411`), so a refusal for a bot is a no-op beyond one dictionary write and **there is no log spam to find the problem by.**
+- **`AttackMove` is ACCEPTED AND INERT.** `AttackMove.cs` contains **zero** `Defcon` references (grep it) — there is no wall guard. The order resolves, `Mobile.NearestMoveableCell` fails its `CanReach` term on the far cell, the radius-1..10 annulus around it is also beyond the border when the target is deeper than 10 cells, so it returns the target unchanged, `Move` finds no path and **completes immediately without moving, turning or speaking.** The issuer sees an idle unit and re-issues next scan.
+
+> **When a guard is added to one order path, enumerate the other paths by ORDER STRING, not by module.** Which failure a caller gets depends entirely on whether it said `"Move"` or `"AttackMove"`; grepping for the trait is the wrong sweep and grepping for `new Order("Move"` is the right one. Accepted-and-inert and refused-outright also need different remedies: the first re-fires if you keep the *recorded* destination honest so a repath guard can see the change, while the second has no repath guard at all and re-issues forever.
+
+**`CrossingMap.Invalidate` is NOT a push signal, and asking to "hook into it" is asking for something that does not exist.** It is the one thing `DefconWall` fires when the border moves and it looks like a notification. Its whole body clears a `built` flag so that whichever module queries next rebuilds lazily on its own synced cadence (`Traits/World/CrossingMap.cs:549-556`); there is no subscriber list, no event, and nothing for a module to register with. **The correct shape for "react when the wall moves" is to RECOMPUTE the border-dependent answer every scan and compare it to the one you last acted on** — hold the objective apart from the cell actually ordered, and the clamp becomes the identity when the wall drops, the recomputed cell differs, and the order re-issues itself. *An edge that is never detected is an edge that cannot be missed.*
+
+**Anchoring a staging walk at a MOVING position trades one re-issue loop for a quieter one.** A helper that walks back from the objective toward a `from` cell and returns the first cell on our own side returns **where the segment crosses the border**. Pass the mover's live position as `from` and that crossing point slides laterally on every scan as the mover converges, unless the approach happens to be collinear with the objective — and each slide changes the staged cell, defeating any "re-issue only when the destination changed" guard. Anchor it at something that does not move while the wall stands (the objective, the border, the Supply Route the task set out from) and the staged cell is a pure function of those, so a mover driving toward it recomputes the identical cell every scan.
+
 ## Determinism & sync
 
 *(Re-parented 2026-08-19. These subsections lived under §AI configuration only because §RenderPlayer happened to be there; none of them is about bot configuration. Markdown anchors derive from the heading text alone, so every existing `§`-by-name reference to them still resolves.)*
@@ -1102,6 +1682,55 @@ The trait has **exactly one mover**: `self.QueueActivity(new Move(…))` at `Sta
 **Any even number of bools flipping at once cancels**, and two bools can never be distinguished from each other; `int` fields differing only in bit 0 collide identically. This bites hardest at exactly the wrong moment — a trait that sets two flags in the same statement block cancels them on the *critical transition*, i.e. the tick it starts mattering, so the per-field annotations leave the trait effectively unhashed precisely when it matters.
 
 **PITFALL — this looks like a dead-constant bug and "fixing" it is worse than leaving it.** `EmitSyncOpcodes` pushes `0xaaa` then `Brtrue`s on *that constant*, so the branch is always taken and the `Pop; Ldc_I4 0x555` arm is unreachable. It is tempting to restore the intended `0x555`/`0xaaa` encoding. **Don't:** both bools would still use the same encoding, so `0x555^0x555 == 0xaaa^0xaaa == 0` and the cancellation is completely unchanged. Only distinct bit *positions* fix it. Meanwhile restoring the constants changes every sync hash in the game, breaking existing replays and saves, and buys zero additional detection. **The real remedy is to not rely on two bools carrying independent information through one trait's hash.**
+
+### `World.NextActorID` is a zero-bookkeeping partition of the actor population by creation time
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `nextAID` is a plain `uint` whose only
+writer is `NextAID()`'s post-increment (`World.cs:556-560`), `Actor.ActorID` is `readonly`, and
+`World.NextActorID` (`:584`) is get-only so allocation stays inside `NextAID`. **Snapshotting the counter
+therefore gives a total order on creation that cannot be invalidated afterwards** — no per-actor bookkeeping,
+nothing to keep in sync, no allocation. Anything that needs *"did this exist when X happened"* should snapshot
+this rather than invent a parallel registry; `Effects/AreaEffectVictims.cs` wraps it as a `DetonationStamp`
+struct with an instance `Predates` method.
+
+> **DO NOT justify its determinism by `SyncHash`.** `SyncHash` hashes the IDs of actors **currently in**
+> `actors` (`World.cs:586`+), so an actor created and disposed inside the same frame-end drain never appears in
+> any hash and still bumps `nextAID` — two clients could agree on every hash and disagree on the counter. The
+> argument that holds is the compiler-scope one, and it is recorded in-code at `World.cs:563-583`; the method
+> is banked at [`conventions.md` §"A grep census is a SAMPLE"](conventions.md).
+
+**The shape this exists to fix is worth more than the mechanism.** An effect whose only memory is a
+"have I hit this one already" set has **no filter on who may be hit at all**: the set is constructed empty and
+only ever added to, so an actor created after the effect was born has by construction never been in it, reads
+as *"the front has not reached this one yet"*, and takes a full hit on the first tick it is inside the radius.
+**Whenever an effect's only memory is "already processed", check what it does with an input that arrives after
+the memory was created — the answer is always "treats it as new", and for a damage effect that means "kills
+it".** Two riders:
+
+- **"Existed at time T" and "was exposed at time T" are different predicates, and a monotonic counter only
+  answers the first.** An actor already loaded in a transport at detonation is `!IsInWorld`, so it is never in
+  the spatial partition and never swept, *and* it holds a pre-detonation `ActorID`, so the stamp does not
+  exclude it — and `Cargo.SpawnPassenger` re-adds **the same `Actor` object** with `w.Add(passenger)`
+  (`Cargo.cs:1263-1268`) rather than creating a new one, so unloading it into the crater hundreds of ticks
+  later hands it a full hit from an invisible wave. Chronoshift is the same shape by a third route, and `^Husk`
+  carries `Chronoshiftable`. Reach for the counter when the question really is about creation ORDER; when it is
+  about EXPOSURE, the counter looks right in every test and is wrong for exactly the actors that were hidden
+  when you sampled.
+- **Replacing a disc sweep with an annulus to fix this would be a second bug.** While the wave is alive the
+  disc boundary *is* the front, so a pre-detonation actor can only get inside by crossing it and catching it
+  late is catching it correctly — whereas a strict annulus is genuinely leaky: an actor moving inward faster
+  than the annulus is wide is skipped entirely. **The two failure modes look similar in a diff and are
+  opposites in effect.**
+
+**Two sync-guard facts that fall out of the same work.** **Every `ConditionalTrait<T>` is `ISync`** (for its
+`IsTraitDisabled` flag, `Traits/Conditions/ConditionalTrait.cs:41`), so *"no `ISync` type reads this
+wall-clock value"* is **not a reachable bar** for any trait that wants a `RequiresCondition` — such a guard has
+to exempt render entry points and then pin the exempted set to an explicit list. And **a paused world still
+renders**: `World.Tick` skips the whole simulation when `Paused`, but `Game.Loop` keeps calling `LogicTick` and
+advancing `nextLogic`, so a wall-clock sub-tick fraction keeps sweeping 0 → 1 → 0 with nothing moving.
+Anything extrapolating from a per-tick velocity must stop at the pause or the sprite visibly oscillates at the
+tick rate; `World.SimulationIsAdvancing` is written as the same expression `Tick` branches on so the two cannot
+drift.
 
 ### Cross-runtime float drift is a WEAK desync hypothesis here — structurally, then empirically
 
@@ -1247,45 +1876,294 @@ Practical consequence: a replay's stamp is readable with no game involved — `t
 
 **`Launch.Replay` is the whole dialog path and does not need the replay browser.** `BlankLoadScreen.cs:79-99` hands it straight to `ReplayUtils.PromptReplayCompatibility` with `onWatch: Game.JoinReplay` / `onCancel: Game.LoadShellMap` — the same call the browser makes, so one launch argument exercises the shipped decision, strings and buttons (`tools/autotest/watch-replay.sh` wraps it). **But "a dialog appeared" and "the button was consumed" are both untrustworthy predicates here:** cancel loads the shellmap, which is a real world with terrain and units, so "the screen shows a game" is satisfied by the *dismissal* just as well as by the watch. The discriminators are the in-game HUD with a running clock versus the main menu, the pause panel titled with the *recorded* map's name, and — non-visually — the engine log line `Sync reports disabled (… replay True)` emitted when a replay world is created (`OrderManager.cs:169-171`; note it is built by string interpolation, so grepping the literal `Sync reports disabled` finds nothing in source).
 
+## The render pass order, and what each pass can and cannot reach
+
+*(Promoted 2026-09-20 from DISCOVERIES — six entries from one week's nuclear-presentation work, banked as one
+section because every one of them was a question about which pass something is in. Read at `main @ a21583fd`;
+line numbers in `WorldRenderer.Draw` move often, so the ORDER is the durable part.)*
+
+`WorldRenderer.Draw` runs these in sequence, and they are **sequential passes, not one sorted list**:
+
+| # | Pass | Site |
+|---|---|---|
+| 1 | terrain tile layer, then **every `IRenderOverlay` trait on the world actor** | `WorldRenderer.cs:378` → `TerrainRenderer.cs:108-113` |
+| 2 | opaque black beyond the CELL GRID | `:384` (`DrawBeyondMapFog`, `:472`) |
+| 3 | actors, projectiles and effects | `:389` |
+| 4 | `AfterActors` post-process | `:394` |
+| 5 | above-fog renderables, then the translucent beyond-grid actor overlay | `:405`, `:422` |
+| 6 | fog layers (`IRenderShroud.RenderFog`) | `:424` |
+| 7 | unexplored layer (`RenderUnexplored`) | `:435` |
+| 8 | `AfterShroud` post-process | `:455` |
+
+**Five consequences, each of which has cost a session:**
+
+- **A sprite you cannot raise above another sprite by ANY amount of Z is probably not in the same pass.**
+  `SmudgeLayer` is an `IRenderOverlay`, so smudges are drawn in pass 1 and every actor in pass 3 — a scar is
+  not "below" a tank in a Z sense that any `ZOffset` could reorder. The flip side is the useful half:
+  **anything that wants to sit above terrain and below actors can be an `IRenderOverlay` and needs no
+  `ZOffset` at all** (and anything that must sit ABOVE actors is `IRenderAboveWorld` — see
+  [§`CustomTerrain` is what the simulation READS](#customterrain-is-what-the-simulation-reads-it-is-not-what-the-renderer-draws)), which is worth knowing before reaching for a large negative offset (the largest
+  anywhere in this tree is `-8192`, and it has to be sized against the sprite's own half-height).
+- **Fog is COMPOSITED OVER the finished world, not multiplied into sprites, so no per-sprite flag can ever
+  un-darken an effect.** `SpriteRenderable.Render` multiplies tint by exactly one thing,
+  `wr.TerrainLighting.TintAt(pos)`, and by nothing else; sweeping every `IFinalizedRenderable` in
+  `OpenRA.Game/Graphics` and `OpenRA.Mods.Common/Graphics` for `Fog`/`Shroud` returns two hits, both of which
+  use them to **skip geometry** rather than to scale colour. **That exhaustive absence is the load-bearing
+  result** — it rules out the "there is also a tint somewhere" hypothesis, which is exactly what the next
+  bullet's name invites.
+- **`VisibleThroughFog` is a CULL, and a single point test.** `SpriteEffect.Render` is
+  `if (!initialized || (!visibleThroughFog && world.FogObscures(pos)))` (`Effects/SpriteEffect.cs:140`) — one
+  `WPos`, the effect's centre. It decides whether the effect is drawn AT ALL and says nothing about how the
+  sprite is shaded, and **because it samples one point it can never describe a sprite that spans cells of
+  differing visibility**: a 700 %-scale mushroom cloud covers tens of cells and the flag resolves it as one.
+- **Shroud and fog are not the same overlay, and the difference is itself a diagnosis.** Layer 0 is shroud and
+  is **fully opaque** — it does not darken, it erases, and `ShroudRenderer.LayerAlpha` exempts index 0 from
+  `FogDarkness` entirely. Layers 1..9 are fog and are translucent, compounding toward low visibility. **So a
+  user reporting a DARKENED effect is reporting fog; under shroud they would see nothing at all.** It follows
+  that the correct slot for an effect that must keep full brightness is BETWEEN the two halves — past the fog
+  pass, still under the unexplored pass — which keeps per-pixel shroud occlusion for free instead of having
+  to cull the whole effect. That is what passes 5–7 above are for.
+- **`MapGrid.EnableDepthBuffer` defaults to `false` (`MapGrid.cs:115`) and ww3mod never sets it.** Draw order
+  alone governs occlusion in this mod, which is what makes "insert a draw between two existing passes" exact
+  rather than approximate. **Check this before reasoning about render order anywhere in this engine** — the
+  same insert in a depth-buffered mod would need the depth state managed across the seam.
+
+### Smooth the LIGHT, keep the MASK hard — and a per-cell quad is not a design constraint
+
+**`TerrainSpriteLayer.UpdateTint` samples `TintAt` at the cell's four CORNERS and writes them as vertex
+colours** (`TerrainSpriteLayer.cs:161`), so the GPU interpolates and the below-fog half of every light is
+already smooth; `RgbaColorRenderer.FillRect` has had a four-colour overload the whole time. **Before
+designing a smoothing scheme, check whether the other consumer of the same data already smooths — an artefact
+that appears in one of two paths is usually an omission, not a design constraint.**
+
+But the two quantities must quantise differently and **only one of them may be smoothed.** The per-cell quad
+is load-bearing where it multiplies per-cell fog data: `lost` is exactly 0 over never-explored ground, so
+interpolating the MASK would bleed a neighbour's non-zero value into an unexplored corner and light ground
+nobody has scouted. The light is a closed-form function of position and is sampled at the corners; the fog
+factor stays per-cell and multiplies all four equally, **so a zero annihilates the whole quad and the no-leak
+guarantee holds by construction rather than by care.** The corners are shared with the neighbour by
+construction (both cells derive the same `WPos` from their own centre), which is what makes the interpolation
+continuous across every boundary.
+
+**A corollary that generalises past lighting: an early-out that samples ONE point of a primitive is a hard
+edge wherever the primitive is partially covered.** A `MinimumChannel` cut-off tested the centre
+contribution only, so a cell straddling a light's outer radius with a dark centre and a bright corner was
+skipped entirely and the glow terminated on a cell boundary. Test all four corners instead.
+
+**Two residuals, both pre-existing and recorded so they are not re-opened as bugs:** fog LEVELS step per cell
+while `ShroudRenderer` draws fog with 16-frame corner-blended sprites, so at a fog boundary a restoration
+pass does not exactly track what the fog took — and fixing it means interpolating the mask, which the
+paragraph above forbids. And `map.CenterOfCell` carries terrain Z, so two adjacent cells at different heights
+derive their shared corner to different `WPos` and the quads do not perfectly abut on a cliff.
+
+### A post-process pass is free when idle, and does not have to be fullscreen
+
+`WorldRenderer.ApplyPostProcessing` (`:460-468`) tests `pass.Type != type || !pass.Enabled` and `continue`s
+**before** `Game.Renderer.Flush()` and before any draw call, so **"costs nothing when idle" is already the
+contract** and the whole job of adding a pass is making `Enabled` cheap and honest. Three further facts, none
+of them discoverable from a shader file:
+
+- **The primitive for any screen-space distortion already ships**, in `postprocess_textured_vortex.frag`, and
+  it is one line: re-sample the already-rendered frame at an offset instead of straight through
+  (`texelFetch(WorldTexture, ivec2(gl_FragCoord.xy + delta), 0)`). Everything else the chrono vortex does —
+  a baked LUT sheet, 48 frames, a fixed 64x64 quad — is *its look*, not the mechanism.
+- **`postprocess_textured.vert` positions a QUAD, which is how a world position reaches screen space.** Only
+  fragments under the quad run, so a 3-cell effect costs 3 cells of fill.
+- **Vertex units in that path are WORLD pixels and `gl_FragCoord` is in FRAMEBUFFER pixels**, differing by
+  `Renderer.WorldDownscaleFactor`. Anything that positions a quad in one space and displaces in the other has
+  to convert; the vortex does not, which is harmless at downscale 1 and is why nobody has noticed.
+
+**And the lesson about how to FIND any of this: grep for the MECHANISM, not the feature's own vocabulary.**
+"Heat haze", "distortion", "refraction" and "shimmer" appear nowhere in this engine — grepping the feature's
+name returns nothing and would have justified writing it from scratch. `texelFetch`, `WorldTexture` and
+`PostProcess` found it. **A rendering primitive is almost always named after its first consumer**, so the
+thing you want is filed under something else's name: `ChronoVortexRenderer` is a localized screen-space
+distortion, and `LightInterpolation` is a general curve library named after lights.
+
 ## Fog visibility: `Detectable` is the mod's visibility trait, and `FrozenUnderFog` is a dead end
 
 **`Detectable` (`Traits/Modifiers/Detectable.cs`) is the mod's `IDefaultVisibility`, and it is also the render gate.** Its `ModifyRender` (`:293`) returns `SpriteRenderable.None` (`:304`) when `IsVisible` is false, so the trait decides whether a sprite is drawn at all, not merely whether the actor is targetable. (One exception: with the dev-mode `CosmeticReveal` flag set it returns semi-transparent ghosts instead of nothing.) **There is no `HiddenUnderFog` in this engine** — do not go looking for one.
 
 **`Detectable.Vision` runs the opposite direction to its name.** It is *"what level of vision is required to detect this actor"* (`:24-25`, default `2`) — a **concealment** stat the observer has to beat, resolved through `byPlayer.MapLayers.AnyDetectable(...)` at `:149`. It is **not** a reveal radius and grants the actor no sight whatsoever. **Raising it hides the actor better.** `test-case01b-detect` leans on exactly this, dropping defenders 3→1 to make them *easier* to see.
 
-**Do not reach for `FrozenUnderFog` to make anything non-building survive fog.** It is declared `Requires<BuildingInfo>` (`Traits/Modifiers/FrozenUnderFog.cs:21`), so putting it on an actor without a `Building` trait is a **load failure, not a no-op**. Husks, units and vehicles are all out. This is the half worth remembering — the natural assumption is that an inapplicable trait is merely inert. Nothing in `mods/ww3mod/` strips the trait, and `^BasicBuilding` (`ingame/structures.yaml:60`) grants it, so **every building in the mod has a frozen ghost and no non-building has one.**
+**The concealment ladder has a FLOOR and a CEILING, and both silently eat modifiers.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `Detectable.ClampConcealment` floors the resolved value at **1** and ceilings it at `MapLayers.VisionLayers - 2` (`Detectable.cs:118-125`; `VisionLayers = 11`, `Traits/Player/MapLayers.cs:75`), so the reachable band is **1..9**. Detection then applies a *second* floor to the threshold: `MapLayers.IsDetected(resolved, concealment)` is `resolved >= (concealment < 2 ? 2 : concealment)` (`:599-602`), because `ResolvedVisibility` stamps 1 on every merely-**explored** cell and admitting 1 would reveal everything the player has ever walked past (the reasoning is in-file at `:592-597`). Two consequences that decide how a modifier must be authored:
+
+- **A negative modifier on an actor already at the floor is INERT.** Vehicles sit at the `Detectable.Vision` default of 2 (`:25`) — already the effective floor — so any `-N` on a vehicle changes nothing. The same bites infantry mid-move: a base-3 rifleman moving is CV 2, a `-2` firing penalty takes the sum to 0, clamp returns 1, and the threshold floors back to 2. **Author a positive STATIONARY bonus, never a negative moving penalty**; the sign trap is recorded at the shipped site, `rules/ingame/vehicles.yaml:72-74`.
+- **`visibility-N` is an OUTPUT, not a scaffold.** `Detectable` grants `"visibility-" + CurrentVisibility` every time the level changes (`:223-229`, prefix `:44`). **No C# consumer exists** — the only engine hits are the declaration, the lint superset and the grant. The lint declaration at `:52-54` is a deliberate superset of what `ClampConcealment` can produce, so `visibility-10` is declared and unreachable (the comment at `:49-51` says why). Its sole consumer anywhere is the `^DetectableRangeCircles` concealment gauge on infantry; vehicles carry `Detectable` without the circles, which is the whole of the "unconsumed condition" lint message. Do not read it as a half-built modifier system.
+
+**Forest is HARD concealment, and it is the only concealment that works while MOVING.** `MapLayers.AddSource` subtracts the sightline's forest shadow from the observer's strength and floors the result at **1** (`:371-374`). Since the detection threshold floors at 2, **an observer attenuated to 1 detects nothing, at any range, against any concealment level** — the victim's CV does not enter into it. The curve is `Map.ForestGroundShadow` (`engine/OpenRA.Game/Map/Map.cs:1188`), integer, deterministic, zero RNG, superlinear above a knee so a thin treeline barely dents detection while a deep cluster genuinely hides; its own doc comment carries the reference table. Every `DetectableAddativeModifier` fails while the actor moves; this one does not.
+
+**Do not reach for `FrozenUnderFog` to make anything non-building survive fog.** It is declared `Requires<BuildingInfo>` (`Traits/Modifiers/FrozenUnderFog.cs:21`), so putting it on an actor without a `Building` trait is a **load failure, not a no-op**. Husks, units and vehicles are all out. This is the half worth remembering — the natural assumption is that an inapplicable trait is merely inert. Nothing in `mods/ww3mod/` strips the trait, and `^BasicBuilding` (`ingame/structures.yaml:80`) grants it *(cite corrected 2026-09-20; it was `:60`)*, so **every building in the mod has a frozen ghost and no non-building has one.**
 
 > **CORRECTED 2026-09-01.** This passage previously listed a *second* blocker: that `IsVisible` ended in an unconditional `return true` tagged `QUICK FIX 260503`, making every actor carrying the trait visible to everyone always. **That was true from `12a9b91b` (2026-05-03) until `97935007` (2026-08-27), and the claim outlived the fix by five weeks.** `IsVisible` now ends in a real `return IsVisibleInner(byPlayer)` (`:156`), and the model the old bullet forbade — *"remembered image, updated on re-observation"* — is now the correct one. The short-circuit has been introduced **twice**, so the in-file PITFALL at `:140-155` is the authoritative record; trust it over any prose, including this. `test-unscouted-building-hidden` guards the restoration. *(That scenario's own header comment still describes the short-circuit as live — its assertions remain correct, its narration does not.)*
 
 **`FrozenActor.Actor` hands back the LIVE actor, so reading it inside a fog predicate reads present-tense truth about a unit the player cannot see.** `FrozenActorLayer.cs:120` is `public Actor Actor => !BackingActor.IsDead ? BackingActor : null;` — there is no snapshot in it. A `CanTargetFrozenActor` implementation that touches `.Actor` therefore renders **hidden state as a cursor**: the frozen actor exists precisely because the player's information is stale, and the property quietly discards that. (It also returns null once the backing actor dies, commonly after a superweapon, so every call site needs a null check as well — `target.FrozenActor.Actor.Owner` will NRE. The PITFALL is in-file at `:119`.)
 
+**`FrozenActor.Owner` is a snapshot with exactly one live exception, and the field it does NOT refresh is the interesting one.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `Owner` is written only by `RefreshState` (`FrozenActorLayer.cs:135`), normally reached through `FrozenUnderFog`'s setup and `OnVisibilityChanged` — both gated on the viewer actually seeing the actor. The exception is `FrozenUnderFog.OnOwnerChanged` (`:221-246`), which refreshes **the old owner's index only**; a third-party observer's ghost is never touched by a capture. It exists because freezing `Owner` would inject a false **friendly**: after capture the old owner loses the `AlwaysVisibleRelationships: Ally` exemption and the ghost becomes their render path, and every relationship consumer — `AutoTarget`, the attack re-validation chain, `BeliefStore`, `SightingThreatLayer`, the support-power scorers — gates on `RelationshipWith(fa.Owner) != Enemy`, with `RelationshipWith(self)` returning `Ally` (`Player.cs:278-279`). A frozen snapshot would make a building an enemy is now shooting from read as the viewer's own and be skipped. That is a **combat** failure, not a cosmetic one, and it is worse than the leak it removes. Nor is there a middle setting — see the null-`Owner` bullet below, which is why blanking it and a separate liveness flag both fail.
+
+The resolution that shipped is **per field, not per refresh**: `RefreshState(bool refreshTooltipOwner)` takes the flag as a **required** parameter (the reason is in-file at `:122-134`) and the capture path passes `false` (`FrozenUnderFog.cs:243`), so `Owner` moves at once while `TooltipOwner` keeps naming the last owner this viewer actually observed. *That the building changed hands is not hidden and cannot be* — the old owner's units must treat it as hostile, which shows in cursors and autotarget; only the **captor's identity** is separable. It is worth separating because free-for-all with 3+ mutually hostile players is reachable on four of the ten shipped maps today (`river-zeta-ww3` ships 6 `mpspawns`; `seventh-woods`, `twin-rivers` and `x-lake` ship 4 each, all declaring `Playable: True` with `Enemies: Creeps` and no fixed teams, *as of `a21583fd`*). Note the accepted cost, stated at the site: a player who *watches* the capture and then looks away keeps a ghost labelled with their own name until they regain sight.
+
+**The wide exception does not exist in this mod, and "attached" is not "enabled".** `FrozenUnderFogUpdatedByGps.OnOwnerChanged` refreshes **every** player's ghost, and the mod does attach the trait (`ingame/structures.yaml:81` on `^BasicBuilding`, `structures-defenses.yaml:66` on `^Defense`). It can never fire: its per-player gate is `GpsWatcher.Granted && GrantedAllies`, `Granted` requires `actors.Count > 0`, and `actors` is populated only by `GpsAdd`, whose only engine-wide callers are in `GpsPower.cs` — **and no `GpsPower` appears anywhere in `mods/`**. The mod carries `GpsWatcher` on the player actor (`rules/player.yaml:1067`, which is what stops the trait's constructor NRE-ing) and `GpsDot` on various actors, but nothing that launches a satellite. The gate is **content, not code**, so adding a GPS power reopens the hole silently — `test-frozen-owner-snapshot` is the tripwire and its header says so.
+
 **The countermeasure is structural rather than advisory, which is why it works.** `EnterAlliedActorTargeter` declares `Func<ActorInfo, TargetModifiers, bool> canTargetFrozen` (`Orders/EnterAlliedActorTargeter.cs:24`) and makes it **mandatory in the single constructor** (`:31-33`) — you cannot write one of these targeters without deciding what the player is allowed to infer through fog. The rationale is at `:26-30`, with a `FOG BOUNDARY` comment at `:60-62`, and `OpenRA.Test/FrozenActorTargetingTest.cs` guards it. **When adding a targeter that can act on a frozen actor, answer the question from `ActorInfo` — the type — not from the live actor's current state.**
 
-**`AlwaysVisibleRelationships: Ally` includes the owner themselves.** `Player.RelationshipWith` returns `Ally` for `this == other` (`Player.cs:250-251`), and also for spectators (`:257-258`, provided the owner is not `NonCombatant`). So `Ally` is the idiom for *"the owner keeps seeing this through fog; enemies still have to earn it"* — there is no self-only relationship value and none is needed.
+**`AlwaysVisibleRelationships: Ally` includes the owner themselves.** `Player.RelationshipWith` returns `Ally` for `this == other` (`Player.cs:278-279` — **cites corrected 2026-09-20 from `:250-251`/`:257-258`**), and also for spectators (`:281-283`, provided the owner is not `NonCombatant`). So `Ally` is the idiom for *"the owner keeps seeing this through fog; enemies still have to earn it"* — there is no self-only relationship value and none is needed.
+
+**The same method returns `Ally` for a NULL argument, and that one line kills a whole family of frozen-actor fixes.** `RelationshipWith`'s spectator branch is `if (other == null || other.Spectating) return NonCombatant ? Neutral : Ally;` (`Player.cs:281-283`) — the null is folded in with the spectator, so **a null-`Owner` ghost is skipped by every `!= Enemy` predicate for exactly the same reason a self-owned one is.** Blanking `FrozenActor.Owner` to mean "not mine, unknown who" therefore produces the same false-friendly as leaving it stale. It could not be blanked anyway: `IsValid => Owner != null` (`FrozenActorLayer.cs:117`), so `Owner` doubles as the ghost's validity flag. **And a separate liveness flag does not rescue it either, which is the part that is not obvious** — consumers do not branch on a guard you could replace, they feed `Owner` into `RelationshipWith` and branch on the *answer*. A flag replaces the **guard**, not the **decision input**.
+
+**Validity is a PRODUCER-side invariant in this codebase, not a consumer-side one.** A consumer reading `frozenActor.Owner` with no `IsValid` guard is following the convention, not breaking it: every producer of a frozen `Target` filters at the source — `ScreenMap` applies `frozenActorIsValid` in `FrozenActorsAtMouse` and `RenderableFrozenActorsInBox`, and `FrozenActorLayer.FrozenActorsInRegion` filters before yielding. The explicit checks that do exist in `BeliefStore` and `SightingIntelOverlay` are redundant rather than the omitting consumers being wrong. **Do not "harden" a consumer by adding the guard, and do not read its absence as a null-deref bug** — but do keep the invariant if you write a new producer.
+
+**A plain owner change does NOT recolour the ghost sprite; it moves the tooltip and nothing else visible.** `FrozenUnderFog.UpdateFrozenActor` (`:97`) sets a `VisibilityHash` bit and calls `RefreshState`, and `RefreshState` (`FrozenActorLayer.cs:135-155`) writes `Owner`, `TargetTypes`, `targetablePositions`, `HP`, `DamageState` and `TooltipInfo` unconditionally, plus `TooltipOwner` **only when its `refreshTooltipOwner` argument is true** (`:152-153`) — **and it touches no renderable.** `NeedRenderables` has exactly three writers engine-wide: the `FrozenActor` constructor from `startsRevealed` (`:93`), `UpdateVisibility` on a false→true visibility edge (`:207`), and `FrozenUnderFogUpdatedByGps.cs:43`; it is read and cleared at `FrozenUnderFog.cs:171`/`:184`. So the cached `Renderables` array keeps the old owner's colours until the viewer **re-observes**: a capture can never repaint the sprite. *(Corrected 2026-09-20 while folding a second slice's entries into this section: this bullet went on to name the tooltip as the observable leak on a capture, and at `a21583fd` that is no longer true. The capture path passes `refreshTooltipOwner: false` (`FrozenUnderFog.cs:243`), so the ghost keeps naming the last owner the viewer actually observed — see the `FrozenActor.Owner` paragraph above for why the split is per field. The GPS dot is unaffected by that flag.)*
 
 **An autotest screenshot cannot verify a fog-dependent visibility change by default.** `TestModeLogic.cs:31` nulls `RenderPlayer`, and every `IDefaultVisibility.IsVisible` in the mod short-circuits to `true` on a null player — so a fogged-out actor renders in the capture anyway and **the shot reads green before and after the fix**. Pass `AUTOTEST_EXTRA_ARGS="Test.KeepRenderPlayer=true"` to `run-test.sh` (the generic launch-arg passthrough at `tools/autotest/run-test.sh:735`; there is no dedicated flag).
 
 **Aircraft wrecks are two-stage, and six airframes have no second stage.** A shot-down aircraft spawns an airborne `*.Husk`, which `FallsToEarth` drives down until `self.Kill(self)` on impact; that husk's own `SpawnActorOnDeath` then leaves the persistent `*.Husk.ground` (`^Husk`, `HuskDecay: Delay: 2240` ≈ 134 s at 16.67 tps, `husks/husks-vehicles.yaml:14-16`). Of the 16 airframe husks in `husks/husks-aircraft.yaml`, ten have that second stage; `BADR`, `B52`, `BULL`, `U2`, `U2.NATO` and `SMIG` do **not** — they explode on impact and leave nothing behind *(as of 2026-08)*.
+
+**Selection bars have NO frozen-under-fog path, so the live/frozen split that has bitten this repo
+repeatedly cannot apply to them.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* The
+standing instinct here — correct for tooltips and owner display — is *"check whether the frozen path draws this
+separately, or you will fix it for one viewer and not the other"*. **For selection bars that question has a
+definite answer: there is no second path.** Annotations are collected in exactly one place,
+`World.ApplyToActorsWithTrait<IRenderAnnotations>` (`OpenRA.Game/Graphics/WorldRenderer.cs:287`), which walks
+**live actors only**; `FrozenActor` caches `IRenderable[] Renderables` populated from `IRender` — the sprite
+path — and has no annotation member at all. `ISelectionBar` is reached only via `IRenderAnnotations` →
+`SelectionDecorationsBase.DrawDecorations` → the two selection-bar annotation renderables, whose constructors
+both take an `Actor`; a `FrozenActor` cannot be passed to either. So a fogged actor draws **no** bar for the
+fogged viewer rather than a stale one — `SelectionDecorationsBase.cs:65` returns empty on
+`FogObscures(self) && !Selection.Contains(self)` before any bar logic runs. **A bar-visibility fix inside a
+trait is therefore complete on its own, with no observer-vs-owner divergence to chase.**
+
+**`IAlwaysVisibleBar` is WW3MOD-local, with exactly one implementer and one consumer** — declared at
+`OpenRA.Game/Traits/TraitsInterfaces.cs:304`, implemented only by `SupplyRouteContestation` (`:153`,
+`ShowBarWithoutSelection` at `:1053`), read only at `SelectionDecorationsBase.cs:94`. Anything wanting an
+unselected bar goes through that one loop, which is also why a wrong predicate there is a whole-screen bug
+rather than a local one.
 
 ## The black band at a map edge is a deliberate overlay, not a terrain render failure
 
 Reported as *"edge tiles are not rendered, but actors placed there are rendered"* on the main-menu shellmap. Three things had to be true at once, and only the third was a bug.
 
 - **`TerrainSpriteLayer`'s `restrictToBounds` clips ROWS ONLY, never columns.** It uses the visible-cell region solely to pick a `firstRow`/`lastRow`, then emits whole rows at full width (`engine/OpenRA.Game/Graphics/TerrainSpriteLayer.cs:207-231`). So the left/right one-cell border columns were **already** being drawn as terrain; only the top/bottom border rows were ever clipped. **Anyone reasoning "`restrictToBounds` hides the border" will predict the wrong edges.**
-- **What actually paints the black is `DrawBeyondMapFog`** (`WorldRenderer.cs:403`, called at `:344-345` under `World.Type != WorldType.Editor`). It fills **fully opaque** black between the viewport edge and the map rect, deliberately **after terrain but before actors** so tall sprites near edges still show (comment at `:341-343`). That ordering is the whole reason actors appear to float: the black is painted, then actors draw on top of it.
-- **The ring between `Bounds` and `MapSize` is full of authored scenery.** Every one of the 10 maps is `MapSize N,M` / `Bounds 1,1,N-2,M-2`, and **8 of 10 author actors in that unplayable ring** — `river-zeta-ww3` (the `FirstTimeShellmap`, `mod.yaml:9`) has **189**, including 102 `v17` village buildings and 29 `rice`; `woodland-warfare-ww3` 115; `siberian-pass-ww3` 36. Those sprites were the things standing on black. *(as of 2026-08, parsed from the map files)*
+- **What actually paints the black is `DrawBeyondMapFog`** (`WorldRenderer.cs:472`, called at `:384` under `World.Type != WorldType.Editor` — *cites corrected 2026-09-20; they were `:403` / `:344-345`*). It fills **fully opaque** black between the viewport edge and the map rect, deliberately **after terrain but before actors** so tall sprites near edges still show (comment at `:341-343`). That ordering is the whole reason actors appear to float: the black is painted, then actors draw on top of it.
+- **The ring between `Bounds` and `MapSize` is full of authored scenery, and the ring itself is MANDATORY.** `CheckMapCordon` (`Lint/CheckMapCordon.cs:20-21`) fails any map where `Bounds.Left == 0 || Bounds.Top == 0 || Bounds.Right == MapSize.X || Bounds.Bottom == MapSize.Y` — a one-cell-or-greater inset on **all four sides** — which is why every one of the 10 maps is `MapSize N,M` / `Bounds 1,1,N-2,M-2` rather than by coincidence, and why a map authored without the inset fails lint rather than merely rendering oddly. And **8 of 10 author actors in that unplayable ring** — `river-zeta-ww3` (the `FirstTimeShellmap`, `mod.yaml:9`) has **189**, including 102 `v17` village buildings and 29 `rice`; `woodland-warfare-ww3` 115; `siberian-pass-ww3` 36. Those sprites were the things standing on black. *(as of 2026-08, parsed from the map files)* **Corollary for anyone moving `Bounds` inward:** `Map.Contains` consults `Bounds`, never `MapSize`, on every overload, and `Locomotor.MovementCostForCell` returns the unreachable cost for every cell where `!Map.Contains(cell)` — so an inset does not merely displace decoration. A multi-cell actor whose footprint straddles the new boundary keeps only its in-bounds cells as standable ground, which matters when that actor is a **capture target** rather than scenery (the shipped oil derricks are `Dimensions: 2,2`, so an inset can leave one half-reachable). Resolve the footprint, not the `Location` cell, and classify by the trait chain rather than by the actor name — see [`tools/nav-guard/README.md`](../../tools/nav-guard/README.md) §"Resolve the FOOTPRINT, never the Location".
 
-**Why it only showed in the menu.** In a match the ring is covered by opaque shroud: `ShroudRenderer` builds `tileInfos` over `Map.AllCells` — the full `MapSize` — at `ShroudRenderer.cs:123`, while `MapLayers.GetVisibility` returns **0 for any cell outside playable `Bounds`** (`Traits/Player/MapLayers.cs:659`, guard at `:663-664`, and `Map.Contains(PPos)` is `Bounds.Contains` at `Map.cs:1418-1421`). Visibility 0 ⇒ shroud sprite at full opacity. But the shellmap has **`RenderPlayer == null`**, and `ShroudRenderer.UpdateShroud` clears every dirty cell's sprites and then `continue`s without repainting when there is no render player (`:247-285`, `:272-273`) — so the ring loses its cover. `DrawBeyondMapActorFog` (`WorldRenderer.cs:450`), the pass that would fog actor overflow to match, also early-returns on `renderPlayer == null` (`:452-454`). **Same root applies to observers and to TestMode's full-map viewer** — which is why an autotest screenshot of a map edge does not look like what a player sees.
+**Why it only showed in the menu.** `ShroudRenderer` builds `tileInfos` over `Map.AllCells` — the full `MapSize` — at `ShroudRenderer.cs:123`, and in a match the ring gets a mask from its playable neighbour (see the render-vs-simulation subsection below). But the shellmap has **`RenderPlayer == null`**, and `ShroudRenderer.UpdateShroud` clears every dirty cell's sprites and then `continue`s without repainting when there is no render player (`:247-285`, `:272-273`) — so the ring loses its cover. `DrawBeyondMapActorFog` (`WorldRenderer.cs:547`), the pass that would fog actor overflow to match, also early-returns when there is no render player (`DrawBeyondMapActorOverlay`, `:627-628`) *(cites corrected 2026-09-20; the overlay has since been split into a translucent fog half and an opaque unexplored half, and the pass itself now also returns early when `shroudRenderer == null`)*. **Same root applies to observers and to TestMode's full-map viewer** — which is why an autotest screenshot of a map edge does not look like what a player sees.
 
-**Geometry rules out "just render the border" as the fix.** `Viewport.Center` and `Scroll` clamp only the viewport **centre** into the playable rect (`Viewport.cs:326`, `:339`), so the edges overhang by up to half a viewport — **~27 cells horizontally at 1080p** (960 px ÷ (24 px `TileSize` × 1.5 zoom)), more via the main menu's own 4× zoom-out. The border is one cell; rendering it can never fill a 27-cell overhang. The opaque overlay has to stay — it just has to start at `MapSize` instead of `Bounds`, which is what `bc22c9d6` did (`DrawBeyondMapFog` now computes its rect from `map.MapSize`, and `TerrainRenderer.cs:84` passes `restrictToBounds: false` unconditionally).
+**Geometry rules out "just render the border" as the fix.** `Viewport.Center` and `Scroll` clamp only the viewport **centre** into the playable rect (`Viewport.cs:326`, `:339`), so the edges overhang by up to half a viewport — **~27 cells horizontally at 1080p** (960 px ÷ (24 px `TileSize` × 1.5 zoom)), more via the main menu's own 4× zoom-out. The border is one cell; rendering it can never fill a 27-cell overhang. The opaque overlay has to stay — it just has to start at `MapSize` instead of `Bounds`, which is what `bc22c9d6` did (`DrawBeyondMapFog` now computes its rect from `map.MapSize`). *(Corrected 2026-09-20: `TerrainRenderer` no longer passes `restrictToBounds` at all — the flag is a `TerrainSpriteLayer` constructor parameter, read at `TerrainSpriteLayer.cs:292` to choose `VisibleCellsInsideBounds` vs `AllVisibleCells`. The three renderers that deliberately cross into the ring are the terrain layer and both `ShroudRenderer` layers.)*
 
 **Reinforcements are NOT affected, contrary to the obvious worry.** `GetSameEdgeCells` measures against `Bounds.Left`/`Bounds.Right - 1` (`Map.cs:1816-1830`) — the **playable** edge — so `ProductionFromMapEdge` spawns inside `Bounds` and never in the ring. Rendering the ring changes nothing about where units appear or how they walk in. *(Known and unfixed: `Map.ChooseClosestEdgeCell` (`Map.cs:1745-1758`) uses bare `Bounds.Right`/`Bounds.Bottom`, which are **exclusive**, so the legacy no-`SpawnArea` path can name a ring cell. Not exercised by the shipped maps.)*
+
+### The RENDERER and the SIMULATION disagree about the one-cell ring on purpose, so a render fix there must read the render-side answer
+
+> **CORRECTION 2026-09-20.** The paragraph above used to continue *"In a match the ring is covered by opaque
+> shroud … `MapLayers.GetVisibility` returns 0 for any cell outside playable `Bounds` … visibility 0 ⇒ shroud
+> sprite at full opacity."* **That has been false since `b4f0db94` (2026-08-22)** and is corrected in place.
+> `GetVisibility` does still return 0 out there — the claim was true of the SIMULATION and wrong about the
+> RENDERER, and only the renderer decides what is drawn. The conclusion about the shellmap is unaffected: the
+> ring loses its cover because `RenderPlayer == null`, not because of the visibility value.
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* **`ShroudRenderer.ClampToPlayable` (`ShroudRenderer.cs:193`, static
+body at `:205`/`:214`) hands a ring cell the visibility of the playable cell it abuts**, so the ring shows
+whatever its neighbour shows. Meanwhile `MapLayers.GetVisibility` answers for the simulation, where every
+visibility source is gated on `Map.Contains` (= `Bounds.Contains`), and returns 0 for every ring cell. **The
+two disagree deliberately**, and `ShroudRenderer.cs:186-189` says why: `GetVisibility` also feeds
+`FrozenActorLayer`, targeting and `BeliefStore`, so changing it would be a determinism change.
+
+**The consequence for anyone adding a renderer to this stack is that widening the sweep alone fixes nothing,
+and looks like it should.** A fog-piercing light clipped its sweep to `Viewport.VisibleCellsInsideBounds`
+while the three renderers it was compensating for cross into the ring, so the ring got a bright fog quad and
+no light restored behind it — one cell, ~6.4x darker than the tile one step inside it, at the shipped
+`FogDarkness`. Widening to `AllVisibleCells` is a **no-op**, because `restore[0] = 0` then skips exactly the
+cells the wider sweep just admitted; the fix also has to call `ClampToPlayable` rather than `GetVisibility`
+raw. **Both halves are required and each is inert without the other.** The no-leak guarantee gets no weaker,
+structurally rather than carefully: the clamp can only return a cell inside `Bounds`, so a ring cell borrows
+its mask from one specific playable cell and inherits that cell's 0 when it is unexplored.
+
+**Generalisable: when a mod adds a renderer to an existing stack, the question is not "what is the right
+region" but "what region do the renderers I am compensating for already use"** — `restrictToBounds` is a
+per-layer flag precisely because there is no single answer. The tell that this class is in play is a visual
+artifact **exactly one cell wide, at a map edge**, in a mod whose maps all carry a one-cell cordon.
+
+### `IRenderShroud.FogTransmission` is the single source for the fog curve — do not rebuild it across the assembly boundary
+
+*(Promoted 2026-09-20 from DISCOVERIES; verified fixed at `a21583fd`.)* `WorldRenderer.DrawBeyondMapActorFog`
+(`:547`, called at `:422`) attenuates the part of any sprite that spills past the CELL GRID, and has to match
+the fog `ShroudRenderer` paints over the map or a sprite crossing the map edge has a step through it. It used
+to rebuild that curve by hand, because `WorldRenderer` is in `OpenRA.Game` and `ShroudRenderer` in
+`Mods.Common` and Game cannot reference Common. **The copy omitted the fog palette's own alpha**
+(`ShroudRenderer.FogPaletteAlpha`, `160f / 255f`, `ShroudRenderer.cs:327`, composited at `:346`), so every
+layer bit harder than the real one: a sprite beyond the grid kept **0.0317** of itself where the same sprite
+one cell further in kept **0.1378** — a **4.35x** error, worst at visibility 1, which is ordinary
+fully-fogged ground. Users reported it as explosions being "very faint outside the border".
+
+**The fix was already half-built.** `IRenderShroud` carried `FogDarkness` *for exactly this consumer*, with a
+doc comment saying so — someone had hit the assembly boundary, solved it by passing the **input** across
+rather than the **answer**, and left the derivation duplicated on the far side. The interface now exposes
+`FogTransmission(int visibility)` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:521`, with the incident
+recorded at `:517`) and the copy is gone. **When an interface exists to carry a parameter across a boundary
+so the other side can re-derive a result, the RESULT is what should have crossed** — the parameter version
+looks cheaper and leaves a second copy of the logic behind, which is the whole failure.
+
+**Auditing the blast radius of a render change: find the value at which the effect VANISHES and check what
+routinely sits there.** The trait list here looked alarming — `ProductionFromMapEdge` on `SUPPLYROUTE` means
+every called-in unit enters at a map edge, and `AirstrikePower`, `MissileStrikePower`, `FlyOffMap`,
+`Aircraft`, `AmmoPool` and `FreeActorWithDelivery` all send actors off-map — but the overlay is keyed to the
+visibility of the playable BORDER cell and is absent entirely at visibility 10, so **anything carrying
+`RevealsShroud` lights its own border cell to full and passes through a no-op.** What is actually affected is
+the narrow set that is beyond the grid AND under fog AND carries no vision of its own: nuclear clouds and
+fireballs, missile bodies inbound over unwatched edges, airstrike ordnance. **A trait list overstates breadth
+whenever the effect is gated on a state most of those traits suppress.**
+
+**What this does NOT fix, recorded so nobody re-opens it:** a nuclear cloud still steps at the grid boundary.
+That residual is the fog-piercing LIGHT, drawn per-cell over ground and stopping at the grid because beyond
+it `DrawBeyondMapFog` has painted opaque black before actors. Closing it would mean lighting terrain the game
+deliberately blacks out, which the no-leak argument forbids. **The FOG half of the discontinuity is gone; the
+LIGHT half is by design.**
 
 ### Edge-cell selection: `CVec.Length` is a FLOORED sqrt, so it merges non-equidistant candidates into one tie
 
 *(Promoted 2026-09-02 from DISCOVERIES.)* `CVec.Length` is `Exts.ISqrt(LengthSquared)` with `ISqrtRoundMode.Floor` (`CVec.cs:50`, `Exts.cs:306`). Used as an `OrderBy` key over map-edge candidates it is therefore **not a strict ordering**: every cell whose true distance floors to the same integer ties, and `OrderBy` is stable, so the winner is decided by `AllEdgeCells` **enumeration order** — which emits the top and bottom rows before the ascending-`v` column loop (`UpdateEdgeCells`, `Map.cs:1934-1958`). A tie therefore resolves consistently toward the earlier-enumerated cell, not toward the nearest one.
 
-**The tie band is `k ≤ floor(sqrt(2d))`**, where `d` is the hint's perpendicular distance from its edge and `k` the along-edge offset — because `floor(sqrt(d² + k²)) == d` exactly when `k² ≤ 2d`. **It is zero cells wide at `d = 0`**: a hint already sitting on the edge has no tie at all and cannot move. `ChooseClosestMatchingEdgeCell` was migrated to `LengthSquared` (`Map.cs:1876`, commit `a035aa68`), but **two selectors still use the floored key deliberately** — `ChooseClosestMatchingEdgeCellOnSameEdge` (`:1886`) and `GetSpawnCandidatesOnSameEdge` (`:1893`, feeding `.Take(count)`).
+**The tie band is `k ≤ floor(sqrt(2d))`**, where `d` is the hint's perpendicular distance from its edge and `k` the along-edge offset — because `floor(sqrt(d² + k²)) == d` exactly when `k² ≤ 2d`. **It is zero cells wide at `d = 0`**: a hint already sitting on the edge has no tie at all and cannot move. `ChooseClosestMatchingEdgeCell` was migrated to `LengthSquared` (`Map.cs:1876`, commit `a035aa68`).
+
+**Both sibling selectors have since been dealt with, and they needed OPPOSITE treatments.** *(Promoted
+2026-09-20 from DISCOVERIES.)*
+
+- `ChooseClosestMatchingEdgeCellOnSameEdge` was **dead code** and was deleted rather than fixed — zero callers
+  since `1c92ba27` replaced its only one. Fixing a method nothing invokes buys nothing, and a
+  `ChooseClosestMatching…` that does not return the closest, sitting next to the one just corrected, is primed
+  for whoever calls it next. *(Note the distinction the audit turned on: "unverifiable" and "provably inert"
+  are not the same risk, and only the second licenses a change with no measurement.)*
+- `GetSpawnCandidatesOnSameEdge` is now `OrderBy(LengthSquared).Distinct().Take(count)` (`Map.cs:1883`). **The
+  `.Distinct()` is load-bearing, not cosmetic.** `AllEdgeCells` contains each of the four corners **twice** —
+  `UpdateEdgeCells` emits `(u, Top)`/`(u, bottom)` for every `u` and then `(Left, v)`/`(Right-1, v)` for every
+  `v`, so both loops append each corner. A `Take(n)` window reaching a corner hands
+  `ProductionFromMapEdge` an array with a repeated cell, and the round-robin then has `n` slots but fewer
+  distinct destinations. **Sorting exactly makes this MORE likely, not less**, because the identical copies get
+  identical keys and sort adjacently. On 5 of 30 shipped spawn points the old 30-cell array already carried a
+  duplicate, silently wasting a slot.
+
+**The refuted step is the one worth keeping.** The fix was argued safe for the two `count=30` callers on the
+grounds that `.Distinct()` frees slots and therefore yields a **superset** of the old candidates, and a
+superset re-sorted from the aircraft can only produce a nearer-or-equal winner. **That is false.** `Take(n)` is
+a fixed budget: dedupe frees slots, but the corrected sort *also reorders*, so the new set is the `n` nearest
+**to the hint** and is not a superset of the old `n`. An aircraft parked far from the hint can be nearer to a
+cell only the old set contained. Sweeping every in-bounds cell as a hypothetical aircraft position over all 30
+shipped spawn points found regressions on **2 of 30** points, bounded at **exactly 1.000 cells**, against
+47 232 improved positions and 918 worsened. Directionally correct, bounded — **and real, and not predicted by
+reasoning.** *(Measured 2026-09-02 against the shipped maps; the counts are that measurement, not an
+invariant.)*
+
+**Shipped maps are the WEAK instrument for this class, by construction.** The widest tie band any of them
+offers is `b = 5`, at which 2 of 5 members still survive, so a scenario meant to discriminate the two keys needs
+geometry built for it (`Bounds 1,1,64,64` with a `spawnarea` hint at `21,32` gives `d = 20`, `b = 6`, a
+13-cell tie group and 4 of 5 members differing). And note **`river-zeta-ww3` is unaffected for a reason, not by
+luck**: it is the only map authoring `spawnarea` actors, all six sit exactly on the bounds edge, so `d = 0` and
+the two sorts are byte-identical. The nine maps with no `spawnarea` fall back to the SR's own location
+(`mpspawn + CVec(-1,-1)`), which is what puts `d` above zero at all — **the maps that opted into the hint
+mechanism are the ones the defect cannot reach.** One further subtlety hidden by the 1-D model:
+`GetSameEdgeCells`'s filter is `|U − Bounds.Left| <= 1`, which admits the top/bottom row cells as well as the
+column, so even a `d = 0` hint has a two-dimensional candidate set.
 
 Two rules worth carrying beyond this incident:
 
@@ -1306,6 +2184,120 @@ Two rules worth carrying beyond this incident:
 
 > **⚠️ TWO CLAIMS FROM THE ORIGINATING ENTRY ARE CARRIED HERE AS FLAGS, NOT AS BANKED FACTS — they were not verified, and this notice exists so they cannot quietly become clean once inside the bank.** (1) The census *"~109 of 149 warheads lack `Penetration`"* — an unchecked count, and a dated one even if right. (2) The claim that `Bullet.cs` **always detonates**. **Re-derive either before building on it.** The rest of this section was read from the code.
 
+## `INotifyKilled` is the only hook that names the killer, and a crush is indistinguishable from a shot
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `Health`'s kill path notifies
+`INotifyKilled` with an `AttackInfo` carrying `Attacker`, `Damage.Value` and `Damage.DamageTypes`, and **two
+audiences: traits on the dying actor and traits on its owner's PlayerActor** (`Health.cs:127-128`, refreshed on
+owner change at `:135`). **There is no World-actor delivery**, so a world trait cannot observe deaths — a
+match-wide tap is either one trait per player actor or `World.ActorRemoved`, which carries no attacker at all.
+(This is the death-side twin of §"Combat feedback": `AttackInfo` names *who*, and never *why a hit
+accomplished nothing*.)
+
+**Three of the four death classes separate cleanly; the fourth does not.** Enemy fire is
+`RelationshipWith(e.Attacker.Owner)`, friendly fire is the same test the other way, and **self-inflicted is
+`e.Attacker == self`, which is clean and complete** — helicopter crashes, `FallToEarth`, `KillsSelf`,
+`Parachutable`, `OwnerLostAction` and the sacrificial capture/demolish/repair kills all take that form.
+
+**Crushing does not.** `Passable.OnBeingCrushed` calls
+`self.Kill(passer, passerMobile.Info.LocomotorInfo.CrushDamageTypes)` (`Traits/Passable.cs:108`), so
+**`e.Attacker` is the crusher — an ordinary enemy actor** — and attacker alone cannot tell "ran over" from
+"shot". The intended discriminator is the damage type, **and it is empty**: `LocomotorInfo.CrushDamageTypes`
+defaults to an empty `BitSet` (`Traits/World/Locomotor.cs:81`) and **no locomotor in `mods/ww3mod/` sets it**
+(grep returns zero). A crush therefore arrives as `Attacker = <enemy vehicle>, DamageTypes = {}`, identical in
+shape to a weapon that declares no damage types; `Mine.cs` is the same expression. **So any rule of the form
+"the first life taken by enemy action ends the phase" silently counts being run over as an enemy kill.**
+Fixing it is a content change, not a code one — give the ground locomotors a `CrushDamageTypes` value — and it
+has to be done deliberately, because it is invisible from the rule's own code.
+
+**Timing caveat if a rule wants the first casualty's TICK.** `Health.InflictDamage` early-returns on `IsDead`,
+so `Killed` fires exactly once per actor — but `Explodes`, `SpawnedExplodes` and `Vaporizable` re-kill inside
+an `AddFrameEndTask`, so anything killed by a victim's explosion lands **one frame late** and carries the
+*primary* victim's configured `DamageSource` as its attacker.
+
+### `DamageTypes` selects an ANIMATION and a SOUND, not a husk policy — and nothing in WW3MOD suppresses husks by damage type
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* A nuclear ground-zero warhead commented *"uses ElectricityDeath to
+trigger electric disintegration"* is doing much less than it reads: `ElectricityDeath` reaches exactly two
+things in the mod, and neither is husk suppression — `WithDeathAnimation: DeathTypes:` on `^Infantry`, a
+**sequence-index map**, and `DeathSounds@Zapped`, a **voice** selector.
+
+**The husk is spawned by `SpawnActorOnDeath`, whose damage-type filter is OPT-IN per spawner:**
+`if (Info.DeathType != null && !e.Damage.DamageTypes.Contains(Info.DeathType)) return;`, and its own `[Desc]`
+says *"Leave empty to spawn an actor ignoring the DeathTypes"*. **There are 112 `SpawnActorOnDeath`
+declarations across 16 files in `mods/ww3mod/rules/` and ZERO of them set `DeathType:`** *(a census, so it
+carries a date — 2026-09-06; recall is unverified for spawners declaring `DeathType` more than five lines below
+their key)*. So every vehicle killed at nuclear ground zero leaves its husk, and **no damage type anyone
+invents can change that without also editing all 112 sites.** The same opt-in shape applies to
+`Explodes.DeathTypes` (also unset on most of the mod's 73 declarations) and `EjectOnDeath` does not filter by
+damage type in any form.
+
+**The generalisable trap: an enum-like string that works SOMEWHERE makes it look like it works EVERYWHERE.**
+`ElectricityDeath` is a real damage type, spelled correctly, demonstrably changes what infantry look like when
+they die, and is consumed by a trait whose name contains the word "Death". Every signal available at the call
+site says the mechanism is engaged. What is not visible from the weapon file is that **each consumer opts in
+separately, and the consumer you cared about never did.** Before believing a damage type gates a behaviour,
+find the consumer and check that it reads the field at all.
+
+**What the mechanism has to be instead, and two timing facts any "remove this actor cleanly" work will hit.**
+Suppression has to be a property of the VICTIM at the moment of death, not of the weapon, because the thing
+that finally kills a unit inside a fireball may be a different warhead arriving on the same tick —
+`ISuppressDeathRemains` is that interface, asked of the victim by the five traits that leave something behind
+(chosen by counting what the mod declares: `SpawnActorOnDeath` 112, `Explodes` 73, `EjectOnDeath` 19,
+`WithDeathAnimation` 11, `SpawnedExplodes` 2; traits that merely make noise or shake the camera are
+deliberately off the list). Then: **`SpawnActorOnDeath` does not spawn during `Killed`** — it records the
+attacker there and spawns in `RemovedFromWorld`, which for a killed actor runs at FRAME END via
+`Actor.Dispose`'s `AddFrameEndTask`, so there is a usable window after death in which the husk can still be
+prevented, which is what makes husk suppression independent of warhead declaration order where cook-off is
+not. And **a null attacker also suppresses the husk, by accident** (`attackingPlayer = e.Attacker?.Owner` with
+the spawn gated on non-null), so `Kill(null, ...)` silently leaves no husk — **do not build on this**: it is
+emergent rather than intended and it costs the kill its attribution in `PlayerStatistics`.
+
+**Why `Kill` rather than the tempting `Dispose()`.** `Dispose` suppresses every remains-producing trait by
+construction, in one line, with no interface and no engine edits — and it also suppresses `PlayerStatistics`,
+`GivesExperience`, `GivesBounty`, `ActorLostNotification` and `UnitLifecycleLogger`, so a weapon that
+vaporised fifty units would move neither player's ledger by a single credit. **Fail toward too much debris,
+never toward a broken ledger**: a leftover wreck is a visible cosmetic bug someone will report, while a
+silently uncounted kill is neither. *(`UpdatesPlayerStatistics.AddToArmyValue` is a win-rule input — see
+§"The cost ledger is NOT zero-sum".)*
+
+## `HasTraitInfo<BuildingInfo>()` is NOT "is this a building" — it selects 98 % of a populated map
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* `^CivField`
+(`rules/ingame/civilian.yaml:254`) and `^Tree` (`rules/ingame/decoration.yaml:267`) both declare
+`Building: Footprint: x, Dimensions: 1,1` — fields need it for placement, trees for their footprint. On
+river-zeta that test matches **4459 of 4544 actors** (1713 `v17`, 864 `v16`, 610 `rice`, ~1100 trees) against
+**53** actual structures. A Dead Hand clustering routine asserted the opposite in a code comment — *"crop tiles
+inheriting ^CivField … have no Building trait at all"* — and clustered on it, so its idea of a "city" was the
+centroid of half a map of rice paddy. **The comment was written confidently and was never checked against the
+YAML.**
+
+**The test that means what you want is TARGET TYPES**, because it is the *targeteer's* definition rather than
+the placement system's. `^CivField` deliberately declares no `Targetable` at all (there is a PITFALL in
+`civilian.yaml` explaining that giving a field target types makes it soak shots) and `^Tree` declares `Trees`,
+while `^BasicBuilding` and `^CivBuilding` declare `Structure` — so
+`TraitInfos<ITargetableInfo>().Any(t => t.GetTargetTypes().Contains("Structure"))` separates structures from
+scenery exactly. **With one trap: `^TechBuilding` DROPS `Structure`** and carries `TechStructure` instead, so
+oil derricks — the highest-value point targets on the map — fail a `Structure` test and any enumeration needs
+an explicit bypass for them.
+
+**And the more reusable half: a large-radius weapon's runtime cost is dominated by its
+`GrantExternalCondition` RADII, not by its damage or its yield.** `GrantExternalConditionWarhead.DoImpact`
+runs `FindActorsInCircle` and then a `TraitsImplementing<ExternalCondition>()` LINQ probe **per actor**, and
+the mod's nukes carry **19 such warheads each**; `ShockwaveEffect.Tick` calls `FindActorsOnCircle` — which is
+`FindActorsInCircle` over the whole disc, not an annulus — once per tick for the wave's entire life. On
+river-zeta the measured actor-touches per detonation run from ~10,900 (10 kt) to ~6.79 M (50 Mt), a **173x
+spread between the mod's two shipped nukes for 300x the yield**, because the largest weapon's outer fire and
+suppression rings exceed the map diagonal and **ten of its nineteen grant warheads enumerate every actor on
+the map**. *(Measured 2026-09-07 on one map; the arithmetic, not the figures, is the durable part.)*
+
+**The rule: cost scales with (number of grant warheads) x (actors inside each radius) x (concurrent
+detonations), and only the last of those three is obvious.** Before adding a large-radius weapon to anything
+that fires in bulk, multiply it out — it is a 20-line script over the map's `Actors:` block and the weapon's
+`Range:` fields, needs no build and no launch, and would have caught this before it shipped.
+`LightEventManager` is the one part of the stack that is bounded (`MaximumConcurrentEvents = 32`); nothing
+bounds shockwaves or condition grants.
+
 ## Garrisoning is an OWNERSHIP transfer, and that one fact rewrites the rest of the system
 
 *(Promoted 2026-09-02 from DISCOVERIES; every line re-read at `main @ 94020582`.)* Garrisoning reads like boarding a transport. It is not — it is the civilian buildings' only ownership channel, because `^CivBuilding` strips the capture traits outright (`-CaptureManager:` / `-Capturable@neutral:` / `-Capturable@occupied:`, `civilian.yaml:12-14`). Four consequences follow, and each is surprising on its own.
@@ -1325,13 +2317,39 @@ The in-place path is taken by `GarrisonManager.cs:260,:324,:329` and by all thre
 
 **Rule: after any `ChangeOwnerInPlaceSync`, audit every trait that caches owner-derived state in `AddedToWorld`, `Created` or a constructor.** Not implementing the interface is exactly what makes a trait a candidate. This is the [§Four shapes](README.md#four-shapes-of-confident-correctness-claim-with-nothing-behind-it) #3 detector applied to an interface list: the mechanism that keeps such traits correct is not the one their declaration names.
 
-**The worked casualty, and the reason the naive repair is a hard crash rather than a slow path.** `Vision` (via `AffectsMapLayer`) snapshots `self.Owner.RelationshipWith(p)` at add time, so a captured building fed its **old** owner vision for its whole lifetime and gave the captor none — across essentially every building in the mod. Fixed by `49afe9e9` (2026-09-02). What makes it worth reading is the shape of the fix: `ChangeOwnerSync` fires `INotifyOwnerChanged` **while the actor is out of the world**, and `AddedToWorld` adds its map-layer source *without* removing first — so an unconditional `UpdateCells` handler adds the source twice and throws `Attempting to add duplicate mapLayer` (`MapLayers.cs:324`). The shipped handler is therefore guarded by `if (!self.IsInWorld) return;` (`AffectsMapLayer.cs:175-181`), with the reasoning carried in-comment above it. **Any trait you retrofit with `INotifyOwnerChanged` needs the same guard**, because the notification fires on both paths and only one of them has the actor in the world.
+**The worked casualty, and the reason the naive repair is a hard crash rather than a slow path.** `Vision` (via `AffectsMapLayer`) snapshots `self.Owner.RelationshipWith(p)` at add time, so a captured building fed its **old** owner vision for its whole lifetime and gave the captor none — across essentially every building in the mod. Fixed by `49afe9e9` (2026-09-02). What makes it worth reading is the shape of the fix: `ChangeOwnerSync` fires `INotifyOwnerChanged` **while the actor is out of the world**, and `AddedToWorld` adds its map-layer source *without* removing first — so an unconditional `UpdateCells` handler adds the source twice and throws `Attempting to add duplicate mapLayer` (`MapLayers.cs:324`). The shipped handler is therefore guarded by `if (!self.IsInWorld) return;` (`AffectsMapLayer.cs:175-181`), with the reasoning carried in-comment above it. **Any trait you retrofit with `INotifyOwnerChanged` needs the same guard**, because the notification fires on both paths and only one of them has the actor in the world. **But do not copy that guard reflexively** — it exists only because `AffectsMapLayer` *also* implements the world hooks and would double-add. `RevealsMap` is the in-repo precedent that handles `INotifyOwnerChanged` correctly with **no** `IsInWorld` guard, and needs none, because it implements neither world hook and manages cells through `TraitEnabled`/`TraitDisabled`. Copying the visible pattern without its invisible precondition ships the crash; copying it where it does not belong breaks mobile transfers, since `ChangeOwnerSync` fires the notification while the actor is out of the world and a handler that returns there never runs at all.
+
+**The blast radius is exactly TWO channels, and both are enumerable.** *(Promoted 2026-09-20 from DISCOVERIES,
+re-read at `a21583fd`.)* The in-place path differs from `ChangeOwnerSync` in precisely these two ways and
+nothing else:
+
+1. It skips `INotifyAddedToWorld` / `INotifyRemovedFromWorld` on the flipping actor's own traits. **This is a
+   reflection question, not a grep question** — see [`conventions.md` §"Reflection over the loaded assemblies
+   answers 'implements A but not B'"](conventions.md#reflection-over-the-loaded-assemblies-answers-implements-a-but-not-b--grep-structurally-cannot).
+2. It skips the **`World.ActorAdded` / `World.ActorRemoved` events** (`World.cs:394-412`), the global
+   subscriptions held by player- and world-level objects. This one **is** greppable and small:
+   `Actor(Added|Removed)\s*\+=` returns eight sites engine-wide.
+
+**Both paths DO fire `INotifyOwnerChanged`, and both fan out to `World.WorldActor`'s traits as well as the
+actor's own.** That second fan-out is the non-obvious part — a player- or world-level trait *can* be notified
+about some other actor changing hands, and it is already load-bearing (`ExternalCondition.OnOwnerChanged` uses
+it to reach every `INotifyProximityOwnerChanged` in the world). **It is the channel any fix for a channel-2
+subscriber should use.**
+
+**The "~0.5 s freeze on capture" comment carried at these sites is one unmeasured estimate, and its stated
+cause is wrong.** `git log -S` returns a single origin, whose message attributes the cost to `World.Remove`/
+`Add` firing on every `AffectsMapLayer` trait "each iterating all players". `World.Add`/`Remove` notify **only
+the traits of the actor passed in** — one building, three `Vision` traits, not world-wide. The arithmetic gives
+roughly 240 cell-updates per capture across eight players, which is microseconds: off by about four orders of
+magnitude. The freeze may well have been real; the attribution is not supported. **Consequence: "revert to
+`ChangeOwnerSync`" and "add `INotifyOwnerChanged`" are not the same repair** — the latter never calls
+`World.Remove`/`Add` and so cannot reintroduce the hitch, whatever its true size.
 
 ### The death path: `Indestructible` defaults ON, and it silently disables the death-path traits
 
-`GarrisonManagerInfo.Indestructible` also defaults `true` (`:83-85`), again with **zero YAML overrides**, and it applies to **all 41 garrisonable actors** *(re-derived 2026-09-02 from the inheritance closure of `^CivBuilding` plus `GTWR`/`PBOX`/`HBOX` — the only four `GarrisonManager:` declarations in the mod, and there is no `-GarrisonManager` anywhere)*. The damage modifier returns 0 once `health.HP <= 1` (`:1417-1435`, test at `:1419`) **with no occupancy gate** — an empty garrisonable building is exactly as unkillable as a full one.
+`GarrisonManagerInfo.Indestructible` also defaults `true` (`:83-85`), again with **zero YAML overrides**, and it applies to **all 41 garrisonable actors** *(re-derived 2026-09-02 from the inheritance closure of `^CivBuilding` plus `GTWR`/`PBOX`/`HBOX` — the only four `GarrisonManager:` declarations in the mod, and there is no `-GarrisonManager` anywhere)*. **Corrected 2026-09-20 at `a21583fd`: the mechanism is a damage FLOOR, not a damage modifier.** `GarrisonManager` implements `IDamageFloor.GetDamageFloor() => Info.Indestructible ? 1 : 0` (`Traits/Garrison/GarrisonManager.cs:1530-1533`); `Health.DamageFloor()` takes the highest floor any trait asks for (`Health.cs:173-184`) and `Health.ApplyDamageToHp(hp, damage, floor, maxHp)` is `(hp - damage).Clamp(floor, maxHp)` (`:207-210`), applied at `:257-258`. There is **no occupancy gate** — an empty garrisonable building is exactly as unkillable as a full one. Why it is a floor rather than a percentage is in [§`GarrisonProtection`'s damage curve](#garrisonprotections-damage-curve--one-source-of-truth-after-two-were-folded) below.
 
-Every trait that fires on death is therefore unreachable by ordinary damage on those actors, including the `SpawnActorOnDeath` husks (`PBOX` → `pbox.husk` at `structures-defenses.yaml:216-217`, `HBOX` → `hbox.husk` at `:311-312`; `GTWR` has none) and `V19` → `V19.Husk` (`civilian.yaml:431-432`). **The one channel that still reaches them is `Actor.Kill()`**, which calls `InflictDamage(…, ignoreModifiers: true)` (`Health.cs:245`) and so skips the modifier chain (`:177`). If one of these buildings has to die in a test or a script, that is the only door.
+Every trait that fires on death is therefore unreachable by ordinary damage on those actors, including the `SpawnActorOnDeath` husks (`PBOX` → `pbox.husk` at `structures-defenses.yaml:216-217`, `HBOX` → `hbox.husk` at `:311-312`; `GTWR` has none) and `V19` → `V19.Husk` (`civilian.yaml:431-432`). **The one channel that still reaches them is `Actor.Kill()`**, and it survived the floor rewrite deliberately: `Kill` is `InflictDamage(…, ignoreModifiers: true)`, and `Health.IgnoresDamageFloor(ignoreModifiers, damage)` is `ignoreModifiers || damage <= 0` (`Health.cs:197-200`), consulted at `:256`. **Honouring the floor there would make an indestructible actor UNKILLABLE rather than merely indestructible-by-damage** — HP floors at 1, `IsDead` stays false, `INotifyKilled` never fires, nothing disposes it, and `Vaporizable.ITick` (whose only brake is `if (self.IsDead) return;`) calls `Kill` on it every tick for the rest of the match. If one of these buildings has to die in a test or a script, `Actor.Kill()` is the only door.
 
 ### Two garrison traits are inert on every actor that carries them
 
@@ -1340,15 +2358,101 @@ Both are legacy fallbacks that the shipped configuration always outranks — wor
 - `WithCargoPipsDecoration` yields nothing when the actor also has `WithGarrisonDecoration` (`WithCargoPipsDecoration.cs:70`, `:97`). `^CivBuilding` carries both (`^CargoPips` at `civilian.yaml:68`, `WithGarrisonDecoration` at `:127-129`), so the cargo pips never render.
 - `AttackGarrisoned` is documented in its own source as the fallback *"when no GarrisonManager is present"* (`AttackGarrisoned.cs:33-40`) and short-circuits on `HasTraitInfo<GarrisonManagerInfo>()` (`:55-56`; `SelectFirePort`'s legacy branch at `:178-181`). All 41 carry `GarrisonManager`, so its YAML (`civilian.yaml:131-133`) is dead.
 
+**There is no band-table section in this document, and `mods/ww3mod/rules/defaults.yaml` is the source of truth.** Every question of the form *"which unit auto-acquires what, and in what order"* is answered by the `AutoTargetPriority@*` blocks on the `^AutoTarget*` templates (`defaults.yaml:394-866`) — not by anything here, and not by §"Order targeter precedence", which is about a *click*. Two things about those tables are easy to get wrong from a distance and worth stating once. **The `^AutoTargetGround*` and `^AutoTargetAll*` chains do NOT inherit `^AutoTarget`** — they are separate bases, which is why fields like `PreemptScanInterval` are repeated on each. And **a band that declares no `ValidTargets` is not inert**: it takes the engine default `Ground, Water, Air` (`AutoTargetPriority.cs:21`), which is the only reason a civilian building is auto-acquired by anything at all, since no band in the mod names `Ground` or `Structure` explicitly (one exception: `HIND` hand-rolls its own, `aircraft-russia.yaml:119-122`). `engine/OpenRA.Test/GarrisonTargetBandTest.cs` pins both facts against the real YAML through the engine's own `ResolveTargetPriorityBand`; read it before re-deriving any of this by hand.
+
 **Naming trap in the bot layer:** `PoiGarrisonBotModule` does **not** garrison anything — it issues `AttackMove` (`:514`) and contains no `Cargo`/`Passenger`/`EnterTransport` reference. The module that actually garrisons is `GarrisonBotModule` (`:331`, `new Order("EnterTransport", …)`), wired at `ai.yaml:1009` under `RequiresCondition: enable-ai-any` — i.e. **both** bot profiles garrison.
 
-### `GarrisonProtection` computes its damage curve twice
+### `GarrisonProtection`'s damage curve — one source of truth, after two were folded
 
-`GetCurrentProtection` (`GarrisonProtection.cs:69-80`) and the `INotifyDamage.Damaged` arm (`:95-107`) each build the same `CriticalProtection + (BaseProtection − CriticalProtection) × hpPct` ramp — same float cast, same truncation, same clamp, same `HP <= 1` rubble branch. They are **bit-identical today, and only by maintenance luck**: nothing structural keeps them in step, the UI reads the first (`GarrisonPanelLogic.cs:101`, `:271`) and damage uses the second, so a divergence would present as a readout disagreeing with what the player observes rather than as a crash. Change one, change both — or fold them.
+*(Corrected 2026-09-15. This section previously said the curve was computed twice — `GetCurrentProtection` and the `INotifyDamage.Damaged` arm each building the same ramp, bit-identical "only by maintenance luck". Both copies are gone.)* The ramp now lives once, in the pure static `GarrisonProtection.ProtectionAt(hp, maxHp, base, critical, rubble)`; `GetCurrentProtection` is a thin wrapper over it and `Damaged` calls that wrapper, so the panel readout (`GarrisonPanelLogic.cs:101`, `:271`) and the damage that lands cannot diverge. The arithmetic itself — the float, the truncation, the clamp, the `hp <= 1` rubble branch — is unchanged from both originals.
+
+**The clamp is the part with a trap in it, and it is not in this file.** *(Rewritten 2026-09-20 at `a21583fd`; the previous text described an implementation that has been replaced, and every line of it was wrong about the tree.)* `GarrisonManager.Indestructible` holds the building at 1 HP through `IDamageFloor` — `Health` clamps the **HP** (`Health.ApplyDamageToHp`, `Health.cs:207-210`) instead of scaling the damage — so `INotifyDamage` receives what the attacker AIMED, at full size, even at the floor. `GarrisonProtection.Damaged` therefore reads `e.Damage.Value` directly (`GarrisonProtection.cs:152`) and forwards its share of the real hit: at the floor the building absorbs nothing more and the shelter absorbs all of it, which is the monotone end of the curve rather than a special case. **The observer `IDamageModifier` and `EffectiveIncomingDamage` this section used to describe are GONE**, and their removal was a bug fix, not tidying: the stash substituted the pre-modifier damage whenever `Damaged` read zero, which was right at a true clamp and wrong at the old integer-percentage truncation, where it forwarded a full share while the building had absorbed nothing. `GarrisonRubbleProtectionTest` pins the curve monotone from full health to the clamp for every `GarrisonProtection` block in the mod, and `GarrisonClampReachabilityTest` walks the floor rule over the shipped numbers.
+
+### `RequiresForceFire` is an AI-participation switch two layers away, and a restrictive `Targetable` cannot veto a permissive one
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; citations re-read at `main @ a21583fd`, where the file moved to `Traits/Attack/AttackBase.cs` and the line drifted by ~37.)*
+
+**Not to be confused with the per-WEAPON field of the same name** — `Armament.Info.RequiresForceFire`, on the shooter, is a different opt-out filtered later in the same method; see [`conventions.md` §"An armament's `RequiresForceFire` is a per-WEAPON opt-out"](conventions.md).
+
+**A `RequiresForceFire` target is refused for any non-force attack, at the armament-selection layer.** `AttackBase.ChooseArmamentsForTarget` returns `Enumerable.Empty<Armament>()` when `!forceAttack && (… || target.RequiresForceFire)` (`Traits/Attack/AttackBase.cs:479-480`). That is a **targeting**-layer gate, not a damage-layer one — warhead damage never consults it.
+
+**"Selected then dropped" and "never selected" are BOTH true, on different paths, and a fix that covers one leaves the other.**
+
+- **Never selected.** `AutoTarget.ChooseTarget` calls `ab.ChooseArmamentsForTarget(target, false)` on every candidate and `continue`s when it comes back empty (`AutoTarget.cs:1507-1514`), so the candidate never reaches the scoring loop. **Every autonomous engagement — human and bot alike — dies here**, including the whole of the human-facing "attack-move walks past it" half.
+- **Selected then dropped.** Bot target pickers have no force-fire filter of their own; they test relationship, husk, aircraft, ignored target types, viewability and estimated damage, all of which such a target satisfies — then issue a plain `"Attack"` with `forceAttack: false`, which the attack activity discards.
+
+**Check both layers before costing a bot-side fix: the module that picks the target and the trait that refuses it are different code.** And because a force-attack order against an *actor* is rare-to-absent across the bot modules, **putting `RequiresForceFire: true` on anything is close to saying "no AI may ever shoot this"** — a targeting keyword that silently becomes an AI-participation switch. Grep the bot modules for an actor-directed force-fire path before adding it.
+
+**`Actor.IsTargetableBy` is an OR across every enabled `ITargetable`, so the most permissive one wins and a restrictive one cannot veto.** `Actor.cs:671-679` returns `true` on the first targetable that says yes. `Target.RequiresForceFire` is the mirror image and just as unforgiving: it returns `false` as soon as **any** enabled targetable does not require force fire (`engine/OpenRA.Game/Traits/Target.cs:131-152`). **So a trait whose whole purpose is to refuse targeting — a firing-arc occupant, a conditional exemption — only works while every OTHER targetable on the actor is condition-gated off at the same time**, which such a trait's `[Desc]` can only ask for in prose and nothing enforces. *A trait that restricts targeting is not a filter over the others; it is one more voice in an OR.* When one is added, audit every `Targetable*` on every actor that will carry it, not just the base template: a single third `Targetable@…` with no `RequiresCondition` makes the arc trait dead and keeps unioning its own target types from inside the building.
+
+**A deployed port soldier stands on the BUILDING'S OWN CELL, which decides whether a test of "can X damage a garrison" is worth anything.** `GarrisonManager`'s deploy path does `positionable.SetPosition(soldier, self.Location)` (`Traits/Garrison/GarrisonManager.cs:447`). Every `SpreadDamage` warhead aimed at that soldier therefore also lands on the building, and warhead damage does not consult `RequiresForceFire` at all. **Consequence: any scenario that asserts "the building's HP fell" while a port is manned goes GREEN on a build that still has the flag**, because the HP fell from splash. The only honest fixtures are ones where nobody is at a port; the cheapest deterministic lever is a DEFCON level at which `GarrisonManager.ScanForTarget` returns `Target.Invalid` outright, since every autonomous deploy path reaches a target only through it.
+
+**An empty civilian building was never protected by `RequiresForceFire`, and the priority table is not what protects it either.** `AutoTargetPriorityInfo.ValidRelationships` defaults to `Ally | Neutral | Enemy`, so the priority layer is happy to name a neutral house. What refuses it is two gates further out: `ChooseTarget`'s `AppearsHostileTo` early-out and `Armament.TargetRelationships`, which defaults to `Enemy`. An empty garrisonable building is Neutral (`DynamicOwnership` reverts on the last man out), so both reject it. **Do not reason about "is this auto-targeted" from the `AutoTargetPriority` block alone.** In the other direction, a garrisonable house whose `Targetable` advertises `Defense` **outranks the men at its own ports** for the anti-tank and anti-structure bands, which score `Defense` above `Infantry` — harmless for the general templates, but a targeting decision nobody wrote down and load-bearing once the building is auto-engageable at all.
+
+**An undeclared `Health`/`Armor` is a tuning decision inherited from whatever template happens to be upstream, and it can be a template with a different threat model.** `^CivBuilding` wanted `^TechBuilding` for structure plumbing and got its **combat profile** too: `Concrete` armour was chosen for tech buildings, which are nearly unhittable by construction (`Targetable: NoAutoTarget, C4, DetonateAttack, TechStructure`), while a civilian house **overrides that `Targetable`** and is fully hittable while keeping the armour class picked for something that was not. The split is invisible under ordinary fire because few warheads declare a `Versus` for these types at all, and then appears as a severalfold difference in delivered damage under one that does. **When a template is inherited for one trait, check what else rode along.**
 
 ## Widget / chrome authoring gotchas
 
+### `IsVisible()` gates TICKING, DRAWING and the CURSOR — three consequences, one predicate
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, merging four separate entries that each found one face of this. Every citation re-read at `main @ a21583fd`.)* `Widget` has exactly one visibility predicate and three outer methods consult it:
+
+```csharp
+public virtual void TickOuter()   { if (IsVisible()) { Tick(); foreach (var c in Children) c.TickOuter();
+                                    if (LogicObjects != null) foreach (var l in LogicObjects) l.Tick(); } }   // :512-524
+public virtual void DrawOuter()   { if (IsVisible()) { Draw(); foreach (var c in Children) c.DrawOuter(); } } // :500-508
+public string GetCursorOuter(int2 pos) { if (!(IsVisible() && EventBoundsContains(pos))) return null; … }     // :399-415
+```
+
+**1. A hidden container ticks NOTHING inside it — including its own `LogicObjects`.** So if the only write that could ever set a container visible lives inside that container's own subtree, the container is hidden forever: there is no first tick to escape from. A `LogicTicker` declared as a **child** of the panel whose `Visible` its `OnTick` sets is exactly that closed loop, and a panel shipped that way raises nothing, for any selection, for the whole life of the feature. The distinction that decides which idiom you need is **not** "ticker vs delegate" in general:
+
+| the widget's visibility is… | who evaluates it | safe to drive from a child ticker? |
+|---|---|---|
+| a `Visible` field set from **outside** its subtree | whoever owns that other widget | yes — the writer is somewhere that ticks |
+| a `Visible` field set from **inside** its own subtree | nobody, once it goes false | **NO. This is the trap.** |
+| an `IsVisible` delegate | the **parent's** `TickOuter`/`DrawOuter`, which never stops | yes, and this is the only self-driving shape that works |
+
+**The same trap wearing ordinary defensive coding: `IsVisible = () => items.Length > 0` on a widget whose `ChromeLogic` refills `items` on `Tick`.** Read plainly that is "don't draw an empty bar", which is correct and desirable. But a `ChromeLogic` is in `LogicObjects`, so it is ticked *inside* the visibility test: if the constructor-time rebuild comes up empty — because a `MapPreview`'s actor infos are assigned **in place** after construction, so a logic built during load sees a preview that is not yet populated — the widget goes invisible, `Tick()` is never called, the rebuild never runs again, and the state stays empty **for the entire lifetime of the panel.** It cannot recover, with no exception, no log line, no lint error, a green build and a green suite. On screen it is reserved space with nothing in it, which reads as a *drawing* bug and sends you into the render path — the one place the fault is not. **The general rule: a retry that never fires is usually gated on the thing it was meant to repair.** *Deriving `IsVisible` from static configuration is fine; deriving it from anything the logic refills on `Tick` is the trap,* and the fix is a removal — leave `IsVisible` at the `Widget` default and have `Draw()` return early when there is nothing to draw.
+
+**2. A guard inside `Draw()` suppresses only PIXELS. The widget is still VISIBLE and still answers the mouse.** `Visible` defaults `true` (`:222`), `IsVisible = () => Visible` (`:231`), and an early `return` inside `Draw()` never touches either. So a widget that draws literally nothing still passes the `IsVisible()` test, still claims the inherited `EventBounds => RenderBounds` (`:327`), and still answers with the inherited `defaultCursor` (`:398`). `Game.cs:930` sets the cursor every rendered frame from `Ui.Root.GetCursorOuter(Viewport.LastMousePos) ?? "default"`, so a full-bleed overlay that self-suppresses in `Draw()` alone blanks the world cursor over its whole declared rectangle, every frame of every match — and **the declared rectangle, not the drawn one**, which for a widget whose height is a reserve is much larger. Clicks still work (`ContainerWidget.ClickThrough` defaults true) so the order still issues, which is what makes it hard to notice: the cursor art is wrong and the game still obeys you.
+
+**3. And the ORDERING is what makes the HUD's default cursor WIN rather than lose.** `PLAYER_ROOT` is declared **after** `WorldInteractionController@INTERACTION_CONTROLLER` (`engine/mods/common/chrome/ingame.yaml:71` vs `:46`), `AddChild` appends, and `GetCursorOuter` walks `Children` **in REVERSE** taking the first non-null (`:407-412`). So the HUD is asked first, and a HUD widget answering `"default"` is not a fallback — **it is an override the world widget never gets to contradict.** *Any full-bleed thing in `PLAYER_ROOT` that answers the cursor at all blanks the world underneath it.*
+
+> **The rule: suppression must go through `Visible` / the `IsVisible` delegate, or the widget must declare `EventBounds => Rectangle.Empty`.** For a non-interactive overlay prefer the empty bounds — it is **strictly stronger**, because it is correct even while the widget is visibly drawn, which for an announcement banner is exactly what you want: a player acting through a band that says PLACE YOUR WARHEADS must not have the order eaten by the message. **Two traps for whoever sweeps for this.** (a) A widget that reads `EventBounds.Contains(Viewport.LastMousePos)` to drive its **own** tooltips must NOT be given empty bounds — the guard would silently kill the tooltip. *Interactivity is the term a pattern-match sweep drops.* (b) Most full-bleed widgets are already clear because they inherit a `GetCursor` that returns null — `ContainerWidget` (`:634`) and `LabelWidget` do, and buttons, minimaps and video players answer deliberately. **The detector is therefore the conjunction: `Width: WINDOW_WIDTH` combined with direct `Widget` inheritance.**
+
+**Do not conflate this with the ORDER-side cursor failure, though the symptom is identical.** That one is `UnitOrderGenerator.OrderForUnit` returning null, so the cursor dies with the order and falls through to the world default; this one never reaches the order generator at all, because a sibling answered first. **Distinguishing them costs one observation: the order-side failure is per-UNIT-and-TARGET (same pixel, different answer depending on what is selected), the widget-side failure is per-PIXEL (same answer everywhere inside a fixed rectangle, whatever is selected).**
+
+**Once a widget's visibility is a DELEGATE, its `Visible` field is stuck at its `true` default and means nothing** (`:222`, `:231`). Anything inspecting such a panel — a test binding, a lint, another widget computing a lift over it — must call `IsVisible()`. This is the same family as §"A widget's backing FIELD and the delegate that reads it can disagree" below, seen from the other side. It also decides which assertion discriminates: *"no method of this logic assigns `Widget.Visible`"* is the useful pin, while *"the constructor assigns `Widget.IsVisible`"* does **not** discriminate, because per-row labels inside the same class assign `IsVisible` too and the broken build satisfies it.
+
+**A lobby dropdown's tooltip is a DELEGATE, so it can carry live cross-option state without touching the option pipeline.** `LobbyOption.Description` is a static string and looks like the only place a tooltip can come from, which makes "warn the host that these two settings contradict each other" look like it needs a new option type — and there is no extension point for one. It does not: `LobbyOptionsLogic` assigns `dropdown.GetTooltipDesc = () => …`, a `Func<string>` evaluated **when the tooltip is drawn**, not when the row is built. A lambda reading `orderManager.LobbyInfo.GlobalSettings` gives a tooltip reflecting the lobby's *current* state, including options owned by an entirely different trait — no new type, no protocol change, no server change. **This is the right home for any rule that is about a PAIR of options**, because neither option is wrong on its own and neither can state the rule in its own `Description`. Hang it only on the offending pair: a warning appended to every dropdown is wallpaper.
+
+**A mode filter over lobby rows has to be a BUILD-TIME filter, not an `IsVisible` delegate, and the panel forces that.** `LobbyOptionsLogic` lays rows out imperatively — each cloned row takes `Bounds.Y = optionsContainer.Bounds.Height` and then grows it — so a row hidden by a delegate still occupies its slot and leaves a gap, with its section header drawing over nothing. Filtering the option array before `RenderSections` gets the collapse for free, because `RenderSections` already skips a section with no options. Live-updating it then needs a rebuild trigger and `Tick()` is the only one available. Read the mode from `orderManager.LobbyInfo.GlobalSettings` (synced session state) rather than from a local setting and non-host clients see the same rows for free. **Relatedly, anything asserting a layout budget from a hand-counted row count should derive the count from the same table the renderer reads**, or it is a comment with an `Assert` attached — and its failure direction is the dangerous one, since an understated budget passes while the host really does have to scroll.
+
 Engine widget behaviors that fail **silently** — each cost real debugging time in the lobby work:
+
+- **A glyph decoration is centred on its EM BOX, not on its ink, so it hangs `fontsize/2` below where it looks centred.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `WithTextDecoration.RenderDecoration` draws at `screenPos - size / 2`, which looks like centring and is not. `SpriteFont.Measure` returns a height of **`rows × size`** (`OpenRA.Game/Graphics/SpriteFont.cs:244`) — for a single-line string, the font's point size, *whatever character was measured*; the returned height is a property of the font, not of the glyph, and the width is a sum of glyph **advances**, likewise not ink width. `SpriteFont.DrawText` then adds a further `size` to reach the baseline (`:99`). **Net: the baseline lands `size / 2` below the nominal origin** — 5 px for the Size-10 TinyBold the decorations use — so every baseline-sitting glyph (diamonds, digits, capitals, the stance letters) puts *all* of its ink below the point it is nominally centred on, reaching ~5 px down and ~2 px up. Lifting a glyph clear of something needs `half the sprite + clearance + 5`, not `half the sprite + clearance`. **Sprite decorations are genuinely centred**, because a sprite's size *is* its ink — so a glyph and a sprite authored at the same `Margin` do not line up.
+
+- **`WithTextDecoration` has the same silent-nothing failure as a missing `.shp`, and nothing can lint it.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `WithTextDecorationInfo.RulesetLoaded` validates that the **font** is listed in `mod.yaml`; it does not and cannot validate that the font contains the characters, and a codepoint the font lacks renders nothing (or a notdef box) with the trait working perfectly. **`engine/mods/common/FreeSansBold.ttf` ships no Geometric Shapes block at all** — U+25A0, U+25B2, U+25C6, U+25C7 and U+25C8 all map to glyph 0 in its own `cmap`, so the `◆`/`◇` pair that reads as costing "literally one character" would have shipped invisible. The diamonds it *does* carry, confirmed present in `cmap` with real outlines in `glyf`, are `◊` U+25CA LOZENGE (hollow) and `♦` U+2666 BLACK DIAMOND SUIT (solid). **Rule of thumb: FreeSans/FreeSansBold covers Latin, punctuation, arrows and dingbat-ish suits, but not Geometric Shapes — verify a codepoint before spending design on it** (parsing the `cmap` is ~20 lines of Python and needs no launch), and write chosen glyphs as `\uXXXX` escapes in C# so a re-encoding cannot swap them silently.
+
+- **`Math.Clamp(x, K, K)` is always `K` — and it reads as "fit the content, up to a cap".** *(Promoted 2026-09-20 from DISCOVERIES.)* The production tooltip's left column measured its name, prerequisite and description widths and then clamped the maximum between `MaxTooltipWidth` and `MaxTooltipWidth`, throwing all three measurements away. The clamp could only ever shrink the panel's idea of its content, never grow it, so anything wider than 350 px drew **outside** the panel instead of widening it. Worth grepping for the shape generally: it is easy to write by accident when a min and a max constant are named similarly.
+
+- **A UI difference expressed as an alpha RATIO is a contrast difference, and only survives where the background is black.** *(Promoted 2026-09-20 from DISCOVERIES.)* Alpha blending is `dst + a·(src − dst)`, so two elements separated by an alpha gap `g` land on screen separated by `g · |src − dst|` per channel: maximal against black, collapsing against lit terrain. `RangeCircleGrouping` set the envelope to the configured alpha (35) and the interior to a quarter of it (8) — a 27/255 gap that reads plainly over the beyond-map band and is a few units per channel over ground. **The off-map region is a false witness**: `WorldRenderer.DrawBeyondMapFog` paints it fully opaque black, the single best background any faint annotation can have, so anything tuned *or reviewed* against it is being judged best-case. **Verify low-alpha UI over bright terrain.** Two corollaries. There is no second draw path to blame: `DrawAnnotations` runs inside `Renderer.BeginUI()` *after* `worldRenderer.Draw()` has finished, so annotations never meet the depth buffer, the shroud or any post-process pass, and an on-map and an off-map segment of one ring are the same call with the same colour differing only in the destination pixel — which rules out ordering, pass and blend-mode explanations by construction. And the report that this was "artillery-specific" was a sampling artefact: grouping needs two selected allied actors sharing a `RangeCircleType` *and* an equal current range, which two identical tanks satisfy exactly as two Paladins do — what artillery has is **radius**, so artillery rings are the only ones that routinely reach the black band where the intended styling is visible at all. *(Sibling failure, promoted the same day and sitting directly below: a difference expressed as an HSL LIGHTNESS step is also non-linear, and collapses by 3.7× below the hinge. Both are the same shape — a UI gap authored as a uniform numeric step lands on screen as a variable perceptual one.)*
+- **Shading a relationship band by HSL LIGHTNESS is perceptually non-linear, and it collapses to ~1/3.7
+  separation below L = 0.5.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)*
+  `RelationshipShade.Shade` (`engine/OpenRA.Game/Primitives/RelationshipShade.cs:40-60`) preserves hue and
+  saturation **exactly** and varies only lightness — which is what guarantees a shade can never move a
+  player between relationship bands, so it is a property worth keeping, not a bug. But for a *fully
+  saturated* hue the HSL→RGB map has a hinge at L = 0.5: **above** it the dominant channel is pinned at
+  255 and the other two rise together, so a step `d` moves two channels and ΔLuma ≈ `(0.7152 + 0.0722) ×
+  510d` = `402d`; **below** it the other two sit at 0 and only the dominant one moves, so for red
+  ΔLuma ≈ `0.2126 × 510d` = `108d`. Ratio **3.70**. With five players the step is
+  `min(PreferredStep 0.12, MaxSpan 0.44 / 4)` = `0.11` (`:24`, `:27`, `:52`), giving ΔLuma ≈ 44 above the
+  hinge and ≈ 12 below — and because the ramp centres on the base colour's lightness (`:58`), a base near
+  0.5 puts some gaps on each side. **Consequence for any future band widening: adding players costs
+  separation TWICE** — the step shrinks via `MaxSpan / (count - 1)` *and* more of the ramp falls below the
+  hinge where each step is worth 3.7× less. `RelationshipShadeTest` checks the ramp's *spacing*, which is a
+  different claim from how far apart the colours look; do not read it as pinning perceptual separation.
+  Biasing the ramp centre above 0.5, or varying saturation as well as lightness, would fix it locally.
 
 - **The sidebar's "free" gutter and right margin are FRAME ART drawn OVER the production palette.**
   *(Promoted 2026-09-04 from DISCOVERIES.)* `Container@PALETTE_FOREGROUND` is declared **after**
@@ -1356,7 +2460,12 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   `background-iconrow` composites over the palette. Decoding that region — `uibits/sidebar.png` at
   `0, 116, 238, 47`, named at `mods/ww3mod/chrome.yaml:32` — gives **fully opaque columns at x 0–40 and
   x 229–237**, 1 px opaque dividers at x 103 and x 166 that overdraw each icon's last pixel column, and
-  transparency only inside the three cut-outs. Arithmetic over the icon grid alone says those strips are
+  transparency only inside the three cut-outs. **Its row 46 is 238 opaque pixels — a full-width rule that
+  overdraws each icon's LAST PIXEL ROW** (slot row 45, given the palette's `Y: 1`), and the power bin's
+  `background-supportoverlay` (`12, 324, 64, 48`, drawn at `-2,-2`) does the same with its row 47. The frame
+  is a later sibling of the palette widget, so that lands on top of anything the widget drew there: on
+  2026-09-20 it was found eating the bottom glyph row of every runtime cameo caption.
+  Arithmetic over the icon grid alone says those strips are
   empty; they are not. **Worse for design purposes, both strips are outside the columns** — a mark drawn in
   either belongs to a whole row of three different units and cannot name one of them, so a *per-icon* status
   rail there is not buildable at any price. That is geometry, not cost. Cheaper than expected, though: a
@@ -1364,8 +2473,12 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   the same region of the same file (`chrome.yaml:32`, `:90`).
 - **Every cameo BAKES ITS NAME into the art — a production icon is not a blank canvas.** *(Promoted
   2026-09-04 from DISCOVERIES.)* 204 shipped icons are 64x48 and 40 are 60x48 against a 62x46 cell, and all
-  of them carry the unit's caption in art rows 41–46 (= cell rows 38–45), full width — which matches the
-  generator at `tools/cameo/convert.py:133-147` and was confirmed by decoding ten shipped files. An overlay
+  of them carry the unit's caption in art rows 41–46, its **ink** on art rows 42–46 (= cell rows 39–44 and
+  40–44 — corrected 2026-09-20 from "cell rows 38–45", which read `IconSpriteOffset` as an offset to the
+  sprite's top-left when it moves the sprite's CENTRE: a 48-row cameo in a 46-row cell starts at cell row
+  −2), full width — which matches the generator at `tools/cameo/convert.py:133-147` to within a row
+  (`convert.py` places a newly generated caption one row higher, on art rows 41–45) and was confirmed by
+  decoding ten shipped files. An overlay
   enumerating "corners nothing else claims" from the widget's own draw calls **misses the caption, because
   the caption is pixels in the `.shp` rather than a draw call**. Decode before placing anything;
   `WORKSPACE/mockups/buymenu_shp_dump.py` does it without launching.
@@ -1386,7 +2499,7 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   - **Two independent gates decide whether a line is visible, and they are easy to conflate.** Lines come from `IRenderAnnotationsWhenSelected`, which `WorldRenderer.cs:188-231` walks over `World.Selection.Actors` only (plus everything friendly while `ShowAllOrders` — spacebar — is held). *On top of that*, `DrawLineToTarget.ShouldRender` requires `Game.RunTime <= lifetime`, and `lifetime` is re-armed only by `LineTargetExts.ShowTargetLines` (called from order resolution) or by `INotifySelected.Selected` (`DrawLineToTarget.cs:63-75`). Consequence: **selecting a unit to find out where it is going buys exactly `Delay` ms of answer, then goes dark while the unit is still walking.** Most automatic sources never call `ShowTargetLines` at all — `AutoFollowAlly`, `Wanders` and `AutoCarryall` have zero references to it, though `AutoSeekSupplies` (`:203`, `:302`) and `AmmoPool` (`:604`, `:619`) do.
   - **"Automatic" is now a colour, and `AutomaticOrder.LineColor` is the whole vocabulary** (`engine/OpenRA.Mods.Common/AutomaticOrder.cs:43`, DodgerBlue `30,144,255`; predicate `IsAutomatic(Color)` at `:45-48`). One colour meaning "the GAME issued this", threaded through the existing `targetLineColor` parameter at **nine sites / sixteen usages** (`SeekSuppliesAndReturn`, `SeekSupplyProvider`, `AutoCrusher`, `AutoFollowAlly`, `Wanders`, `AttackBase:738`, `Mobile:946,956`, `ScaredyCat:164`, `StancePositioningExecutor:414`) rather than a provenance flag on `TargetLineNode`, which would have needed 29 call sites. `DrawLineToTarget.ShouldRender` (`:95`) exempts automatic nodes from the `Delay` timeout via `HasAutomaticNode` (`:103-116`) — load-bearing for one-cell corrections, where a line calibrated to confirm a player's own click would expire while the unit was still visibly moving. **The colour alone is not enough and nobody should "fix" it by adding a `ShowTargetLines()` call at the queueing site**: `lifetime` is never armed for a self-issued move, and `HasAutomaticNode` is what closes that.
   - **Do not cite the old "blue line means automatic" as precedent — it was `self.Owner.Color`**, the player's own colour (`AutoFollowAlly`, pre-`4a696e2c`). It looked blue only because that player was blue; a player who picked green got a line identical to `MobileInfo.TargetLineColor` (`Mobile.cs:80`, `Color.Green`) and one who picked red collided with `AttackBaseInfo.TargetLineColor` (`AttackBase.cs:28`, `Color.Crimson`). It carried no semantics whatsoever.
-  - **Provenance exists for attacks and does not exist for moves.** `AttackBase.cs:12` declares `enum AttackSource { Default, AutoTarget, AttackMove }`, with the predicate `AutoTarget.IsAutoAcquiredSource` (`AutoTarget.cs:1068`) and a consumer in `AttackBase.BreakOffApplies` (`:672`) — so provenance and colour already travel together down `GetAttackActivity(…, source, …, targetLineColor)`. There is no equivalent for movement: `Order` (`engine/OpenRA.Game/Network/Order.cs:60-73`) carries no provenance field, and `IMoveInfo.GetTargetLineColor()` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:607`) takes no arguments, so it physically cannot distinguish caller intent.
+  - **Provenance exists for attacks and does not exist for moves.** `Traits/Attack/AttackBase.cs:12` declares `enum AttackSource { Default, AutoTarget, AttackMove }`, with the predicate `AutoTarget.IsAutoAcquiredSource` (`AutoTarget.cs:1151-1154`, `source == AutoTarget || source == AttackMove`) and a consumer in `AttackBase.BreakOffApplies` (`:672`) — so provenance and colour already travel together down `GetAttackActivity(…, source, …, targetLineColor)`. There is no equivalent for movement: `Order` (`engine/OpenRA.Game/Network/Order.cs:60-73`) carries no provenance field, and `IMoveInfo.GetTargetLineColor()` (`engine/OpenRA.Game/Traits/TraitsInterfaces.cs:607`) takes no arguments, so it physically cannot distinguish caller intent.
 - **`LobbyOptionsLogic` picks its category from a hidden label and DEFAULTS TO `Advanced` when the label is missing — so a panel that forgets it shows only Advanced options.** `var categoryLabel = widget.GetOrNull<LabelWidget>("CATEGORY_FILTER"); category = categoryLabel?.Text ?? CategoryAdvanced;` (`LobbyOptionsLogic.cs:227-230`). **There are three categories, not two** — `Common`, `Advanced`, and a ww3mod-added `All` (`:64-66`) which renders Common flat and then Advanced (`:318-322`), deliberately suppressing the Common section headers (`:355`). Two chrome files declare the label, and **neither declares `Advanced`; it exists only as the fallback**: `engine/mods/common/chrome/lobby-players.yaml:878` (the pre-game lobby) reads **`All`**, and `mods/ww3mod/chrome/ingame-info-lobby-options.yaml` reads `Common`. The in-game panel wants `Common` rather than `All` precisely *because* `All` drops the Match/Economy/World headers it is there to show. The stock `engine/mods/common/chrome/ingame-info-lobby-options.yaml` still declares none, so any mod loading it unforked gets an Advanced-only Options tab, while every option that actually works (`fog`, `explored`, `startingcash`, `gamespeed`, `timelimit`, `startingunits`, `passiveincome`, `incomemodifier`, `bounty`, `separateteamspawns`, `cheats`, sync reports) is in `CommonOptionIds` (`:71-86`) and filtered out at `:326-328`. **Two further silent guards compound it:** `RenderAdvancedSections` skips any section that is entirely placeholders (`:379-380`, and the catch-all "Other" carries the same guard at `:391`), and `AddSectionHeader` silently no-ops when the panel has no `SECTION_HEADER_TEMPLATE` (`:225`, `:261-262`) — so a panel can be *fixed* into rendering options and still show them un-grouped. **Nothing in this chain reads `LocalPlayer` or `IsObserver`** (grep: zero hits), so an empty in-game Options tab is not a spectator bug however it is reported. *(Until 2026-08-30 the ww3mod in-game tab drew nothing at all: what survives the Advanced filter is `LobbyDummyOptions` (`mods/ww3mod/rules/world.yaml:443`), which stamps `Placeholder = true` on **every** option it yields including the Rules ones (`LobbyDummyOptions.cs:30-40`), and the only trait that could have produced a non-placeholder Advanced option, `PowersLobbyOptions`, is commented out at `world.yaml:555` — so all three Advanced sections were entirely placeholder and every one of them was skipped. Fixed by forking the panel mod-local with `Text: Common` plus the `SECTION_HEADER_TEMPLATE` the headers need. Read-only rendering needed no work — `GameInfoLogic.cs:172` passes `configurationDisabled: () => true`.)*
 - **The spectator branch of the stats panel shifts by the objective block's FULL height, unclamped — so margin added above it is re-eaten.** When `world.LocalPlayer` is null, `GameInfoStatsLogic.cs:120-127` hides `OBJECTIVE` and does `statsHeader.Bounds.Y -= objectiveGroup.Bounds.Height; playerPanel.Bounds.Y -= …` with no floor. That height is **75** (`engine/mods/common/chrome/ingame-infostats.yaml:6-7`), the header row's authored `Y` is **81** (`:31-33`), and the panel is pinned at `Y: 65` (`engine/mods/common/chrome/ingame-info.yaml:119-120`, mirrored at `mods/ww3mod/chrome/ingame-info.yaml:160-161`) while the tab strip occupies **Y 50→75** (`:38-42`, `Y: 50` + `Height: 25`). So a spectator's header box begins at `65 + (81 − 75) = 71` — **4px inside the tab strip**; it does not visibly collide only because `LabelWidget` centres text in its 25px box. For a player the same headers sit at `65 + 81 = 146` and are clear. **Consequence for anyone fixing "no margin under the tabs": moving the `Y: 65` pin is not sufficient — both have to change together.** Separately, that file's header row and data row are two coordinate systems that were never reconciled (Player header abs X 32 vs name X 51, the row reserving 29px for `Image@PROFILE` that the header does not; Faction header X 252 sits on the flag, not the text at X 286; Score header X 419 vs value X 414) and the string `Align` **appears zero times** in it, so numeric columns are left-aligned — while the observer panel next door uses `Align: Right` 45 times (`mods/ww3mod/chrome/ingame-observer.yaml:299`, `:308`, `:317`, …).
 - **`ImageWidget` draws sprites at native size.** `Width`/`Height` are layout-only; `Draw()` calls `WidgetUtils.DrawSprite(sprite, RenderOrigin)` and ignores widget bounds (`ImageWidget.cs:78-91`). To scale a sprite into its bounds use the opt-in `ScaleToBounds: True` (uniform, centered). **When you add a field to a widget, mirror it in the copy-constructor** (`ImageWidget.cs:61`) — template clones run through the copy-ctor and silently drop any field you forgot.
@@ -1406,3 +2519,40 @@ Engine widget behaviors that fail **silently** — each cost real debugging time
   - The same shape in `LabelWidget`: the template ctor builds `GetText = () => textCache.Update(Text)` (`:45`) and the copy-ctor does `GetText = other.GetText` (`:65`), so **cloning a label and setting `.Text` renders the template's text, silently**. `ColorBlockWidget.GetColor = widget.GetColor` (`:39`) is the third instance.
   - **Cloning is the most common cause but not the only one** — panel logic that assigns a delegate at runtime produces the same divergence without any clone involved.
   - **The detector, and the reason this is banked as a family:** if you set a widget property and nothing changes on screen, ask whether anything still *reads the field*. Assigning `Visible`/`Text`/`Color` is only meaningful while the matching delegate is still the constructor's default. **Assign the delegate, not the field** — `clone.IsVisible = () => clone.Visible` — or construct fresh instead of cloning.
+- **A missing chrome region is a CRASH, not a blank button — and a production tab needs THREE regions that
+  no lint asks for.** *(Promoted 2026-09-20 from DISCOVERIES.)* `ImageWidget.Draw` dereferences `GetSprite()`
+  with no null check (`ImageWidget.cs:80`) and `ChromeProvider.GetImage` returns null for an unknown region,
+  so a tab whose glyph is absent throws on the first frame the sidebar draws. **You cannot see the requirement
+  in the chrome YAML:** a `ProductionTypeButton`'s `Image@ICON` deliberately carries no `ImageName`, and
+  `ClassicProductionLogic` synthesises all three names from `ProductionGroup.ToLowerInvariant()` plus
+  `-disabled` / `-alert` (`Widgets/Logic/Ingame/ClassicProductionLogic.cs:80-91`), **overwriting anything
+  written in the YAML**. So adding a tab means adding three regions, and nothing checks for them.
+  *(The `production-icons` band's own 17px-pitch grid map — including which column is free — is documented
+  in place at `mods/ww3mod/chrome.yaml:175-186`, which is the temptation site; check there before commissioning
+  art for a new tab or order button.)*
+- **An existing font field on a widget means the widget CAN draw text; it does not mean it has a text slot
+  where you want one.** *(Promoted 2026-09-20 from DISCOVERIES.)* `SupportPowersWidget` and
+  `ProductionPaletteWidget` both carry `OverlayFont = "TinyBold"`, which reads like a caption facility already
+  shipped. It is not one: both draw READY / ON HOLD / a countdown **centred on the icon**, and
+  `SupportPowerInstance.IconOverlayTextOverride()` overrides that same centre slot. All of it is transient
+  status. A persistent caption belongs at the bottom edge, so it is a new draw in both widgets — what the
+  existing field buys you is the font, contrast and measurement machinery, which is what makes the addition
+  small.
+  - **A runtime caption has to REPLACE the baked one, not sit on it.** Every shipped cameo already has a
+    caption in exactly those pixels (see the bullet above), so drawing a second one there produces two
+    overlapping words — an early render came out `PA0.3 KTKE` — which no amount of positioning fixes, because
+    the two want the same rows. The feature therefore needs an opaque band (default off) to turn an overlay
+    into a replacement. **A "just draw text over the art" feature meets a wall wherever the art is not blank,
+    and cameo art is the case where it never is.**
+  - **The font size is arithmetic, not taste, and it is answerable offline.** The slot is `IconSize: 62, 46`
+    less a 1 px side margin = **60 px**, and `SpriteFont.LineWidth` sums glyph ADVANCES — so the budget is
+    measurable against the same TTF with no build and no launch. At TinyBold (FreeSansBold 10 px) five of the
+    sixteen shipped support-power captions overflow; at 7 px all sixteen fit, the longest landing on exactly
+    60. **Measure with `getlength` (advances), not `getbbox` (ink extents)** — the two disagree by several px
+    on a short string and the engine uses advances.
+  - **Before asking for a screenshot slot to judge a sidebar detail, check whether the asset format is simple
+    enough to compose the pixels offline.** For cameos it is: `mods/ww3mod/bits/misc/icons/*.shp` are ShpTS
+    format 1 — an 8-byte header, a 20-byte frame header whose last `u32` is the data offset, then raw indexed
+    bytes — and 34 lines of Python decodes one. `temperat.pal` is not on disk (it lives inside
+    `temperat.mix`), but a captioned overlay does not go through a palette at all: the widget draws it in
+    straight RGBA.

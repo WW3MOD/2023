@@ -15,6 +15,10 @@ sidebar; it is what you use when you cannot.
 
 The roster at the bottom is a hand copy of the Icon/CameoCaption/CameoBadge values in
 rules/powers.yaml. Nothing checks that it is still in step with them.
+
+Since 2026-09-20 it also composites the sidebar's own CELL FRAME over each slot, because that
+frame paints over the slot's last row and last column and leaving it out is what let this mockup
+show five glyph rows while the game showed four. See frame() and sprite_origin().
 """
 import io
 import os
@@ -31,16 +35,63 @@ SLOT_W, SLOT_H = 62, 46
 # Hand copy of the two palettes in chrome/ingame-player.yaml. Two rules ride on these numbers,
 # both enforced against the real chrome by CameoCaptionBandTest and by nothing at all here:
 #
-#   BOTTOM_MARGIN is 0 because the caption is BOTTOM-ANCHORED. The generated text's last ink row
+#   BOTTOM_MARGIN is 1 because the caption is BOTTOM-ANCHORED. The generated text's last ink row
 #   is SLOT_H - BOTTOM_MARGIN - 1, and it has to equal the row the baked lettering ends on, which
-#   is slot row 45 on every shipped cameo. At 2 -- what this shipped with -- the runtime text
-#   floated two rows above every baked caption beside it.
+#   is SLOT ROW 44 on every shipped cameo -- sprite rows 42-46 of a 48-row canvas that starts two
+#   rows above the slot, see SPRITE_CENTRE_OFFSET. It was 0 here until 2026-09-20, which put the
+#   caption's fifth glyph row on slot row 45, the one row of the slot nothing can draw on (see
+#   frame()). At 2 -- what the feature first shipped with -- the text floated clear of the art.
 #
 #   BAND_PAD must stay >= BOTTOM_MARGIN or the band stops short of the baked caption it is
-#   covering. That is free at margin 0 and stops being free if anyone raises the margin.
-SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 0, 2, 1
-SPRITE_OFFSET = (-1, -1)  # IconSpriteOffset in chrome/ingame-player.yaml
+#   covering.
+SIDE_MARGIN, BOTTOM_MARGIN, BAND_PAD, BADGE_GAP = 1, 1, 2, 1
+
+# IconSpriteOffset in chrome/ingame-player.yaml -- AND IT IS AN OFFSET TO THE SPRITE'S CENTRE, not
+# to its top-left. The widget hands DrawSpriteCentered `0.5 * IconSize + IconSpriteOffset` and that
+# subtracts half the SPRITE (WidgetUtils.cs:86-89), so the paste point depends on the cameo's own
+# size and cannot be a constant: see sprite_origin(). Pasting at (-1, -1) -- what this file did
+# until 2026-09-20 -- drew every 64x48 cameo one row and one column low, which is how the mockup
+# came to disagree with the game about which slot row the baked lettering sits on.
+SPRITE_CENTRE_OFFSET = (-1, -1)
 BAND = (0, 0, 0, 255)
+
+# uibits/sidebar.png, region `background-supportoverlay` at chrome.yaml:34. See frame().
+SIDEBAR_PNG = os.path.join(ROOT, "mods/ww3mod/uibits/sidebar.png")
+SUPPORT_OVERLAY_REGION = (12, 324, 12 + 64, 324 + 48)
+SUPPORT_OVERLAY_ORIGIN = (-2, -2)
+_FRAME = []
+
+
+def sprite_origin(cameo_size):
+    """Where the widget puts a cameo's top-left, in slot coordinates.
+
+    `0.5 * IconSize + IconSpriteOffset - 0.5 * spriteSize`. Both the slot and every shipped cameo
+    are even in each axis, so the halving is exact and Python's floor division agrees with C#'s.
+    For the shipped numbers: a 64x48 cameo lands at (-2, -2) and a 60x48 one at (0, -2).
+    """
+    return ((SLOT_W - cameo_size[0]) // 2 + SPRITE_CENTRE_OFFSET[0],
+            (SLOT_H - cameo_size[1]) // 2 + SPRITE_CENTRE_OFFSET[1])
+
+
+def frame():
+    """The cell frame the sidebar draws OVER each slot, or None if sidebar.png is unreadable.
+
+    This is not decoration and leaving it out is what made this mockup confidently wrong. The
+    `PALETTE_FOREGROUND` container in chrome/ingame-player.yaml is a SIBLING that comes after the
+    palette widget, so its image composites on top of everything the widget drew -- including the
+    caption. `background-supportoverlay` is 64x48 drawn at -2,-2, and its row 47 is 64 opaque
+    pixels of (29, 29, 29): exactly slot row 45. Its columns 0 and 63 cover slot columns -2 and 61
+    the same way. So the caption's bottom row is DRAWN AND THEN PAINTED OVER if it lands there.
+
+    The nato region is used unconditionally; `sidebar-brics` points the same name at 77,324,64,48
+    (chrome.yaml:92), which is the same shape one shade darker and makes no difference to a mockup.
+    """
+    if not _FRAME:
+        try:
+            _FRAME.append(Image.open(SIDEBAR_PNG).convert("RGBA").crop(SUPPORT_OVERLAY_REGION))
+        except OSError:
+            _FRAME.append(None)
+    return _FRAME[0]
 
 
 def find_palette():
@@ -164,7 +215,7 @@ def slot(cameo, caption, badge, font, line_h=7):
     """One 62x46 icon slot, drawn the way SupportPowersWidget draws it."""
     img = Image.new("RGBA", (SLOT_W, SLOT_H), (24, 26, 30, 255))
     if cameo is not None:
-        img.alpha_composite(cameo, SPRITE_OFFSET)
+        img.alpha_composite(cameo, sprite_origin(cameo.size))
     d = ImageDraw.Draw(img)
 
     reserved = badge.size[0] + BADGE_GAP if badge else 0
@@ -189,6 +240,12 @@ def slot(cameo, caption, badge, font, line_h=7):
         d.text((x, top), text, font=font, fill=(255, 255, 255, 255))
     if badge:
         img.alpha_composite(badge, (SLOT_W - SIDE_MARGIN - badge.size[0], bottom - badge.size[1]))
+
+    # LAST, because that is when the game draws it: everything above this line is the palette
+    # widget's own output and the frame is a later sibling.
+    overlay = frame()
+    if overlay is not None:
+        img.alpha_composite(overlay, SUPPORT_OVERLAY_ORIGIN)
     return img
 
 
@@ -217,7 +274,7 @@ def main():
         ("paranuke", "0.3 KT", True, "B61 0.3kt"),
         ("paranuke", "10 KT", True, "B61 10kt"),
         ("paranuke", "50 KT", True, "B61 50kt"),
-        ("cmissicon", "100 KT", True, "W76-1"),
+        ("cmissicon", "100 KT", True, "W76-1"),        # Trident II launch since 5b1773ef
         ("#", "RUSSIA  (powers.russia)", None, None),
         ("kinzhalicon", None, False, "Kinzhal conv"),
         ("ru9m729", "1 KT", True, "9M729"),
@@ -227,7 +284,7 @@ def main():
         ("#", "EVENT TIER  (powers.event -- sandbox only)", None, None),
         ("tacnuke", "20 KT", True, "Tactical"),
         ("v2bdgricon", "6x750 KT", True, "Sarmat"),
-        ("abombfake", "1.2 MT", True, "B83-1"),
+        ("abombfake", "1.2 MT", True, "B83-1"),        # B83 under an airframe since 5b1773ef
         ("highyieldnuke", "6 MT", True, "Strategic"),
         ("abomb", "50 MT", True, "TSAR 50MT"),
     ]
@@ -280,8 +337,8 @@ def main():
                 font=title, fill=(245, 245, 250, 255))
         combined.alpha_composite(big, (12, top))
         cd.text((12, top + big.height + 8),
-                "Actual size. * = cameo art that is wrong for its weapon and predates this branch "
-                "(W76-1 is a biohazard trefoil, B83-1 has a FAKE banner).",
+                "Actual size. Every power now draws its own picture; the roster below is a HAND "
+                "COPY and drifts -- prefer contact_sheet.py --powers, which reads powers.yaml.",
                 font=note, fill=(160, 162, 172, 255))
         combined.alpha_composite(sheet, (12, top + big.height + 24))
         combined.save(out)

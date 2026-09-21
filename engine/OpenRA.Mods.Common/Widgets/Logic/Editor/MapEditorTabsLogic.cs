@@ -39,6 +39,24 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			SetupTab("ACTORS_TAB", "ACTOR_WIDGETS", MenuType.Actors);
 			SetupTab("TOOLS_TAB", "TOOLS_WIDGETS", MenuType.Tools);
 			SetupTab("HISTORY_TAB", "HISTORY_WIDGETS", MenuType.History);
+
+			// WW3MOD: Test.EditorTool names a tool, and a tool that is selected but not SHOWING is
+			// the shape of a screenshot that photographs the wrong panel and reports success.
+			// MapToolsLogic selects the tool inside TOOLS_WIDGETS; this is what puts TOOLS_WIDGETS
+			// on screen, because tab visibility lives here and nowhere else
+			// (`container.IsVisible = () => menuType == tabType`).
+			//
+			// FOUND BY A CAPTURE, NOT BY READING: the first run of
+			// tools/autotest/screenshot-editor-zones.sh came back with both frames showing the
+			// TILES tab, because menuType defaults to Tiles and nothing moved it. The driver
+			// reported PASS -- every marker it checked was about the tool, and none was about the
+			// tab. lastSelectedTab is set too, so a selection appearing and clearing returns here
+			// rather than to Tiles.
+			if (TestMode.IsActive && !string.IsNullOrEmpty(TestMode.EditorTool))
+			{
+				menuType = lastSelectedTab = MenuType.Tools;
+				Log.Write("debug", "[TestMode] editor tab: Tools");
+			}
 		}
 
 		protected override void Dispose(bool disposing)

@@ -13,6 +13,35 @@
 -- for this file -- the reason the module reports for the launch is now `HighestAllowed` where it was
 -- `Retaliation`, and there are two new phases (E and F) asserting the cooldown lands and lifts.
 --
+-- UPDATED AGAIN FOR THE IMPACT-DEFERRED ESCALATION (2026-09-19). This file used to set
+-- `EscalationDelayTicks: -1` in rules.yaml, which restored the pre-2026-09-16 timing where a
+-- victim's level rose on the tick the enemy CLICKED. That override is gone and the scenario now
+-- runs the shipped path: the level rises at the first warhead's IMPACT plus
+-- NuclearExchangeInfo.EscalationDelayTicks (50 = 3.0 s), and the flight in between is however long
+-- the B61-12 takes -- the map diagonal plus ApproachMargin over the missile's Speed, and
+-- MissileDelay on top of that wherever the sandbox option is not dropping it. NO ASSERTION HERE
+-- WRITES THAT NUMBER DOWN, and none may: every phase from the launch onward is anchored on an
+-- OBSERVED event instead. (The one place it is quoted, FLIGHT_BUDGET_TICKS, is a watchdog no
+-- assertion reads -- and quoting it wrong is exactly what broke test-nuclear-exchange's first
+-- retiming on 2026-09-19.)
+--
+--   the explosion   Test.GetImpactEffectCount, snapshotted at the launch. It counts
+--                   CreateEffectWarhead impacts that passed the validity gates, and the B61's
+--                   Warhead@Fireball is one (weapons-nuclear-arsenal.yaml). Nothing else on this
+--                   map can detonate during the flight: no unit fires (^Combatant is HoldFire), the
+--                   warhead is aimed at empty ground, and the humvees are not killed until later.
+--   the escalation  Russia's 20 kt leaving `hidden`. That is SupportPowerInstance.Disabled going
+--                   false, i.e. the band condition reaching the power.
+--
+-- TWO ASSERTIONS COME OUT OF THAT PAIR, AND THEY ARE THE COVERAGE THIS FILE ADDS:
+--   (a) Russia's 20 kt stays HIDDEN on every tick between the launch and the explosion. This is
+--       the user's ruling stated as a test -- it goes RED the moment the escalation is applied at
+--       the click, which is exactly what the deleted override restored.
+--   (b) Russia's 20 kt is drawn within EscalationDelayTicks + a grant allowance of the explosion.
+--       It goes RED if the deferral never fires at all (a dropped pending record, an impact never
+--       reported) -- the failure mode (a) alone cannot see, because a level that never rises is
+--       also a level that never rises early.
+--
 -- WHY THE LAUNCH COUNT IS A BINDING AND NOT A BIN READ. A launch appears in the support power bin
 -- only as a band going `ready` -> `charging:`, which a side cooldown and a launch both produce — so "exactly once" is not a question the bin can answer.
 -- Test.GetBotNuclearState reads NuclearBotModule.LaunchCount, the count of orders the module
@@ -54,25 +83,56 @@ local COOLDOWN_TICKS = 300
 local ARMED_CHECK_TICK = 90                        -- release is at tick 10; 80 ticks of slack
 local HOLDING_CHECK_TICK = 280                     -- ~4 more evaluations of not firing
 local USA_FIRE_TICK = 300
--- THE RISE CROSSES A WORLD TRAIT, A PLAYER TRAIT AND A CONDITION; GrantRetryTicks is 30, so 80 is
--- well past the budget the engine gives itself.
---
--- AND 80 IS ALSO SHORTER THAN THE COOLDOWN, WHICH IS WHAT MAKES THE READING NON-VACUOUS. Checked at
--- review, 2026-09-15: a band that was never granted counts down its OWN constructed interval, which
--- rules.yaml sets to 300 here -- so at 80 ticks past the rise it would read `charging:220`, nowhere
--- near `ready`, and the check fails. (test-nuclear-ender-level had the opposite problem and had to
--- be retimed: its 60-tick cooldowns were SHORTER than its 65-tick check gap, so an ungranted band
--- had already reached zero by the check and four of its phases passed on nothing.)
-local LEVEL_HOLD_CHECK_TICK = USA_FIRE_TICK + 80
-local CUT_ARMY_TICK = 400
-local LAUNCH_CHECK_TICK = CUT_ARMY_TICK + EVALUATION_INTERVAL * (LOSING_STREAK_REQUIRED + 3)
--- THE EARLIEST THE BOT CAN FIRE IS t550 (three evaluations at 50 ticks after the cut at t400) and
--- the latest is LAUNCH_CHECK_TICK. So its cooldown runs out somewhere in t850..t1000, and these two
--- checks sit either side of that whole range rather than either side of one predicted tick.
-local COOLDOWN_CHECK_TICK = LAUNCH_CHECK_TICK + 30
-local RECOVER_CHECK_TICK = 1060
-local NO_SECOND_LAUNCH_TICK = 1160
-local BUDGET_TICK = NO_SECOND_LAUNCH_TICK + 100
+
+-- ---- THE DEFERRAL'S OWN CONSTANTS, RESTATED FROM THE ENGINE -----------------------------------
+-- NuclearExchangeInfo.EscalationDelayTicks. The SHIPPED value, deliberately not overridden in
+-- rules.yaml: a scenario that retuned it would stop measuring what a player sees.
+local ESCALATION_DELAY_TICKS = 50
+-- What the level rise is allowed to take ON TOP of the delay, and every term of it is named.
+-- NuclearExchangeInfo.GrantRetryTicks is 30, which is the budget ReconcileGrants gives the band
+-- condition to cross from the World actor to the Player actor; the engine's own note says a
+-- correct grant lands one or two ticks after the rise. 40 is that budget plus ten ticks for the
+-- one-tick skew between the ESTIMATED impact tick MissileStrikePower reports and the tick the
+-- warhead's CreateEffectWarhead actually runs on.
+local ESCALATION_SLACK_TICKS = 40
+-- How long the warhead is allowed to be in the air before this file calls it lost. The B61-12's
+-- flight on a 66x34 map is about 110 ticks: ceil((diagonal + 16c0) / Speed 900) = 102 plus the
+-- few ticks between the activity completing and the payload firing. MissileDelay DOES NOT APPLY
+-- HERE -- `PowersSandboxCheckboxEnabled: true` in rules.yaml makes SandboxRemovesLaunchDelay drop
+-- it (MissileStrikePower.cs:515, PowersLobbyOptions.cs:168), so the B61's 200 ticks of dead air are
+-- gone and the flight is the arc alone. (110 is the figure MEASURED in test-nuclear-exchange, which
+-- fires the same power on the same map size with the same sandbox setting; this scenario's own
+-- passing run did not print it.) 900 is eight times that and also covers the MissileDelay-restored
+-- case. IT IS A WATCHDOG, NOT A MEASUREMENT -- no assertion below reads it, and widening it cannot
+-- make a failing run pass.
+local FLIGHT_BUDGET_TICKS = 900
+-- Ticks between the victim's band being DRAWN and the reading that asserts it is also LOADED.
+-- BOUNDED AT BOTH ENDS, and the lower bound is different from the one this file used to carry.
+--   > 1    the anchor is the tick the band left `hidden`, which is the tick its condition arrived
+--          -- so all that is left is one ServicePendingReady pass. It is NOT anchored on the rise,
+--          which is what forced the old gap above GrantRetryTicks.
+--   < 300  rules.yaml's compressed side cooldown, and what keeps the `ready` reading NON-VACUOUS:
+--          SupportPowerInstance.Tick pins a disabled power's countdown to full every tick
+--          (SupportPowerManager.cs:399-401), so a band whose grant never armed it starts its OWN
+--          300-tick interval at the rise and would read `charging:288` here.
+local RISE_SETTLE_TICKS = 12
+
+-- Set from the OBSERVED rise, not written down. See onRise below; -1 means "not scheduled yet",
+-- which no tick can equal.
+local LEVEL_HOLD_CHECK_TICK = -1
+local CUT_ARMY_TICK = -1
+local LAUNCH_CHECK_TICK = -1
+-- THE EARLIEST THE BOT CAN FIRE is three evaluations at 50 ticks after the army cut and the latest
+-- is LAUNCH_CHECK_TICK, so its cooldown runs out somewhere in a 150-tick band; these two checks sit
+-- either side of that whole range rather than either side of one predicted tick. Every offset below
+-- is the one this file carried before the rise became an observation, so the reasoning in each
+-- phase is unchanged.
+local COOLDOWN_CHECK_TICK = -1
+local RECOVER_CHECK_TICK = -1
+local NO_SECOND_LAUNCH_TICK = -1
+-- HARD BACKSTOP, in absolute ticks, so the run cannot idle forever if the rise never arrives and
+-- the watch's own budgets are somehow not reached. Tightened to the rebased schedule by onRise.
+local BUDGET_TICK = USA_FIRE_TICK + FLIGHT_BUDGET_TICKS + 1200
 
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
@@ -83,6 +143,10 @@ WorldLoaded = function()
 	local notes = {}
 	local fireResult = "not-attempted"
 	local killed = 0
+
+	-- The escalation watch: nil until USA fires, then the record of one release order's journey
+	-- from the click to the victim's level rise. Fields are filled in as they are OBSERVED.
+	local watch = nil
 
 	local function fault(fmt, ...)
 		faults[#faults + 1] = string.format(fmt, ...)
@@ -156,6 +220,93 @@ WorldLoaded = function()
 		return true
 	end
 
+	-- ==== THE ESCALATION WATCH ====================================================================
+	-- Driven once per tick from the top of `step`, from the launch until the victim's band appears.
+	-- It owns assertions (a) and (b); see the file header for what each is worth.
+	--
+	-- RETURNS: nil while the warhead is still on its way, the TICK the band appeared on once the
+	-- escalation has landed, or -1 on a fault (the caller must then write the verdict and stop --
+	-- every reading after a broken escalation is about a match that never reached the state under
+	-- test).
+	local function pollWatch()
+		local drawn = Test.GetSupportPowerState(Russia, RU_20KT) ~= "hidden"
+
+		if watch.impactTick == nil then
+			-- ---- (a) THE LEVEL MUST NOT RISE BEFORE THE EXPLOSION. -------------------------------
+			if drawn then
+				fault("RUSSIA WAS ESCALATED AT THE LAUNCH, NOT AT THE DETONATION. Its %s left"
+					.. " `hidden` at t%d, %d ticks after USA pressed the button at t%d and BEFORE"
+					.. " any warhead impact had been counted (Test.GetImpactEffectCount is still"
+					.. " %d). The 2026-09-16 user ruling is that the level-up lands with the"
+					.. " explosion -- \"we see the correlation between the explosion, and after"
+					.. " only a few seconds perhaps we get the message of escalation\" --"
+					.. " so NuclearExchange.ReportNuclearRelease must RECORD the escalation and"
+					.. " ServicePendingEscalations must apply it at the first impact plus"
+					.. " EscalationDelayTicks. This reading is what a negative"
+					.. " EscalationDelayTicks, or a lost deferral, looks like",
+					RU_20KT, tick, tick - watch.orderTick, watch.orderTick, watch.effects0)
+				return -1
+			end
+
+			if Test.GetImpactEffectCount() > watch.effects0 then
+				watch.impactTick = tick
+				return nil
+			end
+
+			if tick - watch.orderTick > FLIGHT_BUDGET_TICKS then
+				fault("NO WARHEAD EVER DETONATED. USA's %s was issued at t%d and"
+					.. " Test.GetImpactEffectCount has not moved off %d in %d ticks, against a"
+					.. " B61-12 flight of about 110 on this map. The warhead never left"
+					.. " (MissileStrikePower.Activate bailed), never arrived, or its"
+					.. " CreateEffectWarhead impact was discarded at the validity gates. Nothing"
+					.. " below is evidence either way",
+					USA_1KT, watch.orderTick, watch.effects0, tick - watch.orderTick)
+				return -1
+			end
+
+			return nil
+		end
+
+		-- ---- (b) AND IT MUST RISE SHORTLY AFTER IT. ---------------------------------------------
+		if drawn then
+			watch.riseTick = tick
+			return tick
+		end
+
+		if tick > watch.impactTick + ESCALATION_DELAY_TICKS + ESCALATION_SLACK_TICKS then
+			fault("THE DEFERRED ESCALATION NEVER FIRED. USA's warhead detonated at t%d"
+				.. " (Test.GetImpactEffectCount moved off %d) and Russia's %s is STILL %q at t%d,"
+				.. " %d ticks later, against an EscalationDelayTicks of %d plus a %d-tick grant"
+				.. " allowance. The pending record was dropped, no impact was reported for it"
+				.. " (MissileStrikePower -> NuclearExchange.NotifyNuclearImpact), or the rise"
+				.. " reached the state and not the condition layer. CHECK debug.log FOR"
+				.. " `NUCLEAR ESCALATION`: a launch line saying \"escalation deferred to impact +\""
+				.. " with no matching landing line is the pending record going missing",
+				watch.impactTick, watch.effects0, RU_20KT,
+				Test.GetSupportPowerState(Russia, RU_20KT), tick, tick - watch.impactTick,
+				ESCALATION_DELAY_TICKS, ESCALATION_SLACK_TICKS)
+			return -1
+		end
+
+		return nil
+	end
+
+	-- Hang the rest of the schedule off the OBSERVED rise. Every offset is the one this file used
+	-- before the rise became an observation; only the anchor changed.
+	local function onRise(riseTick)
+		LEVEL_HOLD_CHECK_TICK = riseTick + RISE_SETTLE_TICKS
+		CUT_ARMY_TICK = LEVEL_HOLD_CHECK_TICK + 20
+		LAUNCH_CHECK_TICK = CUT_ARMY_TICK + EVALUATION_INTERVAL * (LOSING_STREAK_REQUIRED + 3)
+		COOLDOWN_CHECK_TICK = LAUNCH_CHECK_TICK + 30
+		RECOVER_CHECK_TICK = CUT_ARMY_TICK + 660
+		NO_SECOND_LAUNCH_TICK = CUT_ARMY_TICK + 760
+		BUDGET_TICK = NO_SECOND_LAUNCH_TICK + 100
+
+		note(true, "escalation landed at t%d: fired t%d, detonated t%d (+%d), level rose t%d (+%d)",
+			riseTick, watch.orderTick, watch.impactTick, watch.impactTick - watch.orderTick,
+			riseTick, riseTick - watch.impactTick)
+	end
+
 	local function verdict()
 		local summary = string.format(
 			"usa-fire=%q | killed=%d | bot=%s | Russia 1kt=%s 20kt=%s | %s",
@@ -175,6 +326,21 @@ WorldLoaded = function()
 
 	step = function()
 		tick = tick + 1
+
+		-- ---- THE WATCH RUNS FIRST, EVERY TICK, from the launch until the level rises. It is the
+		-- only thing in this file that reads a tick it did not choose, and phases B2 onward do not
+		-- exist until it says so.
+		if watch ~= nil and watch.riseTick == nil then
+			local risen = pollWatch()
+			if risen == -1 then
+				verdict()
+				return
+			end
+
+			if risen ~= nil then
+				onRise(risen)
+			end
+		end
 
 		-- ---- PHASE A. RELEASED, ARMED, AND NOT LOSING. Both sides hold the 1 kt band permanently
 		-- and the bot's reads `ready`, so the zero launch below is a DECISION rather than an empty
@@ -219,9 +385,15 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE B. USA fires the smallest warhead in the mod at empty ground. This raises
-		-- Russia's LEVEL to 2, permanently, and costs USA its own arsenal for a cooldown.
+		-- ---- PHASE B. USA fires the smallest warhead in the mod at empty ground. This costs USA
+		-- its own arsenal for a cooldown IMMEDIATELY -- availability is settled when the button is
+		-- pressed -- and raises Russia's LEVEL to 2 permanently WHEN THE WARHEAD LANDS.
+		--
+		-- THE BASELINE FOR THE WATCH IS TAKEN HERE AND NOT A TICK EARLIER OR LATER. A snapshot of
+		-- Test.GetImpactEffectCount on the order tick is what makes "the count moved" mean "THIS
+		-- warhead detonated" rather than "some warhead has detonated at some point this run".
 		if tick == USA_FIRE_TICK then
+			local effects0 = Test.GetImpactEffectCount()
 			fireResult = Test.ActivateSupportPower(USA, USA_1KT, CPos.New(AIM_X, AIM_Y))
 			if fireResult ~= "issued" then
 				fault("USA could not fire %s: %q. Russia never reaches level 2 without it, so every reading"
@@ -230,6 +402,17 @@ WorldLoaded = function()
 				verdict()
 				return
 			end
+
+			if Test.GetSupportPowerState(Russia, RU_20KT) ~= "hidden" then
+				fault("Russia's %s was already drawn at t%d, BEFORE USA fired anything. The"
+					.. " no-early-escalation reading below can only mean something if the band"
+					.. " starts dark -- check the release gate did not hand out level 2",
+					RU_20KT, tick)
+				verdict()
+				return
+			end
+
+			watch = { orderTick = tick, effects0 = effects0, impactTick = nil, riseTick = nil }
 
 			Trigger.AfterDelay(1, step)
 			return
@@ -245,18 +428,27 @@ WorldLoaded = function()
 		-- window expired, so a bot that held through one could be a bot that simply had not got
 		-- round to firing. A level does not expire: this bot can take the 20 kt at any point for the
 		-- rest of the match and declines every time it is asked.
+		--
+		-- AND IT IS STRONGER AGAIN SINCE THE ESCALATION WAS DEFERRED TO THE IMPACT. The bot now
+		-- spends the WHOLE FLIGHT -- about 110 ticks, two evaluations -- holding a loaded 1 kt it
+		-- may fire and knowing a warhead is inbound, and then declines the 20 kt as well.
 		if tick == LEVEL_HOLD_CHECK_TICK then
 			local ok = expectPower(Russia, "Russia", RU_20KT, "ready",
-				"being hit by 1 kt must raise Russia ONE BAND UP, ready immediately -- Russia did"
-				.. " not fire, so Russia is on no cooldown. `hidden` means the level never rose --"
-				.. " and then the no-launch reading below is measuring nothing")
+				string.format("being hit by 1 kt must raise Russia ONE BAND UP, and the band must be"
+					.. " LOADED as well as drawn -- Russia did not fire, so Russia is on no"
+					.. " cooldown and MakeBandsReady owes it a zeroed timer. `charging:` here is a"
+					.. " grant that reached the CONDITION layer and not the timer: the band left"
+					.. " `hidden` at t%d and SupportPowerInstance.Tick has been running its own"
+					.. " 300-tick constructed interval down ever since, which is why this is read"
+					.. " only %d ticks later and not a hundred", watch.riseTick, RISE_SETTLE_TICKS))
 
 			ok = expectLaunches(0,
 				"THE BOT TOOK AN ESCALATION IT HAD NO REASON TO TAKE. It is still at 100 %"
 				.. " of USA's army value and its Supply Route is uncontested; the level grants"
 				.. " permission and the policy needs a REASON") and ok
 
-			note(ok, "escalated-and-holding ok at t%d (USA fired t%d)", tick, USA_FIRE_TICK)
+			note(ok, "escalated-and-holding ok at t%d (USA fired t%d, detonated t%d)",
+				tick, USA_FIRE_TICK, watch.impactTick)
 			Trigger.AfterDelay(1, step)
 			return
 		end

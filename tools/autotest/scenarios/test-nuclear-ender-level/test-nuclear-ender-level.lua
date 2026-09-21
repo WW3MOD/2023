@@ -18,6 +18,33 @@
 -- predicate SupportPowersWidget filters its icon list on (SupportPowersWidget.cs:136), so `ready`
 -- here means a cameo the player would see and could click.
 --
+-- UPDATED AGAIN FOR THE IMPACT-DEFERRED ESCALATION (2026-09-19). This file used to set
+-- `EscalationDelayTicks: -1` in rules.yaml, the escape hatch that restores the pre-2026-09-16
+-- timing where a victim's level rose on the tick the enemy CLICKED. It was set because the phase
+-- schedule below was a column of constants that fired and then read a level 40 ticks later, and
+-- the shipped rise lands a whole missile flight after the click. THE OVERRIDE IS GONE AND THE
+-- CONSTANTS ARE GONE WITH IT: every phase from the first launch onward hangs off an OBSERVED
+-- event, so this file has no opinion about how long a B61, an Iskander or a Kalibr takes to
+-- arrive -- which is what let those constants be wrong in the first place.
+--
+-- THE TWO OBSERVATIONS, per launch:
+--   the explosion   Test.GetImpactEffectCount, snapshotted on the order tick. It counts
+--                   CreateEffectWarhead impacts that passed the validity gates, and every warhead
+--                   in the arsenal carries exactly one such warhead (Warhead@Fireball). Nothing
+--                   else on this map can detonate: no unit exists but two Supply Routes, nothing
+--                   fires, and the aim point is empty ground.
+--   the escalation  the victim's newly granted band leaving `hidden`, which is
+--                   SupportPowerInstance.Disabled going false.
+--
+-- AND TWO ASSERTIONS COME OUT OF THE PAIR, ON EVERY ONE OF THE FIVE LAUNCHES:
+--   (a) the band stays HIDDEN on every tick between the launch and the explosion. RED the instant
+--       an escalation is applied at the click -- which is what the deleted override restored, and
+--       what the whole 2026-09-16 ruling is about.
+--   (b) the band is drawn within EscalationDelayTicks + a grant allowance of that explosion. RED
+--       if the deferral never fires -- a dropped pending record, an impact never reported by
+--       MissileStrikePower. (a) cannot see that: a level that never rises never rises early
+--       either.
+--
 -- AND ONE READING IS NOT A BIN READ, DELIBERATELY. Phase G calls Test.ActivateSupportPower, which
 -- goes through the real order path (SupportPowerManager.ResolveOrder). A drawn cameo and an
 -- accepted order are different claims and the user made both: "I should be able to choose the game
@@ -26,9 +53,10 @@
 -- WHAT THIS DELIBERATELY DOES NOT MEASURE:
 --   * THE SIDE COOLDOWN AS A GATE. test-nuclear-exchange's subject, and it asserts the top rung's
 --     half of it directly (a game-ender DRAWN and NOT FIREABLE inside its side's cooldown). Here
---     the cooldowns are compressed to 60 ticks and every launch is ~90 ticks after the previous one
---     by the SAME side, so nothing below is near an edge. This file is about WHAT the top rung
---     grants and to WHOM.
+--     the cooldowns are compressed to 60 ticks and every launch is now a whole missile flight
+--     after the previous one by the SAME side, so nothing below is near an edge. Phase G2 is the
+--     one exception and it is read off the LAUNCH, where a 60-tick cooldown is still running.
+--     This file is about WHAT the top rung grants and to WHOM.
 --   * The release gate's countdown. NuclearReleaseLadderTest pins it without a world.
 --   * THE ENDING ITSELF. Firing a game-ender calls DoomsdayStrike.BeginFinalExchange, which returns
 --     immediately in a TestMode session unless RunInTestMode is set (DoomsdayStrike.cs:458-459) and
@@ -46,7 +74,7 @@
 local USA_1KT    = "B61LowStrike"       -- 300 t     band 1  Kiloton
 local USA_50KT   = "B61MaxStrike"       -- 50000 t   band 3  FiftyKiloton
 local USA_100KT  = "W76Strike"          -- 100000 t  band 4  HundredKiloton
-local USA_ENDER  = "B83Strike"          -- 1200000 t band 5  GameEnder, powers.event + player.america
+local USA_ENDER  = "TridentStrike"      -- 455000 t band 5  GameEnder, powers.event + player.america
 local RU_20KT    = "RuIskanderStrike"   -- 10000 t   band 2  TwentyKiloton
 local RU_100KT   = "RuKalibrStrike"     -- 100000 t  band 4  HundredKiloton
 local RU_ENDER   = "SarmatStrike"       -- 750000 t  band 5  GameEnder, powers.event + player.russia
@@ -89,48 +117,72 @@ local TACNUKE    = "TacNukeStrike"       -- 20000 t  band 2  TwentyKiloton, powe
 -- Empty ground, far from both Supply Routes. See map.yaml.
 local AIM_X, AIM_Y = 32, 8
 
--- Phase boundaries, in ticks from t=0. Every one is "well after the thing it waits for", never a
--- measurement of when that thing happened. NuclearExchangeInfo.GrantRetryTicks is 30, so 65 ticks
--- between a launch and the check that reads its grant is twice the budget the engine gives itself.
+-- ---- THE DEFERRAL'S OWN CONSTANTS, RESTATED FROM THE ENGINE -----------------------------------
+-- NuclearExchangeInfo.EscalationDelayTicks, the SHIPPED value. Deliberately not overridden in
+-- rules.yaml: a scenario that retuned it would stop measuring what a player sees.
+local ESCALATION_DELAY_TICKS = 50
+-- What the rise is allowed to take ON TOP of the delay. NuclearExchangeInfo.GrantRetryTicks is 30
+-- -- the budget ReconcileGrants gives the band condition to cross from the World actor to the
+-- Player actor -- plus ten ticks for the skew between the ESTIMATED impact tick MissileStrikePower
+-- reports and the tick the warhead's CreateEffectWarhead actually runs on.
+local ESCALATION_SLACK_TICKS = 40
+-- WATCHDOG, NOT A MEASUREMENT. The slowest warhead this file fires is the Kalibr: MissileDelay 400
+-- plus ceil((diagonal + 16c0) / Speed 450) ~= 605 ticks on a 66x34 map. 1200 is twice that. No
+-- assertion reads it and widening it cannot turn a red run green.
+local FLIGHT_BUDGET_TICKS = 1200
+
+-- ==== EVERY CHECK IS 12 TICKS AFTER THE BAND APPEARS, AND THAT NUMBER IS AN ASSERTION ====
+-- IT IS NOT THE OLD "rise + 40", and the difference is the anchor rather than the number. Until
+-- 2026-09-19 the anchor was a CONSTANT chosen to sit 40 ticks past a rise this file predicted; it
+-- is now the tick the band was SEEN to leave `hidden`. Both bounds move with it:
+--     > 1    the band leaving `hidden` IS its condition arriving, so the only thing still owed is
+--            one ServicePendingReady pass. The old lower bound of 30 (GrantRetryTicks) existed
+--            because the old anchor was the rise, BEFORE the condition had crossed. 12 is a dozen
+--            times the one tick that remains.
+--     < 60   rules.yaml's compressed side cooldown, and the bound that keeps every `ready` below
+--            NON-VACUOUS. SupportPowerInstance.Tick pins a DISABLED power's countdown back to full
+--            on every tick (SupportPowerManager.cs:399-401), so a band whose grant reached the
+--            CONDITION layer and never reached MakeBandsReady starts its own 60-tick interval
+--            running at the rise -- and would read `charging:48` here. The 2026-09-15 review found
+--            four phases of this file vacuous at rise+65 for exactly that reason; 12 restores the
+--            margin with room to spare rather than merely squeaking under 60.
+local RISE_SETTLE_TICKS = 12
 --
--- ==== EVERY CHECK IS 40 TICKS AFTER THE RISE IT READS, AND THAT NUMBER IS AN ASSERTION ====
--- RETIMED 2026-09-15 AFTER REVIEW, which found the previous gap of 65 made four of these phases
--- VACUOUS. rules.yaml compresses the cooldowns to 60, so a band that was never granted at all --
--- one left counting down its own constructed interval -- would have reached zero by rise+65 and
--- read `ready` anyway. The run would go green over a completely broken grant path, and the only
--- reason it did not on 2026-09-15 is that the TOP rung fails differently (`hidden`, because
--- `powers.event` is never Permitted without the override). The lower three rungs passed on nothing.
---
--- 40 IS BOUNDED AT BOTH ENDS AND NEITHER BOUND IS SLACK:
---     > 30  NuclearExchangeInfo.GrantRetryTicks. A correct grant lands on the tick after the rise;
---           30 is the budget it is allowed, so a check inside it could fail a working build.
---     < 60  the compressed cooldown. A band charging from scratch still has ~20 ticks left here, so
---           it reads `charging:20` and the check FAILS -- which is what makes every `ready` below
---           evidence that the grant ran rather than evidence that enough time passed.
---
--- EVERY LAUNCH BY ONE SIDE IS STILL >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so the cooldown
--- never blocks a scripted shot: USA fires at 80, 220 and 360; Russia at 150 and 290. And every
--- RECIPIENT is off cooldown at the moment it is escalated (USA's ends at 140/280, Russia's at
--- 210/350, each before the rise that follows it), so every check below reads the cooldown-ZERO case:
--- granted means READY, full stop.
+-- AND EVERY RECIPIENT IS OFF COOLDOWN WHEN IT IS ESCALATED, so every check below still reads the
+-- cooldown-ZERO case: granted means READY, full stop. That is now true by a much wider margin than
+-- it was -- each launch is a full missile flight (257..605 ticks) after the previous one, against
+-- a 60-tick cooldown -- rather than by the 140-tick spacing the old constants arranged by hand.
 local RELEASE_CHECK_TICK = 60
-local L1_TICK            = 80    -- USA  band 1  -> RU  level 2   (USA cooldown to 140)
-local L2_CHECK_TICK      = 120   -- rise + 40
-local L2_TICK            = 150   -- RU   band 2  -> USA level 3   (RU  cooldown to 210)
-local L3_CHECK_TICK      = 190   -- rise + 40
-local L3_TICK            = 220   -- USA  band 3  -> RU  level 4   (USA cooldown to 280)
-local L4_CHECK_TICK      = 260   -- rise + 40
-local L4_TICK            = 290   -- RU   band 4  -> USA level 5 = GameEnder  (RU cooldown to 350)
-local END_CHECK_TICK     = 330   -- rise + 40  <<< THE ASSERTION THE USER'S BUG IS
-local L5_TICK            = 360   -- USA  band 4 (its own level 5 allows it) -> RU level 5
-local END2_CHECK_TICK    = 400   -- rise + 40: RUSSIA's ender, on a side that owes nothing
--- THE RATCHET CHECK IS DELIBERATELY NOT AT rise + 40. USA fired at t360 and owes 60 ticks, so its
--- own ender is legitimately CHARGING until t420 -- asserting `ready` at 400 would be asserting the
--- cooldown does not apply to the firer. Reading it at 440 says two things at once: the level did
--- not fall, AND the cameo came back on the side cooldown like every other band.
-local RATCHET_CHECK_TICK = 440
-local FIRE_ENDER_TICK    = 450
-local BUDGET_TICK        = 560
+local L1_TICK            = 80    -- USA band 1 -> RU level 2. The one tick this file still chooses.
+
+-- Every boundary below is SET FROM AN OBSERVATION, never written down; -1 is "not scheduled yet",
+-- which no tick can equal. The ladder they drive is unchanged:
+--     L2  RU  band 2 -> USA level 3        L3  USA band 3 -> RU  level 4
+--     L4  RU  band 4 -> USA level 5 = END  L5  USA band 4 -> RU  level 5
+local L2_CHECK_TICK      = -1    -- rise 1 + 12
+local L2_TICK            = -1
+local L3_CHECK_TICK      = -1    -- rise 2 + 12
+local L3_TICK            = -1
+local L4_CHECK_TICK      = -1    -- rise 3 + 12
+local L4_TICK            = -1
+local END_CHECK_TICK     = -1    -- rise 4 + 12  <<< THE ASSERTION THE USER'S BUG IS
+local L5_TICK            = -1
+-- THE FIRER'S OWN COOLDOWN IS READ OFF THE LAUNCH, NOT OFF A RISE, and that is the honest anchor
+-- for it: "firing costs the firer its whole arsenal" is settled the instant the button is pressed
+-- and has nothing to do with when the warhead lands. 40 is inside the 60-tick cooldown (so the
+-- reading is `charging:20`) and past GrantRetryTicks. It used to be folded into phase H, which
+-- read at rise+40 back when a rise was 40 ticks after the launch; with the rise now a flight away
+-- that phase would have found the cooldown long expired and asserted nothing.
+local FIRER_COOLDOWN_TICK = -1   -- L5 + 40
+-- AND THE RATCHET IS READ ONCE THAT COOLDOWN HAS RUN OUT: 80 > 60, so `ready` here says two things
+-- at once -- USA did not lose its END level by firing, AND its ender came back on the SIDE
+-- cooldown like every other band rather than on one of its own.
+local RATCHET_CHECK_TICK = -1    -- L5 + 80
+local END2_CHECK_TICK    = -1    -- rise 5 + 12: RUSSIA's ender, on a side that owes nothing
+local FIRE_ENDER_TICK    = -1
+-- HARD BACKSTOP in absolute ticks, so a run whose watches all somehow resolve but whose phases do
+-- not can still reach a verdict. The five flights total about 2300 ticks; this is well past that.
+local BUDGET_TICK        = 4000
 
 WorldLoaded = function()
 	local USA = Player.GetPlayer("USA")
@@ -179,9 +231,21 @@ WorldLoaded = function()
 		return true
 	end
 
+	-- ==== THE ESCALATION WATCH ====================================================================
+	-- One record per release order, from the click to the victim's level rise. `sentinel` is the
+	-- band the rise must GRANT -- chosen per launch so that a failure names the rung rather than
+	-- timing out anonymously; see each launch site.
+	local watch = nil
+	local risesSeen = 0
+
 	-- Fire, and treat anything but "issued" as fatal to everything downstream. A climb that stalls
 	-- at rung N makes every later reading meaningless rather than merely wrong, so say so.
-	local function launch(player, who, key, why)
+	--
+	-- ARMS THE WATCH ON THE SAME TICK, and the order matters: the impact-effect baseline is taken
+	-- BEFORE the order is issued, which is what makes "the count moved" mean "THIS warhead
+	-- detonated" and not "some warhead has detonated at some point this run".
+	local function launch(player, who, key, why, victim, victimWho, sentinel)
+		local effects0 = Test.GetImpactEffectCount()
 		local result = Test.ActivateSupportPower(player, key, CPos.New(AIM_X, AIM_Y))
 		if result ~= "issued" then
 			fault("%s could not fire %s: %q. %s Nothing after this point is evidence either way",
@@ -189,7 +253,81 @@ WorldLoaded = function()
 			return false
 		end
 
+		if state(victim, sentinel) ~= "hidden" then
+			fault("%s's %s was already drawn at t%d, BEFORE %s fired. The no-early-escalation"
+				.. " reading for this launch can only mean something if the band starts dark",
+				victimWho, sentinel, tick, who)
+			return false
+		end
+
+		watch = {
+			orderTick = tick, effects0 = effects0, impactTick = nil, riseTick = nil,
+			firer = who, firedKey = key,
+			victim = victim, victimWho = victimWho, sentinel = sentinel,
+		}
+
 		return true
+	end
+
+	-- Drive the watch one tick. nil while the warhead is still on its way, the TICK the sentinel
+	-- band appeared on once the escalation has landed, or -1 on a fault.
+	local function pollWatch()
+		local w = watch
+		local drawn = state(w.victim, w.sentinel) ~= "hidden"
+
+		if w.impactTick == nil then
+			-- ---- (a) THE LEVEL MUST NOT RISE BEFORE THE EXPLOSION. -------------------------------
+			if drawn then
+				fault("%s WAS ESCALATED AT THE LAUNCH, NOT AT THE DETONATION. Its %s left `hidden`"
+					.. " at t%d, %d ticks after %s fired %s at t%d and BEFORE any warhead impact"
+					.. " had been counted (Test.GetImpactEffectCount is still %d). The 2026-09-16"
+					.. " user ruling is that the level-up lands with the explosion, so"
+					.. " NuclearExchange.ReportNuclearRelease must RECORD the escalation and"
+					.. " ServicePendingEscalations must apply it at the first impact plus"
+					.. " EscalationDelayTicks. This is what a negative EscalationDelayTicks, or a"
+					.. " deferral that was never wired, looks like",
+					w.victimWho, w.sentinel, tick, tick - w.orderTick, w.firer, w.firedKey,
+					w.orderTick, w.effects0)
+				return -1
+			end
+
+			if Test.GetImpactEffectCount() > w.effects0 then
+				w.impactTick = tick
+				return nil
+			end
+
+			if tick - w.orderTick > FLIGHT_BUDGET_TICKS then
+				fault("NO WARHEAD EVER DETONATED. %s's %s was issued at t%d and"
+					.. " Test.GetImpactEffectCount has not moved off %d in %d ticks. The warhead"
+					.. " never left (MissileStrikePower.Activate bailed), never arrived, or its"
+					.. " CreateEffectWarhead impact was discarded at the validity gates",
+					w.firer, w.firedKey, w.orderTick, w.effects0, tick - w.orderTick)
+				return -1
+			end
+
+			return nil
+		end
+
+		-- ---- (b) AND IT MUST RISE SHORTLY AFTER IT. ---------------------------------------------
+		if drawn then
+			w.riseTick = tick
+			return tick
+		end
+
+		if tick > w.impactTick + ESCALATION_DELAY_TICKS + ESCALATION_SLACK_TICKS then
+			fault("THE DEFERRED ESCALATION NEVER FIRED. %s's warhead detonated at t%d and %s's %s"
+				.. " is STILL %q at t%d, %d ticks later, against an EscalationDelayTicks of %d plus"
+				.. " a %d-tick grant allowance. The pending record was dropped, no impact was"
+				.. " reported for it (MissileStrikePower -> NuclearExchange.NotifyNuclearImpact),"
+				.. " or the rise reached the state and not the condition layer. CHECK debug.log FOR"
+				.. " `NUCLEAR ESCALATION`: a launch line saying \"escalation deferred to impact +\""
+				.. " with no matching landing line is the pending record going missing",
+				w.firer, w.impactTick, w.victimWho, w.sentinel, state(w.victim, w.sentinel), tick,
+				tick - w.impactTick, ESCALATION_DELAY_TICKS, ESCALATION_SLACK_TICKS)
+			return -1
+		end
+
+		return nil
 	end
 
 	local function verdict()
@@ -222,6 +360,37 @@ WorldLoaded = function()
 	step = function()
 		tick = tick + 1
 
+		-- ---- THE WATCH RUNS FIRST, EVERY TICK, from each launch until the level it caused rises.
+		-- It is the only thing in this file that reads a tick it did not choose, and it is what
+		-- schedules the check phase that follows each launch. See the file header for (a) and (b).
+		if watch ~= nil and watch.riseTick == nil then
+			local risen = pollWatch()
+			if risen == -1 then
+				verdict()
+				return
+			end
+
+			if risen ~= nil then
+				risesSeen = risesSeen + 1
+				note(true, "L%d landed: fired t%d, detonated t%d (+%d), %s's %s drawn t%d (+%d)",
+					risesSeen, watch.orderTick, watch.impactTick,
+					watch.impactTick - watch.orderTick, watch.victimWho, watch.sentinel,
+					risen, risen - watch.impactTick)
+
+				if risesSeen == 1 then
+					L2_CHECK_TICK = risen + RISE_SETTLE_TICKS
+				elseif risesSeen == 2 then
+					L3_CHECK_TICK = risen + RISE_SETTLE_TICKS
+				elseif risesSeen == 3 then
+					L4_CHECK_TICK = risen + RISE_SETTLE_TICKS
+				elseif risesSeen == 4 then
+					END_CHECK_TICK = risen + RISE_SETTLE_TICKS
+				else
+					END2_CHECK_TICK = risen + RISE_SETTLE_TICKS
+				end
+			end
+		end
+
 		-- ---- PHASE A. THE BASELINE, and it is what makes every later `ready` mean something.
 		-- Release hands both sides the 1 kt band and nothing else. If a game-ender were already
 		-- readable here, the whole climb below would be measuring nothing.
@@ -250,9 +419,11 @@ WorldLoaded = function()
 			return
 		end
 
-		-- ---- PHASE B. L1: USA fires 1 kt. Raises Russia to level 2.
+		-- ---- PHASE B. L1: USA fires 1 kt. Raises Russia to level 2 WHEN IT LANDS.
+		-- SENTINEL RU_20KT: the one band this rise grants, so a watch timeout names the rung.
 		if tick == L1_TICK then
-			if not launch(USA, "USA", USA_1KT, "This is rung 1 of 4 and the shot release just handed it.") then
+			if not launch(USA, "USA", USA_1KT, "This is rung 1 of 4 and the shot release just handed it.",
+				Russia, "Russia", RU_20KT) then
 				verdict()
 				return
 			end
@@ -280,12 +451,16 @@ WorldLoaded = function()
 				.. " ready, the override reached a band below the top") and ok
 
 			note(ok, "level-2 ok at t%d", tick)
+			L2_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
+		-- SENTINEL USA_50KT: USA goes from level 1 to level 3, so bands 2 and 3 are both new and
+		-- either would do; the 50 kt is the one phase D reads.
 		if tick == L2_TICK then
-			if not launch(Russia, "Russia", RU_20KT, "Rung 2 of 4, fired from the level L1 opened.") then
+			if not launch(Russia, "Russia", RU_20KT, "Rung 2 of 4, fired from the level L1 opened.",
+				USA, "USA", USA_50KT) then
 				verdict()
 				return
 			end
@@ -298,14 +473,18 @@ WorldLoaded = function()
 		if tick == L3_CHECK_TICK then
 			local ok = expect(USA, "USA", USA_50KT, "ready",
 				"being hit by 20 kt must raise USA to 50 kt. USA's own cooldown from L1 (60 ticks"
-				.. " from t80) is long over, so this must be `ready` and not `charging:`")
+				.. " from t" .. L1_TICK .. ") is long over -- a whole Iskander flight has passed"
+				.. " since -- so this must be `ready` and not `charging:`")
 			note(ok, "level-3 ok at t%d", tick)
+			L3_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
+		-- SENTINEL RU_100KT: Russia goes from level 2 to level 4, and the 100 kt is the top of the
+		-- newly granted range and the band phase E reads.
 		if tick == L3_TICK then
-			if not launch(USA, "USA", USA_50KT, "Rung 3 of 4.") then
+			if not launch(USA, "USA", USA_50KT, "Rung 3 of 4.", Russia, "Russia", RU_100KT) then
 				verdict()
 				return
 			end
@@ -319,13 +498,20 @@ WorldLoaded = function()
 			local ok = expect(Russia, "Russia", RU_100KT, "ready",
 				"being hit by 50 kt must raise Russia to 100 kt -- the band whose reply is the ender")
 			note(ok, "level-4 ok at t%d", tick)
+			L4_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
+		-- SENTINEL USA_100KT, DELIBERATELY NOT USA_ENDER. This rise takes USA from level 3 to level
+		-- 5 and grants bands 4 AND 5. Watching the ENDER would turn the user's reported bug -- the
+		-- END level granting no cameo -- into an anonymous watch timeout; watching the 100 kt lets
+		-- the rise be DETECTED and then lets phase F fail on the ender with the message that names
+		-- the defect. The 100 kt is also the band phase G fires.
 		if tick == L4_TICK then
 			if not launch(Russia, "Russia", RU_100KT,
-				"Rung 4 of 4: the 100 kt shot whose reply is a game-ender.") then
+				"Rung 4 of 4: the 100 kt shot whose reply is a game-ender.",
+				USA, "USA", USA_100KT) then
 				verdict()
 				return
 			end
@@ -341,9 +527,9 @@ WorldLoaded = function()
 			local ok = expect(USA, "USA", USA_ENDER, "ready",
 				"THE END LEVEL GRANTED NOTHING THE PLAYER CAN SEE -- this is the reported bug."
 				.. " USA's level is NuclearRung.GameEnder (the ledger's END box is lit) and"
-				.. " B83Strike must be a cameo USA can click."
+				.. " TridentStrike must be a cameo USA can click."
 				.. " `hidden` means SupportPowerInstance.Disabled is true, which folds in Permitted,"
-				.. " which folds in prereqsAvailable -- and B83 declares `powers.event`, a"
+				.. " which folds in prereqsAvailable -- and the Trident declares `powers.event`, a"
 				.. " prerequisite NO faction provides (player.yaml:144, :238). The grant loop in"
 				.. " NuclearExchange.MakeBandsReady skips any power that is not already Permitted,"
 				.. " so the one call that could clear that flag (SupportPowerInstance.MakeReady)"
@@ -376,7 +562,7 @@ WorldLoaded = function()
 			ok = expect(USA, "USA", UNOWNED_ENDER, "hidden",
 				"A SECOND END CAMEO APPEARED. The 6 Mt strategic strike names no owner"
 				.. " (`Prerequisites: powers.event` alone, player.yaml:842) and the ruling is one"
-				.. " national ender per side -- B83 for USA, Sarmat for Russia. `ready` here means"
+				.. " national ender per side -- Trident for USA, Sarmat for Russia. `ready` here means"
 				.. " NuclearGameEnders.ArmableBy treated an empty owner list as 'everybody owns it'"
 				.. " rather than 'nobody does'. Its RequiresCondition is satisfied at this level and"
 				.. " it has no lobby gate left (`high-yield-nuke` retired 2026-09-15), so this"
@@ -396,6 +582,7 @@ WorldLoaded = function()
 				.. " 06's shared ladder coming back") and ok
 
 			note(ok, "END level ok at t%d (100 kt fired t%d)", tick, L4_TICK)
+			L5_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -403,41 +590,69 @@ WorldLoaded = function()
 		-- ---- PHASE G. L5: USA fires the 100 kt its own level 5 allows, which takes Russia to END.
 		-- Firing costs USA a cooldown and NOT its level: levels never fall, so USA keeps its own
 		-- game-ender through this and phase H asserts exactly that.
+		-- SENTINEL RU_ENDER, and here there is no alternative: level 4 to level 5 grants exactly
+		-- one band and it IS the ender. A watch timeout at this stage therefore means the same
+		-- thing phase F's fault text spells out, on Russia's side of it.
 		if tick == L5_TICK then
 			if not launch(USA, "USA", USA_100KT,
-				"USA's band 4, fired to take Russia to END.") then
+				"USA's band 4, fired to take Russia to END.", Russia, "Russia", RU_ENDER) then
 				verdict()
 				return
 			end
+
+			FIRER_COOLDOWN_TICK = tick + 40
+			RATCHET_CHECK_TICK = tick + 80
 
 			Trigger.AfterDelay(1, step)
 			return
 		end
 
+		-- ---- PHASE G2. THE FIRER PAYS, AT THE TOP RUNG, AND IT PAYS AT THE CLICK.
+		-- USA fired 40 ticks ago against a 60-tick cooldown, so the honest reading is `charging:`.
+		-- READ OFF THE LAUNCH AND NOT OFF A RISE, which is what this assertion always wanted and
+		-- could not have while it lived inside phase H: availability is settled the instant the
+		-- button is pressed (NuclearExchange.ReportNuclearRelease sets the side cooldown on the
+		-- COUNTED edge), and since the 2026-09-16 ruling the victim's rise is a whole missile
+		-- flight away -- by which time a 60-tick cooldown has long expired and this would assert
+		-- nothing at all.
+		if tick == FIRER_COOLDOWN_TICK then
+			local ok = expectCharging(USA, "USA", USA_ENDER,
+				"USA FIRED AT LEVEL 5 AND ITS OWN ENDER IS NOT ON THE SIDE COOLDOWN. `ready` means"
+				.. " the firer escaped the lockout it just paid for; `hidden` means it lost the"
+				.. " LEVEL by firing, which is v1's one-shot window coming back under a new name."
+				.. " The ratchet half is asserted at t" .. RATCHET_CHECK_TICK)
+
+			note(ok, "firer-paid ok at t%d (fired t%d)", tick, L5_TICK)
+			Trigger.AfterDelay(1, step)
+			return
+		end
+
 		-- ---- PHASE H. THE RUSSIAN HALF, and the mirror of every faction assertion in phase F.
+		-- IT NOW LANDS AFTER PHASE H2 RATHER THAN BEFORE IT, because Russia's END level arrives
+		-- with USA's warhead rather than with USA's click. Neither claim depends on the other.
 		if tick == END2_CHECK_TICK then
 			local ok = expect(Russia, "Russia", RU_ENDER, "ready",
 				"Russia's END level granted nothing. Same defect as phase F, Russia's side of it:"
 				.. " SarmatStrike declares `powers.event, player.russia` and Russia holds the"
 				.. " faction half")
 			ok = expect(Russia, "Russia", USA_ENDER, "hidden",
-				"RUSSIA WAS HANDED AMERICA'S WARHEAD. B83Strike declares `powers.event,"
+				"RUSSIA WAS HANDED AMERICA'S WARHEAD. TridentStrike declares `powers.event,"
 				.. " player.america` (player.yaml:238)") and ok
 			ok = expect(Russia, "Russia", UNOWNED_ENDER, "hidden",
 				"A SECOND END CAMEO APPEARED IN RUSSIA'S COLUMN. Russia's half of the 2026-09-14"
 				.. " ruling: the unowned 6 Mt strike is withheld from both sides, not from one") and ok
 
-			-- AND USA'S OWN ENDER IS CHARGING RIGHT NOW, NOT GONE. USA fired 40 ticks ago against a
-			-- 60-tick cooldown, so the honest reading here is `charging:` -- the level is intact and
-			-- the SIDE is reloading. Asserting `ready` at this tick would be asserting the firer
-			-- escapes its own cooldown at the top rung, which is the one place that matters most.
-			ok = expectCharging(USA, "USA", USA_ENDER,
-				"USA FIRED AT LEVEL 5 AND ITS OWN ENDER IS NOT ON THE SIDE COOLDOWN. `ready` means"
-				.. " the firer escaped the lockout it just paid for; `hidden` means it lost the"
-				.. " LEVEL by firing, which is v1's one-shot window coming back under a new name."
-				.. " The ratchet half is asserted at t" .. RATCHET_CHECK_TICK) and ok
+			-- AND USA STILL HOLDS ITS OWN ENDER. The `charging:` half of this reading moved to
+			-- phase G2, which reads it off the launch where it belongs; what is left here is the
+			-- claim that survives a whole missile flight -- USA did not lose the LEVEL by firing,
+			-- which is v1's one-shot window coming back under a new name.
+			ok = expect(USA, "USA", USA_ENDER, "ready",
+				"USA LOST ITS END LEVEL BY FIRING. Levels never fall under v2; its cooldown from"
+				.. " t" .. L5_TICK .. " expired 60 ticks later and phase H2 already read it back"
+				.. " at t" .. RATCHET_CHECK_TICK) and ok
 
 			note(ok, "both enders ok at t%d", tick)
+			FIRE_ENDER_TICK = tick + 10
 			Trigger.AfterDelay(1, step)
 			return
 		end
@@ -480,8 +695,9 @@ WorldLoaded = function()
 		end
 
 		if tick >= BUDGET_TICK then
-			fault("ran out of budget at tick %d without reaching the ender launch at %d",
-				tick, FIRE_ENDER_TICK)
+			fault("ran out of budget at tick %d without reaching the ender launch (scheduled for"
+				.. " t%d; -1 means it was never scheduled). %d of the 5 escalations had landed",
+				tick, FIRE_ENDER_TICK, risesSeen)
 			verdict()
 			return
 		end

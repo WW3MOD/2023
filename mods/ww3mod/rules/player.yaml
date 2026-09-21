@@ -237,8 +237,28 @@ Player:
 	# game-enders. See DoomsdayStrikeInfo.OverriddenPrerequisites.
 	MissileStrikePower@Sarmat:
 		Prerequisites: powers.event, player.russia
-	MissileStrikePower@B83:
+	# AMERICA'S NATIONAL GAME-ENDER SINCE 2026-09-20, symmetric to the Sarmat above: a MIRV ICBM
+	# whose warhead count is the same map-derived package Russia gets.
+	MissileStrikePower@TridentW88:
 		Prerequisites: powers.event, player.america
+	# ==== THE B83 IS RETIRED FROM ESCALATION, NOT FROM THE ARSENAL (2026-09-20) ====
+	# `player.america` is GONE from this line and that absence is the whole of the change. It is
+	# what NuclearGameEnders.NamesAnOwner reads: with only the licensed event tier left, the owner
+	# list is EMPTY, so ArmableBy refuses it and NEITHER the final exchange NOR the retaliation
+	# window can hand it to anybody. That is exactly the shape MissileStrikePower@HighYieldNuke has
+	# carried since the 2026-09-14 "national ender only" ruling, and it is now the B83's too.
+	#
+	# WHY THE WEAPON AND THE MISSILE SURVIVE. NukeB83 and B83Missile have five consumers that are
+	# nothing to do with Escalation: NuclearYieldTest's table, both nuke generators' hard-coded
+	# YIELDS dicts, tools/cameo/captions_table.py, tools/impact-scar/contact_sheet.py, and
+	# demo-nuke-arsenal, which tours all eight warheads and fires this one at tick 1480. The
+	# arsenal file's own scaling-law header also uses B83-1 as the landmark just below the 2.4 Mt
+	# blast/thermal crossover. It remains buyable under `powers-sandbox` like any event-tier power.
+	#
+	# DO NOT RE-ATTRIBUTE IT. Putting `player.america` back does not "restore a rung" -- it gives
+	# America TWO national enders and the final exchange would arm both.
+	MissileStrikePower@B83:
+		Prerequisites: powers.event
 	MissileStrikePower@TsarBomba:
 		Prerequisites: powers.event, player.russia
 	# Russia's four buy rungs, added by the manager at merge. Neither worker could write these:
@@ -262,6 +282,26 @@ Player:
 	# is meant to gate it is Phase 2 and is not wired yet.
 	MissileStrikePower@Kinzhal:
 		OrderName: KinzhalStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING (DEFCON 3). Firing was closed at the weapon, in
+		# Armament.CanFire -- but a support power never passes through an Armament, so this power,
+		# the Oreshnik and the GBU-57 were the one remaining way to put ordnance across a border the
+		# readout calls closed. Measured, not assumed: bought at tick 0 against 20000 starting cash,
+		# a Kinzhal lands its first impact roughly 39 s into a 300 s phase.
+		#
+		# PauseOnCondition, NOT RequiresCondition, and the difference is the whole point. Pausing
+		# clears SupportPowerInstance.Active (SupportPowerManager.cs:403) and therefore Ready (:226),
+		# so the power cannot be fired -- while leaving Disabled (:215) alone, so the cameo stays
+		# visible and the power stays PURCHASABLE. The rule is "no strikes during setup", not "no
+		# shopping during setup"; RequiresCondition would strip it from the buy tab altogether.
+		#
+		# Strict no-op in SKIRMISH, the default mode: it holds no DEFCON level at all, so
+		# GrantConditionOnDefconLevel grants nothing, defcon-3 never exists, and this line decides
+		# nothing. (This used to say "Skirmish and Sandbox", which was wrong about the second one and
+		# corrected 2026-09-19: Sandbox PINS a level, so a Sandbox match pinned at 3 does grant
+		# defcon-3 and does pause this power -- for the whole match, since nothing there moves the
+		# level. That is the mode behaving as documented rather than a defect, and Sandbox is a
+		# developer opt-in off the lobby dropdown since the same day.)
+		PauseOnCondition: defcon-3
 		# RUSSIA'S CONVENTIONAL RUNG. `powers.russia`, not `player.russia`, and the swap is what
 		# makes the sandbox toggle possible at all -- see THE THREE TIERS below. `player.russia` is
 		# provided by faction ALONE, so nothing could ever unlock this for an America player; the
@@ -370,6 +410,11 @@ Player:
 	# as the starting number, not a measured one.
 	MissileStrikePower@Oreshnik:
 		OrderName: OreshnikStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal for why this is
+		# PauseOnCondition rather than RequiresCondition, and why it is a no-op outside Escalation.
+		# This one matters most of the three: six independently-aimed warheads is the largest
+		# conventional payload that could have crossed a closed border.
+		PauseOnCondition: defcon-3
 		Prerequisites: powers.russia
 		# INTERIM ART. `artyicon` (artystrikicon) is the one cameo defined in sequences-misc.yaml that
 		# no power currently claims, so this costs no new drawing and creates no duplicate: the
@@ -552,6 +597,10 @@ Player:
 	# comments, understates every duration by 1.5x.
 	MissileStrikePower@GBU57:
 		OrderName: GBU57Strike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal. America's rung of
+		# the same ladder, gated the same way, so neither faction can open the match with ordnance
+		# the other cannot answer.
+		PauseOnCondition: defcon-3
 		# AMERICA'S CONVENTIONAL RUNG. See the note on @Kinzhal for why this is `powers.america`
 		# rather than `player.america`.
 		Prerequisites: powers.america
@@ -1484,9 +1533,23 @@ Player:
 	DefconCasualtyObserver:
 	# Grants exactly one of these at a time and REVOKES it when the level moves -- unlike
 	# GrantConditionOnLobbyOption, which grants once in Created and can never take it back.
-	# Nothing consumes these three yet; that is the next piece of the feature, and until it lands
-	# `--check-yaml` will report them as a granted-but-unconsumed WARNING on the Player actor
-	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate).
+	#
+	# `defcon-3` HAS THREE SHIPPED CONSUMERS, all in this file: the PauseOnCondition on
+	# MissileStrikePower@Kinzhal, @Oreshnik and @GBU57 -- "no conventional strike during Positioning".
+	# `defcon-1` and `defcon-2` have NONE as of 2026-09-19, verified with
+	# `grep -rn "defcon-1\|defcon-2\|defcon-3" mods/ tools/`, which returns those three
+	# PauseOnCondition lines and nothing else in either tree.
+	#
+	# THE TWO UNCONSUMED ONES ARE KEPT DELIBERATELY (manager's ruling, 2026-09-19) and are NOT dead
+	# code to re-file as such. They are the modder-facing hook for per-level actor rules: the levels
+	# are a first-class concept the mod already moves, and granting all three uniformly is what makes
+	# keying a rule on any rung a one-line YAML edit rather than an engine change. They cost a
+	# condition token each and nothing else.
+	#
+	# `--check-yaml` reports the two as a granted-but-unconsumed WARNING on the Player actor
+	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate). That
+	# warning is expected and is not a defect to fix by deleting them.
+	#
 	# Key a consumer on any one of them, or on `defcon-1 || defcon-2` for "2 or below".
 	GrantConditionOnDefconLevel:
 		Conditions:
@@ -1514,7 +1577,11 @@ Player:
 	# scenarios under tools/autotest/scenarios fire nuclear powers and every one fires inside the
 	# first three minutes, so a schedule that applied to them would show up as a demo that silently
 	# stops firing rather than as an error. ALL EIGHT set PowersSandboxCheckboxEnabled: true and
-	# Sandbox SUSPENDS the clock, which is why none of them needed an edit. (This read NINE until
+	# THE CHECKBOX suspends the clock, which is why none of them needed an edit. (Read "Sandbox"
+	# here as the "Sandbox: All Support Powers" LOBBY CHECKBOX -- PowersLobbyOptions -- and not as
+	# DefconGameMode.Sandbox, which is an unrelated feature that happens to share the word and has
+	# nothing to do with the unlock clock. Spelled out 2026-09-19 because the two were named alike
+	# and the collision has already misled a reader.) (This read NINE until
 	# 2026-09-15, the ninth being test-tacnuke-lobby-gated-off, which was exempt for a different
 	# reason -- a conventional control with no yield at all. It was deleted with the lobby option it
 	# measured, so the exemption is now uniform.) A NEW scenario that fires a nuke without sandbox

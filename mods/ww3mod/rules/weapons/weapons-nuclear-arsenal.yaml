@@ -2271,6 +2271,354 @@ NukeW76:
 #   burst height         13.1 cells   = 230 * 750^(1/3) m
 #   blast wave           supersonic 2.96 -> 5.91 cells in 9 ticks, then sonic at 7 ticks/cell;
 #                        reaches its full 60.8c at tick 412 (25 s)
+
+# ---- W88 -- 455 kt --------------------------------------------------------------------
+# the heavy Trident II warhead; rides the same D5 bus as the W76 above, and this block is
+# that one re-evaluated at 455 kt. America's national game-ender since 2026-09-20.
+#
+#   blast (1 psi)        51.4 cells   = 1.069 * 455^(1/3) km at 160 m/cell
+#   thermal (3rd deg)    45.0 cells   = 2.0 * (455/20)^0.41 km
+#   fireball             2.42 cells   = 111 * (455/20)^0.40 m, and it burns 53 ticks (3.2 s)
+#   burst height         11.1 cells   = 230 * 455^(1/3) m
+#   blast wave           supersonic 2.42 -> 4.84 cells, then sonic to its full 51.4c
+#
+# ==== EVERY NUMBER IS THE W76 BLOCK RE-EVALUATED, AND THE EXPONENTS WERE RECOVERED RATHER
+# ==== THAN ASSUMED. Each field's exponent was read off the shipped 100 kt / 750 kt pair
+# (log(b/a) / log(7.5)) and then applied at 4.55. They land on the four laws this file states
+# in its own header, per field and without being told to: 0.333 for every blast-derived radius
+# (MaxRadius, EMP, all five Suppression rings, the scar delays), 0.400 for the fireball ones
+# (Vaporize.Spread, StartRadius, TransitionRadius), 0.410 for every thermal one (all ten Fire
+# ranges, TreeBurn, ThermalRadiation.Spread) and 0.444 for RadiationDuration. A number here
+# that looks odd is a consequence of a law, exactly as the file header promises.
+#
+# WHY NOT COPIED FROM NukeSarmatRV, which is the other neighbour and the nearer one in yield:
+# that weapon carries `Projectile: InstantHit` and a `Range`, because it is dispensed by
+# NukeSarmatMIRV's FireCluster warheads and FireClusterWarhead.cs:98 requires the fired weapon
+# to carry a projectile. NukeW88 is an `Explodes:` payload on TridentMissile exactly as NukeW76
+# is on W76Missile, so it must carry NEITHER. It is also below gen_shake.py's
+# CODA_THRESHOLD_KT of 750, so it is a FOUR-stage shake like the W76 and not a five-stage one
+# like the Sarmat RV -- 33 warheads, not 34.
+#
+# THE PER-WARHEAD REASONING IS NOT DUPLICATED HERE. Read NukeW76 above for why each warhead
+# exists and what it is for; this block is the same shape at a different yield, and prose
+# copied from a 100 kt weapon would be prose about the wrong warhead.
+NukeW88:
+	ValidTargets: Ground, Trees, Water, Underwater, Air
+	Warhead@Flash1: FlashPaletteEffect
+		Duration: 30
+		FlashType: Nuke
+	# ===== THE SCREEN SHAKE =====
+	# GENERATED -- tools/nuke-shake/gen_shake.py --write. Do not hand-edit; the laws, and
+	# the reason this band needed regenerating at all, are in that script.
+	# 455 kt on the 4-stage model shared with `Atomic` and `AtomicHighYield`.
+	# CRACK -- the prompt arrival. Short, sharp, highest frequency of the stack.
+	Warhead@Shake1: ShakeScreen
+		Duration: 25
+		Intensity: 5
+		AttackTicks: 1
+		DecayHalfLife: 7
+		FrequencyScale: 164
+	# GROUND SHOCK -- the main event and the peak amplitude.
+	Warhead@Shake2: ShakeScreen
+		Duration: 84
+		Intensity: 16
+		AttackTicks: 4
+		DecayHalfLife: 20
+		FrequencyScale: 67
+		Delay: 4
+	# ROLL -- the long low-frequency coda.
+	Warhead@Shake3: ShakeScreen
+		Duration: 234
+		Intensity: 7
+		AttackTicks: 29
+		DecayHalfLife: 84
+		FrequencyScale: 36
+		Delay: 18
+	# AIR BLAST -- travels at its own ticks/cell rather than the global ground-wave speed, so it
+	# arrives with the VISIBLE shockwave at every distance instead of only at ground zero.
+	Warhead@Shake4: ShakeScreen
+		Duration: 77
+		Intensity: 6
+		AttackTicks: 2
+		DecayHalfLife: 23
+		FrequencyScale: 85
+		PropagationTicksPerCell: 6.3
+		MaxPropagationDelay: 324
+	# ===== THE FIREBALL, AS LIGHT =====
+	# MUST BE REGENERATED: `python3 tools/nuke-light/gen_fireball_light.py --write`, and
+	Warhead@FireballLight: LightEvent
+		ValidTargets: Ground, Water, Air
+		AirThreshold: 24c0
+		ForceGroundLevel: true
+		Light:
+			Times: 0, 1, 2, 3, 4, 5, 6, 8, 23, 50, 81, 117, 133, 156, 198, 242, 289
+			Intensities: 7, 6.36, 5.83, 5.42, 5.13, 4.96, 4.9, 4.83, 4.33, 3.49, 2.65, 1.81, 1.49, 1.08, 0.51, 0.14, 0
+			Radii: 27c689, 46c691, 52c764, 57c165, 60c775, 63c866, 66c596, 71c335, 71c335, 71c335, 71c335, 71c335, 71c335, 68c985, 64c656, 60c118, 55c287
+			Tints: E6F0FF, E9F2FF, ECF3FF, EFF5FF, F2F7FF, F4F9FF, F7FAFF, FDFEFF, FFFAEF, FFF1D1, FFE7B3, FFD88E, FFCF7B, FFC063, FB9E3D, E76E1D, B4280A
+			Interpolations: Linear
+			Falloff: InverseSquare
+			TerrainRefreshInterval: 5
+			GlowAboveFog: true
+
+	Warhead@Fireball: CreateEffect
+		Explosions: nuke_large
+		ScalePercent: 585
+		DurationScalePercent: 145
+		Offset: 0,-1900,0
+		Palette: effect_ts
+		ZOffset: 4096
+		ImpactSounds: kaboom1.aud
+		ImpactActors: false
+		VisibleThroughFog: true
+		RenderAboveFog: true
+		ValidTargets: Ground, Water, Air
+
+	# ===== PHASE 0: VAPORISATION =====
+	Warhead@VaporizeRemoval: Vaporize
+		Radius: 2c431
+		FadeDelay: 0
+		Duration: 23
+		Brightness: 7
+		WhiteoutFraction: 0.45
+		ForceGroundLevel: true
+		DamageTypes: ElectricityDeath
+	Warhead@Vaporize: SpreadDamage
+		Spread: 2c431
+		Damage: 800000
+		Penetration: 20000
+		Falloff: 100, 100, 100, 50
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: ElectricityDeath
+		AirThreshold: 24c0
+	Warhead@ThermalRadiation: ThermalRadiation
+		RadiationDuration: 53
+		DamageInterval: 1
+		Spread: 3c220
+		Damage: 9000
+		Penetration: 1200
+		Falloff: 100, 60, 35, 20, 12, 8, 5, 3, 2, 1, 1, 0, 0, 0, 0
+		Delay: 1
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		DamageTypes: FireDeath
+		AirThreshold: 24c0
+		Versus:
+			Light: 120
+			Medium: 60
+			Heavy: 30
+			Concrete: 20
+	Warhead@Fire1: GrantExternalCondition
+		Range: 4c513
+		Amount: 1
+		Duration: 1230
+		Condition: onfire
+		Delay: 6
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire2: GrantExternalCondition
+		Range: 9c1
+		Amount: 1
+		Duration: 1150
+		Condition: onfire
+		Delay: 11
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire3: GrantExternalCondition
+		Range: 13c514
+		Amount: 1
+		Duration: 1070
+		Condition: onfire
+		Delay: 16
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire4: GrantExternalCondition
+		Range: 18c3
+		Amount: 1
+		Duration: 990
+		Condition: onfire
+		Delay: 22
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire5: GrantExternalCondition
+		Range: 22c515
+		Amount: 1
+		Duration: 910
+		Condition: onfire
+		Delay: 27
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire6: GrantExternalCondition
+		Range: 27c4
+		Amount: 1
+		Duration: 830
+		Condition: onfire
+		Delay: 32
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire7: GrantExternalCondition
+		Range: 31c516
+		Amount: 1
+		Duration: 749
+		Condition: onfire
+		Delay: 38
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire8: GrantExternalCondition
+		Range: 36c5
+		Amount: 1
+		Duration: 669
+		Condition: onfire
+		Delay: 43
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire9: GrantExternalCondition
+		Range: 40c518
+		Amount: 1
+		Duration: 588
+		Condition: onfire
+		Delay: 48
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Fire10: GrantExternalCondition
+		Range: 45c6
+		Amount: 1
+		Duration: 506
+		Condition: onfire
+		Delay: 54
+		ValidTargets: Structure, Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@TreeBurn: GrantExternalCondition
+		Range: 45c6
+		Duration: 0
+		Condition: scorched
+		Delay: 2
+		ValidTargets: Trees
+	Warhead@EMP: GrantExternalCondition
+		Range: 42c141
+		Duration: 666
+		Condition: empdisable
+		Delay: 0
+		ValidTargets: Ground, Water
+		InvalidTargets: Infantry, Trees
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@BlastWave: ShockwaveDamage
+		StartDelay: 15
+		WaveSpeed: 7
+		StartRadius: 2c431
+		InitialSpeedPercent: 465
+		TransitionRadius: 4c862
+		MaxRadius: 51c423
+		Damage: 400000
+		Penetration: 20000
+		Spread: 1c860
+		Falloff: 600, 556, 512, 468, 425, 381, 337, 296, 258, 224, 196, 169, 147, 125, 106, 90, 75, 64, 53, 45, 38, 33, 27, 23, 20, 17, 14, 12, 10, 8, 7, 6
+		ShockwaveThickness: 2c846
+		ShockwaveSegments: 128
+		ShockwaveFadeInTicks: 7
+		Versus:
+			Light: 80
+			Medium: 60
+			Heavy: 40
+			Concrete: 30
+		ValidTargets: Ground, Water, Underwater, Air
+		InvalidTargets: Trees
+		AffectsParent: true
+		DamageTypes: ExplosionDeath
+		AirThreshold: 24c0
+	Warhead@Suppression1: GrantExternalCondition
+		Range: 13c896
+		Amount: 10
+		Duration: 355
+		Condition: suppression-1
+		Delay: 85
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression2: GrantExternalCondition
+		Range: 25c711
+		Amount: 8
+		Duration: 310
+		Condition: suppression-1
+		Delay: 169
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression3: GrantExternalCondition
+		Range: 42c668
+		Amount: 5
+		Duration: 225
+		Condition: suppression-1
+		Delay: 288
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression4: GrantExternalCondition
+		Range: 47c810
+		Amount: 3
+		Duration: 180
+		Condition: suppression-1
+		Delay: 323
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Suppression5: GrantExternalCondition
+		Range: 54c1009
+		Amount: 1
+		Duration: 150
+		Condition: suppression-1
+		Delay: 373
+		ValidTargets: Infantry
+		ValidRelationships: Ally, Neutral, Enemy
+		AirThreshold: 24c0
+	Warhead@Scar1Core: LeaveSmudge
+		Size: 2
+		SmudgeType: ScarCore
+		Delay: 0
+		ValidTargets: Ground, Water, Trees
+		IgnoreActors: true
+		AirThreshold: 24c0
+	Warhead@Scar2Crater: LeaveSmudge
+		Size: 5, 3
+		SmudgeType: ScarCrater
+		Delay: 7
+		ValidTargets: Ground, Water, Trees
+		IgnoreActors: true
+		AirThreshold: 24c0
+	Warhead@Scar3Char: LeaveSmudge
+		Size: 8, 6
+		SmudgeType: ScarChar
+		Delay: 17
+		ValidTargets: Ground, Water, Trees
+		IgnoreActors: true
+		AirThreshold: 24c0
+	Warhead@Scar4Burn: LeaveSmudge
+		Size: 12, 9
+		SmudgeType: ScarBurn
+		Delay: 30
+		ValidTargets: Ground, Water, Trees
+		IgnoreActors: true
+		AirThreshold: 24c0
+	Warhead@Scar5Rim: LeaveSmudge
+		Size: 15, 13
+		SmudgeType: ScarRim
+		Delay: 43
+		ValidTargets: Ground, Water, Trees
+		IgnoreActors: true
+		AirThreshold: 24c0
+
 NukeSarmatRV:
 	ValidTargets: Ground, Trees, Water, Underwater, Air
 	# Fired ONLY by NukeSarmatMIRV's FireCluster warheads, which require the fired weapon to
@@ -5353,3 +5701,117 @@ NukeRuKalibr:
 		ValidTargets: Ground, Water, Trees
 		IgnoreActors: true
 		AirThreshold: 24c0
+
+# =====================================================================================================
+# THE EXCHANGE VARIANTS -- the two national game-enders as they detonate during the FINAL EXCHANGE
+# =====================================================================================================
+#
+# NEITHER OF THESE IS PURCHASABLE, AIMABLE OR REACHABLE BY A PLAYER. Nothing lists them in a power,
+# a cameo or a hotkey slot. The only route to them is MissileStrikePowerInfo.EscalationMissileActor,
+# which MissileStrikePower flies instead of MissileActor exactly when DoomsdayStrike.IsExchangeLaunch
+# says the launch has been given a cascade slot. Fire a Sarmat at nuclear release level 5 before the
+# window opens, or under Skirmish's `Nuclear Unlock = No wait`, and you get NukeSarmatRV as always.
+#
+# ---- WHAT THEY DROP, AND WHY IT IS NOT A PERFORMANCE ARGUMENT -------------------------------------
+# ThermalRadiation, the ten Fire rings, the EMP disc and the five Suppression rings. Every one of
+# those is a STATE INFLICTED ON A SURVIVOR: burn it, disable it, pin it down. The final exchange has
+# no survivors and no next minute to spend suppressed in -- the cascade is the end of the match, the
+# verdict comes from a score frozen before the first warhead (DoomsdayStrike.FreezeStatistics), and
+# ConquestVictoryConditions is stood down for the duration. A condition with a 1438-tick duration
+# granted to a structure that will not exist in twenty ticks is work done for nobody to see.
+#
+# Measured on the rig they are also cheap -- under 1% of a salvo's detonation cost, against the
+# fireball's terrain relight at very nearly all of it -- so DO NOT justify this block on speed. The
+# one line here that is about cost is TerrainRefreshInterval, below, and it is about CADENCE rather
+# than total: at 5 roughly a fifth of the detonation's ticks are expensive, and during a cascade up
+# to 2N lights overlap. 16 is the Tsar Bomba's shipped value, chosen there for the same reason.
+#
+# ---- WHAT THEY KEEP, DELIBERATELY AND IN FULL -----------------------------------------------------
+# Flash, all the shake stages, the fireball sprite, the fireball LIGHT at its full radii, intensities,
+# tints and duration, Vaporize at an unchanged radius, the visible blast wave, all five scar bands and
+# the scorched-tree pulse. The ending has to LOOK like the ending; the variants are not a cheap
+# version of the weapon, they are the same detonation with the aftermath machinery removed.
+#
+# Warhead@TreeBurn IS KEPT, and it is the one judgement call in the list. Its name and its [Desc]
+# place it with the thermal pulse, but what it does is grant `scorched` -- a permanent, purely
+# cosmetic mark on a neutral tree, with no duration, no damage and no state to be in. It belongs with
+# the scars, and a crater ringed by green forest is exactly the tell the ending must not have.
+#
+# ---- WHY THESE ARE SUBCLASSES AND NOT A SHARED "minus the aftermath" MIXIN ------------------------
+# MiniYaml inheritance is single-path subtyping, not composable mixins: a template of PURE `-Key:`
+# removals runs them against an empty accumulator and throws `There are no elements with key ... to
+# remove` (MiniYaml.cs:479-484), and giving that template an Inherits: to bite on makes the CHILD
+# reach the same parent twice and trip the duplicate-parent guard (:467-474). Recorded in
+# WORKSPACE/DISCOVERIES.md, 2026-09-20. So the seventeen removals are written out twice; there is no
+# shape that shares them.
+#
+# ---- THE FOUR ROSTERS THESE DELIBERATELY DO NOT JOIN ----------------------------------------------
+# A new nuclear warhead normally moves four hand-maintained lists. These move none of them, because
+# they DECLARE no physics of their own -- every radius, curve, delay and falloff is the base weapon's
+# and is checked where the base weapon is:
+#   NuclearYieldTest.AllNukes     -- reads RAW nodes (MiniYaml.FromFile, no inheritance resolution),
+#                                    so a variant listed there would be a weapon with no numbers in
+#                                    it and would fail every invariant. Its instruction "anything
+#                                    added to either file has to be added here" is about weapons that
+#                                    state a yield; these restate nothing.
+#   BurntTreeScopeTest            -- counts raw Warhead@TreeBurn nodes. These inherit theirs and
+#   ScarUnderActorsTest           -- counts raw LeaveSmudge nodes. Same: inherited, not declared.
+#   gen_fireball_light.py YIELDS  -- both generators WRITE the block they own into the weapon they
+#   gen_shake.py YIELDS              name. Adding a variant there would produce a SECOND copy of the
+#                                    light and shake stacks that has to be regenerated in step with
+#                                    the first; inheriting them is what makes that impossible. The
+#                                    one field below that the light generator also emits --
+#                                    TerrainRefreshInterval -- is a hand-set cadence knob, and
+#                                    regenerating the base rewrites the BASE's node, never this one.
+# ExchangeVariantTest pins each of those claims so a later edit that breaks one is loud.
+
+# ---- RS-28 Sarmat re-entry vehicle, 750 kt, as it lands in the final exchange ----------------------
+NukeSarmatRVExchange:
+	Inherits: NukeSarmatRV
+	Warhead@FireballLight:
+		Light:
+			# 16, the Tsar Bomba's value, against the base weapon's 5. The light is unchanged in
+			# every other respect -- same radii, same intensities, same tints, same 307-tick run --
+			# so this buys cadence and costs nothing but how often the terrain is re-tinted.
+			TerrainRefreshInterval: 16
+	-Warhead@ThermalRadiation:
+	-Warhead@Fire1:
+	-Warhead@Fire2:
+	-Warhead@Fire3:
+	-Warhead@Fire4:
+	-Warhead@Fire5:
+	-Warhead@Fire6:
+	-Warhead@Fire7:
+	-Warhead@Fire8:
+	-Warhead@Fire9:
+	-Warhead@Fire10:
+	-Warhead@EMP:
+	-Warhead@Suppression1:
+	-Warhead@Suppression2:
+	-Warhead@Suppression3:
+	-Warhead@Suppression4:
+	-Warhead@Suppression5:
+
+# ---- W88 / Trident II D5 re-entry vehicle, 455 kt, as it lands in the final exchange ---------------
+NukeW88Exchange:
+	Inherits: NukeW88
+	Warhead@FireballLight:
+		Light:
+			TerrainRefreshInterval: 16
+	-Warhead@ThermalRadiation:
+	-Warhead@Fire1:
+	-Warhead@Fire2:
+	-Warhead@Fire3:
+	-Warhead@Fire4:
+	-Warhead@Fire5:
+	-Warhead@Fire6:
+	-Warhead@Fire7:
+	-Warhead@Fire8:
+	-Warhead@Fire9:
+	-Warhead@Fire10:
+	-Warhead@EMP:
+	-Warhead@Suppression1:
+	-Warhead@Suppression2:
+	-Warhead@Suppression3:
+	-Warhead@Suppression4:
+	-Warhead@Suppression5:

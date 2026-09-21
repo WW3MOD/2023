@@ -58,8 +58,17 @@ local HitWithin = 20        -- s for an in-arc shooter to land its first round
 -- very little. This limb asserts a NEGATIVE, so it has to be the generous one.
 local QuietFor = 30         -- s a blocked shooter is given to prove it lands nothing
 local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
-local MoveWithin = 20       -- s for the two shooters to walk onto their derived bearings
+-- 45 s, not 20. The derived cells rotate with the held port while the spawns are fixed, so one of
+-- them can land ON a shooter's own start cell -- run 260915_211447 sent the behind shooter to 24,8,
+-- which is where the cone shooter was still standing, and he never left his spawn. He gets there
+-- once the cell frees, but only if the order is re-issued, and only if there is time to walk the
+-- long way round the house.
+local MoveWithin = 45       -- s for the two shooters to walk onto their derived bearings
+local MoveTraceEvery = 5    -- s between position traces while they walk
 local HeldYaw = nil         -- the port yaw both shooters were positioned against
+local ConeCellX, ConeCellY = nil, nil       -- derived cell the in-cone shooter must stand on
+local BehindCellX, BehindCellY = nil, nil   -- derived cell the behind shooter must stand on
+local ControlCellX, ControlCellY = nil, nil -- derived cell the control's behind shooter must stand on
 
 local function OwnerOf(actor)
 	local o = actor.Owner
@@ -121,6 +130,14 @@ local BehindDistance = 6    -- cells along the opposite bearing
 local function YawToOffset(yaw, cells)
 	local radians = (yaw + 256) / 1024 * 2 * math.pi
 	return math.floor(cells * math.cos(radians) + 0.5), math.floor(cells * -math.sin(radians) + 0.5)
+end
+
+-- Arrival, with one cell of slack. An exact match would hang the run whenever the derived cell is
+-- occupied or unreachable and the pathfinder parks the man next to it; at ~5.7 cells out, being one
+-- cell off is about 10 degrees, against a cone of 140 units (49 degrees), so it cannot move a
+-- shooter across the arc boundary in either direction.
+local function AtCell(actor, x, y)
+	return math.abs(actor.Location.X - x) <= 1 and math.abs(actor.Location.Y - y) <= 1
 end
 
 -- "index=5 name=southwest2 yaw=384 cone=140", or "none".
@@ -204,9 +221,127 @@ local function HoldAndCompare(seconds, actor, baseline, onDone)
 	Trigger.AfterDelay(1, tick)
 end
 
+-- A position trace that says WHY a man is not where he was sent, not just that he is not there.
+-- ClickOrderAtCell with issue=false asks the real order pipeline what a click on that cell would
+-- produce without issuing anything: "Move" means the order is available and he is simply walking,
+-- anything else (or nil) means the pipeline is refusing the destination -- which is what an occupied
+-- or unreachable cell looks like from here.
+local function DescribeMove(label, actor, x, y)
+	return label .. " at " .. actor.Location.X .. "," .. actor.Location.Y ..
+		" wants " .. x .. "," .. y ..
+		" arrived=" .. tostring(AtCell(actor, x, y)) ..
+		" orderAtCell=" .. tostring(Test.ClickOrderAtCell(actor, CPos.New(x, y), "", false))
+end
+
+local function MoveTrace()
+	return DescribeMove("cone", ConeShooter, ConeCellX, ConeCellY) .. " | " ..
+		DescribeMove("behind", BehindShooter, BehindCellX, BehindCellY)
+end
+
+-- WAIT ON POSITION, NOT ON IsIdle. Round 4: Test.IssueMoveOrder goes through World.IssueOrder, so
+-- the order sits in the queue and only becomes an activity a tick or more later, while IsIdle is
+-- CurrentActivity == null -- TRUE BOTH BEFORE THE ORDER LANDS AND AFTER THE MOVE FINISHES. The wait
+-- fired on its first poll and the attack was issued from the spawn cell.
+--
+-- Round 5 added the re-issue. The destination is derived from a port chosen at runtime, so it can
+-- collide with a fixed spawn: a man ordered onto an occupied cell simply does not go, and nothing
+-- retries him. Re-issuing on each trace costs nothing when he is already walking (the order
+-- resolves to the same destination) and is the whole fix when the cell was blocked at order time.
+-- Arrival for any set of movers. Traces every MoveTraceEvery seconds, RE-ISSUES the move (the
+-- derived cells rotate with the held port while spawns are fixed, so one can be occupied at order
+-- time and free a second later -- run 260915_211447), and bails the moment a mover dies rather than
+-- letting a corpse reach an Attack call.
+--
+-- targets: { { actor = a, x = n, y = n, name = "cone" }, ... }
+local function AwaitCells(targets, onReady)
+	local remaining = math.floor(MoveWithin * TestHarness.TicksPerSecond)
+	local interval = math.floor(MoveTraceEvery * TestHarness.TicksPerSecond)
+	local sinceTrace = 0
+	local check
+
+	local function Trace()
+		local parts = {}
+		for _, t in ipairs(targets) do
+			parts[#parts + 1] = DescribeMove(t.name, t.actor, t.x, t.y)
+		end
+
+		return table.concat(parts, " | ")
+	end
+
+	check = function()
+		for _, t in ipairs(targets) do
+			if t.actor.IsDead then
+				Test.Skip(t.name .. " was killed while walking to his derived cell " .. t.x .. "," ..
+					t.y .. ", so the limb he was staged for cannot be measured. The garrison itself is " ..
+					"the usual culprit: a rifleman-crewed house reaches 10c0 with no minimum range. " ..
+					"FINAL STATE: " .. Trace() .. " " .. State())
+				return
+			end
+		end
+
+		local arrived = true
+		for _, t in ipairs(targets) do
+			if not AtCell(t.actor, t.x, t.y) then
+				arrived = false
+			end
+		end
+
+		if arrived then
+			print("MOVE-ARRIVED | " .. Trace())
+			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), onReady)
+			return
+		end
+
+		remaining = remaining - 1
+		sinceTrace = sinceTrace + 1
+
+		if sinceTrace >= interval then
+			sinceTrace = 0
+			print("MOVE-TRACE | " .. Trace())
+
+			for _, t in ipairs(targets) do
+				if not AtCell(t.actor, t.x, t.y) then
+					Test.IssueMoveOrder(t.actor, CPos.New(t.x, t.y))
+				end
+			end
+		end
+
+		if remaining <= 0 then
+			Test.Skip("a mover did not reach its derived cell within " .. MoveWithin ..
+				"s. FINAL STATE: " .. Trace() .. " -- orderAtCell=Move means the pipeline accepts the " ..
+				"destination and he is merely slow or blocked en route; anything else means it refuses " ..
+				"that cell outright, which is what a still-occupied or unreachable cell looks like. " ..
+				State())
+			return
+		end
+
+		Trigger.AfterDelay(1, check)
+	end
+
+	Trigger.AfterDelay(1, check)
+end
+
+-- Every Attack in this file goes through here. A dead actor has no Attack property at all, so an
+-- unguarded call is not a failed assertion but a Fatal Lua Error that destroys the whole run --
+-- which is how run 260915_215050 threw away two limbs that had already answered correctly.
+local function RequireAlive(actor, name, where)
+	if not actor.IsDead then
+		return true
+	end
+
+	Test.Skip(name .. " was dead by the time the scenario reached " .. where .. ", so that limb " ..
+		"could not be staged. Nothing is concluded about the arc. " .. State())
+
+	return false
+end
+
 -- PHASE 4 — an MT in the OPEN must still be shootable. Guards the wrong fix: a condition that
 -- switches Targetable@HighPriority off everywhere rather than only at a port.
 local function OpenMtControl()
+	if not RequireAlive(OpenShooter, "the open-ground shooter", "the MT-in-the-open control") then
+		return
+	end
+
 	local baseline = HealthOf(OpenMT)
 	OpenShooter.Attack(OpenMT)
 
@@ -225,9 +360,48 @@ local function OpenMtControl()
 		end)
 end
 
--- PHASE 3 — the control that proves the arc gate was never broken for ordinary infantry. e1 was
--- correct before the fix and must read identically after it. Without this limb, "the behind shot
+-- PHASE 3b — the control's measurement, taken once its shooter is standing opposite the port
+-- the control rifleman actually holds. Split from PHASE 3 so the placement can be awaited.
 -- did nothing" cannot be distinguished from "the arc gate now refuses everyone".
+local function ControlShot()
+	if not RequireAlive(BehindShooterB, "the control behind shooter", "the rifleman control") then
+		return
+	end
+
+	if not AtPort(Rifleman) then
+		Test.Skip("the control rifleman left his port before the limb could run, so his untouched " ..
+			"health would say nothing — a man in the shelter is untargetable by everything. " .. State())
+		return
+	end
+
+	ReportGeometry("CONTROL-BEHIND-SHOT", BehindShooterB, HouseE1, Rifleman)
+
+	local baseline = HealthOf(Rifleman)
+	BehindShooterB.Attack(Rifleman)
+
+	HoldAndCompare(QuietFor, Rifleman, baseline, function(worst)
+		if worst < baseline then
+			Test.Fail("THE ARC GATE IS NOW REFUSING NOBODY, OR REFUSING THE WRONG THING: a plain e1 " ..
+				"rifleman at port " .. Test.GarrisonPortOf(Rifleman, HouseE1) .. " lost health (" ..
+				baseline .. " -> " .. worst .. ") to a shooter placed on the OPPOSITE bearing from " ..
+				"that port. This actor was never affected by the Targetable@HighPriority defect — " ..
+				"^Infantry has gated its Targetable on !garrisoned-at-port all along — so this is a " ..
+				"regression in GarrisonPortOccupant.TargetableBy itself, or in the condition that " ..
+				"enables it. " .. State())
+			return
+		end
+
+		OpenMtControl()
+	end)
+end
+
+-- PHASE 3 — the control that proves the arc gate was never broken for ordinary infantry. e1 was
+-- correct before the 2026-09-15 fix and must read identically after it.
+--
+-- ITS SHOOTER IS DERIVED FROM ITS OWN HELD PORT, for exactly the reason the subject's is. Earlier
+-- rounds pinned this man at a fixed cell and assumed the rifleman would be at a north-east port;
+-- run 260915_184416 found him at a SOUTH-facing one, where a due-south shooter is CORRECTLY inside
+-- the cone, and the limb reported a working gate as broken.
 local function RiflemanControl()
 	if not AtPort(Rifleman) then
 		Test.Skip("the control rifleman never reached a firing port, so the unchanged-behaviour " ..
@@ -236,35 +410,45 @@ local function RiflemanControl()
 		return
 	end
 
-	local baseline = HealthOf(Rifleman)
-	BehindShooterB.Attack(Rifleman)
+	if not RequireAlive(BehindShooterB, "the control behind shooter", "the rifleman control") then
+		return
+	end
 
-	HoldAndCompare(QuietFor, Rifleman, baseline, function(worst)
-		if worst < baseline then
-			Test.Fail("THE ARC GATE IS NOW REFUSING NOBODY, OR REFUSING THE WRONG THING: a plain " ..
-				"e1 rifleman at a north-east port lost health (" .. baseline .. " -> " .. worst ..
-				") to a shooter due SOUTH of him. This actor was never affected by the " ..
-				"Targetable@HighPriority defect - ^Infantry has gated its Targetable on " ..
-				"!garrisoned-at-port all along (infantry.yaml:62-63) - so this is not a regression " ..
-				"in the 2026-09-15 fix but in GarrisonPortOccupant.TargetableBy itself " ..
-				"(GarrisonPortOccupant.cs:105-121), or in the condition that enables it. " .. State())
-			return
-		end
+	local yaw = PortYawOf(Rifleman, HouseE1)
+	if yaw == nil then
+		Test.Skip("the control rifleman reads as deployed but GarrisonPortOf could not name his port (" ..
+			Test.GarrisonPortOf(Rifleman, HouseE1) .. "), so his shooter cannot be placed opposite it. " ..
+			State())
+		return
+	end
 
-		if not AtPort(Rifleman) then
-			Test.Skip("the control rifleman left his port during the measurement window, so his " ..
-				"untouched health says nothing - a man in the shelter is untargetable by " ..
-				"everything. " .. State())
-			return
-		end
+	local bx, by = YawToOffset(yaw, -BehindDistance)
+	ControlCellX, ControlCellY = HouseE1.Location.X + bx, HouseE1.Location.Y + by
 
-		OpenMtControl()
-	end)
+	Test.IssueMoveOrder(BehindShooterB, CPos.New(ControlCellX, ControlCellY))
+
+	print("CONTROL-PLACEMENT | held port " .. Test.GarrisonPortOf(Rifleman, HouseE1) ..
+		" | control behind shooter -> " .. ControlCellX .. "," .. ControlCellY)
+
+	AwaitCells({
+		{ actor = BehindShooterB, x = ControlCellX, y = ControlCellY, name = "control-behind" },
+	}, ControlShot)
 end
 
 -- PHASE 2 — THE ASSERTION. Due south of a north-east-facing port, at 384 WAngle units off a
 -- cone of 140, this shooter must land nothing at all.
 local function BehindShot()
+	if not AtCell(BehindShooter, BehindCellX, BehindCellY) then
+		Test.Skip("the behind shooter is at " .. BehindShooter.Location.X .. "," ..
+			BehindShooter.Location.Y .. " rather than his derived cell " .. BehindCellX .. "," ..
+			BehindCellY .. ", so a quiet window here would measure a bearing nobody chose. " .. State())
+		return
+	end
+
+	if not RequireAlive(BehindShooter, "the behind shooter", "the behind limb") then
+		return
+	end
+
 	ReportGeometry("BEHIND-SHOT", BehindShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	BehindShooter.Attack(Gunner)
@@ -320,6 +504,18 @@ end
 -- hurt this man at all, so that "no damage" in phase 2 means the arc refused him rather than
 -- the measurement never working.
 local function ConeShot()
+	if not AtCell(ConeShooter, ConeCellX, ConeCellY) then
+		Test.Skip("the in-cone shooter is at " .. ConeShooter.Location.X .. "," ..
+			ConeShooter.Location.Y .. " rather than his derived cell " .. ConeCellX .. "," ..
+			ConeCellY .. ". Round 4 failed exactly here, having ordered the attack from the spawn " ..
+			"cell; the CONE-SHOT line below must describe the cell he fires FROM. " .. State())
+		return
+	end
+
+	if not RequireAlive(ConeShooter, "the in-cone shooter", "the in-cone limb") then
+		return
+	end
+
 	ReportGeometry("CONE-SHOT", ConeShooter, HouseMT, Gunner)
 	local baseline = HealthOf(Gunner)
 	-- Issued only after AwaitDeployment has seen the man in-world at a port, plus the settle below,
@@ -366,22 +562,20 @@ local function PlaceShooters()
 	local cx, cy = YawToOffset(yaw, ConeDistance)
 	local bx, by = YawToOffset(yaw, -BehindDistance)
 
-	Test.IssueMoveOrder(ConeShooter, CPos.New(HouseMT.Location.X + cx, HouseMT.Location.Y + cy))
-	Test.IssueMoveOrder(BehindShooter, CPos.New(HouseMT.Location.X + bx, HouseMT.Location.Y + by))
+	ConeCellX, ConeCellY = HouseMT.Location.X + cx, HouseMT.Location.Y + cy
+	BehindCellX, BehindCellY = HouseMT.Location.X + bx, HouseMT.Location.Y + by
+
+	Test.IssueMoveOrder(ConeShooter, CPos.New(ConeCellX, ConeCellY))
+	Test.IssueMoveOrder(BehindShooter, CPos.New(BehindCellX, BehindCellY))
 
 	print("PLACEMENT | held port " .. Test.GarrisonPortOf(Gunner, HouseMT) ..
-		" | cone shooter -> " .. (HouseMT.Location.X + cx) .. "," .. (HouseMT.Location.Y + cy) ..
-		" | behind shooter -> " .. (HouseMT.Location.X + bx) .. "," .. (HouseMT.Location.Y + by))
+		" | cone shooter -> " .. ConeCellX .. "," .. ConeCellY ..
+		" | behind shooter -> " .. BehindCellX .. "," .. BehindCellY)
 
-	-- Both men have a couple of cells to walk. Wait for BOTH to stop moving rather than for a
-	-- fixed delay, so a slow path does not silently become a measurement of a man still walking.
-	WaitUntil(MoveWithin,
-		function() return ConeShooter.IsIdle and BehindShooter.IsIdle end,
-		ConeShot,
-		function()
-			Test.Skip("the shooters did not finish repositioning within " .. MoveWithin ..
-				"s, so neither limb could be measured from the held port's bearing. " .. State())
-		end)
+	AwaitCells({
+		{ actor = ConeShooter, x = ConeCellX, y = ConeCellY, name = "cone" },
+		{ actor = BehindShooter, x = BehindCellX, y = BehindCellY, name = "behind" },
+	}, ConeShot)
 end
 
 local function AwaitDeployment()

@@ -364,6 +364,45 @@
 	# 260509: the crash-disabled-then-repair-and-fly-again concept was scrapped.
 	# Safe-landed helis simply burn out and explode (ChangesHealth@CrashBurn above).
 
+# A helicopter with NO Armament anywhere in its resolved set -- TRAN and HALO, the two
+# transports. Audit rank-system-260919 §6 #11 / §5.2.
+#
+# ^GainsExperience (defaults.yaml, reached here via ^Helicopter -> ^Airborne) declares five
+# rank axes. Two of them modify armaments, so on an unarmed actor FirepowerMultiplier@Rank_1..4
+# and ReloadDelayMultiplier@Rank_1..4 are eight ConditionalTraits that resolve and scale
+# nothing -- the profile advertised firepower and reload bonuses the unit cannot use. Strip
+# exactly those eight; the three axes that DO work on a hauler (damage taken, speed and turn,
+# concealment) are untouched, as is the XP path and the evacuation credit.
+#
+# WHY THIS SUBCLASSES ^Helicopter INSTEAD OF BEING A MIXIN, which is the shape you would
+# reach for first and which does not work here. Both alternatives throw at rules load:
+#
+#   1. A removal-ONLY template (just the eight `-Key:` lines, inherited alongside
+#      ^Helicopter) is impossible. ResolveInherits consumes a `-Key:` against the
+#      accumulator of the node it is WRITTEN IN, before that node's result is folded into
+#      the child (MiniYaml.cs:479-484) -- so the removals run against an empty list and
+#      throw "There are no elements with key `FirepowerMultiplier@Rank_1` to remove"
+#      (:482-483). Verified: it throws in the audit's port of the loader too.
+#
+#   2. Making that mixin `Inherits: ^GainsExperience` first, to give the removals something
+#      to bite, then throws on the CHILD instead: TRAN would reach ^GainsExperience twice
+#      (once through ^Helicopter -> ^Airborne, once through the mixin) and the duplicate
+#      guard fires -- "Parent type `^GainsExperience` was already inherited by this yaml
+#      tree" (MiniYaml.cs:467-474).
+#
+# Subclassing is what is left: the removals sit below an `Inherits:` that has already
+# supplied the eight traits, and each actor names exactly one parent.
+^UnarmedHelicopter:
+	Inherits: ^Helicopter
+	-FirepowerMultiplier@Rank_1:
+	-FirepowerMultiplier@Rank_2:
+	-FirepowerMultiplier@Rank_3:
+	-FirepowerMultiplier@Rank_4:
+	-ReloadDelayMultiplier@Rank_1:
+	-ReloadDelayMultiplier@Rank_2:
+	-ReloadDelayMultiplier@Rank_3:
+	-ReloadDelayMultiplier@Rank_4:
+
 ^Drone:
 	Inherits: ^Airborne
 	-Voiced:
@@ -437,6 +476,25 @@ quadcopterdrone:
 	Inherits: ^Drone
 	Tooltip:
 		Name: Drone scout
+	# Not buildable and has no purchase path -- the ONLY thing that produces a
+	# quadcopter is ^DR's CarrierMaster (infantry.yaml:2519-2531), and the pool that
+	# pays for each release prices one at `SupplyValue: 25` (infantry.yaml:2553-2555,
+	# "1 batch x 1 drone x 25 supply = 25 (~17% of cost 150)"). SupplyValue is
+	# denominated in the same credits as Valued.Cost -- it is subtracted straight from
+	# Cost in the evac/sell math (DOCS/reference/economy.md:452, :462) -- so 25 is the
+	# mod's own declared price for one drone, not a new number.
+	# Without it this actor was broken at BOTH ends of the XP system:
+	#   1. GivesExperience computes `exp = valued.Cost` and returns early when it is 0
+	#      (GivesExperience.cs:50-52, :61-62), so killing a drone awarded ZERO XP to
+	#      anyone -- which left `DR` with no kill path at all, its only damaging
+	#      armament (DroneJammer) being `ValidTargets: Drone`.
+	#   2. Its OWN thresholds fell back to 1, not Cost (GainsExperience.cs:88-89), so
+	#      had it ever earned XP it would have ranked ~100x too fast -- the same trap
+	#      as the crew override removed in the preceding commit.
+	# Still not buildable, so RankAccumulation.Accrues stays false (:349-357) and it
+	# banks no purchase stock. This fixes the earn RATE, not the earn PATH.
+	Valued:
+		Cost: 25
 	Selectable:
 		Bounds: 760,760
 		Priority: 1
@@ -457,7 +515,25 @@ quadcopterdrone:
 	Health:
 		HP: 50
 	CarrierSlave:
-		MaxDistance: 25
+		# 25 -> 33 (2026-09-15). THE OLD VALUE MADE THE LOST-TRACK FEATURE UNREACHABLE BY
+		# CONSTRUCTION. A contact only becomes "lost" if it is outside the OPERATOR's own
+		# verifying radius, which is 28 cells (^StandardVision's strength-2 band ends at 28c0;
+		# the 28-32 band carries strength 1 and MapLayers.IsVisible(cell, 1) compares STRICTLY
+		# at MapLayers.cs:579). The drone could hover at most LeashCells - LeashMarginCells =
+		# 22 cells out, so by the triangle inequality it could never get closer than 6 cells to
+		# any contact it was launched to investigate — and the intel term is distance-discounted.
+		# Measured: the hunt cell scored 178 of a possible 247 and lost to a 248-square
+		# exploration alternative at every launch in both arms.
+		# THIS IS ENFORCEMENT, NOT ADVICE, AND EXCEEDING IT IS WORSE THAN BEING RECALLED.
+		# ReturnWithinDistance (CarrierSlave.cs:130-154) drags the drone 10% back toward the
+		# master and grants `lost-connection`, which VisionModifier@OperatorLostContact (:467-469)
+		# turns into Modifier: 0 — a blind unit the owner believes is scouting. The bot's own
+		# LeashCells is only its MODEL of this number; raise one without the other and drones get
+		# tasked past the real leash and go dark.
+		# Note the off-by-one in the check: `(Length - 1) < MaxDistance` means the drag fires at
+		# Length >= MaxDistance + 1, so 33 tolerates 33 and drags at 34. The bot's 3-cell margin
+		# keeps its 30-cell ceiling clear of both.
+		MaxDistance: 33
 		MaxDistanceCheckTicks: 20
 		ReturnAfter: 1000
 	ExternalCondition@LostConnection:

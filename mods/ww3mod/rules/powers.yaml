@@ -106,9 +106,12 @@
 # not optional and it does not live in the Description instead: the buy tab sorts ten warheads
 # spanning five orders of magnitude, and the yield is the only field that tells a player which of
 # them they are looking at. `kt` below 1000, `Mt` at and above. A MIRV states the product it
-# actually delivers -- `(6 x 750 kt)`, count first -- because one number cannot describe six
-# separate detonations. Anything that is not a yield (a payload descriptor like MIRV) goes in the
-# DESIGNATION, outside the parentheses; the bracket is the yield slot and holds nothing else.
+# actually delivers, and a MIRV whose count is not fixed says so without a number: the Sarmat
+# reads `(750 kt per RV)` because its warhead count is DoomsdayStrike.PackageSize, derived from
+# the map, and is 2 on arena-tank-duel and 6 on x-lake -- a name carrying one of those would be
+# wrong on seven of the ten shipped maps. Anything that is not a yield (a payload descriptor
+# like MIRV) goes in the DESIGNATION, outside the parentheses; the bracket is the yield slot
+# and holds nothing else.
 #
 # The Description may elaborate on the yield but is never the only place it appears. The same
 # strings are duplicated on the SupportPower itself (rules/ingame/nuclear-arsenal.yaml for the six
@@ -569,7 +572,7 @@ power.sarmat:
 		# (DOCS/recipes/BALANCE.md) -- and because it now only ever buys anything in sandbox.
 		Cost: 30000
 	Tooltip:
-		Name: RS-28 Sarmat MIRV (6 x 750 kt)
+		Name: RS-28 Sarmat MIRV (750 kt per RV)
 	Buildable:
 		Queue: Powers
 		BuildPaletteOrder: 70
@@ -577,13 +580,41 @@ power.sarmat:
 		# drawing v2bdgricon now that the Iskander and the strategic strike have their own. The key
 		# name is Red Alert legacy (it was a V2 launcher) and describes nothing about the art.
 		Icon: v2bdgricon
-		CameoCaption: 6x750 KT
+		# 750 KT, NOT 6x750, SINCE 2026-09-20 -- the count comes from the map now. Kept in step
+		# with the same two fields on MissileStrikePower@Sarmat (rules/ingame/nuclear-arsenal.yaml):
+		# the buy tab reads these and the support bin reads those, so a change to either must be
+		# made to both or the same weapon is called two different things in two panels.
+		CameoCaption: 750 KT
 		CameoBadge: nuclear
 		# 2500 ticks = 150 s.
 		BuildDuration: 2500
-		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\nSix 750 kt warheads, and you pick where each one lands.\nArrives fully loaded and fires once.
+		Description: Heavy ICBM carrying independently-targeted re-entry vehicles.\n750 kt per warhead, and you pick where each one lands.\nArrives fully loaded and fires once.
 	ProvidesSupportPowerCharge:
 		Power: SarmatStrike
+
+power.trident:
+	Inherits: ^PurchasableSupportPower
+	Valued:
+		# 30000, the Sarmat's price. The two powers deliver the same map-derived number of
+		# independently-placed warheads and differ only in per-RV yield (455 kt against 750), so a
+		# price difference here would be pricing the tonnage asymmetry the user chose deliberately.
+		# Repricing is a balance change (DOCS/recipes/BALANCE.md) and is not this item.
+		Cost: 30000
+	Tooltip:
+		Name: UGM-133A Trident II D5 (455 kt per RV)
+	Buildable:
+		Queue: Powers
+		BuildPaletteOrder: 75
+		# PLACEHOLDER ART, shared with the 100 kt Kalibr until a Trident cameo exists. Logged on
+		# the standing art list; see MissileStrikePower@TridentW88 in rules/ingame/nuclear-arsenal.yaml.
+		Icon: cmissicon
+		CameoCaption: 455 KT
+		CameoBadge: nuclear
+		# 2500 ticks = 150 s, the Sarmat's.
+		BuildDuration: 2500
+		Description: Submarine-launched ICBM carrying independently-targeted re-entry vehicles.\n455 kt per warhead, and you pick where each one lands.\nArrives fully loaded and fires once.
+	ProvidesSupportPowerCharge:
+		Power: TridentStrike
 
 power.b83:
 	Inherits: ^PurchasableSupportPower

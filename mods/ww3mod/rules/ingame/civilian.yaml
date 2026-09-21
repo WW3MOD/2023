@@ -19,8 +19,57 @@
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
 	Targetable@WhenGarrisoned:
 		RequiresCondition: loaded
+		# `Defense` IS DELIBERATE HERE, and it is kept knowingly rather than by default. It does
+		# invert one preference: ^AutoTargetGroundAntiTank scores `Defense` at 3 on its @Default band
+		# and `Infantry` at 2 on @Lower (defaults.yaml:699-709), so on its non-stance-fireatwill band
+		# such a unit prefers shelling the house to shooting the men leaning out of its ports. That
+		# inversion is ACCEPTED. Its real scope is two aircraft -- A10 and FROG are the only actors on
+		# that template -- and only off FireAtWill, where the two classes tie.
+		#
+		# WHY DROPPING IT COSTS MORE THAN THE INVERSION. Not one AutoTargetPriority band in the mod
+		# names `Ground` or `Structure` in an explicit ValidTargets, with a single exception (HIND
+		# hand-rolls its own @FireAtWill, aircraft-russia.yaml:119-122). The ^AutoTarget base chain
+		# reaches this building only because its @FireAtWill band declares no ValidTargets at all and
+		# so takes the engine default `Ground, Water, Air` (AutoTargetPriority.cs:21) -- but every
+		# band on the ^AutoTargetGround* and ^AutoTargetAll* chains is explicit, drawn from
+		# {Infantry, Vehicle, Water, Underwater, Air, Defense, Mine}. So `Defense` is their ONLY
+		# handle on a civilian house, and removing it would take a garrisoned house out of the
+		# AutoTargetPriority candidate set of FIFTEEN actors outright rather than demoting it: GTWR,
+		# FTUR, PBOX, HBOX, GUN, iskander, HIMARS, tunguska, strykershorad, A10, FROG, MI28, MIG,
+		# littlebird, HELI. That includes the mod's two rocket-artillery pieces -- the units that
+		# reduce garrisons -- which would defeat the whole point of making the building targetable in
+		# the first place. Tried on 2026-09-15 and reverted the same day; the arithmetic is pinned by
+		# GarrisonTargetBandTest so nobody has to re-derive it, and that fixture also fails if a
+		# future band starts naming `Ground` or `Structure` and changes the cost.
 		TargetTypes: Ground, C4, DetonateAttack, Structure, Defense
-		RequiresForceFire: true
+		# NO RequiresForceFire, and the deletion is the fix -- 63018cfa (2026-04-05) put it here to
+		# "prevent enemies from auto-targeting the building structure and force them to engage port
+		# soldiers instead", and the consequence nobody costed is that it made a garrison UNKILLABLE
+		# BY THE AI. Target.RequiresForceFire is all-or-nothing over the ENABLED targetables
+		# (Target.cs:131-151) and exactly one is enabled while loaded, so it returned true;
+		# AttackBase.ChooseArmamentsForTarget then hands back an empty armament set for every
+		# non-force attack (AttackBase.cs:442). No bot module in the mod issues an actor-directed
+		# ForceAttack -- the only ForceAttack anywhere is DroneOperatorBotModule.cs:686 and it targets
+		# a CELL -- so both bot paths die on that line: AutoTarget.ChooseTarget drops the candidate at
+		# its own ChooseArmamentsForTarget call (AutoTarget.cs:1502-1509, "never selected"), and the
+		# squad/DEFCON-2 named "Attack" orders (GroundStates.cs:94,:250, PoiOffensiveBotModule.cs:4720)
+		# ARE issued at a garrisoned building and then discarded by the activity ("selected then
+		# dropped"). Shelter occupants are reachable ONLY through GarrisonProtection.Damaged, an
+		# INotifyDamage on the building, so a bot could not scratch them and the protection curve
+		# never degraded.
+		#
+		# THE DESIGN INTENT SURVIVES THE DELETION, because it was never this flag that carried it.
+		# Port soldiers are Infantry and match a priority-2-to-5 AutoTargetPriority band on every
+		# specialised template, while the building matches only the base @FireAtWill band at priority 1
+		# (defaults.yaml:419) -- so an attacker still prefers the men at the ports, and reaches the
+		# building when no port man is targetable. What changes is that "walk past a building that is
+		# shooting at you" stops being the only option an attack-move has.
+		#
+		# AN EMPTY BUILDING IS UNAFFECTED, and never depended on this line: it is NEUTRAL (ownership
+		# transfers on garrison, DynamicOwnership defaults true), and both the armament relationship
+		# filter (Armament.TargetRelationships defaults to Enemy) and ChooseTarget's own
+		# AppearsHostileTo gate reject a neutral actor. The base Targetable below has carried no
+		# RequiresForceFire since before 63018cfa.
 	RenderSprites:
 		Palette: player
 		Scale: 1.2
@@ -186,6 +235,14 @@
 		ShowOwnerRow: false
 	RenderSprites:
 		Palette: terrain
+		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.15 is the sweet spot — 1.05 left gaps, 1.20 had dark seams.
+		Scale: 1.15
+		# PITFALL (2026-05): EastOnTop is essential — the field sprite has a baked-in shadow on its right edge.
+		# Without this flip, the world sort's default west-on-top tiebreaker can leave the shadow visible
+		# *inside* a group of fields (random dark vertical lines after copy-paste in the map editor). EastOnTop
+		# flags every yielded renderable with XSortBias=1; WorldRenderer's ThenBy then flips the secondary key
+		# to +Pos.X so the east neighbour draws over the previous tile's shadow. See WorldRenderer.cs ThenBy.
+		XRenderOrder: EastOnTop
 	WithSpriteBody:
 		# PITFALL (2026-05): -8192 (8 cells) — not "a small push-down". Y is part of the primary sort, so a
 		# field with ZOffset -N only renders below a unit while it's within N WDist south of that unit.
@@ -218,15 +275,6 @@
 		Categories: Decoration
 	RequiresSpecificOwners:
 		ValidOwnerNames: Neutral
-	RenderSprites:
-		# PITFALL: Scale > 1 overlaps adjacent fields; anti-aliased edges double-render dark vertical seams. Scale < 1 leaves visible gaps between cells. 1.15 is the sweet spot — 1.05 left gaps, 1.20 had dark seams.
-		Scale: 1.15
-		# PITFALL (2026-05): EastOnTop is essential — the field sprite has a baked-in shadow on its right edge.
-		# Without this flip, the world sort's default west-on-top tiebreaker can leave the shadow visible
-		# *inside* a group of fields (random dark vertical lines after copy-paste in the map editor). EastOnTop
-		# flags every yielded renderable with XSortBias=1; WorldRenderer's ThenBy then flips the secondary key
-		# to +Pos.X so the east neighbour draws over the previous tile's shadow. See WorldRenderer.cs ThenBy.
-		XRenderOrder: EastOnTop
 
 	# Inherits: ^CivBuilding
 	# -HitShape:

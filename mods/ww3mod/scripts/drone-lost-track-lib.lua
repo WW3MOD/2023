@@ -281,20 +281,25 @@ local function finish()
 	-- term weight reads exactly like the recorded outcome. The tell is in the summary rather
 	-- than the verdict — the treatment reached mindist=25 against the control's 27, so a
 	-- treatment run whose mindist regresses to 27+ has lost the effect even though the verdict
-	-- is unchanged.
+	-- is unchanged. THAT TELL IS STALE AS OF THE HOVER-30 CHANGE and is kept only as history: it
+	-- was taken when the leash put the nearest reachable cell 8 cells from V. The ceiling is now
+	-- 30, the best hunt cell is 47,53 — ONE cell out — and the measured run reached the vanish
+	-- cell's neighbourhood on its SECOND sortie in both arms. Compare arms, not runs.
 	if (nearCount * 2) >= #samples then
 		Test.Pass("drone spent the majority of its flight on the lost-track contact || " .. summary())
 	else
 		Test.Fail("drone did NOT prefer the lost-track contact — EXPECTED ON MERIT, see this "
-			.. "scenario's expected-status file. The term demonstrably moves the chosen cell "
-			.. "toward the contact but does not override the best exploration alternative in "
-			.. "this deliberately hard geometry (contact 30 cells out against a 22-cell leash, "
-			.. "so the best hunt cell sits at maximum falloff). HOW SHORT IS CURRENTLY UNKNOWN: "
-			.. "the only measurement predates 1e0226b9, which replaced the drone's rectangular "
-			.. "revealed-area query with the vision disc and so changed both `reveal` and "
-			.. "`bestintelreveal` — the numerator of the multiplier. Re-measure with "
-			.. "./tools/autotest/run-test.sh test-drone-lost-track and read bestintel/"
-			.. "bestintelreveal off the [drone] launch line in RUN_DIR/debug.log. || " .. summary())
+			.. "scenario's expected-status file. The term demonstrably moves the chosen cell: at "
+			.. "hover 30 the two arms picked DIFFERENT cells at t200 for the first time (treatment "
+			.. "43,27 vs control 31,17, both against bestReveal 287). It does not move it to the "
+			.. "contact. MEASURED, hover 30, both arms: worth at the best hunt cell 47,53 is "
+			.. "0 reveal + 238 intel = 238, against a winner worth 287-304, so the shortfall is a "
+			.. "multiplier of 1.21x-1.28x on the intel term — a BRACKET and not a point, because "
+			.. "the launch line prints the intel at the CHOSEN cell and the treatment's chosen cell "
+			.. "is not the reveal argmax. The whole bracket is inside the pre-registered <=1.5x "
+			.. "change-nothing band. DO NOT RAISE LostTrackIntelSquares on the strength of this "
+			.. "verdict. Read bestintel/bestintelcell/bestintelreveal off the [drone] launch line "
+			.. "in RUN_DIR/debug.log, never the global one. || " .. summary())
 	end
 end
 

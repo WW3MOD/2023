@@ -172,9 +172,8 @@ namespace OpenRA.Mods.Common.Traits
 		}
 	}
 
-	public class GarrisonManager : ICargoCanLoadFilter, IOverridesCargoNeutralRevert, INotifyCreated,
-		INotifyPassengerEntered, INotifyPassengerExited,
-		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageModifier
+	public class GarrisonManager : ICargoCanLoadFilter, IOverridesCargoNeutralRevert, INotifyCreated, INotifyPassengerEntered, INotifyPassengerExited,
+		ITick, IIssueOrder, IResolveOrder, INotifyKilled, INotifyDamage, IDamageFloor
 	{
 		public readonly GarrisonManagerInfo Info;
 		readonly Actor self;
@@ -192,6 +191,11 @@ namespace OpenRA.Mods.Common.Traits
 		// two guards below inert. NoLevel when the mode is not in play, and NoLevel never holds fire.
 		DefconEscalation defconEscalation;
 		int DefconLevel => defconEscalation?.Level ?? DefconEscalationState.NoLevel;
+
+		/// <summary>The match's DEFCON game mode, or Skirmish when there is no DefconEscalation on the
+		/// World actor at all. Paired with <see cref="DefconLevel"/> at every fire-discipline read site:
+		/// a level alone does not mean the match is escalating -- see DefconFireDiscipline's header.</summary>
+		DefconGameMode DefconMode => defconEscalation?.Mode ?? DefconGameMode.Skirmish;
 
 		BodyOrientation cachedBodyOrientation;
 		int tickOffset;
@@ -1047,7 +1051,7 @@ namespace OpenRA.Mods.Common.Traits
 			// CurrentTarget keeps it while TargetLockTicks runs -- which is the same division of labour
 			// as everywhere else in this feature: the flag stops acquisition, the one-shot at the
 			// transition stops what was already running, and a held target lapses within a scan interval.
-			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+			if (DefconFireDiscipline.HoldsFire(DefconMode, DefconLevel))
 				return Target.Invalid;
 
 			// Determine max range from the deployed soldier or from shelter soldiers
@@ -1396,7 +1400,7 @@ namespace OpenRA.Mods.Common.Traits
 			// already refuses to call this while the hold is on, so this is belt-and-braces -- but it is
 			// cheap, and without it a future second caller would latch ambushTriggered open at DEFCON 2
 			// even though the deploy that follows can find no target.
-			if (DefconFireDiscipline.HoldsFire(DefconLevel))
+			if (DefconFireDiscipline.HoldsFire(DefconMode, DefconLevel))
 				return;
 
 			var buildingStance = autoTarget?.Stance ?? UnitStance.FireAtWill;
@@ -1532,26 +1536,21 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
-		int IDamageModifier.GetDamageModifier(Actor attacker, Damage damage)
+		/// <summary>Indestructible means a FLOOR of one hit point, and it is expressed as a floor rather
+		/// than as a damage modifier because a modifier provably cannot express it.
+		/// <para>THE BUG THIS REPLACES. The old implementation was an IDamageModifier returning
+		/// `maxAllowedDamage * 100 / damage.Value` — an integer percentage — which truncates to 0 once
+		/// (HP-1)*100 &lt; damage, i.e. below about 140 HP against a 14000-damage tank round. At that
+		/// point the building took NOTHING and stalled there for the rest of the match: a shipped
+		/// 75000 HP church walked 75000 -> 61000 -> 47000 -> 33000 -> 19000 -> 5000 -> 100 and stopped,
+		/// so the 1 HP rubble state — and with it every RubbleProtection tuning value in the mod — was
+		/// unreachable by any weapon over about 100 damage. Measured 2026-09-15 from autotest run
+		/// 260915_184945, which reported a church stuck at 2/20 HP. No integer percentage fixes it:
+		/// at 140 HP against 14000 the only options are 0% (nothing lands) and 1% (140 lands, fatal).
+		/// GarrisonClampReachabilityTest walks both rules over the shipped numbers.</para></summary>
+		int IDamageFloor.GetDamageFloor()
 		{
-			if (!Info.Indestructible || health == null || health.IsDead || damage == null || damage.Value <= 0)
-				return 100;
-
-			// Already at minimum HP — block all damage
-			if (health.HP <= 1)
-				return 0;
-
-			// If this damage would kill us, reduce it so we stay at 1 HP
-			if (damage.Value >= health.HP)
-			{
-				var maxAllowedDamage = health.HP - 1;
-				if (maxAllowedDamage <= 0)
-					return 0;
-
-				return maxAllowedDamage * 100 / damage.Value;
-			}
-
-			return 100;
+			return Info.Indestructible ? 1 : 0;
 		}
 
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
