@@ -301,8 +301,14 @@ And a bound worth keeping, because it says which reports this does *not* explain
 
 Three shipped launchers bind their ammo pool to an armament whose weapon does nothing, because what is actually
 delivered is a **spawned actor**: `iskander` and `HIMARS` through `MissileSpawnerMaster`, `DR` through
-`CarrierMaster`. `IskanderTargeter` is an `InstantHit` carrying `Damage: 50` with every `Versus` entry at 0;
-`HIMARSTargeter` inherits it; `DroneTargeter` is `Damage: 0` and its armament sets `AmmoUsage: 0` as well.
+`CarrierMaster`. `IskanderTargeter` is an `InstantHit` carrying `Damage: 0`; `HIMARSTargeter` inherits it;
+`DroneTargeter` is `Damage: 0` and its armament sets `AmmoUsage: 0` as well. **`IskanderTargeter` carried
+`Damage: 50` until 2026-09-21** — corrected there, because its `Versus` table zeroes six classes but omits
+`Kevlar`, and an omitted class takes the unmodified 100% (§"`Versus`: an OMITTED armor class is FULL damage"),
+so the dummy was landing its full 50 on every soldier in the game. **That table is still deliberately
+incomplete and must not be "finished"**: `ArmorInfo.ProvideTooltipDescription` (`Traits/Armor.cs:73`) asks
+whether *any* warhead in the ruleset names a type, so naming `Kevlar` even at 0 flips every infantry tooltip
+from "None" to "Kevlar". The `Damage: 0` is what makes the weapon harmless; the zeroes are belt-and-braces.
 
 **Consequence beyond tooltips: any code that assesses a unit's firepower by walking `Armament` → `Weapon` →
 warhead concludes these three are harmless.** The damage lives on the spawned actor's own weapon
