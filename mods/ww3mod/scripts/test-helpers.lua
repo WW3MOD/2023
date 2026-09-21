@@ -82,6 +82,29 @@ end
 --     compatible with opposite root causes, and diagnosing that by reading code instead has
 --     already produced one published wrong answer (WORKSPACE/bugs/discovered.md 2026-09-01).
 --     Every pre-existing caller passes a string and is unaffected.
+--
+-- ⚠ THE RULE, AND IT IS THE ONE THAT BITES: A PREDICATE HANDED TO AssertWithin MUST NEVER
+-- BECOME TRUE IN A SCENARIO THAT HAS ITS OWN DEFERRED VERDICT. `Test.Pass` below is TERMINAL
+-- -- it writes result.json and exits the game -- so the instant a predicate returns true,
+-- anything the scenario had scheduled for later is dead: its assertions never execute, its
+-- screenshots never flush, and the run reports green having measured nothing.
+--
+-- Observed 2026-09-21 in test-himars-church-vs-block, whose predicate was `return Reported`
+-- against a latch set 27 ticks before its own Verdict would have run. AssertWithin won that
+-- race in BOTH runs (260921_174913, 260921_175314): `"notes":""`, no `screenshots` key, no PNG
+-- on disk, and neither half of the bar ever evaluated. A test that cannot fail is not a
+-- passing test. Audit of all 46 callers that also carry their own payload verdict:
+-- WORKSPACE/audit/260921-assertwithin-false-green.md.
+--
+-- AssertWithin is safe in exactly two shapes:
+--   1. A PURE WATCHDOG whose predicate is always false (or only ever returns a "fail: " string),
+--      used solely for its timeout. The scenario owns every verdict.
+--   2. THE SOLE VERDICT AUTHORITY -- the scenario's whole question is "did X happen in time",
+--      and nothing is scheduled to run after the predicate goes true.
+-- A scenario that needs to judge AFTER a latch must open-code its deadline in a Trigger.OnTick
+-- poller instead (see test-himars-church-vs-block), or call Test.Pass(note) from INSIDE the
+-- predicate and then `return false` (see test-autotarget-preempt-air, test-lc-refill-gesture,
+-- test-restock-unreachable-centre, test-lc-rearm-partial-order -- all four already do this).
 function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 	local timeoutTicks = math.floor(seconds * TestHarness.TicksPerSecond)
 	local elapsed = 0
@@ -89,7 +112,19 @@ function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 	check = function()
 		local result = predicate()
 		if result == true then
-			Test.Pass()
+			-- A NOTE, ALWAYS. This was a bare `Test.Pass()` until 2026-09-21, which wrote
+			-- `"notes":""` -- a green stating nothing about what it had measured, and therefore
+			-- indistinguishable at a glance from the false-GREEN described in the rule above.
+			-- The note cannot resurrect an assertion that never ran; what it does is make the
+			-- verdict say WHOSE it is. A result.json whose entire note is this line was decided
+			-- by the watchdog, not by any scenario assertion -- which is a fact worth having in
+			-- the run's own artifact rather than inferring from the Lua months later.
+			-- It also clears the way for run-test.sh's PASS-EMPTY tripwire to mean something:
+			-- with this note in place, an empty-note green is a genuine anomaly rather than the
+			-- ordinary output of ~40 scenarios.
+			Test.Pass("AssertWithin: predicate true at tick " .. (elapsed + 1) .. " of " ..
+				timeoutTicks .. " (" .. tostring(seconds) .. "s budget) — verdict authored by the " ..
+				"watchdog, not by a scenario assertion")
 			return
 		end
 		if type(result) == "string" then
@@ -145,11 +180,20 @@ end
 -- Usage:
 --     TestHarness.AssertAfter(3, function() return Tank.IsDead end,
 --         "Tank still alive 3s in")
+--
+-- ⚠ THE SAME RULE AS AssertWithin APPLIES, for the same reason: the Pass below is TERMINAL.
+-- This fires exactly once, at a fixed tick, so it cannot race a poller the way AssertWithin
+-- can -- but a scenario that schedules anything to run AFTER `seconds` still loses it. Five
+-- scenarios call this; none of them was affected (audited 2026-09-21).
 function TestHarness.AssertAfter(seconds, predicate, failReason)
 	local ticks = math.floor(seconds * TestHarness.TicksPerSecond)
 	Trigger.AfterDelay(ticks, function()
 		if predicate() then
-			Test.Pass()
+			-- A NOTE, ALWAYS -- see the equivalent block in AssertWithin. A bare Test.Pass()
+			-- writes `"notes":""`, which run-test.sh now reports as the PASS-EMPTY outcome.
+			Test.Pass("AssertAfter: predicate true at tick " .. ticks .. " (" ..
+				tostring(seconds) .. "s settle) — verdict authored by the helper, not by a " ..
+				"scenario assertion")
 		else
 			Test.Fail(failReason or ("Assertion false after " .. seconds .. "s"))
 		end

@@ -138,9 +138,16 @@
 #
 #       AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
 #
-#   OUTCOME is one of: PASS, FAIL, SKIP, TIMEOUT-FAIL, LAUNCH-FAIL, CRASH,
-#   NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR. It is strictly more
-#   informative than the exit code, which collapses the last six onto 3.
+#   OUTCOME is one of: PASS, PASS-EMPTY, FAIL, SKIP, TIMEOUT-FAIL, LAUNCH-FAIL,
+#   CRASH, NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR. It is strictly
+#   more informative than the exit code, which collapses six of them onto 3 and
+#   -- deliberately -- PASS-EMPTY onto 0.
+#
+#   PASS-EMPTY is a `pass` verdict whose `notes` field is empty: the scenario
+#   answered, but said nothing about what it measured. Exit 0, because it IS a
+#   pass and this runner's exit codes are contractual; the distinction travels
+#   by NAME, and run-batch.sh counts and lists it separately so no batch can
+#   pass on one. See the tripwire block near the status read.
 #
 #   LAUNCH-FAIL means the local server REFUSED THE CLIENT AT JOIN and no world
 #   was ever built - nothing ran, nothing was evaluated, and the scenario made
@@ -1199,6 +1206,35 @@ fi
 
 STATUS=$(grep -o '"status":"[^"]*"' "${RESULT_FILE}" | head -1 | sed 's/"status":"\(.*\)"/\1/')
 
+# THE EMPTY-NOTE TRIPWIRE. A pass whose verdict text is empty is not a result: it is a green
+# that declines to say what it measured, and the standing rule here is that such a green is a
+# failed test.
+#
+# WHAT IT CATCHES. TestHarness.AssertWithin used to call `Test.Pass()` with no note the moment
+# its predicate returned true. Test.Pass is TERMINAL, so a scenario that latched a flag and then
+# scheduled its real verdict a few ticks later never ran that verdict -- result.json said
+# `"status":"pass","notes":""`, carried no screenshots, and its assertions had never executed.
+# Two such runs happened on 2026-09-21 (260921_174913, 260921_175314) and both were read as
+# green. The Lua side of that fix gives AssertWithin a note, so this check is no longer tripped
+# by the ordinary case; what remains under it is the real anomaly.
+#
+# WHY THE JSON IS NOT REWRITTEN. result.json is what the ENGINE said, and it is the primary
+# evidence artifact -- mutating `"status":"pass"` into `"pass-empty"` here would break every
+# reader that greps for pass and would destroy that property for a cosmetic gain. The
+# distinction rides the OUTCOME NAME instead, through the side channel this runner already
+# defines for exactly this purpose (AUTOTEST_OUTCOME_FILE; see the header). That is also why
+# the EXIT CODE is unchanged at 0: the header's contract is explicit that run-batch, CI and
+# every existing caller depend on 0/1/2/3, and widening them buys one fix with a different
+# silent break. run-batch.sh grades the NAME and counts PASS-EMPTY separately, so a batch
+# cannot hide it -- which is where the "empty green is a failed test" rule is enforced.
+#
+# The match is exact and safe against the writer: TestMode.WriteResult emits compact JSON with
+# no spaces (`"notes":""`), TestMode.cs:339-350.
+NOTES_EMPTY=0
+if grep -q '"notes":""' "${RESULT_FILE}" 2>/dev/null; then
+	NOTES_EMPTY=1
+fi
+
 # BEFORE the status read is consulted: the synthetic verdict above says "fail",
 # and a launch failure is not a failing test. Exit 3 puts it in the error family
 # with the other "nothing ran" outcomes, which is also what keeps run-batch from
@@ -1209,7 +1245,20 @@ if [ "${LAUNCH_FAILED}" = "1" ]; then
 fi
 
 case "${STATUS}" in
-	pass) OUTCOME="PASS"; exit 0 ;;
+	pass)
+		if [ "${NOTES_EMPTY}" = "1" ]; then
+			OUTCOME="PASS-EMPTY"
+			echo "==> SUSPECT PASS: the engine wrote status=pass with an EMPTY notes field."
+			echo "    A green that states nothing about what it measured is not a result. The"
+			echo "    usual cause is a terminal verdict reached before the scenario's own"
+			echo "    assertions ran -- see the AssertWithin rule in"
+			echo "    mods/ww3mod/scripts/test-helpers.lua and"
+			echo "    WORKSPACE/audit/260921-assertwithin-false-green.md."
+			echo "    Exit stays 0 (the scenario did answer); run-batch.sh counts this"
+			echo "    separately and will not let a batch pass on it."
+			exit 0
+		fi
+		OUTCOME="PASS"; exit 0 ;;
 	fail)
 		# A watchdog kill and a real assertion failure both write status=fail. Same
 		# exit code (run-batch and CI depend on that), different name.

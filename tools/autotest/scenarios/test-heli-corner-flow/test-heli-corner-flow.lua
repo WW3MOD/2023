@@ -284,7 +284,7 @@ WorldLoaded = function()
 	end
 
 	-- ONE VERDICT PATH, DELIBERATELY. TestHarness.AssertWithin calls Test.Pass() itself the moment its
-	-- predicate returns true (test-helpers.lua:91-93), so a scenario that uses it for liveness AND then
+	-- predicate returns true (test-helpers.lua:113-128), so a scenario that uses it for liveness AND then
 	-- judges separately afterwards has already passed before its own verdict runs. The judgement therefore
 	-- lives INSIDE the predicate: false keeps waiting, a returned STRING fails with that string, true
 	-- passes. Nothing else in this file calls Test.Pass or Test.Fail on the success path.
