@@ -48,14 +48,67 @@ respective owners, who are not affiliated with this project.
 
 MUSIC
 
-    (nothing here yet)
+No music was composed for WW3MOD. The soundtrack you hear is
+Red Alert's own, played from the score files in your copy of
+the game; none of it is distributed with this mod.
+
+One music file is included in this distribution:
+
+    * journey.aud - believed to be from the Red Alert games.
+      Its exact source has not been confirmed, so it is
+      credited here as unattributed rather than guessed at.
+      It is a placeholder and is intended to be replaced.
+
+If your installation has no Red Alert score files, that one
+track is the only music the game has, and it will loop.
 
 
 ART
 
-    (nothing here yet)
+Almost all of the artwork you see is Red Alert's, loaded from
+your own copy of the game, or is derived from Command &
+Conquer artwork. It is placeholder art and is intended to be
+replaced.
+
+That includes the unit sprites - a number of modern vehicles
+are currently drawn with the closest-looking Red Alert unit -
+along with the build icons, the weapon effects and the
+terrain. Where a Russian unit and its American counterpart
+share an icon, that is a placeholder standing in for art that
+has not been drawn yet.
+
+    * Unit, icon, effect and terrain art - derived from
+      Command & Conquer: Red Alert and other games in the
+      series. No individual artist is credited because no
+      per-file record of where each piece came from was kept;
+      we would rather say so than invent an attribution.
+    * Menu and sidebar artwork - reworked for WW3MOD from
+      OpenRA's Red Alert chrome.
+    * Some interface elements are still OpenRA's or Red
+      Alert's unchanged, including the icon this mod shows in
+      the mod chooser.
+
+Fonts: FreeSans and FreeSansBold are GNU FreeFont. The
+ZoodRangmah display face ships with the OpenRA engine.
 
 
 SOUND
 
-    (nothing here yet)
+No sound effects or voice lines were recorded for WW3MOD.
+
+Weapon, engine, explosion and interface sounds are Red
+Alert's, played from your own copy of the game or included
+here in the same derived form as the artwork above.
+
+Unit voice lines are Red Alert's, in English, for both
+sides - an American and a Russian soldier answer with the
+same game's recordings. New voice work has not been done.
+
+    * Sound effects and voice lines - derived from Command &
+      Conquer: Red Alert and other games in the series, and
+      credited as unattributed for the same reason as the
+      art.
+    * A few of the included sound sets match no naming scheme
+      we recognise and we do not know where they came from.
+      They are listed as unattributed rather than credited to
+      anyone, and none is used by a unit in the game.
