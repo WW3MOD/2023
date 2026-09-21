@@ -68,9 +68,21 @@
 --   SKIP  — the scenario never built the world it describes (nobody garrisoned, nobody deployed,
 --           a trigger died early). A setup fault, never a finding about garrisons.
 
-local SetupWithin = 40      -- s for two men to walk in and claim their houses
-local DeployWithin = 40     -- s for GarrisonManager to confirm a target and man a port
-local HitWithin = 20        -- s for an in-arc shooter to land its first round
+-- 1000 / 1000 / 500 ticks: the budgets this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; these are the SAME
+-- tick budgets re-expressed so they no longer depend on the rate (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+--
+-- AS WITH test-garrison-ownership-flip-evacuation, MOST OF THESE GATE A Test.Skip RATHER THAN A
+-- VERDICT, so shrinking them takes the scenario off the air without turning it red. The full-suite
+-- run at e6732446 skipped on MoveWithin ("a mover did not reach its derived cell within 45s").
+local SetupWithinTicks = 1000
+local DeployWithinTicks = 1000
+local HitWithinTicks = 500
+local SetupWithin = SetupWithinTicks / TestHarness.TicksPerSecond   -- two men walk in and claim houses
+local DeployWithin = DeployWithinTicks / TestHarness.TicksPerSecond -- GarrisonManager confirms + mans a port
+local HitWithin = HitWithinTicks / TestHarness.TicksPerSecond       -- an in-arc shooter lands its first round
 -- 30 s, not 12. 5.56mm.E3 is ReloadDelay 60 with Burst 2, and a port occupant carries
 -- DamageMultiplier@GarrisonCover: Modifier: 20 (infantry.yaml:213-215) -- so a permitted shooter
 -- lands roughly one 5-damage hit per reload cycle, and the control limb's whole evidence in run
@@ -78,14 +90,14 @@ local HitWithin = 20        -- s for an in-arc shooter to land its first round
 -- delta: "took zero" was as likely to mean "missed" as "was refused", which makes a PASS here worth
 -- very little. This limb asserts a NEGATIVE, so it has to be the generous one.
 local QuietFor = 30         -- s a blocked shooter is given to prove it lands nothing
-local SettleFor = 3         -- s after a Stop order, before a fresh health baseline is taken
+local SettleForTicks = 75   -- ticks after a Stop order, before a fresh health baseline is taken
 -- 45 s, not 20. The derived cells rotate with the held port while the spawns are fixed, so one of
 -- them can land ON a shooter's own start cell -- run 260915_211447 sent the behind shooter to 24,8,
 -- which is where the cone shooter was still standing, and he never left his spawn. He gets there
 -- once the cell frees, but only if the order is re-issued, and only if there is time to walk the
 -- long way round the house.
-local MoveWithin = 45       -- s for the two shooters to walk onto their derived bearings
-local MoveTraceEvery = 5    -- s between position traces while they walk
+local MoveWithinTicks = 1125  -- ticks for the two shooters to walk onto their derived bearings
+local MoveTraceEveryTicks = 125 -- ticks between position traces while they walk
 local HeldYaw = nil         -- the port yaw both shooters were positioned against
 local ConeCellX, ConeCellY = nil, nil       -- derived cell the in-cone shooter must stand on
 local BehindCellX, BehindCellY = nil, nil   -- derived cell the behind shooter must stand on
@@ -197,7 +209,7 @@ end
 -- Poll until `predicate` holds. Deliberately NOT TestHarness.AssertWithin: that calls
 -- Test.Pass() the moment its predicate is true, which would end the run at the first phase.
 local function WaitUntil(seconds, predicate, onReady, onTimeout)
-	local remaining = math.floor(seconds * TestHarness.TicksPerSecond)
+	local remaining = TestHarness.TicksForSeconds(seconds)
 	local check
 	check = function()
 		if predicate() then
@@ -221,7 +233,7 @@ end
 -- for the two "this shooter must land nothing" limbs, where waiting the full window IS the
 -- measurement - there is no early exit that could prove a negative.
 local function HoldAndCompare(seconds, actor, baseline, onDone)
-	local remaining = math.floor(seconds * TestHarness.TicksPerSecond)
+	local remaining = TestHarness.TicksForSeconds(seconds)
 	local worst = baseline
 	local tick
 	tick = function()
@@ -268,15 +280,15 @@ end
 -- collide with a fixed spawn: a man ordered onto an occupied cell simply does not go, and nothing
 -- retries him. Re-issuing on each trace costs nothing when he is already walking (the order
 -- resolves to the same destination) and is the whole fix when the cell was blocked at order time.
--- Arrival for any set of movers. Traces every MoveTraceEvery seconds, RE-ISSUES the move (the
+-- Arrival for any set of movers. Traces every MoveTraceEveryTicks ticks, RE-ISSUES the move (the
 -- derived cells rotate with the held port while spawns are fixed, so one can be occupied at order
 -- time and free a second later -- run 260915_211447), and bails the moment a mover dies rather than
 -- letting a corpse reach an Attack call.
 --
 -- targets: { { actor = a, x = n, y = n, name = "cone" }, ... }
 local function AwaitCells(targets, onReady)
-	local remaining = math.floor(MoveWithin * TestHarness.TicksPerSecond)
-	local interval = math.floor(MoveTraceEvery * TestHarness.TicksPerSecond)
+	local remaining = MoveWithinTicks
+	local interval = MoveTraceEveryTicks
 	local sinceTrace = 0
 	local check
 
@@ -309,7 +321,7 @@ local function AwaitCells(targets, onReady)
 
 		if arrived then
 			print("MOVE-ARRIVED | " .. Trace())
-			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), onReady)
+			Trigger.AfterDelay(SettleForTicks, onReady)
 			return
 		end
 
@@ -328,8 +340,8 @@ local function AwaitCells(targets, onReady)
 		end
 
 		if remaining <= 0 then
-			Test.Skip("a mover did not reach its derived cell within " .. MoveWithin ..
-				"s. FINAL STATE: " .. Trace() .. " -- orderAtCell=Move means the pipeline accepts the " ..
+			Test.Skip("a mover did not reach its derived cell within " .. MoveWithinTicks ..
+				" ticks. FINAL STATE: " .. Trace() .. " -- orderAtCell=Move means the pipeline accepts the " ..
 				"destination and he is merely slow or blocked en route; anything else means it refuses " ..
 				"that cell outright, which is what a still-occupied or unreachable cell looks like. " ..
 				State())
@@ -569,7 +581,7 @@ end
 -- behind shooter and fail the run.
 local function StopConeShooterThenMeasure()
 	ConeShooter.Stop()
-	Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), BehindShot)
+	Trigger.AfterDelay(SettleForTicks, BehindShot)
 end
 
 -- PHASE 1a — the in-cone shot MUST land. This is the instrument check: it proves a rifleman can
@@ -656,7 +668,7 @@ local function AwaitDeployment()
 		function()
 			-- One settle beat after the port reads manned AND in-world, so the deploy's frame-end
 			-- task (SetPosition, w.Add) is fully behind us before anything is aimed at him.
-			Trigger.AfterDelay(math.floor(SettleFor * TestHarness.TicksPerSecond), PlaceShooters)
+			Trigger.AfterDelay(SettleForTicks, PlaceShooters)
 		end,
 		function()
 			Test.Skip("the Gunner never deployed to a firing port within " .. DeployWithin ..

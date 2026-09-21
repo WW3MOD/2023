@@ -10,7 +10,12 @@
 -- The 8s window covers AimingDelay (50 ticks ≈ 2s) + first burst, so a
 -- firing Bradley should drop at least 1 missile.
 
-local DeadlineSeconds = 8
+-- 200 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 200
 
 local pairs_data = {
 	{ b = B0, t = T0, trees = 0 },
@@ -34,7 +39,7 @@ WorldLoaded = function()
 		p.b.Attack(p.t, false, false)
 	end
 
-	local ticks = math.floor(DeadlineSeconds * TestHarness.TicksPerSecond)
+	local ticks = DeadlineTicks
 	Trigger.AfterDelay(ticks, function()
 		local fails = {}
 		local report = {}

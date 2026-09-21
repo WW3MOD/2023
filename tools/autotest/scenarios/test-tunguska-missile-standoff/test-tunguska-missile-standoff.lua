@@ -22,11 +22,17 @@
 -- The heli is held on HoldFire so it cannot damage the Tunguska; return fire would
 -- trigger repositioning and confound a test whose entire signal is "did it move east".
 
--- NOTE: this deadline was authored when TestHarness.TicksPerSecond was a hardcoded 25 and was
--- therefore ~30 s of wall time (500 ticks). The harness was corrected to the engine's 16.667 on
--- 2026-09-21, so 20 here now means 20 s = 333 ticks. The number was NOT re-authored with the
--- flip; if this scenario starts timing out, that is the reason and the budget needs re-deriving.
-local DeadlineSeconds = 20
+-- 500 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+--
+-- IT DID START TIMING OUT, exactly as the note that stood here predicted: the full-suite run at
+-- e6732446 failed this scenario on its own timeout string ("tunguska never fired a 9M311"). The
+-- budget is re-derived here rather than widened -- 500 ticks is what it always was.
+local DeadlineTicks = 500
+local DeadlineSeconds = DeadlineTicks / TestHarness.TicksPerSecond
 
 local TunguskaCol = 10
 local HeliCol = 34

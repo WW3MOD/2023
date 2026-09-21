@@ -7,7 +7,13 @@
 -- RED baseline for the manager: comment out GrantCondition below → stock ambush, undetected fast column
 -- passes without a spring, test times out.
 
-local Deadline = 14
+-- 350 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 350
+local Deadline = DeadlineTicks / TestHarness.TicksPerSecond
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(Ambusher, Lead)
@@ -26,5 +32,5 @@ WorldLoaded = function()
 	TestHarness.AssertWithin(Deadline, function()
 		if Ambusher.IsDead then return "fail: ambusher died before springing" end
 		return Ambusher.AmmoCount("primary-ammo") < startAmmo
-	end, "AT ambush did not spring on the fast convoy within " .. Deadline .. "s")
+	end, "AT ambush did not spring on the fast convoy within " .. DeadlineTicks .. " ticks")
 end

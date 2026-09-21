@@ -52,9 +52,23 @@
 --   SKIP  — the scenario never built the world it describes. Always a setup or harness fault,
 --           never a finding about garrisons. Read the message and fix the scenario.
 
-local SetupWithin = 20      -- s for two riflemen to walk in and claim their houses
-local EvacWithin = 20       -- s for the control garrison to come back out
-local FlipWithin = 5        -- s for a ChangeOwner frame-end task to land
+-- 500 / 500 / 125 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+--
+-- THESE ARE PRECONDITIONS, NOT VERDICTS, WHICH IS WHY THIS ONE IS THE DANGEROUS SHAPE. Missing
+-- SetupWithin calls Test.Skip, not Test.Fail -- so when the flip cut it from 500 ticks to 333 the
+-- scenario simply stopped reaching anything it tests and reported a green-ish SKIP. The full-suite
+-- run at e6732446 skipped on exactly that string. A budget that gates a skip needs the same care
+-- as one that gates a verdict.
+local SetupWithinTicks = 500
+local EvacWithinTicks = 500
+local FlipWithinTicks = 125
+local SetupWithin = SetupWithinTicks / TestHarness.TicksPerSecond
+local EvacWithin = EvacWithinTicks / TestHarness.TicksPerSecond
+local FlipWithin = FlipWithinTicks / TestHarness.TicksPerSecond
 
 -- A soldier is unambiguously OUT when he is in the world and not standing on the building's
 -- own cell. Both halves are needed. A shelter occupant is out of the world entirely, and a
@@ -83,7 +97,7 @@ end
 -- that calls Test.Pass() the moment its predicate is true, which would end the run at the
 -- first phase instead of moving to the next one. Only the final assertion may use AssertWithin.
 local function WaitUntil(seconds, predicate, onReady, onTimeout)
-	local remaining = math.floor(seconds * TestHarness.TicksPerSecond)
+	local remaining = TestHarness.TicksForSeconds(seconds)
 	local check
 	check = function()
 		if predicate() then
@@ -215,8 +229,8 @@ WorldLoaded = function()
 		function() return OwnerOf(Home) == "USA" and OwnerOf(Seized) == "USA" end,
 		ControlEvacuation,
 		function()
-			Test.Skip("one or both houses never became USA-owned within " .. SetupWithin ..
-				"s, so the garrison never formed and nothing under test was reached. Either the " ..
+			Test.Skip("one or both houses never became USA-owned within " .. SetupWithinTicks ..
+				" ticks, so the garrison never formed and nothing under test was reached. Either the " ..
 				"riflemen could not path to the buildings, or DynamicOwnership stopped claiming " ..
 				"neutral buildings on entry (GarrisonManager.cs:256-261). " .. State())
 		end)

@@ -66,7 +66,13 @@
 --
 -- No enemy on this map and no fire stance touched anywhere (AUTOTEST.md gotcha 7).
 
-local DeadlineSeconds = 40
+-- 1000 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 1000
+local DeadlineSeconds = DeadlineTicks / TestHarness.TicksPerSecond
 
 -- ReloadAmmoPool's shipped defaults: Count 1 every Delay 50 ticks. The LC's replenish-soldiers aura
 -- drives it for free, with no docking involved, so it is the mechanism that can forge a green here.
@@ -112,7 +118,7 @@ end
 -- failure naming the subject and the numbers, so the run goes red at once rather than green for the
 -- wrong reason.
 local function checkTrickleCannotForgeAPass()
-	local deadlineTicks = math.floor(DeadlineSeconds * TestHarness.TicksPerSecond)
+	local deadlineTicks = DeadlineTicks
 	local trickleCeiling = math.floor(deadlineTicks / TrickleDelayTicks) * TrickleRoundsPerDelay
 
 	for _, s in ipairs(subjects) do
@@ -120,7 +126,7 @@ local function checkTrickleCannotForgeAPass()
 		if missing <= trickleCeiling then
 			return "fail: SETUP -- " .. s.Name .. " starts only " .. missing
 				.. " rounds short, but the free ReloadAmmoPool trickle can deliver " .. trickleCeiling
-				.. " within the " .. DeadlineSeconds .. "s deadline. It could reach full without ever "
+				.. " within the " .. DeadlineTicks .. "-tick deadline. It could reach full without ever "
 				.. "docking, so this run could not tell a working dock rearm from a broken one. "
 				.. "Lower InitialAmmo in rules.yaml (two batches short is the intent)."
 		end
@@ -259,7 +265,7 @@ WorldLoaded = function()
 			return false
 		end
 
-		if elapsed >= math.floor((DeadlineSeconds - 1) * TestHarness.TicksPerSecond) then
+		if elapsed >= DeadlineTicks - math.floor(TestHarness.TicksPerSecond) then
 			return "fail: " .. reportAll()
 		end
 
