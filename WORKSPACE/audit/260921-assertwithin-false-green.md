@@ -73,8 +73,8 @@ not per-file.
 
 ## The table
 
-| scenario | AssertWithin | can the predicate go true first? | evidence that would have been lost | action taken |
-|---|---|---|---|---|
+| scenario | AssertWithin | can its predicate return true BEFORE the scenario's own deferred verdict runs? | why — the predicate's actual returns | evidence that would have been lost | action taken |
+|---|---|---|---|---|---|
 | `test-himars-church-vs-block` | `:62` | **YES** | `return Reported` (**:62**). `Reported` is latched `true` in the OnTick poller at the same moment `Trigger.AfterDelay(2, Verdict)` is scheduled — AssertWithin polls every tick, so it wins by ~27 ticks, every time. | **Everything the scenario exists to measure.** Both latched HP readings; the assertion that one HIMARS floors the church to 1 HP; the assertion that the block keeps over half; the `01-after-one-salvo` screenshot; and the `Test.Pass(detail)` note carrying both numbers. | **None here — deliberately.** See "The one YES" below. |
 | `test-autotarget-preempt-air` | `:162` | **watchdog-only** | `Test.Pass(...)` at **:202** is called from INSIDE the predicate, which then `return false` (:203). Every return is `false` or a `"fail: "` string. | Nothing. The margin figure and the uncommitted-scan attribution ride in the note it writes itself. **This file diagnosed the trap first** — see its PITFALL block at :123-128, dated 2026-08-12. | None. Already the correct shape. |
 | `test-lc-rearm-partial-order` | `:238` | **watchdog-only** | `Test.Pass(reportAll())` at **:258** from inside the predicate, then `return false` (:259). The only non-`false` return is `return staging` (:239), and `staging` is a `"fail: "` string or `nil`. | Nothing. | None. Already the correct shape. |
