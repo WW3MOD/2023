@@ -580,7 +580,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Called by DefconCasualtyObserver on each player actor once a death has passed the casualty
 		// rule. Only DEFCON 2 listens, so a second casualty on the same tick, or any casualty at 3 or
 		// 1, does nothing.
-		public void ReportCasualty(Actor victim, Actor attacker)
+		public void ReportCasualty(Actor victim, string attackerType, string attackerOwner)
 		{
 			if (!state.ReportCasualty())
 				return;
@@ -593,10 +593,13 @@ namespace OpenRA.Mods.Common.Traits
 			//
 			// InternalName rather than PlayerName: this is also what the debug line below has always
 			// printed, and it is the name a scenario's map players actually have.
+			// STRINGS IN, RATHER THAN AN Actor: on the burnout path the killer is no longer derivable
+			// from the AttackInfo at all -- the finishing blow names the victim itself, and the unit
+			// that actually shot it is only known to DefconCasualtyObserver's damage record.
 			FirstCasualtyType = victim.Info.Name;
 			FirstCasualtyOwner = victim.Owner.InternalName;
-			FirstCasualtyAttackerType = attacker?.Info.Name;
-			FirstCasualtyAttackerOwner = attacker?.Owner?.InternalName;
+			FirstCasualtyAttackerType = attackerType;
+			FirstCasualtyAttackerOwner = attackerOwner;
 
 			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}" +
 				$"; killed by {FirstCasualtyAttackerType ?? "?"} of {FirstCasualtyAttackerOwner ?? "?"}).");

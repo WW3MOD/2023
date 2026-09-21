@@ -3,6 +3,54 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - CLOSED: every vehicle in this mod bleeds to death SELF-INFLICTED, so a tank shot below half and left to burn out never ended DEFCON 2 (`wt/escalation-guards`, runs `260921_181057` / `260921_181456`)
+
+The instrumented `DEFCON casualty` line (added the same day, entry below) answered it on the first
+run. Cause, by reading:
+
+- `^EffectsWhenDamagedVehicles` carries `ChangesHealth@CriticalDamage` with `PercentageStep: -1`,
+  `Delay: 5`, `StartIfBelow: 50` (`mods/ww3mod/rules/ingame/vehicles.yaml:183-188`). **Every vehicle
+  in the mod inherits it.**
+- `ChangesHealth.cs:86` is literally `self.InflictDamage(self, new Damage(...))` — **the burn names
+  the victim as its own attacker.**
+- `DefconCasualtyObserver.IsQualifyingCasualty` rejects `attacker == victim` outright, so the death
+  was thrown away.
+
+**The measured pair is what makes it undeniable**, and it is two runs of one scenario differing only
+in the target's hit points:
+
+| run | `t90 Health.HP` | debug line |
+|---|---|---|
+| `260921_181057` | 8000 | `killed by abrams(USA) -- qualifies` |
+| `260921_181456` | 40000 | `killed by t90(Russia) -- REJECTED: self-inflicted` |
+
+One `TankRound.Abrams` (~23000) overkills 8000 from full health and the burn never starts; 40000
+survives the first hit, drops below 50%, ignites and bleeds out. **Whether a deliberate kill ended
+DEFCON 2 depended on whether the victim happened to survive the opening round.** The second debug
+line in that run —
+`crew.commander.russia(Russia) killed by t90(Russia) -- REJECTED: not enemy action, relationship is Ally`
+— is the separate `Explodes@CrewCookoff` (`vehicles.yaml:318-321`, `Explodes.cs:124` defaults the
+source to self) killing an ejected crewman, and is correctly rejected.
+
+**This is a player-facing defect, not a test artefact, which is why the fix went in the observer and
+not in the scenario's hit points.** DEFCON 2's entire premise is "the first casualty is always
+somebody's decision"; a player who shoots an enemy tank below half and lets it burn out has taken a
+life by any reading, and the phase did not end. Lowering the scenario's HP would have hidden it.
+
+**The fix, and why it is narrow.** `QualifiesByPriorEnemyDamage` fires **only** when the finishing
+blow is self-inflicted and an enemy had previously damaged the victim; the observer now also
+implements `INotifyDamage` (which `Health.cs:122,275-276` already dispatches to the owner's player
+actor, so no new plumbing) and remembers the last enemy damager as two **strings** keyed on
+`ActorID`, cleared on death. Friendly fire is deliberately still excluded however much enemy damage
+came first — that is clause 2 of the direct rule and the user ruled on it explicitly. There is **no
+time window**, because a burn only ever starts from damage and every value of such a window would be
+a guess nobody has judged in play.
+
+**What a reader should take from this beyond DEFCON.** `attacker == victim` is not a synonym for "an
+accident". In this mod it is also the ordinary end of any damaged vehicle, and any rule that filters
+on it is silently filtering out a large share of real kills. `Explodes` with the default
+`DamageSource` behaves the same way.
+
 ## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`)
 
 **The message bug first, because it is the transferable part.** `test-escalation-banner-separate`

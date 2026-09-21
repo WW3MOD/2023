@@ -328,8 +328,13 @@ WorldLoaded = function()
 				.. ". Only enemy action ends DEFCON 2. " .. Census()
 		end
 
-		print("[banner-" .. BannerArm.name .. "] PASS. " .. Census())
-		return true
+		-- `pass:` PREFIX, NOT `true` -- see TestHarness.AssertWithin. A bare `true` passes with an
+		-- empty note, and an empty note in result.json is indistinguishable from a harness fault.
+		-- This puts the whole census behind the green, where the next reader can see the gap, the
+		-- two edge ticks and who fired without opening lua.log.
+		local verdict = "pass: [banner-" .. BannerArm.name .. "] " .. Census()
+		print(verdict)
+		return verdict
 	end, function()
 		return "fail: the predicate never reached a verdict inside its backstop deadline, which means "
 			.. "it stopped advancing rather than that any phase overran -- every phase owns its own "
