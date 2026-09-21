@@ -3,6 +3,43 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455)
+
+**OBSERVED, three lanes differing in one variable each.** Two riflemen told from Lua to enter a
+NEUTRAL civilian building **moved zero cells**. The identical Lua call into a USA-owned copy of the
+same building loaded two. The same neutral building loaded two when the men were ordered in through
+the ORDER LAYER. The load filter was asked and answered: `transportOwner=Neutral passengerOwner=USA
+relationship=Neutral filters=1 GarrisonManager[answers=True] canLoad=True`. **[V]**
+
+**ZERO CELLS IS THE WHOLE FINDING, AND IT IS WHY A WEEK WENT INTO THE WRONG FILE.** "Did not board"
+and "did not start" are the same sentence in a census and different bugs in different files. Every
+investigation since 09-15 — three of them — searched the BOARDING path for an owner-dependent
+refusal, because the symptom was written down as a refusal. There was never a refusal. `Enter`
+seeds `lastVisibleTarget` only while the target is not hidden (`Enter.cs:105-106`), and its
+Approaching case returns **before queueing any move** when it has none (`:130-132`); an `Enter`
+whose first tick lands before the world has finished computing visibility therefore ends
+immediately with the unit on its start cell.
+
+**THE TWO IMMUNITIES ARE WHAT MAKE IT LOOK LIKE A RULE ABOUT OWNERSHIP.** `FrozenUnderFog` returns
+visible unconditionally for an **Ally**-owned actor (`:24`, `:130-133`), so an owned transport can
+never show this — which is exactly the control lane everyone reached for. And an order resolves a
+tick or more after it is issued (`Passenger.ResolveOrder`'s own comment says so), so the order layer
+misses the window. Hold owner still and the entry path is the variable; hold the entry path still
+and the owner is. **A two-lane experiment cannot see a two-immunity bug** — the third lane is what
+made this decidable, and it cost one run.
+
+**THE CLASS.** A scripting binding that queues an activity is not a player action moved into Lua; it
+is a player action that happens **one tick earlier, inside the world tick, before frame-end work has
+drained**. Anything the engine defers by a frame is therefore invisible to it. That is the same
+shape as the `LoadPassenger` entry above — binding does half of what the equivalent player path
+does — and it is worth asking of every `[ScriptActorPropertyActivity]`: *what does the order layer
+get for free by being late?* Fixed by handing `Enter` a fallback position, opt-in from the binding
+only, which is the remedy `MoveAdjacentTo` already applies one layer down for this exact situation
+(`:36-43`). Pinned by `ScriptedEnterTransportTest` structurally — the behaviour needs a World, a
+shroud and two players, so NUnit can only stop the plumbing being deleted; lane A of
+`test-garrison-neutral-entry` is what asserts it.
+
+
 ## 2026-09-21 - `Cargo.Load` is half of a pair and the Lua binding only ever did its half, so a scripted load put a man in the hold AND on the map — and the crash arrived ninety seconds later in another file (`wt/neutral-entry`, run 260921_162312)
 
 **THE MECHANISM.** `Cargo.Load` adds to the passenger list and does NOT call `World.Remove`; the

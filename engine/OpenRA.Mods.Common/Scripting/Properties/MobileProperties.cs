@@ -69,7 +69,30 @@ namespace OpenRA.Mods.Common.Scripting
 		[Desc("Move to and enter the transport.")]
 		public void EnterTransport(Actor transport)
 		{
-			Self.QueueActivity(new RideTransport(Self, Target.FromActor(transport), null));
+			// THE TRANSPORT'S POSITION IS PASSED, and without it this binding cannot enter a
+			// building its owner is not allied to.
+			//
+			// A script queues this activity SYNCHRONOUSLY, so its first tick lands before the world
+			// has finished computing who can see what; an order for the same thing resolves a tick or
+			// more later and misses the window entirely. On that first tick Enter asks
+			// Target.Recalculate whether the transport is visible, and if it is not, the Approaching
+			// case gives up BEFORE queueing any move, because the last-visible target it would fall
+			// back on has never been set (Enter.cs:105-106, :130-132). The unit does not stop at the
+			// door -- it never leaves its cell.
+			//
+			// MEASURED, run 260921_164455, three lanes differing in one variable each: two riflemen
+			// sent into a NEUTRAL civilian building moved ZERO CELLS; the same call into a USA-owned
+			// copy of the same building loaded two; and the same neutral building loaded two when the
+			// men were ordered in through the order layer. FrozenUnderFog returns visible
+			// unconditionally for an ALLY-owned actor (:24, :130-133) -- that is the whole of why the
+			// owned lane worked, and why this looked for a week like a rule about ownership. The
+			// cargo filter was asked and answered True; nothing ever refused these men.
+			//
+			// Handing Enter the position is the same remedy MoveAdjacentTo already applies one layer
+			// down for the same situation (:36-43). It is safe HERE specifically because a map script
+			// named this transport and can read any actor on the map anyway; the order layer and the
+			// bots still pass null and are byte-identical.
+			Self.QueueActivity(new RideTransport(Self, Target.FromActor(transport), null, transport.CenterPosition));
 		}
 
 		[Desc("Whether the actor can move (false if immobilized).")]

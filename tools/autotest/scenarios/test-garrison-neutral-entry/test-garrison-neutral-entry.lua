@@ -54,11 +54,29 @@
 --      about ownership" is at best half the statement. Lane C is a neutral house entered through
 --      Test.ClickOrder; it is the cell of the table nobody has filled in.
 --
--- HOW TO READ THE RESULT. A = neutral via Lua, B = USA-owned via Lua (control), C = neutral via
--- the order layer. A fails alone           -> the Lua entry path is broken for a non-allied owner.
--- A and C both fail                        -> neutral entry is broken outright; the owner is the
---                                             variable and the entry path is not.
--- B fails                                  -> the scenario is broken, not the game; ignore A and C.
+-- ANSWERED 2026-09-21 BY RUN 260921_164455, AND THE THREE LANES ARE KEPT. The run came back
+--     "NEUTRAL ENTRY IS BROKEN ONLY ON THE LUA PATH"
+--     A neutral/Lua: 0 in shelter, 0 at ports, 2 still outside, 0 cells moved
+--     B owned/Lua:   2 in shelter        C neutral/order: 2 in shelter
+--     A filter: transportOwner=Neutral passengerOwner=USA relationship=Neutral filters=1
+--               GarrisonManager[answers=True] canLoad=True
+-- so nothing refused these men and nothing about ownership refused them. ZERO CELLS MOVED is the
+-- whole finding: the approach never started. Enter seeds its last-visible target only while the
+-- target is NOT hidden (Enter.cs:105-106) and the Approaching case returns before queueing any move
+-- when it has none (:130-132) -- so an Enter whose first tick lands before the world has finished
+-- computing visibility ends immediately, with the unit on its start cell. A script queues its
+-- activity synchronously and an order resolves a tick or more later, which is lane C's immunity;
+-- FrozenUnderFog returns visible unconditionally for an ALLY-owned actor (:24, :130-133), which is
+-- lane B's. MobileProperties.EnterTransport now hands Enter the transport's CenterPosition as a
+-- fallback -- the same remedy MoveAdjacentTo already applies one layer down (:36-43) -- and only
+-- the scripting binding passes it, so the order layer and the bots are byte-identical.
+--
+-- ALL THREE LANES ARE NOW EXPECTED TO PASS. The failure branches below are kept exactly as they
+-- were, because each now names a specific regression rather than an open question:
+--   A alone fails  -> the fallback position stopped being passed (ScriptedEnterTransportTest pins
+--                     the call, but a change in Enter's own give-up logic would slip past it).
+--   A and C fail   -> a real refusal has appeared; read the filter line, it is printed for you.
+--   B fails        -> the scenario is broken, not the game; ignore A and C.
 -- ===================================================================================
 --
 -- Every v08 is capacity 4 (civilian.yaml V08) against a squad of 2, so no lane can fail for want
@@ -193,10 +211,13 @@ WorldLoaded = function()
 		end
 
 		if a < 2 then
-			return "NEUTRAL ENTRY IS BROKEN ONLY ON THE LUA PATH: the same neutral v08 that refused " ..
-				"MobileProperties.EnterTransport accepted men ordered in through the order layer, so " ..
-				"the variable is the entry path and not the building's owner. " .. rows .. ". " ..
-				FilterLine(Lanes[1])
+			return "REGRESSION, NEUTRAL ENTRY IS BROKEN ONLY ON THE LUA PATH AGAIN: the same neutral " ..
+				"v08 that refused MobileProperties.EnterTransport accepted men ordered in through the " ..
+				"order layer, so the variable is the entry path and not the building's owner. If lane " ..
+				"A's men moved 0 cells the approach never started and the fallback position is not " ..
+				"reaching Enter (MobileProperties.EnterTransport -> RideTransport -> Enter's " ..
+				"initialTargetPosition); if they moved and stopped, it is a refusal instead and the " ..
+				"filter line below is the place to look. " .. rows .. ". " .. FilterLine(Lanes[1])
 		end
 
 		return "ORDER-LAYER ENTRY INTO A NEUTRAL BUILDING FAILED while the Lua path into the same " ..

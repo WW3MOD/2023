@@ -57,12 +57,38 @@ namespace OpenRA.Mods.Common.Activities
 
 		protected virtual int MaxStalledApproachTicks => DefaultMaxStalledApproachTicks;
 
-		protected Enter(Actor self, in Target target, Color? targetLineColor = null)
+		/// <param name="initialTargetPosition">A position to fall back on when the target is not
+		/// visible on the FIRST tick. OPT-IN, and null for every player- and AI-driven caller.
+		/// <para>THE HOLE IT FILLS. Tick() seeds lastVisibleTarget only while the target is NOT
+		/// hidden (:105-106), and the Approaching case gives up immediately -- before queueing any
+		/// move -- when it is using a last-visible target that was never set (:130-132). So an Enter
+		/// constructed against an actor the world has not yet computed visibility FOR ends on tick
+		/// one with the unit standing exactly where it started. MoveAdjacentTo, one layer down, takes
+		/// this same parameter for this same reason and says so: "the target may become hidden
+		/// between the initial order request and the first tick ... moving to any position (even if
+		/// quite stale) is still better than immediately giving up" (:36-38).</para>
+		/// <para>MEASURED, run 260921_164455. Two riflemen told from Lua to enter a NEUTRAL civilian
+		/// building moved ZERO CELLS, while the identical order into a USA-owned copy of the same
+		/// building loaded normally and the same neutral building loaded normally when the order went
+		/// through the ORDER LAYER instead. Those three lanes isolate it: FrozenUnderFog short-
+		/// circuits IsVisible for an ALLY-owned actor (:24, :130-133), which is why the owned lane
+		/// could not see this, and an order resolves a tick or more after it is issued, which is why
+		/// the order lane could not either. The cargo filter answered True throughout -- this was
+		/// never a refusal, it was an approach that never started.</para>
+		/// <para>NOT A FOG LEAK, because it is opt-in from exactly one caller:
+		/// MobileProperties.EnterTransport, where a map script has NAMED the transport and is
+		/// omniscient by construction. Leaving it null is the existing behaviour, unchanged, for
+		/// every order-layer and bot path.</para></param>
+		protected Enter(Actor self, in Target target, Color? targetLineColor = null, WPos? initialTargetPosition = null)
 		{
 			move = self.Trait<IMove>();
 			this.target = target;
 			this.targetLineColor = targetLineColor;
 			ChildHasPriority = false;
+
+			if (initialTargetPosition.HasValue)
+				lastVisibleTarget = Target.FromPos(initialTargetPosition.Value);
+
 			// Cooldown collapsed to (0, 1) — the visible 0.8-1.2s pause "outside the building"
 			// before entering came from MoveCooldownHelper's default (20, 31) cooldown firing
 			// when the destination cell registered as blocked (the building's own cell).
