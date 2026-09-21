@@ -184,28 +184,51 @@ namespace OpenRA.Mods.Common.Widgets
 			if (lastLevel != DefconEscalationState.NoLevel && DefconReadoutModel.TransitionCause(level) != null)
 			{
 				// ---- ONE BANNER, NOT A BANNER AND A HALF (§B6) ---------------------------------
-				// If the banner for the PREVIOUS edge is still inside its hold window, this edge does
-				// not overwrite it -- the two are drawn as a single band naming both. The check runs
-				// against the live shownLevel, which the block above has already cleared if the window
-				// had run out, so `shownLevel != NoLevel` here IS "a banner is on screen right now".
+				// THE RECORD, NOT WHAT THIS WIDGET HAPPENED TO WITNESS -- and that distinction is the
+				// whole of the 2026-09-21 rewrite. `Ui.Tick` runs from the LOGIC tick (Game.cs:786-790)
+				// but on `Ui.Timestep` = 40 ms of WALL CLOCK (Widget.cs:30), which is a completely
+				// different clock from the world's (`orderManager.LastTickTime`, OrderManager.cs:187).
+				// The two only look alike at 1x speed on a machine that is keeping up.
+				//
+				// So "did I see a banner for the rung above" is not a question this widget can answer
+				// reliably. Under any hitch, any fast-forward, and always in a --hidden autotest (where
+				// run-test.sh sets Graphics.CapFramerate=false and the sim free-runs), the world can
+				// advance dozens of ticks between two UI ticks -- and a DEFCON 2 that lasts 98 ticks,
+				// or one tick, can pass entirely between them. The widget would then see 3 -> 1 with no
+				// 2 in it, raise one banner for OPEN WAR, and reproduce EXACTLY the defect §B6 exists to
+				// remove, from a second cause nobody had noticed.
+				//
+				// DefconEscalation.LevelReachedTick is the authority instead: it is written in synced
+				// code on the tick each level is first reached and cannot be missed by sampling. From
+				// it, "were these two edges close together" is a fact about the match rather than about
+				// this client's frame rate.
 				//
 				// The hold RESTARTS. That is the point of the whole change: the first banner has
 				// typically been up for one or two ticks when the kill lands (run 260915_012829: 3 -> 2
 				// at 5000, 2 -> 1 at 5001), so inheriting its elapsed time would put the combined
 				// banner on screen for the remaining 65 ticks and leave the player reading a sentence
 				// about two events in the time budgeted for one.
-				var combining = shownLevel != DefconEscalationState.NoLevel
-					&& DefconReadoutModel.CombinedTransitionCause(shownLevel, level, 0) != null;
+				var upper = level + 1;
+				var upperReachedTick = escalation.LevelReachedTick(upper);
+				var thisReachedTick = escalation.LevelReachedTick(level);
 
-				shownFromLevel = combining ? shownLevel : DefconEscalationState.NoLevel;
+				var combining = DefconReadoutModel.CombinedTransitionCause(upper, level, 0) != null
+					&& upperReachedTick >= 0 && thisReachedTick >= 0
+					&& DefconReadoutModel.CombinesWithPrevious(upperReachedTick, thisReachedTick, hold);
+
+				// COMBINING DOES NOT RAISE A SECOND BAND WHEN THE FIRST ONE IS ALREADY UP -- it rewrites
+				// that band and restarts its clock, which is what "the player gets ONE banner" means.
+				// But when this widget never showed the rung above at all (it ticked straight past it),
+				// the player has had NO band yet and this one is their first: it must count. Either way
+				// BannersRaised ends up as the number of distinct bands the player was actually shown,
+				// which is the only thing it claims to be.
+				var rewritingTheBandOnScreen = combining && shownLevel == upper;
+
+				shownFromLevel = combining ? upper : DefconEscalationState.NoLevel;
 				shownLevel = level;
 				shownAtTick = world.WorldTick;
 
-				// COMBINING DOES NOT RAISE A SECOND BAND -- it rewrites the one already on screen and
-				// restarts its clock, which is exactly what "the player gets ONE banner" means and is
-				// what BannersRaised is counting. A match whose DEFCON 2 outlives the hold still
-				// reaches 2 here, and that match legitimately got two.
-				if (!combining)
+				if (!rewritingTheBandOnScreen)
 					BannersRaised++;
 
 				// ONCE PER EDGE, PER CLIENT, and it is this `if` that guarantees both. The method

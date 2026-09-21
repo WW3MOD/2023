@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`)
+
+`test-escalation-banner-combined` asserted `DefconTransitionBannerWidget.BannersRaised == 1` on the tick
+`Test.DefconLevel()` first read 2. It failed reading `raised=0`, with the widget **present** (the
+binding returned a real string, not its `absent` sentinel). The obvious diagnosis -- "the widget tree
+is not built under `--hidden`" -- is **wrong**, and so is the milder one, "it notices on the next
+frame". The real shape is worse than either:
+
+| | clock | source |
+|---|---|---|
+| `Ui.Tick` | `Ui.Timestep` = **40 ms of wall clock**, fixed | `Widget.cs:30`, `Game.cs:786-790` |
+| world tick | `orderManager.SuggestedTimestep` | `OrderManager.cs:187`, `Game.cs:793` |
+
+`Ui.Tick` IS in the logic tick rather than the render path, so widgets do tick in a hidden run --
+that part of the earlier reading was right. But the two clocks are independent, and
+`tools/autotest/run-test.sh:784-789` sets `Graphics.CapFramerate=false` for `--hidden` precisely so
+the sim free-runs. **The world therefore advances an unbounded number of ticks between two UI ticks.**
+A DEFCON 2 measured at 98 ticks (run `260920_010605_p1901`) or at ONE tick (run `260915_012829`) can
+pass entirely between them.
+
+**The generalisation.** Any observable computed by a widget *watching* simulation state is a fact
+about one client's sampling rate, not about the match, and no tolerance fixes it -- the widget can
+miss an entire phase, not merely lag it. Assert on something written in synced code on the tick it
+happens. Here that is `DefconEscalation.LevelReachedTick`, whose own `[Desc]` on
+`Test.DefconLevelReachedTick` already states the sibling rule for Lua pollers ("there is no sampling
+interval that is safe against an edge"). The same warning now applies one layer up, to widgets.
+
+**It was a real player-facing defect too, not only a test problem.** `DefconTransitionBannerWidget`
+decided whether to combine two DEFCON banners by asking "is the band for the rung above still on my
+screen". A client that hitched, fast-forwarded, or simply dropped frames across both edges would see
+3 -> 1 with no 2 in it, raise one `OPEN WAR` band and reproduce **§B6's exact defect from a second
+cause nobody had noticed**. Fixed in the same commit by deriving the decision from the transition
+record instead. Pinned by `DefconReadoutTest.TheCombineDecisionTakesRECORDEDEdgeTicksAndNothingElse`,
+which exists to stop a `now`-dependent term being reintroduced.
+
+**One symptom in that run that was NOT a second defect**, recorded because it reads like one: the
+census showed `abrams act AttackActivity(cancelling)` with the t90 at full HP, which looks like an
+ordered shot that failed to land. No order had been issued -- the banner assertion returned before
+`Test.ClickOrder`. The activity is the abrams' **DEFCON 3 auto-acquisition being torn down** by
+`CeaseAutonomousFireEverywhere` on the transition tick: `DefconHoldsFire` is false at level 3, so
+autotarget acquires freely there and only `Armament.CanFire` is gated -- which is also why the t90
+was untouched. The ordered-kill timing in that scenario remains **unmeasured**; it has never run.
+
 ## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`)
 
 `260921-release-readiness.md` §2.7 claim 6 says hold-fire's six fire-path guards have no test and that

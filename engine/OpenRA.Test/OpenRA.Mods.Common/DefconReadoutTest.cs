@@ -534,6 +534,39 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void TheCombineDecisionTakesRECORDEDEdgeTicksAndNothingElse()
+		{
+			// ADDED AFTER RUN 260921_165856, WHICH FAILED ON EXACTLY THIS. The banner widget used to
+			// decide by watching: "is a band for the rung above still on my screen". That is a fact
+			// about one client's SAMPLING, not about the match -- Ui.Tick runs on Ui.Timestep = 40 ms
+			// of wall clock (Widget.cs:30), a different clock from the world's (OrderManager.cs:187),
+			// so under any hitch, any fast-forward, and always in a --hidden autotest (where
+			// Graphics.CapFramerate=false lets the sim free-run) a whole DEFCON 2 can pass between two
+			// UI ticks. The widget would then never see the middle rung and would reproduce §B6's
+			// exact defect from a second cause.
+			//
+			// The decision now takes the two ticks DefconEscalation RECORDED and nothing else. This
+			// test is what stops a `now`-dependent or observation-dependent term being reintroduced:
+			// the same pair of recorded edges must give the same answer no matter when it is asked.
+			const int Hold = 66;
+			const int At2 = 5000;
+
+			foreach (var at1 in new[] { At2 + 1, At2 + 40, At2 + 65 })
+				Assert.That(DefconReadoutModel.CombinesWithPrevious(At2, at1, Hold), Is.True,
+					$"a {at1 - At2}-tick phase stopped combining.");
+
+			foreach (var at1 in new[] { At2 + Hold, At2 + 98, At2 + 5000 })
+				Assert.That(DefconReadoutModel.CombinesWithPrevious(At2, at1, Hold), Is.False,
+					$"a {at1 - At2}-tick phase started combining.");
+
+			// AND THE ANSWER IS ABSOLUTE, NOT RELATIVE. Shifting both edges by the same amount -- a
+			// match that reached the same phase later -- cannot change it.
+			foreach (var shift in new[] { 0, 1, 10000, 100000 })
+				Assert.That(DefconReadoutModel.CombinesWithPrevious(At2 + shift, At2 + shift + 1, Hold), Is.True,
+					$"shifting both edges by {shift} changed the decision.");
+		}
+
+		[Test]
 		public void SecondsBetweenIsTheTickRateIdentityAgain()
 		{
 			const int Timestep = 60;

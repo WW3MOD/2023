@@ -23,13 +23,26 @@
 -- that needs three rounds dies ~260 ticks after it (well OUTSIDE). No Lua constant, no clock and no
 -- geometry differs between the arms; `diff -r` them before believing any result.
 --
--- THE OBSERVABLE IS A WIDGET, WHICH IS UNUSUAL AND IS THE ONLY PLACE THE STATE EXISTS. The banner
--- is client-local render state on purpose -- DefconTransitionBannerWidget's header spells out why
--- nothing may route a rendering decision back into the simulation -- so there is no trait to ask.
--- Test.DefconBannerState reads the widget. It is safe under --hidden because the DECISION moved
--- into Widget.Tick with this change, and Widget.Tick runs from the LOGIC tick (Game.cs:789)
--- whether or not anything is ever drawn. Before that it lived in Draw(), and a hidden run's banner
--- was raised and then never expired.
+-- THE OBSERVABLE IS THE MODEL, NOT THE WIDGET, AND THAT COST A RUN TO LEARN. Run 260921_165856
+-- asserted the widget's own counter on the tick DEFCON reached 2 and read `raised=0`. The widget
+-- had not ticked yet -- and the reason is structural rather than a one-frame lag:
+--
+--     Ui.Tick DOES run under --hidden (Game.cs:786-790 puts it in the LOGIC tick, not the render
+--     path), but it runs on Ui.Timestep = 40 ms of WALL CLOCK (Widget.cs:30). The world runs on a
+--     different clock entirely (OrderManager.cs:187), and a --hidden autotest sets
+--     Graphics.CapFramerate=false so the sim FREE-RUNS. The world therefore advances many ticks
+--     between two UI ticks, and a DEFCON 2 that lasts 98 ticks -- or one tick -- can pass ENTIRELY
+--     between them.
+--
+-- So no widget-derived count is a sound observable in an autotest, at any tolerance: it is a fact
+-- about one client's sampling rather than about the match. Test.DefconEdgesCombine is computed from
+-- DefconEscalation.LevelReachedTick, written in synced code on the tick each level is first reached,
+-- and is what this scenario asserts. Test.DefconBannerState is still printed in every census --
+-- knowing what the client actually drew is worth having when a run goes wrong -- but nothing fails
+-- on it.
+--
+-- WHAT A GREEN THEREFORE DOES NOT PROVE: that the band on screen is the combined one. That half is
+-- pinned by NUnit (DefconReadoutTest, the §B6 block) and by eye. See README.md.
 
 -- WHICH BRANCH THE DIRECTORY RUNNING THIS BODY IS BUILT FOR. Declared HERE, with a name that
 -- cannot be mistaken for a real arm, and overwritten by each scenario's own two-line arm.lua --
@@ -53,6 +66,7 @@ local OPEN_WAR_LEVEL = 1
 -- harmless -- it must never be used to derive this number.
 local BANNER_HOLD_TICKS = 66
 
+local ORDER_DELAY_TICKS = 4  -- ticks to wait after the 3 -> 2 edge before clicking; see below
 local SETTLE_TICKS = 15      -- every World trait has ticked; DefconEscalation's clock is running
 local CLOCK_TICKS = 150      -- DefconEscalation.NoRushTicksOverride in both rules.yaml
 local CLOCK_SLACK = 200      -- budget over the clock before "the 3 -> 2 edge never happened"
@@ -70,33 +84,14 @@ WorldLoaded = function()
 	local phase = "settle"
 
 	local twoTick, oneTick, orderTick = -1, -1, -1
-	local raisedAtTwo = -1
-
-	-- Test.DefconBannerState returns `raised=<n>|combined=<bool>` or the literal "absent".
-	local function BannerField(key)
-		local state = Test.DefconBannerState()
-		if state == "absent" then
-			return nil
-		end
-
-		return string.match(state, key .. "=([^|]*)")
-	end
-
-	local function Raised()
-		local v = BannerField("raised")
-		return v and tonumber(v) or -1
-	end
-
-	local function Combined()
-		return BannerField("combined") == "True"
-	end
 
 	local function Census()
 		return string.format(
-			"t=%d phase=%s defcon=%d | banner %s | casualty %s | two=%d one=%d gap=%s | "
-			.. "t90 hp %s/%s | abrams act %s",
-			ticks, phase, Test.DefconLevel(), Test.DefconBannerState(), Test.DefconFirstCasualty(),
-			twoTick, oneTick, oneTick >= 0 and twoTick >= 0 and tostring(oneTick - twoTick) or "?",
+			"t=%d phase=%s defcon=%d combines=%s | at2=%d at1=%d | banner %s (diagnostic) | "
+			.. "casualty %s | sampled two=%d one=%d | t90 hp %s/%s | abrams act %s",
+			ticks, phase, Test.DefconLevel(), Test.DefconEdgesCombine(),
+			Test.DefconLevelReachedTick(2), Test.DefconLevelReachedTick(1),
+			Test.DefconBannerState(), Test.DefconFirstCasualty(), twoTick, oneTick,
 			Contact.IsDead and "(dead)" or tostring(Contact.Health),
 			Contact.IsDead and "(dead)" or tostring(Contact.MaxHealth),
 			Probe.IsDead and "(dead)" or Test.ActivityChain(Probe))
@@ -118,20 +113,20 @@ WorldLoaded = function()
 
 			-- THE ARM MUST DECLARE ITSELF. Each directory ships a two-line arm.lua; a missing one
 			-- means the scenario is running a shared body with no expectation and would "pass"
-			-- whatever the banner did.
-			if BannerArm.expectRaised == nil or BannerArm.name == "undeclared" then
+			-- whichever branch the match happened to take.
+			if BannerArm.expectCombines == nil or BannerArm.name == "undeclared" then
 				return "fail: SETUP -- this directory never overwrote BannerArm, so the shared body is "
-					.. "running with no expectation and would report PASS whatever the banner did. "
+					.. "running with no expectation and would report PASS on either branch. "
 					.. "Each arm ships a two-line arm.lua and map.yaml must list it in "
 					.. "LuaScript.Scripts AFTER defcon-banner-combine-lib.lua. " .. Census()
 			end
 
-			-- THE WIDGET MUST BE IN THE UI TREE, or every assertion below is about nothing. "absent"
-			-- means the ingame player root was not loaded, not that no banner was drawn.
-			if Test.DefconBannerState() == "absent" then
-				return "fail: SETUP -- Test.DefconBannerState is \"absent\": DEFCON_BANNER is not in "
-					.. "the UI tree, so this run can say nothing about banners either way. Check that "
-					.. "the scenario loads the ingame player chrome. " .. Census()
+			-- THE MODEL MUST BE THERE. "absent" means the world actor carries no DefconEscalation at
+			-- all, so nothing below can be measured. The WIDGET is deliberately not required: it is
+			-- diagnostic here, and a run that cannot see it still produces a real verdict.
+			if Test.DefconEdgesCombine() == "absent" then
+				return "fail: SETUP -- Test.DefconEdgesCombine is \"absent\": this world carries no "
+					.. "DefconEscalation, so there are no edges to measure. " .. Census()
 			end
 
 			local level = Test.DefconLevel()
@@ -142,9 +137,10 @@ WorldLoaded = function()
 					.. "never combine anything. %s", level, CEASE_FIRE_LEVEL, Census())
 			end
 
-			if Raised() ~= 0 then
-				return "fail: SETUP -- a banner was already raised at DEFCON 3. The opening "
-					.. "NoLevel -> 3 edge is not a transition and must announce nothing. " .. Census()
+			if Test.DefconEdgesCombine() ~= "pending" then
+				return "fail: SETUP -- the match already has both edges recorded at DEFCON 3 ("
+					.. Test.DefconEdgesCombine() .. "), which means it did not open where this pair "
+					.. "needs it to. " .. Census()
 			end
 
 			print("[banner-" .. BannerArm.name .. "] settled. " .. Census())
@@ -156,29 +152,8 @@ WorldLoaded = function()
 		if phase == "clock" then
 			if Test.DefconLevel() == HOLD_FIRE_LEVEL then
 				twoTick = ticks
-
-				-- THE FIRST BANNER. One edge, one band, not combined with anything.
-				raisedAtTwo = Raised()
-				if raisedAtTwo ~= 1 or Combined() then
-					return "fail: the 3 -> 2 edge did not raise exactly one plain banner (raised="
-						.. raisedAtTwo .. " combined=" .. tostring(Combined()) .. "). Everything "
-						.. "below compares against this, so a wrong reading here is not a §B6 "
-						.. "failure -- it is the banner not working at all. " .. Census()
-				end
-
-				-- THE ORDER, ON THE SAME TICK THE BORDER OPENS. DEFCON 2 permits a shot somebody
-				-- ordered -- the rule is about provenance -- and DEFCON 3 refuses the click outright,
-				-- so the returned OrderString is itself an assertion that the level really moved.
-				local issued = Test.ClickOrder(Probe, Contact)
-				if issued ~= "Attack" then
-					return "fail: the click onto the t90 produced " .. tostring(issued) .. " rather "
-						.. "than Attack on the tick DEFCON reached 2. Only the DEFCON 3 cease-fire "
-						.. "refuses the order itself. " .. Census()
-				end
-
-				orderTick = ticks
-				print("[banner-" .. BannerArm.name .. "] DEFCON 2, order issued. " .. Census())
-				phase = "kill"
+				print("[banner-" .. BannerArm.name .. "] DEFCON 2 reached. " .. Census())
+				phase = "order"
 				return false
 			end
 
@@ -189,6 +164,36 @@ WorldLoaded = function()
 					.. "point ran. %s", CLOCK_TICKS, ticks, Test.DefconLevel(), Census())
 			end
 
+			return false
+		end
+
+		-- ========== ORDER: a few ticks after the edge, click the abrams onto the t90 ==========
+		-- NOT ON THE TRANSITION TICK ITSELF. DefconEscalation.CeaseAutonomousFireEverywhere runs on
+		-- exactly that tick and cancels every autonomous engagement on the map -- including the
+		-- abrams' own, because at DEFCON 3 DefconHoldsFire is FALSE and autotarget acquires normally
+		-- (only Armament.CanFire is gated there). Run 260921_165856 caught the abrams mid
+		-- `AttackActivity(cancelling)` on that tick. Issuing into a cancelling activity is not known
+		-- to be unsafe, but there is no reason to find out: four ticks is nothing against a 66-tick
+		-- window and it puts the order somewhere unambiguous.
+		if phase == "order" then
+			if ticks < twoTick + ORDER_DELAY_TICKS then
+				return false
+			end
+
+			-- Through the real click resolver rather than Actor.Attack, so the returned OrderString is
+			-- itself an assertion: DEFCON 3 refuses the click outright and DEFCON 2 must not, because
+			-- the hold-fire rule is about provenance and an order is provenance.
+			local issued = Test.ClickOrder(Probe, Contact)
+			if issued ~= "Attack" then
+				return "fail: the click onto the t90 produced " .. tostring(issued) .. " rather than "
+					.. "Attack, " .. ORDER_DELAY_TICKS .. " ticks after DEFCON reached 2. Only the "
+					.. "DEFCON 3 cease-fire refuses the order itself, so either the level moved back "
+					.. "or the two are no longer a targeting pair. " .. Census()
+			end
+
+			orderTick = ticks
+			print("[banner-" .. BannerArm.name .. "] order issued. " .. Census())
+			phase = "kill"
 			return false
 		end
 
@@ -219,43 +224,57 @@ WorldLoaded = function()
 			return false
 		end
 
-		local gap = oneTick - twoTick
-		local insideWindow = gap < BANNER_HOLD_TICKS
-		local raised, combined = Raised(), Combined()
-
-		-- THE INVARIANT, ASSERTED IN BOTH ARMS. This is the rule itself and it does not consult the
-		-- arm's declaration at all: whatever this run measured the gap to be, the banner must agree
-		-- with it. An arm that drifts into the other branch fails HERE only if the banner also
-		-- disagrees -- the drift itself is caught by the declaration check below, which names it.
-		if insideWindow and (raised ~= 1 or not combined) then
+		-- THE TWO EDGE TICKS THE ENGINE RECORDED, not the ticks this poller happened to sample them
+		-- on. Test.DefconLevelReachedTick's own [Desc] is about exactly this hazard: a phase can be
+		-- ONE TICK long, and no sampling interval is safe against an edge.
+		local at2 = Test.DefconLevelReachedTick(2)
+		local at1 = Test.DefconLevelReachedTick(1)
+		if at2 < 0 or at1 < 0 then
 			return string.format(
-				"fail: §B6 -- the two edges landed %d ticks apart, INSIDE the %d-tick hold window, so "
-				.. "the player should have had ONE banner naming both. Got raised=%d combined=%s. "
-				.. "This is the shipped defect: the 2 -> 1 edge overwrote the DEFCON 2 banner and the "
-				.. "player saw only OPEN WAR. %s", gap, BANNER_HOLD_TICKS, raised, tostring(combined),
-				Census())
+				"fail: the engine recorded no tick for DEFCON %d, so the gap this verdict rests on "
+				.. "cannot be computed. This is DefconEscalation.RecordLevel failing, not the banner. "
+				.. "%s", at2 < 0 and 2 or 1, Census())
 		end
 
-		if not insideWindow and (raised ~= 2 or combined) then
+		local gap = at1 - at2
+		local insideWindow = gap < BANNER_HOLD_TICKS
+		local combines = Test.DefconEdgesCombine()
+
+		-- THE INVARIANT, ASSERTED IN BOTH ARMS, AND IT IS A CROSS-CHECK RATHER THAN A TAUTOLOGY:
+		-- `combines` comes from the engine applying DefconReadoutModel.CombinesWithPrevious to the
+		-- two recorded ticks with BannerHoldTicks(GameSpeed.Timestep), and `insideWindow` is this
+		-- script doing the same arithmetic against a hardcoded 66. They agree only if the engine's
+		-- hold really is 66 ticks at this game speed -- i.e. if the 1.5x tick-rate error this repo
+		-- has made at eleven sites is NOT live in BannerHoldTicks.
+		if insideWindow and combines ~= "yes" then
 			return string.format(
-				"fail: §B6 -- the two edges landed %d ticks apart, OUTSIDE the %d-tick hold window, so "
-				.. "the player should have had TWO separate banners. Got raised=%d combined=%s. "
-				.. "Combining edges this far apart would put a sentence about a finished phase on "
-				.. "screen while the war is already on. %s", gap, BANNER_HOLD_TICKS, raised,
-				tostring(combined), Census())
+				"fail: §B6 -- the two edges landed %d ticks apart (DEFCON 2 at %d, DEFCON 1 at %d), "
+				.. "INSIDE the %d-tick hold window, so the player should have had ONE banner naming "
+				.. "both -- but the engine says combines=%s. This is the shipped defect: the 2 -> 1 "
+				.. "edge overwrote the DEFCON 2 banner and the player saw only OPEN WAR. %s",
+				gap, at2, at1, BANNER_HOLD_TICKS, combines, Census())
+		end
+
+		if not insideWindow and combines ~= "no" then
+			return string.format(
+				"fail: §B6 -- the two edges landed %d ticks apart (DEFCON 2 at %d, DEFCON 1 at %d), "
+				.. "OUTSIDE the %d-tick hold window, so they must NOT be combined -- but the engine "
+				.. "says combines=%s. Combining edges this far apart would put a sentence about a "
+				.. "finished phase on screen while the war is already on, which is the 'queueing' "
+				.. "option the review rejects. %s", gap, at2, at1, BANNER_HOLD_TICKS, combines, Census())
 		end
 
 		-- THE ARM MUST HAVE TAKEN THE BRANCH IT WAS BUILT FOR. Without this, an arm whose t90 hp
 		-- drifted would quietly measure the other branch and still report PASS -- two directories
 		-- both testing the same half, which looks exactly like a clean pair.
-		if raised ~= BannerArm.expectRaised or combined ~= BannerArm.expectCombined then
+		if combines ~= BannerArm.expectCombines then
 			return string.format(
-				"fail: ARM DRIFT -- this directory is the '%s' arm and expects raised=%d combined=%s, "
-				.. "but the run produced raised=%d combined=%s with a %d-tick gap. The banner obeyed "
-				.. "the rule; it is the STAGING that moved, so the pair no longer covers both "
+				"fail: ARM DRIFT -- this directory is the '%s' arm and expects combines=%s, but the "
+				.. "run produced combines=%s with a %d-tick gap (DEFCON 2 at %d, DEFCON 1 at %d). The "
+				.. "rule was obeyed; it is the STAGING that moved, so the pair no longer covers both "
 				.. "branches. Check the t90's Health.HP in rules.yaml -- it is the only quantity that "
-				.. "differs between the two arms. %s", BannerArm.name, BannerArm.expectRaised,
-				tostring(BannerArm.expectCombined), raised, tostring(combined), gap, Census())
+				.. "differs between the two arms. %s", BannerArm.name, BannerArm.expectCombines,
+				combines, gap, at2, at1, Census())
 		end
 
 		-- WHO CHOSE -- the other half of §B6. The event-log line is client-side text this script

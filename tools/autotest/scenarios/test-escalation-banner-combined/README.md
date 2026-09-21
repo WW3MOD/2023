@@ -67,26 +67,51 @@ return false;
 Expected failure text, from the combined arm:
 
 ```
-fail: §B6 -- the two edges landed N ticks apart, INSIDE the 66-tick hold window, so the player
-should have had ONE banner naming both. Got raised=2 combined=False. This is the shipped defect:
-the 2 -> 1 edge overwrote the DEFCON 2 banner and the player saw only OPEN WAR.
+fail: §B6 -- the two edges landed N ticks apart (DEFCON 2 at A, DEFCON 1 at B), INSIDE the 66-tick
+hold window, so the player should have had ONE banner naming both -- but the engine says
+combines=no. This is the shipped defect: the 2 -> 1 edge overwrote the DEFCON 2 banner and the
+player saw only OPEN WAR.
 ```
 
 The separate arm is **unaffected** by that sabotage and still passes, which is itself informative:
 it says the sabotage removed the combining and nothing else.
 
+## Why the observable is the MODEL and not the banner widget — this cost a run
+
+The first version asserted the widget's own counter and **failed on its first run**
+(`260921_165856`): `raised=0` on the very tick DEFCON reached 2. The cause is structural, not a
+one-frame lag, and it rules widget counters out of autotests entirely:
+
+> `Ui.Tick` **does** run under `--hidden` — `Game.cs:786-790` puts it in the *logic* tick, not the
+> render path. But it runs on `Ui.Timestep` = **40 ms of wall clock** (`Widget.cs:30`), which is a
+> different clock from the world's (`OrderManager.cs:187`). A `--hidden` autotest sets
+> `Graphics.CapFramerate=false` and the sim free-runs, so the world advances many ticks between two
+> UI ticks — and a DEFCON 2 that lasts 98 ticks, or one tick, can pass **entirely** between them.
+
+So a widget-derived count is a fact about one client's sampling rather than about the match.
+`Test.DefconEdgesCombine` is computed from `DefconEscalation.LevelReachedTick`, written in synced
+code on the tick each level is first reached, and is what both arms assert.
+
+**The same reading changed the shipped code, not just the test.** The widget now derives "do these
+two edges combine" from the transition *record* rather than from the edges it happened to witness —
+so a client that hitches across both edges gets the combined band too, instead of reproducing §B6's
+exact defect from a second cause nobody had noticed.
+
 ## What the scenario refuses to assume
 
-* **The widget must be in the UI tree.** `Test.DefconBannerState()` returning `absent` is a
-  `fail: SETUP`, not a verdict — it means the ingame player chrome did not load and the run can say
-  nothing about banners either way.
-* **The first banner must have been raised at all.** The 3 → 2 edge is asserted to produce
-  `raised=1 combined=false` before anything else is read. A wrong reading there is not a §B6
-  failure; it is the banner not working.
-* **The opening `NoLevel → 3` edge must announce nothing.** Asserted at settle.
-* **The ordered shot must be accepted.** `Test.ClickOrder` must return `Attack` on the tick the
-  level reaches 2. DEFCON 3 refuses the click outright, so the returned order string doubles as
-  proof the level really moved.
+* **The model must be there.** `Test.DefconEdgesCombine()` returning `absent` is a `fail: SETUP`.
+  The widget is deliberately **not** required — it is diagnostic, and a run that cannot see it still
+  produces a real verdict.
+* **Neither edge may already be recorded at settle.** Asserted as `pending`.
+* **The engine must have recorded both edge ticks.** A missing one fails naming
+  `DefconEscalation.RecordLevel`, not the banner.
+* **The two arithmetics must agree.** The script computes `gap < 66` itself and cross-checks it
+  against the engine's `DefconEdgesCombine`. They agree only if `BannerHoldTicks` really is 66 ticks
+  at this game speed — i.e. only if the 1.5× tick-rate error is not live in it.
+* **The ordered shot must be accepted.** `Test.ClickOrder` must return `Attack`. It is issued **four
+  ticks after** the edge, never on it: `CeaseAutonomousFireEverywhere` runs on exactly that tick and
+  the first run caught the abrams mid `AttackActivity(cancelling)` — the DEFCON 3 auto-acquisition
+  being torn down, since `DefconHoldsFire` is false at 3 and only `Armament.CanFire` is gated there.
 * **The arm must have taken the branch it was built for.** The lib asserts the *rule* against the
   measured gap in both arms, and then asserts the arm's own declaration (`arm.lua`) on top. Without
   the second check an arm whose staging drifted would quietly measure the other branch and still
@@ -94,12 +119,15 @@ it says the sabotage removed the combining and nothing else.
 
 ## An honest limit on what a green proves
 
-`Test.DefconBannerState` reads **the widget's own state**, not pixels. It proves the player is
-handed one band rather than two and that the band knows it is combined; it does not prove the band
-is legible, that the combined cause line fits at 1024 px, or that the two `DefconAlert` sounds no
-longer clip each other — **this change does not touch the audio at all, and the second alert still
-lands one tick after the first.** Those are capture questions (`DOCS/recipes/SCREENSHOT.md`) and an
-audio question, and neither is answered here.
+A green proves the **rule** fired correctly on real match data: these two edges, this far apart, this
+answer. It does **not** prove anything about the band on screen. The widget reads
+`CombinesWithPrevious(LevelReachedTick(upper), LevelReachedTick(level), hold)` — the predicate is
+pinned by NUnit (`DefconReadoutTest`, the §B6 block, 13 cases) but the *wiring* that feeds it
+recorded ticks rather than witnessed ones is not reachable from `OpenRA.Test` and ships verified by
+reading. Legibility, the combined line's fit at 1024 px, and whether the two `DefconAlert` sounds
+still clip each other are all unanswered here — **this change does not touch the audio at all, and
+the second alert still lands one tick after the first.** Those are capture questions
+(`DOCS/recipes/SCREENSHOT.md`) and an audio question.
 
 ## What counts as the answer
 

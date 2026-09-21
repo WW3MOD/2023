@@ -19,3 +19,8 @@ phase while the war is already on.
 It is therefore **not a control that must fail**. Both arms of this pair are passes. The RED that
 makes the combined arm mean anything is a one-line sabotage of
 `DefconReadoutModel.CombinesWithPrevious`, and this arm is deliberately **unaffected** by it.
+
+Both arms assert `Test.DefconEdgesCombine` — computed from `DefconEscalation.LevelReachedTick` —
+and **not** the banner widget's own counter. The widget is sampled on a 40 ms wall-clock cadence
+that is unrelated to the world tick, so under a free-running `--hidden` run it can miss a whole
+phase; the twin's README has the reading and the run that established it.
