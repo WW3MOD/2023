@@ -357,9 +357,27 @@ end
 -- through UnloadCargo, and the last one's frame-end task reads PassengerCount == 0 with eight ports
 -- still manned — which is the disagreement this scenario exists to measure. The map is sized for
 -- precisely this steady state: ten men, eight ports, two left over in the shelter.
+--
+-- AND WAIT FOR EVERY MAN, which is a SECOND, INDEPENDENT precondition that looks like the same one
+-- and is not. Run 260921_155532 skipped with "shelter=1; ports=8" — nine men accounted for out of
+-- ten, so one was STILL WALKING IN when the menu was clicked. The ALL chip orders out whoever is in
+-- the hold AT CLICK TIME (CargoUnloadMenuLogic.cs:232-234 re-reads cargo.Passengers on every click),
+-- so a man who boards one tick later is never ordered anywhere. He sits in the shelter, CountShelter()
+-- never reads zero, and phase 2 times out blaming exit cells.
+--
+-- It also explains the run before it, which is worth saying because it removes a suspect: the
+-- "shelter=2; ports=8" seen 30s after the drain in 260921_150014 needs no re-boarding mechanism at
+-- all. With the old gate the click landed while seven ports and two men were still in flight; those
+-- men boarded afterwards and stayed. Nothing ejects a man and lets him walk back in — UnloadCargo
+-- cancels his activity on the way out (UnloadCargo.cs:260).
+--
+-- `CountShelter() + CountPorts() >= #Men` is therefore the gate, not `CountShelter() > 0`: it says
+-- nobody is still in transit. With ten men and eight ports the only arrangement that satisfies both
+-- clauses is ports 8, shelter 2 — which is the steady state the map is sized for, and the click then
+-- reaches both of the men it needs to.
 local function WaitForEveryPortToBeManned()
 	WaitUntil(PortsWithin,
-		function() return CountPorts() >= AllPorts and CountShelter() > 0 end,
+		function() return CountPorts() >= AllPorts and CountShelter() + CountPorts() >= #Men end,
 		EmptyTheShelterWithoutTouchingThePorts,
 		function()
 			if CountPorts() == 0 then
@@ -373,20 +391,31 @@ local function WaitForEveryPortToBeManned()
 				return
 			end
 
-			if CountShelter() == 0 then
-				Test.Skip("ports are manned (" .. CountPorts() .. ") but the shelter is empty, so " ..
-					"there was nothing left to unload and the measurement could not be staged. All " ..
-					"ten men deployed to ports at once. " .. State())
+			if CountPorts() < AllPorts then
+				Test.Skip("only " .. CountPorts() .. " of " .. AllPorts .. " ports filled within " ..
+					PortsWithin .. "s (shelter " .. CountShelter() .. "), so a FREE PORT REMAINED " ..
+					"and the hold would have drained into it instead of through UnloadCargo — which " ..
+					"arms nothing, so the measurement would have been meaningless rather than " ..
+					"wrong. This is a deliberate skip, not a timeout to widen: raising PortsWithin " ..
+					"only helps if the ports are still filling. If one port never fills at all, the " ..
+					"bait for that diagonal is the thing to check (map.yaml BaitNE/SE/SW/NW), not " ..
+					"this clock. " .. State())
 				return
 			end
 
-			Test.Skip("only " .. CountPorts() .. " of " .. AllPorts .. " ports filled within " ..
-				PortsWithin .. "s (shelter " .. CountShelter() .. "), so a FREE PORT REMAINED and " ..
-				"the hold would have drained into it instead of through UnloadCargo — which arms " ..
-				"nothing, so the measurement would have been meaningless rather than wrong. This is " ..
-				"a deliberate skip, not a timeout to widen: raising PortsWithin only helps if the " ..
-				"ports are still filling. If one port never fills at all, the bait for that diagonal " ..
-				"is the thing to check (map.yaml BaitNE/SE/SW/NW), not this clock. " .. State())
+			if CountShelter() == 0 then
+				Test.Skip("every port is manned (" .. CountPorts() .. ") but the shelter is empty, " ..
+					"so there was nothing left to unload and the measurement could not be staged. " ..
+					"That needs more ports than the map has spare men. " .. State())
+				return
+			end
+
+			Test.Skip("every port is manned but only " .. (CountShelter() + CountPorts()) .. " of " ..
+				#Men .. " men are inside after " .. PortsWithin .. "s, so somebody is still walking " ..
+				"in and the unload menu's ALL chip would miss him — it orders out whoever is in the " ..
+				"hold at click time and nothing ever orders a late boarder. Check whether a rifleman " ..
+				"is stuck on the approach; the men start on the eight cells around the house and " ..
+				"have one cell to walk. " .. State())
 		end)
 end
 
@@ -407,8 +436,9 @@ local function WaitForTheGarrison()
 				return
 			end
 
-			-- Fewer than 8 inside is still workable as long as both compartments are occupied when
-			-- phase 1b checks; fall through rather than skipping on a headcount.
+			-- Fall through rather than skipping on a headcount: this is only a staging gate, and
+			-- phase 1b now subsumes it with a strictly stronger one (every port manned AND every man
+			-- inside). If men are genuinely missing it is 1b that says so, in those terms.
 			WaitForEveryPortToBeManned()
 		end)
 end

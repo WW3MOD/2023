@@ -24962,3 +24962,38 @@ see the flip. That is derived from reading, not observed — hence the watch.
 it is the most dangerous outcome available, because it certifies the fix. Before banking any RED,
 ask **which line arms the defect** and whether the scenario's own setup can reach the measured state
 without ever executing it.
+
+## 2026-09-21 — The unload menu acts on a SNAPSHOT, so a setup gate that does not wait for the population to settle silently under-orders (`wt/unload-scenario`)
+
+Addendum to the entry above, found on the next run of the same scenario
+(`260921_155532`, skip: `shelter=1; ports=8`). Nine men of ten accounted for — **one was still
+walking in when the menu was clicked.**
+
+`CargoUnloadMenuLogic` re-reads `cargo.Passengers` on every click and issues one
+`UnloadCargoPassenger` per man *then aboard* (`:232-247`). Nothing revisits that list, so **a man who
+boards one tick after the click is never ordered anywhere.** He sits in the hold, the drain's
+`CountShelter() == 0` never comes true, and the timeout blames whatever the timeout message happens
+to name — here, exit cells, which were never the problem.
+
+**The generalisable rule: a setup gate must require the population to be SETTLED, not merely
+non-empty.** The gate had been `CountPorts() >= 8 and CountShelter() > 0` — two clauses that look
+like they pin the arrangement and do not, because neither says "and nobody else is in transit". The
+fix is `CountShelter() + CountPorts() >= #Men`: with ten men and eight ports the only arrangement
+satisfying both is ports 8, shelter 2.
+
+**It also retires a suspect, which is the more useful half.** The `shelter=2; ports=8` reading 30 s
+after the drain in run `260921_150014` was being read as evidence that ejected men walk back in. It
+is not: with the old gate the click landed while seven ports and two men were still in flight, and
+those men boarded afterwards and stayed. **Nothing re-boards** — `UnloadCargo` cancels the man's
+activity on the way out (`UnloadCargo.cs:260`), and no trait auto-loads infantry into a garrison. A
+straggler and a returner produce the same count, and only one of them exists.
+
+**Two mechanisms checked and cleared while chasing this, worth recording so nobody re-checks them.**
+(1) *Port occupants do not block exits.* `DeployToPort` positions a port soldier on the BUILDING's
+own cell — `positionable.SetPosition(soldier, self.Location)` with the port offset applied as visual
+position only (`GarrisonManager.cs:458-469`) — while `ChooseExitSubCell` searches
+`Cargo.CurrentAdjacentCells`, which is `Util.AdjacentCells` minus the building's cell
+(`Cargo.cs:307-310`). The two sets are disjoint by construction, so a fully-ported garrison can still
+unload its shelter. **There is no "port men seal their own exits" bug.** (2) *The ALL chip does issue
+one order per man* — first unqueued, the rest queued off a `hasDropped` latch precisely so the second
+does not `CancelActivity` the first (`CargoUnloadMenuLogic.cs:58-61`, `:239-247`).
