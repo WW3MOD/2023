@@ -74,7 +74,8 @@
   scenario currently asserts on either banner.
   (found while working on: the whole-match Escalation gameplay review)
 
-- [2026-09-19] [MEDIUM] **An Escalation lobby with three or more sides gets no border AND a total
+- [2026-09-19] [MEDIUM — FIXED 2026-09-21, `wt/escalation-guards`] **An Escalation lobby with three
+  or more sides gets no border AND a total
   cease-fire, so the correct play is to park in an enemy base and wait for the clock.** Decision 15
   rules that Escalation requires exactly two sides and says it is to be enforced in the lobby;
   **nothing enforces it.** `NuclearExchange.cs:28-31` and `:764-768` state the gap in their own words
@@ -89,6 +90,17 @@
   `WORKSPACE/audit/escalation-gameplay-review-260919.md` — a lobby-side refusal (right) or making
   `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
   Escalation is not the default game mode.
+  **FIXED with the lobby-side refusal (the right one).** `EscalationLobbyRule` counts the sides a
+  lobby's SEATED clients resolve into — each distinct positive team once, each teamless seat as its
+  own side — and both doors to `Server.StartGame` refuse above two: the explicit `startgame` command
+  with a player-readable line (`notification-escalation-two-sides-required`), and `CheckAutoStart`
+  silently plus a server log line, because everybody readying up reaches `StartGame` without the host
+  ever clicking. **It counts SEATS and not map-authored combatants, deliberately** —
+  `test-nuclear-side-cooldown` and `test-bot-damages-garrisoned-building` each author three combatant
+  map players behind one playable slot, and counting map players would have refused to start both. A
+  map that authors three combatants of its own is therefore still unaffected and still reaches
+  `NuclearExchange`'s warning; that residue is knowingly left open and is not what the report was
+  about. 16 NUnit cases in `EscalationLobbyRuleTest`.
   (found while working on: the whole-match Escalation gameplay review)
 - [2026-09-19] [LOW — not fixed] **The Windows installer ignores a `/D=` install path on the command
   line.** `packaging/windows/buildpackage.nsi:41` opens `.onInit` with an unconditional

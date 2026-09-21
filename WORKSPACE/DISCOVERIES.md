@@ -3,6 +3,61 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`)
+
+`260921-release-readiness.md` §2.7 claim 6 says hold-fire's six fire-path guards have no test and that
+*"Three scenarios are named as owed"*. It is relaying `escalation-gameplay-review-260919.md`, which was
+written on 2026-09-19 and was accurate when written. **The three scenarios landed at 17:15-17:16 that
+same day** -- `c1c31675` (contact), `96cf46a5` (garrison), `4a462171` (ambush) -- and all six
+directories, each treatment with its `-skirmish` control arm and an `expected-status: fail`
+declaration, are present at the audit's own ref `61d0c1f8`:
+
+| read site | mechanism | scenario |
+|---|---|---|
+| 1 | `AutoTarget.ChooseTarget` idle acquisition | `test-defcon2-holdfire-contact` |
+| 2 | `AutoTarget.INotifyDamage.Damaged` return fire | `test-defcon2-holdfire-contact` |
+| 3 | the `IOverrideAutoTarget` branch (`AutoTarget.cs:1228`) | **none** |
+| 4 | `AttackFollow` persistent-opportunity fire | `test-defcon2-holdfire-contact` |
+| 5 | `GarrisonManager.ScanForTarget` | `test-defcon2-holdfire-garrison` |
+| 6 | `AutoTarget.TriggerNearbyAmbushAllies` | `test-defcon2-holdfire-ambush` |
+
+**The generalisation is CLAUDE.md's own pipeline rule, hit again**: two documents agreeing on a claim
+is not evidence, and the second document's agreement was *inherited* rather than re-derived -- the
+audit says so in its own preamble ("Where I am relaying a figure from another document rather than
+re-deriving it, the sentence says so"). One `ls tools/autotest/scenarios/ | grep holdfire` settles it.
+
+**READ SITE 3 IS THE ONLY REAL GAP, AND WRITING A SCENARIO FOR IT IS NOT STRAIGHTFORWARD.** Established
+by reading, at this ref, and recorded so the next person does not re-walk it:
+
+- `DefconHoldsFire` is `DefconFireDiscipline.HoldsFire`, true **only at level 2** (`:85-88`). So at
+  DEFCON 3 autotarget acquires targets completely normally -- it is `Armament.CanFire` that is gated
+  there (`PermitsWeapon`), not acquisition. Units DO hold incumbent auto-acquired targets at DEFCON 3.
+- On the 3 -> 2 edge `DefconEscalation.CeaseAutonomousFireEverywhere` (`:553-562`) walks
+  `ActorsWithTrait<AutoTarget>()` and **skips every actor that is dead or `!IsInWorld`**.
+- Site 3's gated branch needs `canYield == true`, i.e. an **auto-acquired** incumbent, **at DEFCON 2**.
+  Every ordinary route to one is closed: sites 1, 2, 4 and 6 gate acquisition at 2, and the wipe clears
+  everything that was holding one at 3.
+- What is left is an actor that was **out of the world across the edge** and re-enters during DEFCON 2
+  still holding its DEFCON 3 incumbent -- a transport passenger (`RideTransport.cs:85` calls
+  `w.Remove(self)`, which `Cargo.cs:432` documents) or a garrison occupant. **Whether AttackFollow's
+  `RequestedTarget` survives boarding was NOT established** -- `Turreted.cs:358` calls
+  `attack.OnStopOrder(self)`, which clears it, and whether that fires on the way into a transport was
+  not traced.
+
+So site 3 reads as a **belt-and-braces guard whose ordinary reachability is unproven**, which is the
+honest reason it has no scenario rather than an oversight. A scenario built on the transport chain
+without first settling the boarding question would very likely report `fail: SETUP` forever, and "a
+bug that cannot fire is indistinguishable from a bug that does not exist" (the ambush scenario's own
+README).
+
+**One thing worth a second look while someone is in there**, found in passing and NOT fixed here
+because nothing measured it: the preemption branch immediately above site 3 (`AutoTarget.cs:1224-1226`)
+returns a *new* target on `canYield && PreemptionDue(self) && TryFindHigherBandTarget(...)` **before**
+site 3's `canYield && DefconHoldsFire` test runs. If a yieldable incumbent can exist at DEFCON 2 at
+all -- which is exactly the question above -- then preemption reaches past the guard. Swapping the two
+`if`s would close it, but it is an unmeasured behavioural change to a fire path and should ride with
+the scenario that can see it, not ahead of it.
+
 ## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
 
 `test-garrison-port-arc-highpriority` asserted "a shooter outside a garrison port's arc lands nothing"

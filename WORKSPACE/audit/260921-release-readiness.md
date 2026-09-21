@@ -235,8 +235,20 @@ on all ten maps; and Skirmish is a strict no-op, pinned.
    with Skirmish and is not `Motorized`. §B2. Never played.
 5. **That three or more sides is survivable.** Unenforced; no border derives and a total hold-fire
    results. A stranger filling a 4-slot lobby hits it. §B3, and a `MEDIUM` bug entry.
+   **CLOSED 2026-09-21** (`wt/escalation-guards`): the lobby refuses to start above two sides, at both
+   doors to `Server.StartGame`, with a player-readable message. `EscalationLobbyRuleTest`, 16 cases.
 6. **That hold-fire's six fire-path guards hold.** *"None … has a test"* — they sit in per-actor trait
    methods and nothing in `OpenRA.Test` can construct a `World`. Three scenarios are named as owed.
+   **THIS CLAIM WAS STALE WHEN WRITTEN AND IS CORRECTED 2026-09-21.** It relays the 2026-09-19 review,
+   which was accurate on the morning it was written; **the three scenarios landed at 17:15–17:16 that
+   same day** (`c1c31675` contact, `96cf46a5` garrison, `4a462171` ambush) and all six directories —
+   each treatment with its `-skirmish` control arm and an `expected-status: fail` declaration — are
+   present at this audit's own ref `61d0c1f8`. Read sites 1, 2, 4 (contact), 5 (garrison) and 6
+   (ambush) are covered. **The one real gap is read site 3**, the `IOverrideAutoTarget` branch at
+   `AutoTarget.cs:1228`, and it has no scenario for a reason rather than by oversight: `DefconHoldsFire`
+   is true only at level 2, the 3 → 2 edge wipes every *in-world* actor's autonomous engagement, and
+   the branch therefore needs an actor that was **out of the world across that edge** — which may not
+   be stageable at all. Full reachability walk in `WORKSPACE/DISCOVERIES.md`, 2026-09-21.
 7. **That a revoked ladder band removes a power's cameo and buy-tab entry.** Reasoned, never observed.
 8. **That the demo used to show the nukes off works.** It cannot fire 2 of its 6 warheads and has not
    been able to since the powers were faction-tiered.
@@ -270,8 +282,8 @@ screenshot pass per `DOCS/recipes/SCREENSHOT.md`; **"user"** = cannot be closed 
 | **3** | **Tooltip legibility** | The production tooltip stops showing the sidebar through itself, stops printing `TankRound.Abrams`, and gives single-pool units an ammo total. | `ProductionTooltipLogic.cs:156,159,208`; `AmmoPool.cs:200-209`; `TooltipContainerWidget:154` | before/after screenshot at two resolutions | **S** | capture |
 | **4** | **Infantry selection feedback** | Box-selected riflemen show a bracket — or they provably should not. | `infantry.yaml:57` | **two screenshots, side by side, shown to the user** | **S** | capture; **user picks** |
 | **5** | **Credits + the U9/U4 hand-off** | Credits stops saying "(nothing here yet)" three times; the art/audio asks move to `AWAITING-USER.md` where the user can act on them. | `credits.txt`; `AWAITING-USER.md`; locate-or-write the U4 icon table | desk only | **S** | none |
-| **6** | **§B6 — the Escalation signature moment** | When the border opens and the first casualty lands inside the banner window, the player gets **one** banner naming both, plus an event-log line naming who chose. Today they get a banner and a half. | `DefconEscalation.cs` banner path; `DefconReadoutModel.cs` | a scenario asserting one banner where two edges land inside `BannerHoldTicks` | **M** | launch |
-| **7** | **Escalation's three unenforced/untested guards** | A 3+ side Escalation lobby refuses to start rather than producing a no-border total hold-fire; hold-fire's six fire-path guards get their three scenarios. | `DefconWall.cs:352-395`; `NuclearExchange.cs:764-768`; lobby refusal; 3 new scenarios | RED+GREEN per scenario | **M** | launch |
+| **6** ✅ | **§B6 — the Escalation signature moment** *(done 2026-09-21, `wt/escalation-guards`)* | When the border opens and the first casualty lands inside the banner window, the player gets **one** banner naming both, plus an event-log line naming who chose. Today they get a banner and a half. | `DefconEscalation.cs` banner path; `DefconReadoutModel.cs` | a scenario asserting one banner where two edges land inside `BannerHoldTicks` | **M** | launch |
+| **7** ◐ | **Escalation's three unenforced/untested guards** *(lobby refusal done 2026-09-21; the "3 new scenarios" line is stale — see §2.7 claim 6)* | A 3+ side Escalation lobby refuses to start rather than producing a no-border total hold-fire; hold-fire's six fire-path guards get their three scenarios. | `DefconWall.cs:352-395`; `NuclearExchange.cs:764-768`; lobby refusal; 3 new scenarios | RED+GREEN per scenario | **M** | launch |
 | **8** | **The bot opening — items 86 + 64** | The opening push is a formation, and the lone tank stops walking 22 cells forward to die. | `LaneAmbushBotModule.cs:385` cross-gate; flip `ai.yaml:2258`/`:2353` | `test-push-departs-together` RED→GREEN, then one match | **M** | launch. ⚠️ **Moves `@stable`** — say so in the commit and re-take the baseline. |
 | **9** | **Item 56's acceptance bar** | Nothing changes; we find out whether the shipped fix works. | none — this is a run | one bot-vs-bot match on `tournament-s1-eco-river-zeta`, precondition `[composition] census` with `earned>0` and non-zero `truk`, then `crate-placed ÷ drop` vs 15.0% | **S** | launch |
 | **10** | **Saved-game restore leak** | Save and reload stops producing a divergent world. | `Activities/Move/AttackMoveActivity.cs:195-196,236,247,260` | a save/reload scenario asserting `Mobile.Facing` parity — **this does not exist and is the missing instrument** | **L** | launch |
