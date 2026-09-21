@@ -129,13 +129,40 @@ end
 local function DoesItStillRevertWhenGenuinelyEmpty()
 	TestHarness.Select(House)
 
-	-- "Unload" is what a Deploy press reaches on a garrison building, and it is the order that
-	-- clears the ports (GarrisonManager.cs:1561-1592). The shelter is already empty by now, so this
-	-- is purely the port half.
-	if not Test.PressHotkey("Deploy") then
-		Test.Skip("no widget consumed the Deploy hotkey, so the ports were never cleared and the " ..
-			"revert half went unmeasured. The keep-ownership half PASSED — that finding stands. " ..
-			"Check that 'Deploy' is still bound and the command bar is present. " .. State())
+	-- "Unload" is the order that clears the ports (GarrisonManager.cs:1560-1592). Reaching it from
+	-- HERE takes the mouse gesture, not the Deploy hotkey, and that distinction is the whole reason
+	-- the first run of this scenario never returned a verdict.
+	--
+	-- THE DEPLOY KEY CANNOT ISSUE THIS ORDER IN THIS EXACT STATE. The command bar's Deploy path does
+	-- not walk IIssueOrder at all: it collects TraitsImplementing<IIssueDeployOrder> and issues only
+	-- where CanIssueDeployOrder is true (CommandBarLogic.cs:607-619). The ONLY IIssueDeployOrder on
+	-- this actor is Cargo, and its gate is `!IsEmpty()` (Cargo.cs:427) — which phase 2 has just
+	-- falsified by construction. GarrisonManager implements that interface nowhere. So the button is
+	-- disabled, no order is built, and the ports stay manned until the clock runs out. (Run
+	-- 260921_150014 skipped exactly here: "8 still manned after 30s".)
+	--
+	-- AND Test.PressHotkey CANNOT SEE THAT HAPPEN. ButtonWidget.HandleKeyPress returns true for any
+	-- matching key whether or not the button is disabled (ButtonWidget.cs:169); IsDisabled gates
+	-- OnKeyPress alone (:160), falling through to ClickDisabledSound. A disabled Deploy button
+	-- therefore CONSUMES the press and reports "consumed", so the old `if not PressHotkey` guard read
+	-- green on precisely the failure it was written to catch. Test.IssueDeploy is no escape either:
+	-- it re-applies the same CanIssueDeployOrder gate (TestGlobal.cs:1244).
+	--
+	-- The MOUSE path is wired for this state on purpose. GarrisonManager yields its own
+	-- DeployOrderTargeter("Unload") exactly WHEN the cargo is empty and occupants remain
+	-- (GarrisonManager.cs:1464-1476, added by bc35eb98 "allow Unload when only port soldiers remain"),
+	-- complementing Cargo's, which yields only while NOT empty (Cargo.cs:390-411) — the two are
+	-- mutually exclusive and together cover both states. ClickOrder walks that chain in descending
+	-- OrderPriority and issues whatever wins, which is the routing a player clicking the selected
+	-- house actually gets, so this is a real gesture and not a staged order.
+	local issued = Test.ClickOrder(House, House)
+	if issued ~= "Unload" then
+		Test.Skip("clicking the garrisoned house resolved to " .. tostring(issued) .. ", not " ..
+			"\"Unload\", so the ports were never ordered clear and the revert half went unmeasured. " ..
+			"The keep-ownership half PASSED and that finding stands. GarrisonManager offers the " ..
+			"Unload targeter only while `cargo.IsEmpty() && HasAnyOccupants` " ..
+			"(GarrisonManager.cs:1464-1476); check that gate, and that no higher-priority targeter on " ..
+			"the building now wins a self-click. " .. State())
 		return
 	end
 
@@ -151,10 +178,15 @@ local function DoesItStillRevertWhenGenuinelyEmpty()
 		end,
 		function()
 			if CountPorts() > 0 then
-				Test.Skip("the ports never cleared after Deploy (" .. CountPorts() .. " still " ..
-					"manned after " .. RevertWithin .. "s), so the revert half could not be asked. " ..
-					"The keep-ownership half PASSED and that finding stands. Check " ..
-					"GarrisonManager's \"Unload\" case still clears PortStates. " .. State())
+				-- Distinct from the refusal above: the Unload order was ACCEPTED and routed, and the
+				-- ports still did not clear. That narrows it to the RESOLVE side, where the clearing
+				-- loop is unconditional today (GarrisonManager.cs:1564-1577).
+				Test.Skip("the house accepted an \"Unload\" order and the ports still never cleared (" ..
+					CountPorts() .. " still manned after " .. RevertWithin .. "s), so the revert half " ..
+					"could not be asked. The keep-ownership half PASSED and that finding stands. The " ..
+					"order was issued and routed, so this is the RESOLVE side: check that " ..
+					"GarrisonManager's \"Unload\" case still walks PortStates and clears " ..
+					"DeployedSoldier unconditionally (GarrisonManager.cs:1564-1577). " .. State())
 				return
 			end
 

@@ -24861,3 +24861,52 @@ Observed at main @ b0aa900c: `VaporizeScopeTest.TheSupplyRouteOptsOutOfVaporisat
 ## 2026-09-21 — `run-test.sh` reported LAUNCH-FAIL from a six-day-old client.log
 
 `check_launch_failure` (`tools/autotest/run-test.sh:517`, added `6651d5f4`) grepped `server.log` / `client.log` for the refused-join signatures **without checking the log was newer than `LAUNCH_STAMP`** — only the `lua.log` world-seen branch had the `-nt` gate. Killing the game at teardown leaves `Connection to 127.0.0.1:… failed` as `client.log`'s last line, so the FIRST run after any session fired the watch one second after launch, killed the game before it wrote a byte, and reported `launch-fail: server refused the client at join` quoting the previous session's line (run `260921_145344`, log dated 2026-09-15 22:11). Symptom that gives it away: **no file under the OpenRA support dir is newer than `result.launchstamp`.** Fixed by gating both greps on `-nt "${LAUNCH_STAMP}"`. The Windows box never saw it because its last run of each session apparently did not leave that line — unverified.
+
+## 2026-09-21 — `Test.PressHotkey` returns TRUE for a DISABLED button, so its return value is evidence of CONSUMPTION and never of ACTION (`wt/unload-scenario`, base `wt/garrison-unload @ 55ac6bee`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** `ButtonWidget.HandleKeyPress`
+(`engine/OpenRA.Mods.Common/Widgets/ButtonWidget.cs:155-170`) returns `true` **unconditionally**
+once the key matches — line `:169`, below both branches. `IsDisabled()` at `:160` gates only
+whether `OnKeyPress(e)` fires; a disabled button falls through to `ClickDisabledSound` at `:166-167`
+and still reports the press consumed. `Test.PressHotkey` returns exactly what `Ui.HandleKeyPress`
+returns (`TestGlobal.cs:420`). **So `if not Test.PressHotkey(X) then Skip(...)` is green precisely
+when the button was greyed out and did nothing** — the guard is blind to the one failure it exists
+to catch, and the scenario proceeds to wait on a state transition that was never ordered.
+
+Blast radius at this ref: **15 scenarios call `Test.PressHotkey`, 8 of them branch on its return
+value**, and `CommandBarLogic` defines **12** buttons with an `IsDisabled` predicate. Any of those 8
+that targets a command-bar button can time out with a misleading cause. **The countermeasure is not
+a better guard on the return value — there isn't one. Assert the EFFECT** (the order landed, the
+state moved), or use a binding that reports routing, such as `Test.ClickOrder`, which returns the
+`OrderString` that actually won.
+
+**THE CONCRETE CASE, and it is a second finding in its own right: the Deploy KEY and the deploy
+CURSOR are two different dispatch mechanisms, and they disagree on garrison buildings.**
+`CommandBarLogic.PerformDeployOrderOnSelection` (`:607-619`) does not walk `IIssueOrder` at all — it
+collects `TraitsImplementing<IIssueDeployOrder>` and issues only where `CanIssueDeployOrder` is
+true. On a civilian garrison building the **only** `IIssueDeployOrder` is `Cargo`, gated
+`!IsEmpty()` (`Cargo.cs:427`); `GarrisonManager` implements that interface **nowhere**. The mouse
+path is the other mechanism: `GarrisonManager` yields its own `DeployOrderTargeter("Unload")`
+exactly **when** the cargo IS empty and occupants remain (`GarrisonManager.cs:1464-1476`, added by
+`bc35eb98` "allow Unload when only port soldiers remain (rubble evac)"), complementing `Cargo.Orders`
+which yields only while NOT empty (`Cargo.cs:390-411`).
+
+So `bc35eb98` closed the mouse half of the gap and left the keyboard half open, and the two halves
+have been out of step on `main` since **2026-05-04**. In the state "shelter empty, ports manned" the
+deploy cursor issues `Unload` and the Deploy key/button is greyed. **This is NOT a regression from
+the 09-16..09-20 garrison work** — `66c3b5e5` touches only `ScanForTarget` and `TriggerAmbush`
+(acquisition), and `96cf46a5` ("a garrison mans no port until it is told to") touches **no engine
+file at all**, being two autotest scenarios and a Lua lib. Filed as a bug rather than fixed here;
+the player is not trapped, because `GarrisonPanelLogic` ejects port soldiers individually
+(`:316`, `EjectGarrisonPassenger`).
+
+**`Test.IssueDeploy` is no escape.** It re-applies the same `CanIssueDeployOrder` gate
+(`TestGlobal.cs:1242-1245`), so a scenario that "fixed" the hotkey by reaching for the
+purpose-built binding would have failed identically and more confusingly — `IssueDeploy` returns
+`void`, so it cannot even report that it issued nothing.
+
+**The cheap lesson, which is the 2026-09-15 entry's rule pointed the other way.** That entry said:
+before writing "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. This one
+adds the **issue** side: before writing "gesture X *reaches* order Y", check which dispatch
+mechanism the gesture uses — `IIssueOrder` targeters (mouse) and `IIssueDeployOrder` (key/button)
+are separate surfaces with separate gates, and a trait may be on one and not the other.
