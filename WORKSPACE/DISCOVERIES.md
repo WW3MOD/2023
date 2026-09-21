@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+From run `manual_hotkeys_260922_005942`, a driver written the day before. Both `click` commands
+missed; both screenshots came out as **1,024,258-byte, byte-identical** pictures of the Esc menu
+with the target button plainly on screen. Every instinct — and the first two hypotheses raised off
+the frames — said the widget ids must be wrong.
+
+**They were not. `debug.log` ordering settles it, and nothing else does.**
+`external click: SETTINGS → NO SUCH VISIBLE WIDGET` sits **above** the sprite loads,
+`Scenario selection`, `[danger] reference`, `DEFCON wall region` and `Sync reports disabled` — all
+world-construction lines. The blind `sleep 20` expired mid-load, so there was no player HUD, no
+`MenuButtonsChromeLogic` and no `INGAME_MENU`. The second click landed one line *after*
+`Sync reports disabled` and missed by a hair. **A frame at t≈26s showing the menu is not evidence
+about t=20s** — that inference is the whole trap, and it points the fix at the ids.
+
+The ids were correct and checkable without launching: `IngameMenuLogic.AddButton:331` assigns
+`button.Id = id` from the bare string in `ingame-menu.yaml:5`'s `Buttons:` list (no prefix, no
+composition), and `PollCommands` `.Trim()`s the verb argument
+(`TestModeScreenshots.cs:219`).
+
+**Three things to carry:**
+
+- **`NO SUCH VISIBLE WIDGET` is ambiguous.** `ClickWidget` (`TestModeScreenshots.cs:282-294`)
+  returns false both when `FindVisible` found nothing **and** when it found the widget but could not
+  read a non-null public `OnClick` field off it, and `:227` logs the identical string for both. A
+  widget that is on screen and simply has no click handler reports as absent.
+- **`HOTKEYS_PANEL` is the id of two different widgets.** `SettingsLogic` sets `tab.Id = id`
+  (`:178`) on the tab button and `container.Id = panel.Key` (`:90`) on the panel container — the
+  same string. `FindVisible` walks `Children` **forward** and returns the first match (note
+  `Widget.HandleKeyPressOuter` walks them in **reverse**, so a real keypress and a scripted click do
+  not resolve ambiguity the same way). Today the tab wins because `SETTINGS_TAB_CONTAINER` precedes
+  `PANEL_CONTAINER` in `settings.yaml` and the container is `IsVisible`-gated on being active. A
+  reorder would silently turn this into an infinite retry against a widget with no `OnClick`.
+- **`send`-style "the command was consumed" is not "the command did something".** The existing
+  `send` helper in these drivers waits for `PollCommands` to delete the cmd file, which happens
+  whether or not the click found anything — so a missed click looks exactly like a hit and the run
+  goes on to capture. The fix that generalises is to retry against the **dispatch log line** rather
+  than a clock, which makes the precondition itself the wait. `screenshot-hotkeys.sh` now does this
+  (`click_until`); `screenshot-infopanel.sh` and `screenshot-editor-zones.sh` still use blind
+  sleeps and have the same latent failure — **not audited, not changed here.**
+
+Same family as the launcher-127 and zero-byte-log traps in `CLAUDE.md`, with one addition that is
+worse than either: those produce an obviously empty artifact, whereas this produces a large,
+well-formed PNG of the wrong screen. **File size cannot detect it** — SCREENSHOT.md's "the tell for
+a blank frame is file size" is true and does not apply. What detects it is the dispatch line, and
+secondarily that the two frames were byte-identical.
+
 ## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`)
 
 Found re-deriving audit `260921-release-readiness.md` §2.5 **I1** ("There is no hotkey list a player
