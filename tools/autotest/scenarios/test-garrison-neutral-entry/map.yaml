@@ -59,6 +59,24 @@ Actors:
 	O2: e1
 		Owner: USA
 		Location: 37,21
+	# LANE C — THE DISCRIMINATOR, ADDED 2026-09-21. Same actor, same owner and same start
+	# distance as the neutral lane; the ONLY difference is that these two are ordered in through
+	# Test.ClickOrder (the real order layer, Passenger.ResolveOrder) instead of the Lua
+	# MobileProperties.EnterTransport call the other two lanes use. Every neutral house that has
+	# ever been garrisoned successfully in this repo was ordered through the order layer
+	# (test-garrison-hostile-cogarrison 260915_204522, test-garrison-suppression-readout
+	# 260915_204746); every neutral house that failed was ordered through the Lua call. This lane
+	# is what separates "neutral is refused" from "the Lua entry path is broken", and no run so
+	# far has held both variables still at once.
+	ClickHouse: v08
+		Owner: Neutral
+		Location: 56,20
+	CL1: e1
+		Owner: USA
+		Location: 53,20
+	CL2: e1
+		Owner: USA
+		Location: 53,21
 	OwnSR: supplyroute
 		Owner: USA
 		Location: 90,6

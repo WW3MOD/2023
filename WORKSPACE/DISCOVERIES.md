@@ -3,6 +3,92 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - The garrison boarding filter does NOT refuse a neutral building, and a stale one-line elimination kept three instruments pointed at it (`wt/neutral-entry @ 4d1b7bfc`)
+
+**THE CORRECTION.** The 2026-09-15 entry below eliminates the load filter with the line *"Cargo's
+only `ICargoCanLoadFilter` is `SupplyProvider`, which no civilian building has."* **That is stale** —
+`8ca4b926` made `GarrisonManager` one, and every garrisonable building therefore has a filter now.
+The entry's CONCLUSION survives anyway, and this is the proof it was missing: the filter reads
+`claimedOwner ?? self.Owner` and hands it to `GarrisonBoardingMath.MayBoard`
+(`GarrisonManager.cs:341-352`), which returns true for `Ally` **and `Neutral`** and false only for
+`Enemy` (`GarrisonBoardingMath.cs:44-47`). A map's `Neutral` player lists no `Allies` and no
+`Enemies` and is not `Playable`, so every branch of `CreateMapPlayers.SetupPlayerMasks` (`:140-199`)
+falls through and `Player.RelationshipWith` returns `Neutral` (`Player.cs:276-292`).
+`GarrisonBoardingTest.AnEnemyIsRefusedAndNobodyElseIs` has pinned exactly this since 09-15 and is
+green. **[V]**
+
+**THE SHAPE.** Both halves of that line were true when written and one of them rotted, because it
+names a CENSUS ("the only implementor is X") rather than an INVARIANT. A census of implementors is
+invalidated by any commit that adds one, silently, from a file the entry does not mention — and a
+stale elimination is worse than no elimination, because it survives into the next brief as a premise
+and costs the next reader a four-file re-derivation. Where an elimination has to be written down,
+write the invariant that makes the class safe — here *"the filter admits Neutral, and a test says
+so"* — because that sentence stays true when a second implementor appears.
+
+## 2026-09-21 - `Cargo.HasSpace` asks every load filter about a NULL passenger, and a filter that answers "no" makes a building silently, permanently full (`wt/neutral-entry @ 4d1b7bfc`)
+
+**THE CONTRACT NOBODY DECLARED.** `ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)`
+reads as a question about a man. `Cargo.HasSpace` calls it with `passenger: null` before it does any
+arithmetic (`Cargo.cs:617-625`), because the filter it was written for answers a question with no
+passenger in it — `SupplyProvider` returns `currentSupply > 0`, i.e. "is this truck empty"
+(`SupplyProvider.cs:1245-1248`). Nothing on the interface says so (`TraitsInterfaces.cs:272`), and
+`Cargo.CanLoad`/`ReserveSpace` both pass a real actor, so a filter author sees two truthful call
+sites and one undocumented one. **[V]**
+
+**WHY THE FAILURE WOULD BE INVISIBLE RATHER THAN LOUD.** `HasSpace` is CAPACITY, and capacity is
+consulted everywhere the player's intent is formed: the enter cursor and `Passenger.CanEnter`
+(`Passenger.cs:160-164`), `Passenger.ResolveOrder`, which drops the order outright (`:236-237`), and
+`RideTransport.TickInner`, which re-asks it EVERY TICK of the approach and `Cancel`s the walk
+(`RideTransport.cs:33-46`). So a filter that refuses null produces no refusal anywhere a player or a
+log can see — every building of that family reports itself full forever and the men stop without
+reaching the door. `GarrisonManager` gets it right in one line (`GarrisonManager.cs:343-344`) and
+nothing tested that line; `GarrisonBoardingTest.ACapacityProbeIsNotABoardingRefusal` now does,
+RED-verified both ways (answer `false` -> the capacity assert fires; guard deleted -> the invocation
+throws).
+
+## 2026-09-21 - `Cargo.PassengerCount` is not "did he garrison": a man at a firing port is out of the hold and back in the world, and reads exactly like a man who never boarded (`wt/neutral-entry @ 4d1b7bfc`, run 260921_145733)
+
+**THE TRAP.** `GarrisonManager.DeployToPort` takes a shelter occupant OUT of `Cargo` and puts him
+back in the world at the port offset (`:413-476`). So the three quantities a garrison scenario can
+cheaply measure — `house.PassengerCount`, `man.IsInWorld`, `man.IsDead` — report a correctly
+garrisoned man who then manned a port as **"0 aboard, 1 still outside, 0 dead"**, which is
+character-for-character the shape of a man who never boarded at all. `test-garrison-neutral-entry`
+failed with exactly that text and the verdict could not be acted on, because the instrument could
+not tell the two apart. `test-garrison-suppression-readout` counts ports and shelter separately and
+is the model (`"2 at ports, 4 in shelter, 0 still outside"`); `Test.GarrisonPortOf` exists for it.
+**[V]**
+
+**THE SECOND MISSING BIT IS CHEAPER AND WORTH MORE: DID HE MOVE.** A man still on his start cell was
+refused BEFORE the approach — `Enter` gives up on its first tick when the target is hidden and there
+is no last-visible fallback (`Enter.cs:103-130`). A man standing at the door was refused AT boarding
+— `RideTransport.OnEnterComplete` returns on `!CanLoad` and leaves him outside (`:69-87`). Those are
+different bugs in different files, and one integer (`TestHarness.CellDrift` against a start cell
+recorded in `WorldLoaded`) separates them. A garrison scenario reporting neither is a bug report
+with the diagnosis removed.
+
+## 2026-09-21 - Splitting a template scalar into 37 per-actor values breaks every consumer that memorised the old one, and none of them names the key (`wt/garrison-tuning @ 4d1b7bfc`, run 260921_150809_demo-garrison-lineup)
+
+**THE INSTANCE.** `demo-garrison-lineup` died at `Trigger.AfterDelay` with `LoadPassenger: e1 80
+cannot be loaded into v19 73 — the transport refused it (no space, loading blocked, or a cargo
+filter said no)`. `V19` is the oil pump and the tuning table gave it `Cargo: MaxWeight: 2` —
+"machinery, not a room; two men can shelter behind the pad" — while the demo still loads a
+hard-coded **ten**-man squad into it (`demo-garrison-lineup.lua:116`). Before the table every
+civilian inherited `MaxWeight: 10` from `^CivBuilding`, and the demo's own header recorded "squad
+size equalled `MaxWeight` in all six cases" as a checked fact. It was, once. **[V]**
+
+**THE SHAPE.** Nothing in the demo mentions `MaxWeight`; it encodes the old uniform value as the
+LENGTH OF SIX LUA LISTS, where no grep for the changed key can find it. The companion entry below
+("a shared template value is indistinguishable from a decision") is about reading such a value IN;
+this is the exit wound. When splitting a template scalar into per-actor values, the question is not
+only "is each new value right" but **"who had memorised the old one"** — and that answer is never in
+the file being edited.
+
+**THE CRASH IS THE GOOD NEWS.** `TransportProperties.LoadPassenger` throws rather than returning
+silently, and deliberately (`:42-56`, added with the `CanLoad` guard so a Lua script cannot seat a
+passenger the sim would refuse). Without it the demo would have loaded 2 of 10 men into the pump and
+photographed a lineup quietly wrong in three of its six squads.
+
+
 ## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535)
 
 **THE INSTANCE.** Tuning 38 garrisonable civilian buildings from their sprites turned up that
