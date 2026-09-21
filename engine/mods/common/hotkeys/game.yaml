@@ -170,7 +170,7 @@ AutoEnter: L
 	Contexts: Player
 
 Evacuate: E
-	Description: Evacuate (leave via map edge, refund value)
+	Description: Evacuate (map edge, refund)
 	Types: Unit
 	Contexts: Player
 

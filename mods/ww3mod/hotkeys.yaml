@@ -104,7 +104,7 @@ SupportPower17:
 	Contexts: Player
 
 GroupScatter: G Shift
-	Description: Scatter queued waypoints among selected units
+	Description: Scatter queued waypoints
 	Types: World
 	Contexts: Player
 
@@ -114,12 +114,12 @@ ToLastEvent: BACKSPACE
 	Contexts: Player, Spectator
 
 ShowAllOrders: Space
-	Description: Hold to show all friendly unit orders
+	Description: Hold to show friendly orders
 	Types: Viewport
 	Contexts: Player
 
 ShowTerritory: T
-	Description: Hold to show the territory (control) overlay
+	Description: Hold to show territory overlay
 	Types: Viewport
 	Contexts: Player
 
@@ -139,7 +139,7 @@ PowerDown: # X
 # (UnloadCargo.cs:69). Wording that ties the gesture to a location would promise placement
 # this feature does not have.
 UnloadMenu: J
-	Description: Unload menu — choose which class leaves the transport
+	Description: Unload menu (choose a class)
 	Types: World
 	Contexts: Player
 
@@ -179,56 +179,56 @@ UnloadMenu: J
 # soldier pushed out to a firing port -- the 1HP-rubble case GarrisonPanelLogic.cs:53-56 names --
 # Deploy is disabled and this is the only order that still works.
 GarrisonEjectPort01:
-	Description: Garrison — unload firing position 1
+	Description: Unload firing position 1
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort02:
-	Description: Garrison — unload firing position 2
+	Description: Unload firing position 2
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort03:
-	Description: Garrison — unload firing position 3
+	Description: Unload firing position 3
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort04:
-	Description: Garrison — unload firing position 4
+	Description: Unload firing position 4
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort05:
-	Description: Garrison — unload firing position 5
+	Description: Unload firing position 5
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort06:
-	Description: Garrison — unload firing position 6
+	Description: Unload firing position 6
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort07:
-	Description: Garrison — unload firing position 7
+	Description: Unload firing position 7
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectPort08:
-	Description: Garrison — unload firing position 8
+	Description: Unload firing position 8
 	Types: Hold
 	Contexts: Player
 
 GarrisonEjectAll:
-	Description: Garrison — unload all (ports and shelter)
+	Description: Unload all (ports and shelter)
 	Types: Hold
 	Contexts: Player
 
 TransportUnloadAll:
-	Description: Transport — unload all troops (same as Deploy)
+	Description: Unload all troops (= Deploy)
 	Types: Hold
 	Contexts: Player
 
 TransportDropSupply:
-	Description: Transport — drop all supply as a cache (same as Deploy)
+	Description: Drop all supply (= Deploy)
 	Types: Hold
 	Contexts: Player

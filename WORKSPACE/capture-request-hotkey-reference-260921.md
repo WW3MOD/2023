@@ -19,10 +19,18 @@ not a first look at a new one.**
 ./tools/autotest/screenshot-hotkeys.sh            # default map river-zeta-ww3
 ```
 
-> **Rev 2, 2026-09-22, after run `manual_hotkeys_260922_005942` returned NO-RESULT.** The ids were
-> never wrong and the resolver is fine — the clicks fired before the world finished loading. The
-> driver no longer sleeps and hopes; it retries each click until `debug.log` reports it dispatched.
-> Detail in "What the first run actually showed" below. **The rerun line is the same command.**
+> **Rev 3, 2026-09-22, after run `manual_hotkeys_260922_011140` returned rc=0.** That run was a
+> real result — both clicks dispatched, the panel on screen — but its second frame was
+> byte-identical to its first, so the new `Garrison & Transport Commands` section was never
+> photographed: **the list cannot be scrolled by any existing verb**, and everything below the
+> first ~11 rows was unreachable. The driver now types into `FILTER_INPUT` (new `type` cmd verb,
+> engine side) and takes **three filtered shots** instead of one useless duplicate. The overlapping
+> labels that run exposed are fixed too — see "The label overlap" below.
+>
+> **Rev 2** (run `260922_005942`, NO-RESULT): the click ids were never wrong and the resolver is
+> fine — the clicks fired before the world finished loading. `click_until` replaced the blind sleep.
+>
+> **The rerun line has not changed at any revision.**
 
 It needs an already-built tree (`launch-game.sh` does not build). It is `--hidden`-equivalent in
 spirit but **not** hidden: it launches `Graphics.Mode=Windowed`, `1600,900`, deliberately, because
@@ -71,7 +79,54 @@ t=20s.
    changes, the driver would retry forever against a container with no `OnClick` and report a
    missing widget that is visibly on screen.
 
-## The expected frame (1600×900), `01-hotkeys-panel-top`
+## The label overlap — fixed, and here is the arithmetic
+
+Run `260922_011140` showed two descriptions colliding: one clipped off the panel's left edge with
+the neighbouring column's label drawn over it. That is an overflow, not a layout bug, and the
+column is small.
+
+`Label@FUNCTION` is **198 px** wide and `Align: Right`, derived entirely from authored numbers:
+`SETTINGS_PANEL` is 900 wide (`settings.yaml:11`); `PANEL_TEMPLATE` is `PARENT_WIDTH - 190 - 20` =
+**690**; `Container@TEMPLATE` is `(PARENT_WIDTH - 24) / 2 - 10` = **323** (two columns);
+`Label@FUNCTION` is `PARENT_WIDTH - 120 - 5` = **198**. Right-aligned with no scissor anywhere on
+the path, so anything wider is drawn *leftwards* out of its own container and over whatever is
+there. The label has no tooltip fallback either — `TruncateButtonToTooltip` is applied to the
+`HOTKEY` button, not to this — so an over-long description has no recovery at all.
+
+Measured every one of the 210 shipped descriptions in FreeSans 14 (`Regular`, via
+`ChromeMetrics TextFont`), including the `:` that `BindHotkeyPref` appends. **Eight overflowed and
+all eight were ours; not one upstream description did.** Shortened, with before → after in px:
+
+| Hotkey | was | now | new text |
+|---|---|---|---|
+| `TransportDropSupply` | 328 | **151** | Drop all supply (= Deploy) |
+| `UnloadMenu` | 325 | **176** | Unload menu (choose a class) |
+| `TransportUnloadAll` | 273 | **161** | Unload all troops (= Deploy) |
+| `GroupScatter` | 272 | **149** | Scatter queued waypoints |
+| `Evacuate` | 253 | **165** | Evacuate (map edge, refund) |
+| `ShowTerritory` | 236 | **167** | Hold to show territory overlay |
+| `GarrisonEjectAll` | 230 | **164** | Unload all (ports and shelter) |
+| `ShowAllOrders` | 199 | **160** | Hold to show friendly orders |
+
+The eight `GarrisonEjectPortNN` rows went 197 → **131** ("Unload firing position N") as well: they
+fit by one pixel, which is not a margin. The widest description in the mod is now
+`WaypointMode` at **177 px**, leaving 21 px of headroom.
+
+**Three of the eight were mine, added yesterday** — the `Garrison —` / `Transport —` prefixes. They
+are gone: the group heading already says "Garrison & Transport", so the prefix was redundant as
+well as too wide.
+
+> The measurement is `fontTools` summing `hmtx` advances scaled to 14 px and truncated per glyph,
+> which models `FreeTypeFont`'s `metrics.horiAdvance >> 6` (`:106`) and `SpriteFont.LineWidth`
+> (`:248-255`). It is **not** a render: FreeType's hinting can shift an advance by a pixel, and
+> `deviceScale` on a Retina display divides out but is not exactly reproduced here. Treat the
+> numbers as ±a few px — which is why the target was ≤190, not ≤198.
+
+## The expected frames (1600×900)
+
+Four now, and each is a genuinely different state — the old duplicate second shot is gone.
+
+### `01-hotkeys-panel-top` — unfiltered
 
 - A 900×600 settings window, centred, tab column on the left with **Display / Audio / Input /
   Hotkeys / Advanced**, `Hotkeys` highlighted.
@@ -87,18 +142,35 @@ t=20s.
   is correct and is the point — they ship bindable, not bound. (`Hotkey.Invalid` is
   `Keycode.UNKNOWN`, and `keycode.unknown = Undefined` in `common|fluent/common.ftl:950`; the ten
   `SupportPower` slots already in this panel render the same way, so the two blocks should match.)
-- **Ordering caveat:** the list is built by iterating the `HotkeyGroups:` nodes in file order, so
-  the four new headings appear between `Unit Stance Commands` and `Production Commands`. The panel
-  scrolls; if some of the four fall below the fold, that is a framing limitation, **not a missing
-  group**. `FILTER_INPUT` is a `TextFieldWidget` with no `OnClick`, so the `click` verb cannot reach
-  it and the shot cannot be filtered — scrolling is likewise not scriptable today. If the four do
-  not all fit, say so and ask for a manual shot rather than reporting a group absent.
+- **This frame shows only the first ~11 rows** — `HOTKEY_LIST` is 395 px tall at 30+5 per row —
+  so it reaches `Game Commands` and no further. The new groups are in the filtered shots below,
+  **not** here; their absence from this frame is expected.
+- **Two things run `260922_011140` already confirmed and that should still be true:**
+  `Waypoint (queue orders) mode: O` in **red** — that is `HasDuplicates` against
+  `ProductionTypePowers`, the collision filed in `bugs/discovered.md`, now visible rather than
+  merely computed; and `Power-down mode: Undefined`, which matches `PowerDown: # X` having its key
+  commented out in place.
+- **No label should now overlap its neighbour or run off the panel's left edge.** That is the
+  regression this revision is mostly for.
 
-## Second frame, `02-hotkeys-panel-second`
+### `02-filter-position`, `03-filter-spacing`, `04-filter-ammo` — filtered
 
-Same view, three seconds later. It exists only as a duplicate against the one-frame-late sampling
-trap in SCREENSHOT.md; it is **not** a different state. If the two differ materially, something is
-animating that should not be.
+The driver types into `FILTER_INPUT`; the filter is a case-insensitive substring of the
+**description** (`HotkeysSettingsLogic.cs:335-343`). No single filter reaches all four new groups —
+they share no common word, checked across all 210 descriptions — so there are three:
+
+| Frame | Filter | Expect |
+|---|---|---|
+| `02` | `position` | **Engagement Stance Commands** (`Defensive positioning: Ctrl + Alt + D`, `Hold position: Ctrl + Alt + F`) **and Garrison & Transport Commands** (`Unload firing position 1…8`, all `Undefined`) — 10 rows, two new headings in one frame |
+| `03` | `spacing` | **Cohesion Commands** — `Tight / Loose / Spread spacing`, `Ctrl + Alt + 1/2/3`. 3 rows |
+| `04` | `ammo` | **Resupply Behaviour Commands** — `Hold when out of ammo: Ctrl + Alt + 4`, `Evacuate when out of ammo: Ctrl + Alt + 6`. 2 rows (`Auto-resupply` has no "ammo" in it and is correctly absent) |
+
+Together these prove all four new headings render as prose rather than raw `hotkey-group-…` slugs,
+which is the one thing a static check could not settle: the four fluent keys are four separate
+lines in `en.ftl` and a typo in one would not affect the others.
+
+**Reading budget:** each frame is ~1,900 tokens. `01` and `02` carry most of the evidence; `03` and
+`04` each confirm one fluent string and can be skipped if the budget is tight.
 
 ## Also worth one frame, but not scripted
 

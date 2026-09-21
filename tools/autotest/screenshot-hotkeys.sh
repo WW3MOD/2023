@@ -159,6 +159,52 @@ click_until() {
 	done
 }
 
+# Put text into a text field and wait for the engine to say it landed. The `type` verb exists
+# because `click` needs an OnClick and a TextFieldWidget has none, so FILTER_INPUT -- and with it
+# every row below the fold -- was unreachable. Re-typing the same string is idempotent: it sets the
+# same Text and re-runs the same InitHotkeyList.
+#
+# THE FILTER IS THE ONLY WAY DOWN THE LIST. ScrollPanelWidget exposes no clickable child and no
+# scroll verb exists, so an unfiltered capture can only ever show the first ~11 rows. That is why
+# run 260922_011140's second shot was byte-identical to its first and never reached the new section.
+type_until() {
+	_id="$1"
+	_text="$2"
+	_deadline="${3:-45}"
+	_t=0
+	while :; do
+		cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+		if grep -q "external type: ${_id} .* typed \"${_text}\"" "${RUN_DIR}/debug.log" 2>/dev/null; then
+			echo "==> typed: ${_id} = '${_text}'"
+			return 0
+		fi
+
+		if [ "${_t}" -ge "${_deadline}" ]; then
+			echo "!! never typed within ${_deadline}s: ${_id} = '${_text}'" >&2
+			return 1
+		fi
+
+		send "type ${_id} ${_text}" || return 1
+		sleep 2
+		_t=$((_t + 2))
+	done
+}
+
+# Filter the list, let it rebuild, photograph it. InitHotkeyList calls ScrollToTop, so a filtered
+# list always starts at its first row and nothing below a fold is lost.
+shoot_filtered() {
+	_text="$1"
+	_label="$2"
+	if type_until FILTER_INPUT "${_text}"; then
+		sleep 2
+		send "screenshot ${_label}" || true
+		sleep 3
+		return 0
+	fi
+	FILTER_FAILED="${FILTER_FAILED} ${_text}"
+	return 1
+}
+
 # One capture of wherever we actually got to, so a failure is diagnosable instead of silent.
 # Named so it can never be mistaken for the frame this script exists to take.
 bail() {
@@ -170,6 +216,7 @@ bail() {
 }
 
 FAILED_AT=""
+FILTER_FAILED=""
 
 # A floor, not a readiness wait -- click_until does the waiting. This only keeps the retry loop
 # from hammering the cmd file through the first seconds of a load it cannot possibly beat.
@@ -184,6 +231,17 @@ if click_until SETTINGS; then
 		sleep 3
 		send "screenshot 01-hotkeys-panel-top" || true
 		sleep 3
+
+		# THREE FILTERED SHOTS, because no single filter reaches all four new groups. The filter
+		# is a case-insensitive substring of the DESCRIPTION (HotkeysSettingsLogic.cs:335-343),
+		# and the four new groups share no common word; this was computed over all 210 shipped
+		# descriptions rather than guessed. Between them these three prove every new heading:
+		#   position -> Engagement Stance Commands (2) + Garrison & Transport Commands (8 ports)
+		#   spacing  -> Cohesion Commands (3)
+		#   ammo     -> Resupply Behaviour Commands (2)
+		shoot_filtered position 02-filter-position || true
+		shoot_filtered spacing  03-filter-spacing  || true
+		shoot_filtered ammo     04-filter-ammo     || true
 	else
 		bail HOTKEYS_PANEL
 	fi
@@ -191,16 +249,12 @@ else
 	bail SETTINGS
 fi
 
-# A duplicate of shot 01 three seconds later, against SCREENSHOT.md's one-frame-late sampling: it
-# is NOT a different state and NOT a filtered view. FILTER_INPUT is a TextFieldWidget with no
-# OnClick, so the `click` verb cannot reach it, and scrolling is not scriptable either; if some of
-# the four new groups fall below the fold in shot 01, that is the framing limit to report, NOT a
-# missing group. Skipped entirely when we never reached the panel -- bail() already took its own
-# frame and quit, and a second picture of the wrong screen is what made run 260922_005942 read as
-# two healthy captures.
+# The duplicate second shot this script used to take is gone. It existed against SCREENSHOT.md's
+# one-frame-late sampling, but it photographed the same unfiltered, unscrolled view as shot 01 and
+# came back byte-identical on run 260922_011140 -- a frame that can only ever repeat its neighbour
+# is not a safeguard, it is a second chance to photograph the same mistake. The filtered shots
+# above are genuinely different states and each carries its own settle.
 if [ -z "${FAILED_AT}" ]; then
-	send "screenshot 02-hotkeys-panel-second" || true
-	sleep 3
 	send "quit" || true
 fi
 i=0
@@ -250,10 +304,26 @@ COUNT=0
 		echo "stuck:  ${FAILED_AT} (see 99-stuck-at-${FAILED_AT}.png for where it got to)"
 		STATUS="NO-RESULT"
 	fi
-	# Two identical frames mean nothing changed between them, which for this script means the
-	# second shot photographed the same wrong screen as the first.
-	if [ "${COUNT}" -eq 2 ] && cmp -s "${RUN_DIR}"/001_*.png "${RUN_DIR}"/002_*.png; then
-		echo "warn:   the two frames are byte-identical"
+	if [ -n "${FILTER_FAILED}" ]; then
+		echo "filter: NEVER APPLIED ->${FILTER_FAILED}"
+		echo "note:   01-hotkeys-panel-top is still a valid unfiltered frame; only the"
+		echo "note:   filtered views of the new groups are missing"
+		STATUS="NO-RESULT"
+	fi
+	# Every frame here is meant to be a DIFFERENT state, so any two that match byte-for-byte mean a
+	# filter did not take and one shot repeated its neighbour. This is what caught run
+	# 260922_011140, where the whole second frame was a duplicate.
+	# Guarded on md5 existing: a missing tool yields an empty pipe, and an unguarded count would
+	# read 0 distinct images and fail a perfectly good run.
+	UNIQ="${COUNT}"
+	if command -v md5 >/dev/null 2>&1; then
+		UNIQ=$(md5 -q "${RUN_DIR}"/*.png 2>/dev/null | sort -u | wc -l | tr -d ' ')
+	elif command -v md5sum >/dev/null 2>&1; then
+		UNIQ=$(md5sum "${RUN_DIR}"/*.png 2>/dev/null | awk '{print $1}' | sort -u | wc -l | tr -d ' ')
+	fi
+	if [ "${COUNT}" -gt 0 ] && [ "${UNIQ}" != "${COUNT}" ]; then
+		echo "warn:   only ${UNIQ} distinct images among ${COUNT} frames -- a filter did not take"
+		STATUS="NO-RESULT"
 	fi
 	echo "status: ${STATUS}"
 } > "${RESULT}"

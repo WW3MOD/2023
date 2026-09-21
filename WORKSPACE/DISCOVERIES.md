@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Both found from run `manual_hotkeys_260922_011140`, the first capture of the Settings → Hotkeys
+panel this project has taken.
+
+**1. The description column is 198px, right-aligned, and unclipped.** Derived entirely from
+authored numbers: `SETTINGS_PANEL` 900 wide (`settings.yaml:11`) → `PANEL_TEMPLATE`
+`PARENT_WIDTH - 190 - 20` = 690 → `Container@TEMPLATE` `(PARENT_WIDTH - 24) / 2 - 10` = 323 (it is a
+**two-column** grid, which is the part that surprises) → `Label@FUNCTION` `PARENT_WIDTH - 120 - 5` =
+**198**. `Align: Right` with no scissor on the path, so an over-long label is drawn *leftwards* out
+of its own container and across the neighbouring column. There is no tooltip fallback:
+`WidgetUtils.TruncateButtonToTooltip` is applied to the `HOTKEY` button, never to this label.
+
+Measured all 210 shipped descriptions in FreeSans 14 (`Regular` via `ChromeMetrics TextFont`),
+including the `:` that `BindHotkeyPref` appends. **Eight overflowed. All eight were WW3MOD's own —
+not one upstream description did**, which says the 198px budget is a real constraint upstream
+writes to and we had simply never been shown. Worst was 328px, 130px over. All eight shortened;
+widest in the mod is now 177px. **Three of the eight had been added the previous day**, by me, in
+the same branch that first made this panel worth looking at — the column was never checked because
+nothing had ever displayed these strings.
+
+**Rule worth carrying: a hotkey `Description:` has a hard budget of ~198px in FreeSans 14, which is
+about 30 characters of mixed case.** Anything longer silently damages the row beside it.
+
+**2. A `ScrollPanelWidget` cannot be driven, so a capture sees ~11 rows and no more.**
+`HOTKEY_LIST` is 395px tall at 30+5 per row. The cmd-file verbs at this SHA were
+screenshot/click/hover/zone-paint/zone-erase/quit — `click` needs an `OnClick`, and neither
+`ScrollPanelWidget` nor `TextFieldWidget` has one, so there was **no way to photograph any row
+below the eleventh**. The second shot came back byte-identical to the first (794,825 B both) and
+the section the branch existed to add was never in frame.
+
+Fixed by adding a **`type <widget-id> <text>`** verb to `TestModeScreenshots.cs`: it sets the
+widget's `Text` property by reflection and then invokes its `OnTextEdited` field. **Invoking the
+callback is the whole point** — consumers hang their real work off it (`HotkeysSettingsLogic`
+rebuilds its entire list there), so setting `Text` alone would change the glyphs in the box and
+filter nothing, photographing an unfiltered list under a filtered caption. Requiring an
+`OnTextEdited` field is also what keeps the verb off the wrong widget: several widgets expose a
+writable `Text`, only a text field carries that callback, so a typo'd id reports a miss instead of
+quietly relabelling a button. **Scrolling is still unreachable** — this buys filtering only.
+
+**A duplicate frame is a signal, not noise.** Two byte-identical PNGs mean the state did not change
+between them, which for a driver taking deliberately different shots is a failure. `run-test`-style
+size checks cannot see it (both frames were a healthy 794 KB). `screenshot-hotkeys.sh` now counts
+distinct md5s and fails the run when it is short.
+
 ## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`)
 
 From run `manual_hotkeys_260922_005942`, a driver written the day before. Both `click` commands

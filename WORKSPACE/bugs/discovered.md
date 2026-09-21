@@ -10,7 +10,10 @@
   reference, `wt/hotkey-reference`, `main @ d69e6883`). `WaypointMode: O`
   (`engine/mods/common/hotkeys/game.yaml:187`, `Types: OrderGenerator`, `Contexts: Player`) and
   `ProductionTypePowers: O` (`mods/ww3mod/hotkeys.yaml:20`, `Types: Production`, `Contexts:
-  Player`). That is exactly `HotkeyManager.GetFirstDuplicate`'s predicate — equal value **and**
+  Player`). **CONFIRMED ON SCREEN 2026-09-22**, run `manual_hotkeys_260922_011140`: the panel draws
+  `Waypoint (queue orders) mode: O` in the red `HotkeyColorInvalid`, so this is no longer an
+  inference from the definitions — it is what the game says about itself, to any player who opens
+  the panel. That is exactly `HotkeyManager.GetFirstDuplicate`'s predicate — equal value **and**
   overlapping `Contexts` (`HotkeyManager.cs:91-103`) — so both already render red in
   Esc → Settings → Hotkeys; nobody has opened it. **Scanned all 198 definitions the mod loaded at
   that ref; this is the only collision.** The command-bar `WAYPOINT` button
