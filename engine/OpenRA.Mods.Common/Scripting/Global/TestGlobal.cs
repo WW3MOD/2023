@@ -435,7 +435,21 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			if (alive.Length == 0)
 				return;
 
-			alive[0].World.Selection.Combine(alive[0].World, alive, false, true);
+			// isClick MUST be false, and this is the bug that made the binding contradict its own
+			// [Desc] for as long as it has existed. Selection.Combine branches on it first thing
+			// (Selection.cs:96-99): under isClick it does `newSelection.Take(1)` — the input
+			// handler's "the player clicked, and a click is one actor" path, TODO'd upstream as
+			// "select BEST, not FIRST". So `Combine(..., false, true)` REPLACED the selection with
+			// exactly the first actor of the array and silently discarded the rest, which is
+			// indistinguishable from success at every single-actor call site and invisible at the
+			// multi-actor ones unless they count. `(false, false)` is the replace-with-ALL branch
+			// (`actors.Clear(); actors.UnionWith(newSelectionCollection)`, :108-114) and is the
+			// thing every caller here has always been asking for.
+			//
+			// Caught 2026-09-22 by demo-infantry-selection, which selects nine actors and prints
+			// the count: it reported `selected = 1 (want 9)`. Keep counting — a scenario that
+			// asserts nothing about GetSelectedCount cannot tell this apart from working.
+			alive[0].World.Selection.Combine(alive[0].World, alive, false, false);
 		}
 
 		[Desc("Detectable.CurrentVisibility for `actor` — the observer vision STRENGTH (1-10) required " +

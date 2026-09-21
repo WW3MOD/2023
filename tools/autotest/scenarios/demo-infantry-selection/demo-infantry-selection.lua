@@ -13,6 +13,16 @@
 -- an unselected army, and arm A and arm B will look identical for a reason that has nothing to
 -- do with ShowNever.
 --
+-- THAT GUARD HAS ALREADY EARNED ITS KEEP. The first run of this demo (260922_005703, at
+-- 86f86980) came back `selected = 1 (want 9)` with four healthy non-black PNGs -- four frames
+-- that looked like evidence and were not. The cause was in the engine, not here:
+-- Test.SelectActors passed `isClick: true` to Selection.Combine, whose very first branch is
+-- `newSelection.Take(1)` (Selection.cs:96-99), so the binding replaced the selection with the
+-- FIRST actor of the array and dropped the other eight -- while its own [Desc] promised ALL of
+-- them. Fixed in the same branch (TestGlobal.cs, `false, false`). The lesson generalises past
+-- this scenario: a capture that photographs a STATE must assert the state it photographs,
+-- because a wrong state and a right one produce equally convincing pictures.
+--
 -- CAPTURE TIMING. Test.Screenshot ARMS a grab that samples at the end of the NEXT RenderTick
 -- (SCREENSHOT.md), so a camera move on the following line would be photographed under the
 -- previous label. Every capture below therefore owns its own delay with quiet either side, and
@@ -55,8 +65,12 @@ WorldLoaded = function()
 	-- ---- The selection, made once and never touched again ---------------------------------
 	-- UserInterface.Select takes a single actor and REPLACES the selection, so it cannot build
 	-- a multi-unit one at all; Test.SelectActors is the only route to this state from a
-	-- scenario (TestGlobal.cs:423-438). Nine actors: four from each arm plus TankSel. The two
-	-- control rows and TankCtl are deliberately left out -- they are the whole experiment.
+	-- scenario. Nine actors: four from each arm plus TankSel. The two control rows and TankCtl
+	-- are deliberately left out -- they are the whole experiment.
+	--
+	-- Requires the TestGlobal.cs `isClick: false` fix made in this branch. Before it, this line
+	-- selected ASel1 and nothing else, which is why the count below is printed rather than
+	-- assumed.
 	Trigger.AfterDelay(DateTime.Seconds(2), function()
 		Test.SelectActors({ ASel1, ASel2, ASel3, ASel4, BSel1, BSel2, BSel3, BSel4, TankSel })
 		selectedAtCapture = Test.GetSelectedCount()

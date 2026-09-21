@@ -3,6 +3,56 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - `Test.SelectActors` SELECTED ONE ACTOR, NOT ALL OF THEM, for as long as it has existed — and four scenarios that make claims about multi-unit selection were photographing a one-unit one (`wt/infantry-selection`)
+
+Caught by the guard rather than by reading: `demo-infantry-selection` selects nine actors and
+prints the count, and run `260922_005703_p47240` came back **`selected = 1 (want 9)`** with four
+healthy 462–569 KB PNGs. Four frames that looked exactly like evidence and were not.
+
+**The bug is one boolean.** `TestGlobal.SelectActors` called
+`Selection.Combine(world, alive, isCombine: false, isClick: true)`. `Combine` branches on
+`isClick` before anything else (`engine/OpenRA.Mods.Common/Traits/World/Selection.cs:96-99`):
+
+```csharp
+if (isClick)
+{
+    // TODO: select BEST, not FIRST
+    var adjNewSelection = newSelectionCollection.Take(1);
+```
+
+`isClick` is the **input handler's** path — *the player clicked, and a click is one actor*. So the
+binding replaced the selection with `alive[0]` and silently discarded the rest, while its own
+`[Desc]` promised *"Replace the local player's selection with ALL of `actors`"* and justified its
+existence by `UserInterface.Select` being single-actor-only. The correct branch is
+`isClick: false` → `actors.Clear(); actors.UnionWith(newSelectionCollection)` (`:108-114`). Fixed
+in this branch.
+
+**Why it survived.** Of nine call sites in the scenario corpus, **five pass exactly one actor**
+(`{Runner}`, `{Payer}`, `{Pauper}`, …) — and `Take(1)` of one element is that element, so those
+five have always been correct and always will be. The failure is invisible at the majority of call
+sites, which is the property that let it live.
+
+**Four scenarios were affected, and what happened to each is not the same:**
+
+- `test-visual-command-bar.lua:28` selects three riflemen and then hard-asserts
+  `Test.GetSelectedCount() ~= 3 → Test.Fail`. It is **not** declared in
+  `tools/autotest/expected-status.sh`, i.e. it is expected to pass. **Prediction, not a
+  measurement: it must be failing today with "selection is 1 actors, not the 3 riflemen", and
+  must start passing on this fix.** Anyone running a batch can check it in one go; I did not
+  launch.
+- `test-visual-concealment-gauge.lua:178` passes a five-actor `Squad` and captures
+  `04-squad-merged-outline` — a **grouped** concealment gauge. With one actor selected there is no
+  group, so that frame has been photographing the wrong thing without any assertion to say so.
+- `test-visual-radar-circles.lua:33` (`{Radar1, Radar2}`) and
+  `test-groupscatter-attackmove-waypoint.lua:63` (`{Rifle, Truck}`) select two and got one.
+
+**The durable lesson is not about this binding.** A capture that photographs a STATE must assert
+the state it photographs, in the same run, or it cannot tell a right state from a wrong one — both
+produce equally convincing pictures, and the file size check that catches a black frame says
+nothing at all about this. The nine-actor demo found in one run what four scenarios had not found
+between them, for the cost of one `print`. **A screenshot scenario with no `GetSelectedCount` (or
+equivalent) assertion is not evidence about selection; it is a photograph of an assumption.**
+
 ## 2026-09-21 - INFANTRY DO HAVE A SELECTION-ONLY MARK, it is parked on top of the class pictogram with no z-order, and the curated claim about the VEHICLE bracket cites a line that cannot draw one (`wt/infantry-selection`, base `main @ eacc1cff`)
 
 Static read for audit package 4 (`audit/260921-release-readiness.md` §2.6 **U2**, *"Infantry give no
