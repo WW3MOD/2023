@@ -3,6 +3,51 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229)
+
+The item-86 reserve below shipped with an axis waiver and it did not bind on its first measured run. The
+failure is worth more than the fix.
+
+**WHAT HAPPENED.** `AmbushLaneMath.ReserveAllowance` waived the reserve whenever an offensive axis was live,
+reasoning that `ForwardStagingMath.FreePoolMayAdvance` waives the staging floor on exactly that term, so the
+two gates should agree. At t118 offense formed an axis **out of its entire two-unit free pool**
+(`[exp-offense] axis-new … order units=2` then `reeval pool=2 free=0 … axes=1`). At t200 the ambush lane read
+that snapshot, hit the waiver, and recruited unbounded — the very behaviour the reserve exists to stop.
+
+**THE GENERALISABLE ERROR: borrowing a predicate without re-deriving what it ANSWERS.** The two gates consume
+the same three numbers and ask different questions. `FreePoolMayAdvance` asks *"may this late arrival walk to
+the muster ALONE?"* — and a live axis answers yes, because the arrival is joining a body. The reserve asks
+*"does offense have units to SPARE?"* — and a live axis is evidence **against**, because an axis has
+**consumed** units. Sharing the inputs made the two look like the same test. **When you reuse another gate's
+terms, restate the question in your own words first; if the sentences differ, the waivers do not transfer.**
+
+**THE OBVIOUS NARROWING ALSO FAILS, which is why the term was deleted rather than shrunk.** "Waive only for an
+axis at or above the axis floor" is the repair that suggests itself. That axis held exactly 2 units and
+`EarlyMinAxisSize` is 2 (`ai.yaml:380`), so it passes every below-the-floor test. Pinned as a test
+(`NarrowingTheWaiverByAxisSizeWouldNotHaveFixedTheMeasuredRun`) because the repair will suggest itself again.
+
+**A SECOND BUG IN THE SAME SNAPSHOT: "publish on every call, last wins" recorded the POST-claim pool.**
+`BuildFreePool` runs three times per offense eval. Publishing at the end of each meant the recorded count was
+taken *after* axis formation: 0 at t118, while `[exp-ledger]` printed `free=2` the same tick. **The rule now
+is to publish on the same pass the diagnostic census rides**, so the number a consumer decides on is
+byte-equal to the number a human reads in the log. Two values for "the free pool" in one tick, one in a log
+line and one in a decision, is a defect generator — the log will exonerate the code that is wrong.
+
+**AND A LOGGING RULE PAID FOR IN A RUN: log the DECISION, not the exception.** The reserve line printed only
+when the reserve bound, so the eval where it was waived printed **nothing**, and the waiver had to be
+reconstructed from three other modules' lines across two runs. An absent diagnostic must mean "there was no
+decision to take", never "a decision was taken and not recorded". The line now prints on every eval where a
+lane wanted units, carrying `waived=<clause>`.
+
+**SEPARATELY, AND IT INVALIDATED THE MEASUREMENT: the tank in `test-combined-arms-rendezvous` is OFFENSE's,
+not the lane's.** The 09-21 acceptance criterion ("only a tank death at ~20,14 is an item-86 regression") was
+an unverified inference. `[composition] census tick=80` shows the only two combat units in the world are the
+abrams and one `ar.america` — the exact `pool=2` the t118 axis took whole — and the tank moves `8,16@t100 →
+11,16@t200` while the lane still reads `lanes=0`. With `AxisCommitmentTicks: 250` the lane could not have
+taken it. **The scenario's VERDICT cannot gate item 86; only its log lines can.** Generalisable: an
+acceptance criterion that names a specific ACTOR needs the ownership derived from the census before the run,
+not assumed from the direction it walked.
+
 ## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`)
 
 PIPELINE item 86, ruling (a). Recorded because the SHAPE generalises past this fix.

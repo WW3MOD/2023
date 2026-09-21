@@ -1080,10 +1080,18 @@ Player:
 		# while `[exp-staging] hold-under-min pool=1 min=2` shows offense correctly refusing to advance the one
 		# unit left to it. Both modules were right in isolation; the army was split below the threshold BOTH
 		# halves needed, and neither could see the other's share.
-		# Reads the offense's OWN published free-pool count, axis state and floor (TryGetFreePoolSnapshot /
-		# EffectiveFreePoolMinAdvanceUnits) — the same three terms ForwardStagingMath.FreePoolMayAdvance is
-		# decided on, never a private estimate. A live axis waives it, as does a floor of 0, so it bites at the
-		# opening and lets a grown pool recruit exactly as before.
+		# Reads the offense's OWN published free-pool count and floor (TryGetFreePoolSnapshot /
+		# EffectiveFreePoolMinAdvanceUnits), never a private estimate; that count is byte-equal to the `free=` in
+		# the same tick's [exp-ledger] line, so the log can never contradict the decision.
+		# NO AXIS WAIVER, and the absence is load-bearing. The first cut waived the reserve whenever an offensive
+		# axis was live, by analogy with ForwardStagingMath.FreePoolMayAdvance. Run 260922_005229 proved the
+		# analogy false: an axis formed at t118 out of the ENTIRE two-unit free pool ([exp-offense] axis-new
+		# units=2, reeval pool=2 free=0 axes=1) and the waiver let the lane recruit two units at t200 with no
+		# reserve line printed at all. FreePoolMayAdvance's axis term answers "may a late arrival walk to the
+		# muster ALONE" (yes — it is joining a body); the reserve asks "does offense have units to SPARE", and an
+		# axis has CONSUMED units. Narrowing by axis SIZE would not have helped: that axis held exactly
+		# EarlyMinAxisSize (2, :380). CONSEQUENCE: the lane now recruits only while the free pool EXCEEDS the
+		# floor, so on a bot whose pool hovers at 2 all match it may never post. That is ruling (a) literally.
 		# Default FALSE on the engine class per the architecture rule, so a profile omitting it is unaffected.
 		# Both profiles carry it (2026-09-05 ruling: @stable is a re-synced copy of @experimental) — so this
 		# DOES move @stable, deliberately, and the next ai-bench baseline should be re-taken.
@@ -3222,8 +3230,9 @@ Player:
 		UnitsPerAmbush: 2
 		# Minimum manning (item 64) — mirrors @experimental; see the annotated copy there.
 		MinUnitsPerAmbush: 2
-		# Army-share reserve (item 86) — mirrors @experimental; see the annotated copy there. Moves @stable
-		# deliberately (the reserve can refuse an opening lane that used to post); re-take the ai-bench baseline.
+		# Army-share reserve (item 86) — mirrors @experimental; see the annotated copy there. No axis waiver
+		# (run 260922_005229). Moves @stable deliberately — the reserve can refuse an opening lane that used to
+		# post, and with the free pool at the floor it can refuse one all match; re-take the ai-bench baseline.
 		OffenseFloorReserveEnabled: true
 		PostFractionPct: 40
 		MinLaneSeparationCells: 12

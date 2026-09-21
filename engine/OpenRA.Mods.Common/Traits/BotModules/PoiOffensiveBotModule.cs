@@ -1343,19 +1343,24 @@ namespace OpenRA.Mods.Common.Traits
 		int freePoolTick = -1;
 
 		/// <summary>
-		/// <para>The free pool as of this module's most recent computation of it: <paramref name="freeCount"/>
-		/// uncommitted, un-axis'd units, with <paramref name="axisLive"/> saying whether any attack axis exists
-		/// (the term that WAIVES the staging floor in <see cref="ForwardStagingMath.FreePoolMayAdvance"/>), at
-		/// <paramref name="tick"/>. Returns false before the first eval. Read-only: an observation channel, not a
-		/// control surface — no consumer may steer the offensive's recruitment.</para>
+		/// <para>The free pool as offense saw it at the START of its most recent eval: <paramref name="freeCount"/>
+		/// uncommitted, un-axis'd units at <paramref name="tick"/>, with <paramref name="axisLive"/> saying
+		/// whether any attack axis existed. Returns false before the first eval. Read-only: an observation
+		/// channel, not a control surface — no consumer may steer the offensive's recruitment.</para>
 		///
-		/// <para>TWO IMPRECISIONS THE CONSUMER MUST CARRY, both bounded and both vanishing at the opening, which
-		/// is the state item 86 is about. (1) STALENESS: this is published on the offensive's own
-		/// ReevaluateInterval, so a consumer on a different cadence reads a number up to one interval old.
-		/// (2) INTRA-EVAL: BuildFreePool runs three times per eval and the last call wins, while the floor test
-		/// consumes the second — they differ by whatever an axis claimed in between. At the opening no axis can
-		/// form at all (DesiredAxisCount returns 0 below EarlyMinAxisSize — item 64's premise), so nothing is
-		/// claimed between the calls and all three counts are equal.</para>
+		/// <para><paramref name="freeCount"/> is byte-equal to the <c>free=</c> in that tick's <c>[exp-ledger]</c>
+		/// line, deliberately: both ride the first BuildFreePool call of the eval, so a log can never show a
+		/// consumer reserving against a number the census contradicts.</para>
+		///
+		/// <para><paramref name="axisLive"/> IS DIAGNOSTIC ONLY and no consumer may branch on it. It was briefly
+		/// a waiver term in the item-86 reserve and that was a design error: axis existence is not evidence of
+		/// spare capacity — an axis has CONSUMED units. Measured 260922_005229: an axis formed at t118 from the
+		/// entire two-unit free pool and the waiver then let the ambush lane recruit freely at t200.</para>
+		///
+		/// <para>STALENESS, the one imprecision that remains: published on this module's own ReevaluateInterval,
+		/// so a consumer on a different cadence reads a number up to one interval old. It is one-sided for a
+		/// reserve — the pool grows between evals, so an old count under-states it and the consumer
+		/// over-reserves rather than under-reserves.</para>
 		/// </summary>
 		public bool TryGetFreePoolSnapshot(out int freeCount, out bool axisLive, out int tick)
 		{
@@ -2553,13 +2558,23 @@ namespace OpenRA.Mods.Common.Traits
 					$"[exp-standoff] player={player.PlayerName} held={stoodOff} free={pool.Count} tick={tick}");
 			}
 
-			// Publish for the item-86 army-share reserve (see TryGetFreePoolSnapshot). Recorded on EVERY call so
-			// the snapshot exists whether or not forward staging runs this eval — the floor test lives behind two
-			// early returns inside StageFreePool, and a consumer that only ever saw the post-return state would
-			// read "never computed" on exactly the flat-field openings it most needs a number for.
-			freePoolCount = pool.Count;
-			freePoolAxes = axes.Count;
-			freePoolTick = tick;
+			// Publish for the item-86 army-share reserve (see TryGetFreePoolSnapshot). ONCE PER TICK, on the
+			// FIRST call — the same pass the [exp-ledger] census above rides, so the number a consumer reserves
+			// against is byte-equal to the `free=` a human reads in [exp-ledger] at that tick, and the two can
+			// never disagree in a log.
+			//
+			// PUBLISHING ON EVERY CALL WAS WRONG AND COST A RUN (260922_005229). Three calls run per eval and
+			// the last won, so the recorded number was the POST-axis-claim pool: at t118 [exp-ledger] printed
+			// `free=2 held=0` while the snapshot recorded 0, because an axis formed from both units between the
+			// first call and the last. The pre-claim count is the right one for "what did offense have to work
+			// with this eval" — a unit an axis took is spoken for, but it is not evidence that the NEXT unit is
+			// spare.
+			if (freePoolTick != tick)
+			{
+				freePoolCount = pool.Count;
+				freePoolAxes = axes.Count;
+				freePoolTick = tick;
+			}
 
 			return pool;
 		}
