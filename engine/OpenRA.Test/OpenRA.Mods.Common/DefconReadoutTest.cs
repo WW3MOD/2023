@@ -427,6 +427,133 @@ namespace OpenRA.Test
 				Assert.That(DefconReadoutModel.TransitionCause(level), Is.Not.Null, $"a transition to DEFCON {level} would draw a blank cause.");
 		}
 
+		// ---- §B6: ONE BANNER, NOT A BANNER AND A HALF -------------------------------------------
+
+		[Test]
+		public void TwoEdgesInsideTheHoldWindowAreOneBanner()
+		{
+			const int Hold = 66;
+
+			// THE MEASURED CASE, and the reason this exists: run 260915_012829 went 3 -> 2 at tick
+			// 5000 and 2 -> 1 at tick 5001. One tick apart, and the player saw only OPEN WAR.
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(5000, 5001, Hold), Is.True);
+
+			// The other measured case: 98 ticks, 5.9 s (run 260920_010605_p1901). OUTSIDE the window,
+			// so that match legitimately gets two banners and this change does not touch it.
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(5000, 5098, Hold), Is.False);
+		}
+
+		[Test]
+		public void TheEdgeOfTheHoldWindowIsExclusive()
+		{
+			const int Hold = 66;
+
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(0, Hold - 1, Hold), Is.True);
+
+			// STRICTLY INSIDE. A second edge landing on the exact tick the first banner comes down
+			// gets its own banner: the player has finished reading the first one, and combining them
+			// would replace a message they have already had with a longer one they have not.
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(0, Hold, Hold), Is.False);
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(0, Hold + 1, Hold), Is.False);
+		}
+
+		[Test]
+		public void NothingCombinesWhenThereIsNoHoldWindowAtAll()
+		{
+			// BannerHoldTicks returns 0 on a zero timestep. With no window there is no banner on
+			// screen to combine WITH, so every edge must stand alone rather than every edge merging.
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(0, 0, 0), Is.False);
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(10, 10, 0), Is.False);
+		}
+
+		[Test]
+		public void ABannerRaisedInTheFutureIsNotALiveOne()
+		{
+			// Nothing in the shipped game produces a negative elapsed -- world ticks only ascend --
+			// but `elapsed < hold` alone would read one as a very small gap and combine on it.
+			Assert.That(DefconReadoutModel.CombinesWithPrevious(100, 50, 66), Is.False);
+		}
+
+		[Test]
+		public void TheCombinedCauseNamesBothEdgesAndHowLongThePhaseLasted()
+		{
+			var line = DefconReadoutModel.CombinedTransitionCause(2, 1, 5);
+
+			Assert.That(line, Is.Not.Null);
+
+			// BOTH EDGES. The 3 -> 2 cause is the holding period; the 2 -> 1 cause is the life taken.
+			// A combined banner that named only one of them would be the bug wearing a longer sentence.
+			Assert.That(line, Does.Contain("holding period"), "the combined banner dropped the 3 -> 2 cause.");
+			Assert.That(line, Does.Contain("life was taken"), "the combined banner dropped the 2 -> 1 cause.");
+
+			// AND HOW LONG IT LASTED -- §B6 asks for "the phase happened, it lasted N seconds, and a
+			// life was taken", and the duration is the part that makes the phase a phase.
+			Assert.That(line, Does.Contain("5 seconds"));
+		}
+
+		[Test]
+		public void TheCombinedCauseReadsAsEnglishAtOneSecondAndAtNone()
+		{
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(2, 1, 1), Does.Contain("one second later"));
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(2, 1, 1), Does.Not.Contain("1 seconds"));
+
+			// A SUB-SECOND GAP IS NOT "0 SECONDS LATER". SecondsBetween rounds down, so the one-tick
+			// case arrives here as 0 -- and the honest rendering of that is that the two happened
+			// together, which is also what the player saw.
+			var together = DefconReadoutModel.CombinedTransitionCause(2, 1, 0);
+			Assert.That(together, Does.Contain("same moment"));
+			Assert.That(together, Does.Not.Contain("0 seconds"));
+		}
+
+		[Test]
+		public void OnlyTheTwoToOnePairCombines()
+		{
+			// THE ONLY PAIR THE LADDER CAN PRODUCE BACK TO BACK. Nothing transitions into 3, and the
+			// ladder only descends, so any other pair reaching here is a bug and must fall back to the
+			// single-edge cause rather than invent a sentence about a transition that cannot happen.
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(3, 2, 5), Is.Null);
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(1, 2, 5), Is.Null);
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(2, 2, 5), Is.Null);
+			Assert.That(DefconReadoutModel.CombinedTransitionCause(DefconEscalationState.NoLevel, 1, 5), Is.Null);
+		}
+
+		[Test]
+		public void TheCombinedCauseNamesNoMechanism()
+		{
+			// THE SAME BAR THE THREE RULE LINES ARE HELD TO (TheRuleLinesNameNoMechanism above): the
+			// copy says what happened and what the player may now do, never the trait that did it.
+			foreach (var seconds in new[] { 0, 1, 5, 98 })
+			{
+				var line = DefconReadoutModel.CombinedTransitionCause(2, 1, seconds);
+
+				Assert.That(line, Does.Not.Contain("DEFCON"), "the cause line restates the title.");
+				Assert.That(line, Does.Not.Contain("Defcon"));
+				Assert.That(line, Does.Not.Contain("AutoTarget"));
+				Assert.That(line, Does.Not.Contain("trait"));
+			}
+		}
+
+		[Test]
+		public void SecondsBetweenIsTheTickRateIdentityAgain()
+		{
+			const int Timestep = 60;
+
+			// 98 ticks is the measured DEFCON 2 (run 260920_010605_p1901) and 98 x 0.06 = 5.88 s,
+			// which rounds DOWN to 5. Read at 25 tps it would be 3, the same 1.5x error this repo has
+			// made at eleven sites.
+			Assert.That(DefconReadoutModel.SecondsBetween(5000, 5098, Timestep), Is.EqualTo(5));
+			Assert.That(DefconReadoutModel.SecondsBetween(0, 5000, Timestep), Is.EqualTo(300));
+
+			// ROUNDED DOWN, NOT TO NEAREST: under-claiming next to an event the player watched is
+			// honest, over-claiming is not.
+			Assert.That(DefconReadoutModel.SecondsBetween(0, 16, Timestep), Is.EqualTo(0));
+			Assert.That(DefconReadoutModel.SecondsBetween(0, 17, Timestep), Is.EqualTo(1));
+
+			// Never negative, and never divides by a timestep it was handed.
+			Assert.That(DefconReadoutModel.SecondsBetween(100, 50, Timestep), Is.EqualTo(0));
+			Assert.That(DefconReadoutModel.SecondsBetween(0, 5000, 0), Is.EqualTo(0));
+		}
+
 		[Test]
 		public void TheBannerHoldsForAboutFourSeconds()
 		{

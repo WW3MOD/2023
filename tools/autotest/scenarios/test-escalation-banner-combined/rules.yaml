@@ -1,0 +1,67 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# Nothing may be produced. The measurement names two actors and only two.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so neither tank's stance can vary by machine.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, defcon-banner-combine-lib.lua, arm.lua
+
+	# StartAtDefault rather than the lobby dropdown, for the reason test-defcon-wall and
+	# test-bot-defcon2-breaks-peace both state: the option is registered with its C# default whatever
+	# a rules.yaml says, so the Info field is the only way in.
+	#
+	# OPENING AT 3 IS LOAD-BEARING. This pair is about two CONSECUTIVE edges -- 3 -> 2 on the clock
+	# and 2 -> 1 on the first casualty -- and a match opening at 2 has only the second one.
+	#
+	# NoRushTicksOverride, not the minutes dropdown: the shipped default is 5000 ticks and this run
+	# needs the clock out of the way. DefconEscalationInfo.RulesetLoaded requires it to be 0 (not in
+	# play) or positive.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 3
+		NoRushTicksOverride: 150
+
+abrams:
+	# Both fields because AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+	# InitialStance`. USA IS Playable, so InitialStance is the one that fires here; stating both means
+	# re-pointing either actor at a bot or non-playable slot cannot silently fall back to the default.
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+
+t90:
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+	# ===== THE ONE QUANTITY THAT SEPARATES THIS DIRECTORY FROM ITS TWIN =====
+	# 8000 here, 40000 in test-escalation-banner-separate. Nothing else in either directory differs
+	# except the map Title and the prose; `diff -r` the two before believing any result that rests on
+	# the comparison.
+	#
+	# TankRound.Abrams lands 20000 TargetDamage + 3000 SpreadDamage before range falloff
+	# (DamageAtMaxRange: 50 over a 25c0 range, so ~92% of it at four cells) and before any Versus
+	# scaling. 8000 IS DELIBERATELY WELL UNDER ANY READING OF THAT -- the number that matters is not
+	# "how much does one round do" but "does ONE round certainly kill", because the 2 -> 1 edge has to
+	# land inside a 66-tick window that starts at the 3 -> 2 edge. At four cells the flight is ~4
+	# ticks (Bullet Speed 1200) and both tanks already face each other (Facing 768/256), so the shot
+	# lands roughly twenty ticks after the order.
+	#
+	# A SINGLE TRAIT FIELD, DELIBERATELY. The alternative -- weakening TankRound.Abrams -- is the
+	# override trap conventions.md names: warhead overrides are CONSTRUCTED FRESH rather than merged
+	# per field, so restating Damage silently resets Penetration to the engine default of 1 and the
+	# run reports a confident, wrong number. Health: HP: is an ordinary per-field trait merge.
+	Health:
+		HP: 8000
+

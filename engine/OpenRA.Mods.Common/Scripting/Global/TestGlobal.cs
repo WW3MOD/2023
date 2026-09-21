@@ -2087,6 +2087,62 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.LevelReachedTick(level) ?? -1;
 		}
 
+		[Desc("The DEFCON transition banner, as `raised=<n>|combined=<bool>|level=<n>|from=<n>`, or " +
+			"\"absent\" when the banner widget is not in the UI tree.",
+			"",
+			"WHAT `raised` COUNTS. Banners RAISED, combined ones counting ONCE — which is the whole " +
+			"point of §B6. A match whose DEFCON 2 lasts longer than the four-second hold gets two " +
+			"banners and reads raised=2; one whose DEFCON 2 ends inside the hold gets ONE band naming " +
+			"both edges and reads raised=1 with combined=true. Before 2026-09-21 the second edge " +
+			"OVERWROTE the first and the player saw only `OPEN WAR`.",
+			"",
+			"THIS READS A WIDGET, WHICH IS UNUSUAL HERE AND IS THE ONLY PLACE THE STATE EXISTS. The " +
+			"banner is client-local render state on purpose (see " +
+			nameof(DefconTransitionBannerWidget) + "'s header: nothing may route a rendering " +
+			"decision back into the simulation), so there is no trait to ask. It is safe under " +
+			"`--hidden`: the decision moved into Tick with this change, and Widget.Tick runs from the " +
+			"LOGIC tick (Game.cs:789) whether or not anything is drawn.",
+			"",
+			"Read-only and test mode only.")]
+		public string DefconBannerState()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			// GetOrNull rather than Get: an observer HUD, a minimal chrome override or a scenario that
+			// strips the ingame player root must give this scenario a clean "absent" to fail on rather
+			// than an exception inside a Lua call.
+			var banner = Ui.Root?.GetOrNull<DefconTransitionBannerWidget>("DEFCON_BANNER");
+			if (banner == null)
+				return "absent";
+
+			// FOUR FIELDS, AND THE LAST TWO ARE FOR THE READER OF A FAILED RUN RATHER THAN FOR AN
+			// ASSERTION: `level` is the band now on screen (NoLevel when nothing is) and `from` is the
+			// earlier edge a combined band also covers (NoLevel when it covers one edge). A verdict
+			// that says raised=2 is much easier to act on next to level=1|from=0.
+			return $"raised={banner.BannersRaised}|combined={banner.ShowingCombinedBanner}"
+				+ $"|level={banner.ShownLevel}|from={banner.ShownFromLevel}";
+		}
+
+		[Desc("Who took the first life — the kill that ended DEFCON 2 — as " +
+			"`attacker=<owner>|weapon=<actor>|victim=<actor>|owner=<owner>`, or \"none\" if it has " +
+			"not happened. Names are INTERNAL names, as " + nameof(DefconEscalation) + " captured " +
+			"them on the tick the kill landed. Read-only and test mode only.")]
+		public string DefconFirstCasualty()
+		{
+			if (!TestMode.IsActive)
+				return "none";
+
+			var escalation = Context.World?.WorldActor.TraitOrDefault<DefconEscalation>();
+			if (escalation?.FirstCasualtyType == null)
+				return "none";
+
+			return $"attacker={escalation.FirstCasualtyAttackerOwner ?? "?"}"
+				+ $"|weapon={escalation.FirstCasualtyAttackerType ?? "?"}"
+				+ $"|victim={escalation.FirstCasualtyType}"
+				+ $"|owner={escalation.FirstCasualtyOwner ?? "?"}";
+		}
+
 		[Desc("The ending's state, as `phase=<n>|open=<bool>|placements=<n>|salvo=<bool>|closes=<tick>`, " +
 			"or \"absent\" on a world with no " + nameof(DoomsdayStrike) + ".",
 			"",

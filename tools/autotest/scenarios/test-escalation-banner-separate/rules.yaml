@@ -1,0 +1,67 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# Nothing may be produced. The measurement names two actors and only two.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so neither tank's stance can vary by machine.
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, defcon-banner-combine-lib.lua, arm.lua
+
+	# StartAtDefault rather than the lobby dropdown, for the reason test-defcon-wall and
+	# test-bot-defcon2-breaks-peace both state: the option is registered with its C# default whatever
+	# a rules.yaml says, so the Info field is the only way in.
+	#
+	# OPENING AT 3 IS LOAD-BEARING. This pair is about two CONSECUTIVE edges -- 3 -> 2 on the clock
+	# and 2 -> 1 on the first casualty -- and a match opening at 2 has only the second one.
+	#
+	# NoRushTicksOverride, not the minutes dropdown: the shipped default is 5000 ticks and this run
+	# needs the clock out of the way. DefconEscalationInfo.RulesetLoaded requires it to be 0 (not in
+	# play) or positive.
+	DefconEscalation:
+		ModeDefault: Escalation
+		StartAtDefault: 3
+		NoRushTicksOverride: 150
+
+abrams:
+	# Both fields because AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI :
+	# InitialStance`. USA IS Playable, so InitialStance is the one that fires here; stating both means
+	# re-pointing either actor at a bot or non-playable slot cannot silently fall back to the default.
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+
+t90:
+	AutoTarget:
+		InitialStance: FireAtWill
+		InitialStanceAI: FireAtWill
+	# ===== THE ONE QUANTITY THAT SEPARATES THIS DIRECTORY FROM ITS TWIN =====
+	# 40000 here, 8000 in test-escalation-banner-combined. Nothing else in either directory differs
+	# except the map Title and the prose; `diff -r` the two before believing any result that rests on
+	# the comparison.
+	#
+	# 40000 IS CHOSEN FOR A BAND, NOT FOR AN EXACT ROUND COUNT. One TankRound.Abrams does somewhere
+	# between 15000 and 25000 here depending on the Versus scaling (20000 + 3000 nominal, ~92% of it
+	# at four cells), so 40000 CERTAINLY SURVIVES THE FIRST ROUND and certainly dies within four.
+	# BurstWait is 130 ticks, so the second round alone already lands twice the 66-tick banner hold
+	# after the edge -- which is the branch this arm exists to exercise -- and the fourth would still
+	# be inside the script's 600-tick kill budget.
+	#
+	# Two separate banners is the CORRECT behaviour at that distance and always was; this arm is what
+	# stops the §B6 fix from combining edges that are minutes apart, which is the "queueing" option
+	# the review explicitly rejects.
+	#
+	# A SINGLE TRAIT FIELD, DELIBERATELY -- see the twin's note on the warhead-override trap.
+	Health:
+		HP: 40000
+

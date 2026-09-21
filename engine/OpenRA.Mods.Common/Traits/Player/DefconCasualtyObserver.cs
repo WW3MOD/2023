@@ -108,7 +108,9 @@ namespace OpenRA.Mods.Common.Traits
 			if (escalation == null || !IsQualifyingCasualty(self, e))
 				return;
 
-			escalation.ReportCasualty(self);
+			// The ATTACKER goes through too (§B6): the event-log line that goes with the combined
+			// banner names who fired, and this handler is the only place in the branch that knows.
+			escalation.ReportCasualty(self, e.Attacker);
 		}
 	}
 }
