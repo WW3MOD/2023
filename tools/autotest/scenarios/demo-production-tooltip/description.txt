@@ -1,1 +1,1 @@
-DEMO: production tooltip on an opaque panel — abrams, rifleman, conscript, hovered in turn.
+DEMO: production tooltip on an opaque panel — abrams, rifleman, sniper, hovered in turn.

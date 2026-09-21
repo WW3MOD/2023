@@ -376,7 +376,26 @@ namespace OpenRA.Mods.Common.Widgets
 				return;
 
 			var requested = TestMode.HoverProductionIcon;
-			if (string.IsNullOrEmpty(requested) || requested == appliedTestHover)
+
+			// CLEARED: close whatever is open. Without this a scenario whose NEXT hover fails to arm
+			// photographs the PREVIOUS subject's tooltip — a convincing, fully-rendered wrong answer
+			// rather than a visible blank. That is exactly what happened on 2026-09-22: two capture
+			// frames came back labelled `e3` and `e1` showing the abrams' tooltip, and the frames
+			// alone could not distinguish "hover failed" from "hover landed on the wrong actor".
+			// An empty panel is diagnosable; a stale one is not.
+			if (string.IsNullOrEmpty(requested))
+			{
+				if (appliedTestHover != null)
+				{
+					appliedTestHover = null;
+					TooltipIcon = null;
+					MouseExited();
+				}
+
+				return;
+			}
+
+			if (requested == appliedTestHover)
 				return;
 
 			var match = icons.FirstOrDefault(i =>
@@ -682,8 +701,31 @@ namespace OpenRA.Mods.Common.Widgets
 		/// </remarks>
 		public bool SimulateIconHover(string name)
 		{
+			// An empty name is the CLEAR gesture, not a failed lookup: it closes the open tooltip on
+			// the next Tick. A scenario photographing several subjects should clear between them so
+			// that a hover which fails to arm leaves a blank rather than its predecessor's panel.
+			if (string.IsNullOrEmpty(name))
+			{
+				TestMode.HoverProductionIcon = null;
+				return true;
+			}
+
 			if (!SwitchToQueueOffering(name))
+			{
+				// SELF-DIAGNOSING, because the alternative is a capture round trip. The overwhelmingly
+				// likely cause is that the type is real but not OFFERED: WW3MOD gates most infantry
+				// behind `~player.<faction>`, so the buildable rifleman is `e3.america` and the bare
+				// `e3` carries `Prerequisites: ~disabled` and is never in any queue. Naming what IS on
+				// offer turns that from a second run into a log line.
+				var offered = World.LocalPlayer?.PlayerActor.TraitsImplementing<ProductionQueue>()
+					.Where(q => q.Enabled)
+					.SelectMany(q => q.BuildableItems().Select(a => a.Name))
+					.Distinct()
+					.JoinWith(", ");
+
+				Log.Write("debug", $"[TestMode] hover '{name}': no enabled queue offers it. On offer: {offered}");
 				return false;
+			}
 
 			TestMode.HoverProductionIcon = name;
 			return true;

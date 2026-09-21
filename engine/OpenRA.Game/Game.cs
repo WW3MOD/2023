@@ -773,7 +773,14 @@ namespace OpenRA
 				Log.Write("debug", "Taking screenshot " + path);
 
 				Renderer.SaveScreenshot(path);
-				TextNotificationsManager.Debug(FluentProvider.GetMessage(SavedScreenshot, "filename", filename));
+
+				// NOT under TestMode. This draws a line into the in-game notification overlay, which
+				// then sits in the WORLD of every later capture in the same run — a caption about
+				// capture 1 photographed inside captures 2 and 3. Observed 2026-09-22 in
+				// demo-production-tooltip. The Log.Write above already records the path, so a test
+				// run loses nothing by not also drawing it on screen.
+				if (!TestMode.IsActive)
+					TextNotificationsManager.Debug(FluentProvider.GetMessage(SavedScreenshot, "filename", filename));
 			}
 		}
 

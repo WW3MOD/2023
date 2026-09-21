@@ -6,9 +6,17 @@ Captures are serialised through the manager; this file is the request.
 ## Run lines
 
 ```bash
-./tools/autotest/run-demo.sh demo-production-tooltip --hidden --size 1600x900
-./tools/autotest/run-demo.sh demo-production-tooltip --hidden --size 1280x720
+./tools/autotest/run-test.sh --hidden --size 1600x900 demo-production-tooltip
+./tools/autotest/run-test.sh --hidden --size 1280x720 demo-production-tooltip
 ```
+
+**`run-test.sh`, not `run-demo.sh`, and the scenario name goes LAST.** The first version of this
+file had it the other way round and the run launch-failed with
+`Demo folders must be named demo-* (got: 1600x900)` — `run-demo.sh` takes the demo name first and
+treats the rest as its own flags, and it also injects `--visible`, which defeats `--hidden`.
+`run-test.sh` accepts any scenario folder. **This demo reaches no verdict by design, so the run
+ends TIMEOUT-FAIL and that is the expected outcome** — the PNGs are the deliverable, not the exit
+code.
 
 Two resolutions because the defect is a **relationship between two widgets**, not a property of
 one. `TooltipContainerWidget.GetAnchoredPosition` (`:154`) places the panel at
@@ -29,8 +37,8 @@ sidebar is not photographing the reported defect at all.
 | # | Label | Subject | What must be visible |
 |---|---|---|---|
 | 1 | `01-abrams` | `abrams` — one pool, every actor-wide stat | Panel interior **solid**: no sidebar cameo, portrait or row frame legible through it anywhere behind the text. Heading `TANK ROUND ABRAMS` (word-split, **not** `TankRound.Abrams`). Rows: `AMMO 40 rounds`, a `REFILL` rate, `FULL REFILL` total in amber. |
-| 2 | `02-rifleman-two-pools` | `E3` — **the original 2026-08-30 repro** | Two weapon sections, `5.56MM DMR` and `RPG`, each with its own `AMMO`/`REFILL`; a visibly wider gap where the weapons band ends and `ARMOUR`/`HEALTH`/`SPEED` begin; one `FULL REFILL`. The tallest infantry panel — interior solid for its **whole height**, including the bottom rows furthest from the anchor. |
-| 3 | `03-conscript-single-pool` | `E1` — one pool, shortest panel | One section `5.56MM E3`, `AMMO 100 rounds`, `REFILL`, **and a `FULL REFILL` total even though this unit has only one pool** (that row was gated on having two until `0d7663ab`). Interior solid. |
+| 2 | `02-rifleman-two-pools` | `e3.america` — **the original 2026-08-30 repro** | Two weapon sections, `5.56MM DMR` and `RPG`, each with its own `AMMO`/`REFILL`; a visibly wider gap where the weapons band ends and `ARMOUR`/`HEALTH`/`SPEED` begin; one `FULL REFILL`. The tallest infantry panel — interior solid for its **whole height**, including the bottom rows furthest from the anchor. |
+| 3 | `03-sniper-single-pool` | `sn.america` — one pool | One section `7.62MM SNIPER`, `AMMO 50 rounds`, `REFILL`, **and a `FULL REFILL` total even though this unit has only one pool** (that row was gated on having two until `0d7663ab`). Interior solid. |
 
 ### What makes a frame a NO-RESULT
 
@@ -44,9 +52,15 @@ reported on.
   transparency problem: a `Background:` naming a collection the mod does not declare draws
   **nothing**, silently (`ChromeProvider.TryGetPanelImages` returns null, `WidgetUtils.cs:93-95`
   skips). Check `tooltip-panel` is declared in `mods/ww3mod/chrome.yaml`.
-- **No tooltip at all.** The hover was not armed. `lua.log` carries one line per subject —
-  `demo-production-tooltip: hover <type> armed=true|false`. A `false` means no enabled queue
-  offered that type.
+- **No tooltip at all, or the same tooltip twice.** The hover was not armed. `lua.log` carries
+  one line per subject — `demo-production-tooltip: hover <type> armed=true|false`. A `false` means
+  no enabled queue offered that type, and `debug.log` then names everything that IS on offer
+  (`[TestMode] hover '<name>': no enabled queue offers it. On offer: …`), which is usually enough
+  to fix the scenario without a second run. **This is what went wrong on 2026-09-22**: `e3` and
+  `e1` are not buildable names — WW3MOD gates infantry behind `~player.<faction>`, so it is
+  `e3.america`, and the conscript is `~disabled` for america in any spelling. Each subject now
+  clears the hover before arming its own, so a repeat of that failure shows an EMPTY panel rather
+  than the previous subject's tooltip.
 - **A blank/black frame.** Told by **file size, not by the image**: ~59 KB is a black frame, a
   real one is megabytes (`SCREENSHOT.md`). Re-shoot before concluding anything.
 - **The tooltip does not overlap the sidebar.** Then the frame cannot answer the question in
