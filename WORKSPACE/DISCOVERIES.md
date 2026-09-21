@@ -128,6 +128,25 @@ not be separated without another run: either he never fired, or every round was 
 `TargetDamage SKIP outsideSpread ...` when enabled. No `TargetDamage` line for the behind shooter
 means he never fired; a `SKIP outsideSpread` line means he did and it was thrown away.
 
+## 2026-09-15 - The "Unload All" bug was NOT reachable through Unload All: two IResolveOrder implementors on one actor, one synchronous and one queued (`wt/garrison-unload`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When two traits on the same actor both implement `IResolveOrder` for the same order string, `Actor.ResolveOrder` runs both — and **one doing its work SYNCHRONOUSLY while the other only QUEUES an activity is an ordering guarantee, not a race.** The synchronous one always wins the tick. That can silently make a real defect unreachable through the gesture it obviously belongs to, and reachable only through a different gesture nobody was looking at.
+
+Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests `cargo.PassengerCount == 0`, which counts the **Cargo hold only** — `GarrisonManager.DeployToPort` calls `cargo.Unload` on a man who mans a firing port, so a port occupant is not a passenger. The audit filed this as "Unload All on a house whose ports are manned makes it neutral". **It does not**, and cannot: `GarrisonManager.ResolveOrder` clears every port synchronously (`GarrisonManager.cs:1561-1592`) while `Cargo.ResolveOrder` only queues the activity (`Cargo.cs:459`), so the ports are already empty by the time the flip is evaluated and its answer is right by accident.
+
+**The path that DOES reach it** is the class-grouped unload menu: `CargoUnloadMenuLogic` issues `UnloadCargoPassenger` per man (`:241`), `Cargo.ResolveOrder` turns each into its own `UnloadCargo` (`:467`), and nothing in that chain touches a port. Its candidate filter (`:90-107`) asks only for a non-empty `Cargo` owned by the local player — **it does not exclude garrison buildings**, and it is bound in this mod (`chrome/ingame-player.yaml:6`, hotkey `J`). So the bug is real and player-reachable; only the gesture named in the item was wrong.
+
+**WHY THE FIX IS A VETO AND NOT A SECOND CHECK.** `Cargo.Unload` notifies `INotifyPassengerExited` **synchronously** (`Cargo.cs:671-672`), which reaches `GarrisonManager.CheckOwnershipAfterExit` — the port-aware implementation — while `UnloadCargo`'s flip is a frame-end task queued *after* it. The correct answer was already on record and the Cargo flip overwrote it. There was nothing to re-derive, and re-deriving it would have recreated the disagreement. `IOverridesCargoNeutralRevert` (new) is answered true by `GarrisonManager` under **exactly the guard `CheckOwnershipAfterExit` early-returns on**, so the two cannot disagree about which is in charge.
+
+**AND THE CHEAP LESSON:** before writing a scenario for "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. Two implementors is the normal case on a garrison building, not an exotic one.
+
+## 2026-09-15 - A rifle cannot target ANY building in this mod, so a building makes a useless garrison bait (`wt/garrison-unload`)
+
+`^5.56mm` declares `ValidTargets: Infantry, Vehicle, AirLight` (`weapons-ballistics.yaml:105`) and every civilian building's target types are `Ground, C4, DetonateAttack, Structure, Defense` (`civilian.yaml:17-19`) — **disjoint sets**. `GarrisonManager` skips any soldier whose armament is not `IsValidAgainst` the candidate before scoring it, so **an enemy building placed to make a garrison man its ports mans nothing**, and the scenario runs green having measured its own absence. The bait must be infantry or a vehicle. Armour class is a red herring here: validity is decided on target TYPES, and the armour tables never enter it.
+
+**Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
+
+## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`)
 ## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
@@ -24967,3 +24986,139 @@ Observed at main @ b0aa900c: `VaporizeScopeTest.TheSupplyRouteOptsOutOfVaporisat
 ## 2026-09-21 — `run-test.sh` reported LAUNCH-FAIL from a six-day-old client.log
 
 `check_launch_failure` (`tools/autotest/run-test.sh:517`, added `6651d5f4`) grepped `server.log` / `client.log` for the refused-join signatures **without checking the log was newer than `LAUNCH_STAMP`** — only the `lua.log` world-seen branch had the `-nt` gate. Killing the game at teardown leaves `Connection to 127.0.0.1:… failed` as `client.log`'s last line, so the FIRST run after any session fired the watch one second after launch, killed the game before it wrote a byte, and reported `launch-fail: server refused the client at join` quoting the previous session's line (run `260921_145344`, log dated 2026-09-15 22:11). Symptom that gives it away: **no file under the OpenRA support dir is newer than `result.launchstamp`.** Fixed by gating both greps on `-nt "${LAUNCH_STAMP}"`. The Windows box never saw it because its last run of each session apparently did not leave that line — unverified.
+
+## 2026-09-21 — `Test.PressHotkey` returns TRUE for a DISABLED button, so its return value is evidence of CONSUMPTION and never of ACTION (`wt/unload-scenario`, base `wt/garrison-unload @ 55ac6bee`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** `ButtonWidget.HandleKeyPress`
+(`engine/OpenRA.Mods.Common/Widgets/ButtonWidget.cs:155-170`) returns `true` **unconditionally**
+once the key matches — line `:169`, below both branches. `IsDisabled()` at `:160` gates only
+whether `OnKeyPress(e)` fires; a disabled button falls through to `ClickDisabledSound` at `:166-167`
+and still reports the press consumed. `Test.PressHotkey` returns exactly what `Ui.HandleKeyPress`
+returns (`TestGlobal.cs:420`). **So `if not Test.PressHotkey(X) then Skip(...)` is green precisely
+when the button was greyed out and did nothing** — the guard is blind to the one failure it exists
+to catch, and the scenario proceeds to wait on a state transition that was never ordered.
+
+Blast radius at this ref: **15 scenarios call `Test.PressHotkey`, 8 of them branch on its return
+value**, and `CommandBarLogic` defines **12** buttons with an `IsDisabled` predicate. Any of those 8
+that targets a command-bar button can time out with a misleading cause. **The countermeasure is not
+a better guard on the return value — there isn't one. Assert the EFFECT** (the order landed, the
+state moved), or use a binding that reports routing, such as `Test.ClickOrder`, which returns the
+`OrderString` that actually won.
+
+**THE CONCRETE CASE, and it is a second finding in its own right: the Deploy KEY and the deploy
+CURSOR are two different dispatch mechanisms, and they disagree on garrison buildings.**
+`CommandBarLogic.PerformDeployOrderOnSelection` (`:607-619`) does not walk `IIssueOrder` at all — it
+collects `TraitsImplementing<IIssueDeployOrder>` and issues only where `CanIssueDeployOrder` is
+true. On a civilian garrison building the **only** `IIssueDeployOrder` is `Cargo`, gated
+`!IsEmpty()` (`Cargo.cs:427`); `GarrisonManager` implements that interface **nowhere**. The mouse
+path is the other mechanism: `GarrisonManager` yields its own `DeployOrderTargeter("Unload")`
+exactly **when** the cargo IS empty and occupants remain (`GarrisonManager.cs:1464-1476`, added by
+`bc35eb98` "allow Unload when only port soldiers remain (rubble evac)"), complementing `Cargo.Orders`
+which yields only while NOT empty (`Cargo.cs:390-411`).
+
+So `bc35eb98` closed the mouse half of the gap and left the keyboard half open, and the two halves
+have been out of step on `main` since **2026-05-04**. In the state "shelter empty, ports manned" the
+deploy cursor issues `Unload` and the Deploy key/button is greyed. **This is NOT a regression from
+the 09-16..09-20 garrison work** — `66c3b5e5` touches only `ScanForTarget` and `TriggerAmbush`
+(acquisition), and `96cf46a5` ("a garrison mans no port until it is told to") touches **no engine
+file at all**, being two autotest scenarios and a Lua lib. Filed as a bug rather than fixed here;
+the player is not trapped, because `GarrisonPanelLogic` ejects port soldiers individually
+(`:316`, `EjectGarrisonPassenger`).
+
+**`Test.IssueDeploy` is no escape.** It re-applies the same `CanIssueDeployOrder` gate
+(`TestGlobal.cs:1242-1245`), so a scenario that "fixed" the hotkey by reaching for the
+purpose-built binding would have failed identically and more confusingly — `IssueDeploy` returns
+`void`, so it cannot even report that it issued nothing.
+
+**The cheap lesson, which is the 2026-09-15 entry's rule pointed the other way.** That entry said:
+before writing "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. This one
+adds the **issue** side: before writing "gesture X *reaches* order Y", check which dispatch
+mechanism the gesture uses — `IIssueOrder` targeters (mouse) and `IIssueDeployOrder` (key/button)
+are separate surfaces with separate gates, and a trait may be on one and not the other.
+
+## 2026-09-21 — A RED that PASSED: the Cargo hold has TWO exits and only one of them arms the frame-end revert (`wt/unload-scenario`, base `wt/garrison-unload @ dc368f16`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When a defect lives in a task armed as a SIDE
+EFFECT of one particular code path, a scenario that merely reproduces the defect's *state* proves
+nothing — the state has to be reached **through that path**. Reaching it by any other route leaves
+the task un-armed, and the run is then green under sabotage, with text identical to the real pass.
+That is what happened here: `test-garrison-unload-keeps-manned-owner` PASSED both as GREEN
+(`260921_151920`) and with `MayRevertHoldToNeutral`'s veto argument forced to `false`
+(`260921_152208`) — same notes string, byte for byte, down to `House owner Neutral; shelter=0;
+ports=0`.
+
+**THE TWO EXITS.** `UnloadCargo` unloads a man and then enqueues a frame-end task that re-reads
+`cargo.PassengerCount` and reverts the building if the hold is empty (`UnloadCargo.cs:235-252`).
+`GarrisonManager.DeployToPort` ALSO empties a hold slot — it calls `cargo.Unload(self, soldier)`
+directly (`GarrisonManager.cs:441`) from its own `ITick`, with no activity in the chain and
+therefore **no such task**. So the hold reaching zero is not sufficient for the defect; it must
+reach zero *on an `UnloadCargo` unload*.
+
+**WHY THE SCENARIO TOOK THE WRONG EXIT.** Its phase 1b waited for `CountPorts() > 0` — the FIRST
+port manned — and then drained the shelter through the unload menu. Seven ports were still free at
+that moment, so `GarrisonManager` was concurrently deploying the very men the menu was ordering out,
+and the last one to leave the hold left through a port. Fixed by waiting for **all eight**
+(`^CivBuilding` declares exactly eight, `civilian.yaml:133-183`): with every port occupied there is
+nowhere left to deploy, so the remaining men can only leave through `UnloadCargo`. Ten men and eight
+ports is why the map places ten.
+
+**All eight are reachable from four baits, and that is not obvious.** The eight ports share four
+yaws two apiece, and a second port on the same diagonal takes the same bait under a score PENALTY
+(`-400` per port already targeting, `GarrisonManager.cs:1227-1228`) rather than an exclusion —
+`ScanForTarget` seeds `bestScore = int.MinValue` and keeps any `score > bestScore` (`:1102`,
+`:1131`), so there is no positive threshold a penalised candidate can fail.
+
+**A SECOND-ORDER TRAP IN THE SAME RUN, and the reason the false pass was so convincing.** Phase 4's
+success condition is "ports clear AND the house is Neutral" — which the sabotage *itself* produces.
+So the broken RED did not merely fail to fail; the damage it did was indistinguishable from the
+repair it was meant to disprove. **When a verdict's PASS clause names the same end state the
+regression produces, the scenario cannot tell them apart from the end state alone** — it has to
+catch the transition, which is why phase 3 now WATCHES ownership for a beat instead of sampling it
+once.
+
+**On the sampling: `Trigger.AfterDelay` is itself a frame-end task.** It schedules a `DelayedAction`
+effect (`TriggerGlobal.cs:77`) whose tick re-queues the body to the frame end
+(`DelayedAction.cs:32`), so a Lua callback and an activity's frame-end task land in the same drain
+loop (`World.cs:520-521`). The activity's is enqueued from the ACTOR tick (`:505`) and the Lua one
+from the EFFECT tick (`:510`), so the FIFO queue orders flip-then-callback and a single sample does
+see the flip. That is derived from reading, not observed — hence the watch.
+
+**AND THE CHEAP LESSON:** a RED that passes is not a weaker result than a RED that fails to compile;
+it is the most dangerous outcome available, because it certifies the fix. Before banking any RED,
+ask **which line arms the defect** and whether the scenario's own setup can reach the measured state
+without ever executing it.
+
+## 2026-09-21 — The unload menu acts on a SNAPSHOT, so a setup gate that does not wait for the population to settle silently under-orders (`wt/unload-scenario`)
+
+Addendum to the entry above, found on the next run of the same scenario
+(`260921_155532`, skip: `shelter=1; ports=8`). Nine men of ten accounted for — **one was still
+walking in when the menu was clicked.**
+
+`CargoUnloadMenuLogic` re-reads `cargo.Passengers` on every click and issues one
+`UnloadCargoPassenger` per man *then aboard* (`:232-247`). Nothing revisits that list, so **a man who
+boards one tick after the click is never ordered anywhere.** He sits in the hold, the drain's
+`CountShelter() == 0` never comes true, and the timeout blames whatever the timeout message happens
+to name — here, exit cells, which were never the problem.
+
+**The generalisable rule: a setup gate must require the population to be SETTLED, not merely
+non-empty.** The gate had been `CountPorts() >= 8 and CountShelter() > 0` — two clauses that look
+like they pin the arrangement and do not, because neither says "and nobody else is in transit". The
+fix is `CountShelter() + CountPorts() >= #Men`: with ten men and eight ports the only arrangement
+satisfying both is ports 8, shelter 2.
+
+**It also retires a suspect, which is the more useful half.** The `shelter=2; ports=8` reading 30 s
+after the drain in run `260921_150014` was being read as evidence that ejected men walk back in. It
+is not: with the old gate the click landed while seven ports and two men were still in flight, and
+those men boarded afterwards and stayed. **Nothing re-boards** — `UnloadCargo` cancels the man's
+activity on the way out (`UnloadCargo.cs:260`), and no trait auto-loads infantry into a garrison. A
+straggler and a returner produce the same count, and only one of them exists.
+
+**Two mechanisms checked and cleared while chasing this, worth recording so nobody re-checks them.**
+(1) *Port occupants do not block exits.* `DeployToPort` positions a port soldier on the BUILDING's
+own cell — `positionable.SetPosition(soldier, self.Location)` with the port offset applied as visual
+position only (`GarrisonManager.cs:458-469`) — while `ChooseExitSubCell` searches
+`Cargo.CurrentAdjacentCells`, which is `Util.AdjacentCells` minus the building's cell
+(`Cargo.cs:307-310`). The two sets are disjoint by construction, so a fully-ported garrison can still
+unload its shelter. **There is no "port men seal their own exits" bug.** (2) *The ALL chip does issue
+one order per man* — first unqueued, the rest queued off a `hasDropped` latch precisely so the second
+does not `CancelActivity` the first (`CargoUnloadMenuLogic.cs:58-61`, `:239-247`).

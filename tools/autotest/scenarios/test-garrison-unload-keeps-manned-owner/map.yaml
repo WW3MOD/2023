@@ -1,0 +1,128 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Unloading the shelter keeps a manned building's owner (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# Starts NEUTRAL so DynamicOwnership flips it to USA on the first boarding — which is also the
+	# setup proof that a man got in, and is not confounded by the IsDead ambiguity a Cargo passenger
+	# carries. v09 is 1x1 (civilian.yaml:400) so ten men converge on one cell and nobody blocks.
+	House: v09
+		Owner: Neutral
+		Location: 20,12
+	# TEN, deliberately: ^CivBuilding is MaxWeight: 10 with 8 firing ports (civilian.yaml:61, :79-119).
+	# Deploying to a port REMOVES a man from the Cargo hold, so the hold keeps making room and all ten
+	# board. The end state this scenario needs is "some at ports, the rest in the hold" — which is the
+	# ordinary steady state of a garrison under fire, not a contrived one.
+	Man0: e1
+		Owner: USA
+		Location: 19,11
+	Man1: e1
+		Owner: USA
+		Location: 20,11
+	Man2: e1
+		Owner: USA
+		Location: 21,11
+	Man3: e1
+		Owner: USA
+		Location: 19,12
+	Man4: e1
+		Owner: USA
+		Location: 21,12
+	Man5: e1
+		Owner: USA
+		Location: 19,13
+	Man6: e1
+		Owner: USA
+		Location: 20,13
+	Man7: e1
+		Owner: USA
+		Location: 21,13
+	Man8: e1
+		Owner: USA
+		Location: 18,12
+	Man9: e1
+		Owner: USA
+		Location: 22,12
+	# THE REASON ANY PORT IS EVER MANNED, and the two traps that decide whether it works.
+	#
+	# (1) IT MUST BE INFANTRY. A rifle cannot target a building AT ALL: ^5.56mm declares
+	# `ValidTargets: Infantry, Vehicle, AirLight` (weapons-ballistics.yaml:105) and every civilian
+	# building's target types are `Ground, C4, DetonateAttack, Structure, Defense`
+	# (civilian.yaml:17-19) -- disjoint sets. GarrisonManager skips any soldier whose armament is not
+	# IsValidAgainst the candidate, so an enemy BUILDING as bait mans no port and the whole scenario
+	# would run green having measured nothing.
+	#
+	# (2) FOUR OF THEM, ONE PER DIAGONAL. The 8 ports sit at yaws 896/640/384/128 -- the four
+	# DIAGONALS, 256 apart -- with Cone: 140 each (civilian.yaml:79-119). A bait placed due south
+	# would sit 128 (45 degrees) off the nearest port centre, which is inside the arc only if Cone is
+	# a half-angle and outside it if it is a full angle. Rather than bet the run on that reading, and
+	# rather than bet it on WAngle's counterclockwise convention mapping the NAMES onto the compass
+	# the way they read, each of the four diagonals gets its own bait dead-centre. Whatever the
+	# mapping is, ports face targets.
+	#
+	# 6x6 cells out is 8.49 cells, inside 5.56mm.E3's Range: 10c0 (weapons-ballistics.yaml:126).
+	# rules.yaml holds every rifleman at HoldFire and gives E1 an unkillable HP pool, so these four
+	# are permanent scenery: nothing shoots, nothing dies, and no port un-mans because its target
+	# evaporated halfway through the measurement.
+	BaitNE: e1
+		Owner: Russia
+		Location: 26,6
+	BaitSE: e1
+		Owner: Russia
+		Location: 26,18
+	BaitSW: e1
+		Owner: Russia
+		Location: 14,18
+	BaitNW: e1
+		Owner: Russia
+		Location: 14,6
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,13
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,28
+
+Rules: rules.yaml

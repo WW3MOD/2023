@@ -27,11 +27,13 @@ namespace OpenRA.Mods.Common.Traits
 	public class CargoInfo : TraitInfo, Requires<IOccupySpaceInfo>, IProvideTooltipDescription
 	{
 		[Desc("Revert this actor to the Neutral player once the LAST passenger has been unloaded. ",
-			"Implemented in UnloadCargo.cs:234-238, which is a DIFFERENT path from the garrison ",
-			"buildings' own revert (GarrisonManager.DynamicOwnership -> CheckOwnershipAfterExit): ",
-			"the two coexist on all four garrison families and do not agree about port soldiers, ",
-			"because PassengerCount counts the Cargo hold only and a man deployed to a firing port ",
-			"has left it. It also assumes a player named \"Neutral\" exists and will throw if none does.")]
+			"Implemented in UnloadCargo, and it counts the Cargo HOLD only: a garrison soldier at a ",
+			"firing port has left the hold, so on a garrisoned actor this would fire with men still ",
+			"inside. It is therefore YIELDED on any actor carrying a trait that implements ",
+			"IOverridesCargoNeutralRevert -- GarrisonManager, whose CheckOwnershipAfterExit walks the ",
+			"ports and the shelter and has already decided by the time this could run. On every other ",
+			"actor this is the only revert path and behaves as it always has, including assuming a ",
+			"player named \"Neutral\" exists and throwing if none does.")]
 		public readonly bool Neutral = false;
 
 		[Desc("The maximum sum of Passenger.Weight that this actor can support.")]

@@ -5871,3 +5871,22 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
   `clean`), so this cannot newly redden anyone's `make test`.
   (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)
+
+- [2026-09-21] [LOW] **The Deploy key and the DEPLOY button do nothing on a garrison building whose
+  shelter is empty but whose firing ports are still manned — the deploy CURSOR on the same building
+  works.** `CommandBarLogic.PerformDeployOrderOnSelection` (`:607-619`) issues only through
+  `IIssueDeployOrder`; the sole implementor on a civilian garrison building is `Cargo`, gated
+  `!IsEmpty()` (`Cargo.cs:427`), and `GarrisonManager` does not implement that interface at all. The
+  mouse path is separately wired for exactly this state — `GarrisonManager.Orders` yields
+  `DeployOrderTargeter("Unload")` **when** `cargo.IsEmpty() && HasAnyOccupants`
+  (`GarrisonManager.cs:1464-1476`) — so `bc35eb98` ("allow Unload when only port soldiers remain
+  (rubble evac)", 2026-05-04) closed the cursor half of the gap and left the keyboard half open.
+  Both halves have been out of step on `main` since that commit; **not a regression from the
+  09-16..09-20 garrison work.** Severity LOW because the player is not trapped: `GarrisonPanelLogic`
+  ejects port soldiers individually (`:316`), and the deploy cursor does the bulk recall. What is
+  missing is the bulk *shortcut*, and the button is silently greyed rather than explaining itself.
+  **Not fixed here** — the fix is ~4 lines (`GarrisonManager` implements `IIssueDeployOrder` mirroring
+  its own `Orders` gate) but it re-enables a command-bar button for every garrison building, which is
+  a visible behavioural change deserving its own NUnit arm and an in-game look.
+  (found while working on: getting `test-garrison-unload-keeps-manned-owner` to a verdict; its
+  phase 4 pressed Deploy and waited 30s for ports that were never ordered to clear)
