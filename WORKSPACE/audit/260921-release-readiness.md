@@ -199,13 +199,13 @@ The How To Play panel is accurate (R9 closed), reachable from both the main menu
 |---|---|---|---|
 | **I1** | **There is no hotkey list a player can read.** Nine hotkey declarations are unbound (R5) and 11 garrison/cargo buttons carry no key (R6), but the larger point is that nothing in the game enumerates the bindings that *do* exist. | `chrome/` inventory — no help/keys panel | **SHOULD-FIX.** |
 | **I2** | **Nothing teaches the Escalation mode.** It is on the lobby dropdown (`DefconEscalation.cs:66`), the How To Play panel covers only the Supply Route economy, and the in-match readout is the only instruction that exists. | `ingame-info-howtoplay.yaml` | **SHOULD-FIX** — and it is downstream of §2.7's rulings; do not write copy for a mode still changing shape. |
-| **I3** | **Production tooltips leak internal identifiers.** `5.56mm.DMR`, `TankRound.Abrams`, `HIMARSTargeter`. | `AmmoPool.cs:200-209` | **SHOULD-FIX**, one character. |
+| **I3** | ~~**Production tooltips leak internal identifiers.** `5.56mm.DMR`, `TankRound.Abrams`, `HIMARSTargeter`.~~ **DOES NOT HOLD — CORRECTED 2026-09-21.** Fixed eighteen days before this audit was written, in `5965d955` (2026-09-03): `AmmoPoolInfo.FormatWeaponLabel` renders every key, and `AmmoPoolTest.cs` asserts all three examples above by name. A census of all 124 buildables finds 48 distinct pool headings and no raw identifier. The "one character" severity note was carried forward, not re-derived. | `AmmoPool.cs:200-209` | ~~SHOULD-FIX~~ **CLOSED** |
 
 ## 2.6 UI / chrome
 
 | | Defect | Evidence | Severity |
 |---|---|---|---|
-| **U1** | **The production tooltip overlaps the sidebar and is not opaque** — portraits are legible *through* it. Every player meets this within seconds. | `bugs/discovered.md` 2026-08-30; `ProductionTooltipLogic`, `TooltipContainerWidget:154` | **SHOULD-FIX**, arguably BLOCKER on a wide display. |
+| **U1** | **The production tooltip overlaps the sidebar and is not opaque** — portraits are legible *through* it. Every player meets this within seconds. **VERIFIED AND FIXED 2026-09-21 (`wt/tooltip-legibility`).** The number: `dialog4`'s centre tile (`uibits/dialog.png` 518,393 52x52) is `(0,0,0,159)` at every one of its 2704 pixels — 38% transmission. The overlap geometry is correct and was never the bug. Now on a `tooltip-panel` collection: same 6px dialog4 frame, opaque interior. The frame ring stays translucent on purpose. | `bugs/discovered.md` 2026-08-30; `ProductionTooltipLogic`, `TooltipContainerWidget:154` | **SHOULD-FIX**, arguably BLOCKER on a wide display. |
 | **U2** | **Infantry give no selection feedback at all** — box-select six riflemen, nothing changes. | `infantry.yaml:57 ShowNever: true`, the only occurrence under `mods/` | **BLOCKER if the `ShowNever` was accidental, POLISH if deliberate** — and nobody can tell by reading. Two screenshots settle it. |
 | **U3** | **11 garrison/cargo buttons still carry no hotkey.** Labels and tooltips shipped. | `ingame-player.yaml:830-1269`, 0 `Key:` | **COSMETIC** — R5's verdict already downgraded this class. |
 

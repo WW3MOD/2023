@@ -338,6 +338,16 @@ dialog5:
 	PanelRegion: 580, 388, 0, 0, 62, 62, 0, 0
 	PanelSides: Center
 
+# Production tooltip panel. Declared here ONLY so the shared common/chrome/tooltips.yaml, which
+# this mod loads, never names a collection this mod lacks -- a Background: whose collection is
+# missing draws NOTHING, silently (ChromeProvider.TryGetPanelImages returns null and
+# WidgetUtils.DrawPanel skips, WidgetUtils.cs:93-95). Identical to dialog4, so this mod's tooltip
+# looks exactly as it did. WW3MOD overrides it with an opaque interior; see
+# mods/ww3mod/chrome.yaml, which explains why.
+tooltip-panel:
+	Inherits: ^Dialog
+	PanelRegion: 512, 387, 6, 6, 52, 52, 6, 6
+
 lobby-bits:
 	Inherits: ^Glyphs
 	Regions:

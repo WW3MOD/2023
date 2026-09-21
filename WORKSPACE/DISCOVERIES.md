@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - Two of the release audit's three production-tooltip findings were already fixed, one by three weeks; the live one is a single alpha value in the art (`wt/tooltip-legibility`, base `main @ d69e6883`)
+
+Found auditing package 3 of `WORKSPACE/audit/260921-release-readiness.md`, which asked for three
+defects to be fixed. **Only one of the three is live at `d69e6883`.** The audit rows have been
+annotated in place.
+
+- **U1 (§2.6), "the production tooltip is not opaque" — HOLDS, and is now measured rather than
+  observed.** `Background@PRODUCTION_TOOLTIP` drew on the `dialog4` chrome collection, whose centre
+  tile (`uibits/dialog.png` 518,393 52x52) is `(0,0,0,**159**)` — uniform across all 2704 pixels, so
+  **38% of whatever is behind the panel came through it**. The 2026-08-30 report reasoned this from
+  width arithmetic and said so; the number is the direct reading. The geometry it also describes is
+  real and is NOT the bug: the panel is *supposed* to overlap the sidebar.
+
+- **I3 (§2.5), "tooltips leak internal identifiers — `5.56mm.DMR`, `TankRound.Abrams`,
+  `HIMARSTargeter`" — DOES NOT HOLD. Fixed on 2026-09-03 in `5965d955`**, eighteen days before the
+  audit was written. `AmmoPoolInfo.FormatWeaponLabel` renders every key, and
+  `engine/OpenRA.Test/OpenRA.Mods.Common/AmmoPoolTest.cs` asserts all three of the audit's own
+  examples by name. A census of all 124 buildables finds **48 distinct pool headings and not one raw
+  identifier**. The audit's severity note, "SHOULD-FIX, one character", appears to have been carried
+  forward from an older list rather than re-derived — which is the failure mode CLAUDE.md's queue
+  rule already warns about ("read the file, not the commit message").
+
+- **"Single-pool units get no ammo total" — DOES NOT HOLD, twice over.** Every pool has always
+  emitted its own `Ammo: N rounds` row, and the cross-pool `Full refill` total stopped being gated
+  on `pools.Length >= 2` on 2026-08-30 in `0d7663ab`. Census: **0 of 79 pool-carrying buildables
+  draw no ammo row**, and none can — `SupplyValue` defaults to `1`, so the `SupplyValue > 0`
+  suppression branch needs an explicit `SupplyValue: 0` that no shipped pool sets.
+
+**The transferable part is not about tooltips.** Two of three findings in a curated release audit
+were stale by weeks, and both were stale in the same direction: *the defect had been fixed and the
+row had not been re-derived*. One `git log -S` on the symbol named in the evidence column settles
+either one in seconds. Treat an audit's evidence column as a pointer to re-read, not as a reading.
+
+**And a second-order one, about the measuring apparatus.** The first version of the census above
+reported a real-looking defect — `A10.Airstrike` rendering two identical `30MM A10 + HELLFIRE`
+subheads over different ammo counts. It was an artifact of the census script, which **replaced**
+inherited trait nodes instead of merging them child-by-child as MiniYaml does, so the actor's
+`AmmoPool@1: Ammo: 40` override erased the parent's `Name:` and `Armaments:`. With the merge
+corrected the actor is entirely correct. A bespoke YAML reader that does not implement inheritance
+the way the engine does will manufacture defects in exactly the actors that override one field, and
+those are the interesting ones. Validate the reader against something the engine already asserts
+before believing anything it says — this one reproduces all 17 `FormatWeaponLabel` NUnit
+expectations exactly.
+
 ## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
 
 Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`

@@ -256,6 +256,27 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconClick(actorType, MouseButton.Left, mods));
 		}
 
+		[Desc("Open the production tooltip for `actorType`'s build-menu icon, as a mouse hover does, " +
+			"switching the sidebar to the queue that offers it first. THE TOOLTIP IS NOT UP WHEN " +
+			"THIS RETURNS: the palette applies the hover on its next Tick, because the icon " +
+			"rectangles it needs only exist after a layout pass, and the capture itself samples one " +
+			"frame later still. Leave a delay before photographing. Returns false if no enabled " +
+			"queue offers the type. Test mode only.")]
+		public bool HoverProductionIcon(string actorType)
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var palette = Ui.Root?.GetOrNull<ProductionPaletteWidget>("PRODUCTION_PALETTE");
+			if (palette == null)
+				return false;
+
+			// Unsynced for the same reason ClickProductionIcon is: this reaches into widget state
+			// from the synced Lua tick. Switching the queue rebuilds the icon list and touches the
+			// production-icon overlay cache, neither of which is part of the simulation.
+			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconHover(actorType));
+		}
+
 		[Desc("State of the class-grouped unload menu: an empty string when it is closed, otherwise " +
 			"'<menus>:<rows>' — how many CARGO_UNLOAD_MENU widgets are attached to the UI root, and " +
 			"how many class rows the first of them lists. A test needs this because PressHotkey's " +

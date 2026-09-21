@@ -626,6 +626,36 @@ namespace OpenRA.Mods.Common.Widgets
 		}
 
 		/// <summary>
+		/// Makes sure the palette is showing the queue that offers <paramref name="name"/>, switching
+		/// tabs if it is not. Returns false when no enabled queue offers the type at all.
+		/// </summary>
+		/// <remarks>
+		/// Shared by the click and hover simulators rather than written out twice. The sidebar shows
+		/// ONE queue at a time (ClassicProductionLogic tabs), so both of them have to do this first
+		/// or they address an icon that is not on screen — and the two must agree about which queue
+		/// that is, or a scripted hover and a scripted click on the same type land on different tabs.
+		/// </remarks>
+		bool SwitchToQueueOffering(string name)
+		{
+			if (icons.Values.Any(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase)))
+				return true;
+
+			// CASE-INSENSITIVE, to agree with ApplyTestHover twenty lines up, which matches the same
+			// name that way. Actor keys are lowercased after the MiniYaml merge, so an ordinal
+			// comparison here means a scenario naming the type as the yaml spells it ("E3") fails to
+			// switch the queue while the hover itself would have matched — half-working, and silent.
+			var queue = World.LocalPlayer?.PlayerActor.TraitsImplementing<ProductionQueue>()
+				.FirstOrDefault(q => q.Enabled && q.BuildableItems()
+					.Any(a => string.Equals(a.Name, name, StringComparison.OrdinalIgnoreCase)));
+
+			if (queue == null)
+				return false;
+
+			CurrentQueue = queue;
+			return true;
+		}
+
+		/// <summary>
 		/// Test hook: drives a sidebar click on the icon for <paramref name="name"/>, switching to the
 		/// queue that offers it first. Routes through the same HandleEvent path as a real click so the
 		/// modifier tiers are exercised; only SDL modifier decode and icon hit-testing are bypassed.
@@ -633,19 +663,30 @@ namespace OpenRA.Mods.Common.Widgets
 		/// </summary>
 		public bool SimulateIconClick(string name, MouseButton btn, Modifiers modifiers)
 		{
-			if (!icons.Values.Any(i => i.Name == name))
-			{
-				var queue = World.LocalPlayer?.PlayerActor.TraitsImplementing<ProductionQueue>()
-					.FirstOrDefault(q => q.Enabled && q.BuildableItems().Any(a => a.Name == name));
+			if (!SwitchToQueueOffering(name))
+				return false;
 
-				if (queue == null)
-					return false;
-
-				CurrentQueue = queue;
-			}
-
-			var icon = icons.Values.FirstOrDefault(i => i.Name == name);
+			var icon = icons.Values.FirstOrDefault(i => string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
 			return icon != null && HandleEvent(icon, btn, modifiers);
+		}
+
+		/// <summary>
+		/// Arms a production-icon hover, switching tabs first if the type is on another queue.
+		/// Returns false when no enabled queue offers the type.
+		/// </summary>
+		/// <remarks>
+		/// The hover itself is NOT applied here. <see cref="ApplyTestHover"/> does it from Tick,
+		/// because the icon rectangles this needs only exist after RefreshIcons has run a layout
+		/// pass — and switching the queue above is exactly what invalidates them. A caller must
+		/// therefore leave at least one tick, and one rendered frame, before photographing.
+		/// </remarks>
+		public bool SimulateIconHover(string name)
+		{
+			if (!SwitchToQueueOffering(name))
+				return false;
+
+			TestMode.HoverProductionIcon = name;
+			return true;
 		}
 
 		bool HandleEvent(ProductionIcon icon, MouseButton btn, Modifiers modifiers)
