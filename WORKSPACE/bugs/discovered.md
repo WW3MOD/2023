@@ -5,6 +5,41 @@
 
 ---
 
+- [2026-09-22] [MEDIUM] **`test-power-buy-loop` died without unwinding — no `result.json`, zero-byte
+  `lua.log`, and NO managed exception anywhere in `debug.log`.** Run dir
+  `~/.ww3mod-tests/screenshots/260921_232523_p65425_test-power-buy-loop` (batch at
+  `wt/tick-rate @ e6732446`); `result.launchstamp` present, `debug.log` 4379 bytes.
+  **There is no stack trace to quote, and that is the finding.** The only four `Exception` matches
+  in that log are the routine mod probes — `Load mod '…/engine/mods/cnc': InvalidDataException:
+  'FileSystem' section is not defined` for cnc/d2k/all/ts — which appear identically in every run in
+  the batch, including passing ones, so they are not the crash. The log ends mid-stream after normal
+  output (`[danger] pct player=FreadyFish n=2 chan=air …`), with the world constructed
+  (`DEFCON wall derived from 2 home(s) in 2 group(s)`) and the scenario armed
+  (`Scenario selection: 'none'`, `[TestMode] speed multiplier 8x — Timestep 60 → 7 ms/tick`).
+  **Not a scenario timing crash** — `test-power-buy-loop.lua` contains no `AssertWithin`,
+  `AssertAfter`, `ScreenshotAfter` or `TicksPerSecond`, so the 16.667 tps flip on that branch cannot
+  reach it; it is immune by construction. Unreproduced (a single batch observation, no rerun).
+  Note this is also a live instance of the 2026-09-21 entry below: a crash with no pre-existing
+  exception log is exactly the case `run-test.sh` cannot grade as `CRASH`.
+  (found while working on: triaging the full suite after the tick-rate flip,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+
+- [2026-09-22] [MEDIUM] **`test-depot-vacate-phantom` takes a screenshot on EVERY TICK of its
+  `AssertWithin` predicate, and the PNG writes blow the 300 s wall clock before the tick budget can
+  expire.** `TestHarness.Screenshot("2-vacated", …)` (`test-depot-vacate-phantom.lua:226`) sits
+  inside the per-tick predicate with **no latch**, after the settle/on-footprint rungs pass but
+  while the predicate is still waiting on the later Tank2 rung. Run
+  `~/.ww3mod-tests/screenshots/260921_205245_p35609_test-depot-vacate-phantom` wrote **98 identical
+  `2-vacated` PNGs** and reported `timeout: no verdict after 300s`.
+  **Rate-independent, and worth saying because the scenario's own comment says otherwise:**
+  `.lua:66-73` predicts that a timeout would mean the budget needs re-deriving after the 16.667
+  flip. It does not — the flip cut the budget 1875 → 1250 ticks, which is *fewer* iterations of the
+  loop, so the flip made this less likely to bite, not more. The fix is to latch the capture (the
+  `lineCells` latch a few lines above is the pattern already in the file), not to widen or narrow
+  any deadline. Left unfixed: it is scenario logic, outside that triage's remit.
+  (found while working on: triaging the full suite after the tick-rate flip,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+
 - [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,
   and `tools/autotest/selftest.sh` has two red cases saying so.** Running the selftest on
   `main @ 70e63582` (stub launcher, no game) gives `crash (fresh exception log)` → wanted

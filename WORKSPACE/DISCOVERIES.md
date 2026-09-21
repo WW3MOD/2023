@@ -3,6 +3,77 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - The 16.667 flip broke exactly one class of script, and the class is not "scenarios with deadlines" - it is "scenarios that convert seconds through the HARNESS" (`wt/tick-rate`, base `main @ d69e6883`)
+
+The full suite at `wt/tick-rate @ e6732446` returned Pass 198 / Fail 39 / Skip 21 / Error 1 over 259
+scenarios. Triage: **13 tick-caused**, 32 pre-existing, 15 unexplained. Row-by-row evidence in
+`WORKSPACE/audit/260922-tick16-suite-triage.md`. What generalises:
+
+**THERE ARE TWO SECONDS->TICKS CONVERTERS AND ONLY ONE OF THEM MOVED.** `DateTime.Seconds(n)` is the
+ENGINE converter (`DateTimeGlobal.cs:52-55` -> `TickTime.TicksForSeconds`); it was corrected on
+2026-09-19 and this branch does not touch it. `TestHarness.AssertWithin/AssertAfter/ScreenshotAfter`
+and `* TestHarness.TicksPerSecond` are the HARNESS converter, and only that one changed. **A scenario
+timing exclusively on `DateTime.Seconds` or on raw tick literals is structurally immune to the flip
+and cannot be a casualty of it** - which decided eight of the thirty-nine failures on a grep, with no
+run and no reasoning about behaviour. This is the cheapest discriminator in the whole triage and it
+should be the first thing anyone reaches for the next time a rate moves.
+
+**THE SECOND DISCRIMINATOR IS WHICH STRING WROTE THE VERDICT.** `AssertWithin` fails with either the
+predicate's own `fail: ...` (returned on the merits, deadline irrelevant) or with its `timeoutReason`
+(deadline expired). Matching the recorded note against the scenario source separates them with no
+judgement involved: **a `fail:` verdict cannot have been caused by a shorter window.** Eleven of the
+thirteen confirmed casualties are exact `timeoutReason` matches.
+
+**THE CASUALTY THAT DOES NOT GO RED IS A BUDGET GATING A `Test.Skip`.** Two of the thirteen
+(`test-garrison-ownership-flip-evacuation`, `test-garrison-port-arc-highpriority`) reported SKIP, not
+FAIL, because the shrunken budget was a *precondition* - "one or both houses never became USA-owned
+within 20s, so the garrison never formed and **nothing under test was reached**". A skip reads as
+benign in a batch summary. **When a rate moves, audit the skips as carefully as the fails**; a budget
+that gates a skip needs the same care as one that gates a verdict.
+
+**A SETTLE-THEN-MEASURE SCENARIO FAILS FOR A DIFFERENT REASON THAN A TIMEOUT DOES.**
+`test-bot-defcon-wall` opened its sample window at `(RUN_SECONDS - HOLD_WINDOW_SECONDS) * TicksPerSecond`.
+Shrinking both terms moved the window's OPEN from tick 1250 to tick 833 - into the stretch where the
+army is still walking to the border - so it measured approach drift and called it hold drift. The
+window did not expire early; it *started* early. Scaling a phase boundary is not the same failure as
+scaling a deadline, and it does not announce itself as a timeout.
+
+**THE FIX SHAPE, AND WHY NOT A RE-TUNE.** Every budget is now stated in TICKS - the unit it was
+authored and validated in - and converted through the harness, which is the idiom `test-helpers.lua`
+already prescribes for new scenarios. That round-trips exactly under the 1e-9 epsilon (verified: 21
+budgets, 0 mismatches) and is rate-independent, so the next timestep change costs nothing. No
+deadline was hand-tuned to 16.667 and no assertion changed strength. Two lossy idioms were fixed on
+the way past: `math.floor(seconds * TicksPerSecond)` has no epsilon and loses a tick on most budgets
+(`TestHarness.TicksForSeconds` is the correct call), and `ticks / tps * tps` is not guaranteed to
+return the same integer - take the tick constant directly.
+
+**A PREDICTION WRITTEN IN-TREE WAS RIGHT ONCE AND WRONG ONCE, AND THE WRONG ONE IS THE INSTRUCTIVE
+ONE.** The branch pre-emptively annotated its two predicted casualties.
+`test-tunguska-missile-standoff:25-28` ("if this scenario starts timing out, that is the reason") was
+right - it timed out on its own deadline string. `test-depot-vacate-phantom:66-73` ("If this starts
+timing out, re-derive it rather than widening it blindly") was **wrong about the cause while right
+about the symptom**: it did time out, but on the 300 s WALL CLOCK, because
+`TestHarness.Screenshot("2-vacated", ...)` sits inside its per-tick `AssertWithin` predicate with no
+latch and wrote 98 identical PNGs. That loop is rate-independent, and the flip made it *less* likely
+to bite by cutting the budget 1875 -> 1250 ticks, i.e. fewer iterations. **A prediction that names
+the right scenario is not evidence about the mechanism** - the run directory is, and in this case
+`debug.log` settled it in one line where the annotation had misdirected.
+
+**WALL-CLOCK TIMEOUTS ARE NOT TICK-BUDGET TIMEOUTS, and a full-suite batch is where they appear.**
+`TicksPerSecond` is a Lua constant; it changes tick budgets and touches engine pacing not at all.
+`test-escalation-full-match` budgets entirely in raw ticks (`DEADLINE = 24000`) and so cannot be a
+casualty - yet it timed out, reaching `tick=8431` of 24000 before run-test.sh's 300 s watchdog fired,
+having PASSED solo pre-flip on 2026-09-15 at `stop=deadline tick=24001`. The variable is throughput
+on a machine running 259 scenarios back to back, not the rate.
+
+**THE SILENT HALF IS STILL OUT THERE AND IS DELIBERATELY UNFIXED.** The branch warned that the worse
+casualty is a scenario that keeps PASSING while an inner budget becomes unreachable. Four scenarios
+that passed this batch carry the same shrunken idiom: `test-wgm-deny-thru-5-trees:15`,
+`test-wgm-accuracy-moving:27`, `test-wgm-target-dies-midflight:33`, `test-wgm-no-fall-short:29`.
+Their windows are a third shorter than authored and they may be passing without enforcing. Left
+untouched on purpose - editing a passing scenario's budget with no run to compare against is an
+unmeasured behavioural change, and a green proves nothing about which of its assertions still fire.
+
 ## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
 
 Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
