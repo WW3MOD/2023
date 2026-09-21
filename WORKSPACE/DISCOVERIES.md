@@ -3,6 +3,97 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - Three harness/readout traps on the item-56 acceptance-bar run, one of which INVERTED the diagnosis (`main @ d69e6883`, run dir `tools/autotest/tournament-results/260922_0124_tournament-s1-eco-river-zeta`)
+
+All three were hit inside one 150-second tournament attempt. The third is the one worth carrying
+furthest: it is not a harness bug at all, and it made a healthy instrument read as a dead one.
+
+### 1. `grep -c '[composition] census'` returns 0 on a log that contains 116 of them
+
+**This is a shell/BRE trap, not a missing log line, and it produced a confident wrong verdict.**
+In a POSIX basic regular expression `[composition]` is a **bracket expression**: it matches exactly
+one character from the set `{c,o,m,p,s,i,t,n}`, and the `]` is consumed as the expression's
+**terminator**, not as a literal. So the pattern actually searched for is *"one of those eight
+characters, immediately followed by `` census``"* — and the real log line has `]` in that position,
+which is not in the set. Zero matches, exit 1, and the natural reading is "the emitter never fired".
+
+```
+grep -c  '[composition] census' match_1_debug.log   # -> 0     WRONG
+grep -cF '[composition] census' match_1_debug.log   # -> 116   RIGHT
+```
+
+**Use `grep -F` (or `grep -c '\[composition\] census'`) for every bracketed log tag in this repo** —
+`[supply]`, `[composition]`, `[exp-capture]`, `[danger]`, `[Tournament]` and the rest are all
+vulnerable, and `[supply]` is the worst case because `]` is again the character that decides it.
+The failure is silent and always in the same direction: **it under-counts to zero**, so it
+manufactures "the feature is not instrumented" out of a fully instrumented run.
+
+This is the same family as the zero-byte-log and exit-127 traps already in `CLAUDE.md`: *an
+absence of output is a claim that has to be verified, not a result.* Here the absence was an
+artifact of the question, not a property of the log.
+
+### 2. The six S1/S2 ladder scenarios ship no `tournament.yaml`, so `--config` is mandatory
+
+`run-tournament.sh:139` falls back to `<scenario>/tournament.yaml` when `--config` is omitted, and
+`:142-145` then exits **3** with `Error: tournament config not found` **before launching anything**.
+`tournament-s1-eco-river-zeta` contains only `tournament-eco-5min.yaml`; the same holds for the other
+ladder scenarios. Only the legacy `tournament-arena-*` / `-parity-*` / `-capture-*` scenarios carry a
+plain `tournament.yaml`.
+
+Already documented in `WORKSPACE/ai-bench/RUNBOOK-260905.md` §4 — recorded here because it was hit
+again from outside that runbook, which is evidence the knowledge is not reachable from where people
+actually start. **Exit 3 here is a launch failure: nothing ran and nothing was proven.**
+
+### 3. An ABSOLUTE `--result-dir` splits the run across two directories and the match writes nothing
+
+`run-tournament.sh` uses `${RESULT_DIR}` two different ways and they only agree when it is relative:
+
+| Line | Expression | With `--result-dir /tmp/x` |
+|---|---|---|
+| `:174` | `mkdir -p "${RESULT_DIR}"` | creates `/tmp/x` |
+| `:180` | `"${RESULT_DIR}/batch.meta.json"` | writes `/tmp/x/batch.meta.json` |
+| `:262` | `"${REPO_ROOT}/${RESULT_DIR}/match_${i}.json"` | `<repo>//tmp/x/match_1.json` |
+| `:263` | `"${REPO_ROOT}/${RESULT_DIR}/match_${i}.log"` | `<repo>//tmp/x/match_1.log` |
+| `:355` | `cp "${DEBUG_LOG}" "${REPO_ROOT}/${RESULT_DIR}/..."` | same prefixed path |
+
+The `${REPO_ROOT}/` prefix at `:262-263` is correct for the *default* relative dir (the script `cd`s
+to the repo root at `:46-47`, and the engine runs with `cwd=engine/`, so the comment at `:260-261` is
+right about why the absolute form is needed). It is simply not idempotent: prefixing an
+already-absolute path yields `<repo>//tmp/x`, whose parent was never created. The subshell's
+`> "${MATCH_LOG}"` redirect then fails, the subshell dies immediately, and the watchdog reports
+**"Game exited without writing verdict"** — which looks like an engine crash rather than a path bug.
+
+**Use a repo-relative `--result-dir`** (the default shape,
+`tools/autotest/tournament-results/<name>`). The one-line fix would be to make `:262-263`/`:355`
+absolutise conditionally rather than unconditionally, but that is a harness change and is not taken
+here.
+
+### Bonus, same run: the 150 s default wall-clock cap is derived from a speed-up the machine need not achieve
+
+`run-tournament.sh:157-166` computes `MAX_WALL_SECS = TimeLimitSeconds * 4 / SpeedMultiplier`
+= `300 * 4 / 8` = **150 s**, i.e. it budgets the **full** 8× multiplier and then allows 4× slack on
+top. The comment at `:155-156` already concedes "worst case (rendering bottleneck) the actual
+speed-up is less than the multiplier; we still budget the full mult for the watchdog."
+
+On this macOS host the multiplier **was** applied — `match_1.watcher.log` line 1 reads
+`WorldLoaded: speed multiplier 8x — Timestep 40 → 5 ms/tick` — but the sim delivered **2,337 ticks
+in ~150 s ≈ 15.6 ticks/s**, against the 200 ticks/s the 5 ms timestep asks for and the ~200 ticks/s
+`RUNBOOK-260905.md` §8 records on the Windows baseline (7,500 ticks in ~37.5 s). The match was
+culled at **31 % of its 7,500-tick clock**.
+
+**The discriminator between "config never applied" and "machine could not keep up" is that watcher
+line**, and it is worth knowing by name: if `SpeedMultiplier` had failed to reach the engine, the
+`effectiveMultiplier > 1` branch at `BotVsBotMatchWatcher.cs:187-194` would not have run and the line
+would be **absent entirely**. Its presence proves `Test.TournamentConfig` was loaded, parsed, and
+applied. `OPENRA_WINDOW_HIDDEN=1` is not implicated either — it is read only by
+`Sdl2PlatformWindow.cs:233` to create the window unmapped, and touches no timestep.
+
+`RUNBOOK-260905.md` §5 already passes `--max-wall-secs 300` explicitly for exactly this reason
+("deliberately far above the natural match length so the watchdog never culls a match early — a
+culled match breaks the paired model"). **On a macOS host that is still too low: budget ~900 s for a
+7,500-tick S1 match.** A culled match is not a negative result; for item 56 specifically it is an
+instrument failure, because the trucks are bought in the back half of the clock.
+
 ## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
 
 Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
