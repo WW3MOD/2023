@@ -1,0 +1,116 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: DEFCON 2 hold-fire, garrisoned building (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES, and why it needs its own scenario rather than another tank.
+#
+# READ SITE 5 -- GarrisonManager.ScanForTarget (GarrisonManager.cs:1028) -- is THE GARRISON'S SECOND,
+# INDEPENDENT SCANNER. It does not go through AutoTarget at all: it picks its own target per port and
+# AttackGarrisoned fires at PortState.CurrentTarget directly, so not one of AutoTarget's guards can
+# see it. Every autonomous garrison decision reaches a target only through that one method -- the
+# empty-port deploy (:865-899), PromoteFromShelter (:809), the re-target in UpdatePortTarget and
+# TriggerAmbushDeploy. It is therefore the only site on the list that a unit-vs-unit scenario cannot
+# reach by accident.
+#
+# THE TWO ORDERED PATHS DELIBERATELY RETURN BEFORE EVER CALLING IT -- UpdatePortTarget honours
+# PlayerOverride and AttackGarrisoned's force-target ahead of any scan -- so a player-directed
+# garrison still fires at DEFCON 2, and phase 2 below is what proves the hold did not simply silence
+# the building outright.
+#
+# GEOMETRY. The distance is the instrument, in the opposite direction to
+# test-human-autoacquires-garrisoned-house: there the abrams sat OUTSIDE the garrison's envelope so
+# no port could deploy, here the humvee sits INSIDE it so the only thing that can stop a deploy is
+# the rule.
+#
+#   House    40,16   v01 church, 2x2, footprint 40..41,16..17. Starts NEUTRAL -- GarrisonManager
+#                    claims a building only while it is Neutral (DynamicOwnership), so that is the
+#                    only start state from which the flip to Russia can happen.
+#   Man1..4  43..44,19..20   Russia riflemen. Walk in under a real EnterTransport click.
+#   Probe    34,16   USA humvee, ~6.5 cells from the house centre. GarrisonManager derives an EMPTY
+#                    port's search radius from the SHELTER soldiers' own armaments (:984-998) and
+#                    5.56mm.E3 is Range: 10c0, so the humvee is inside the envelope with margin. Held
+#                    at HoldFire in rules.yaml so it can never be the thing that fires.
+#
+# A HUMVEE AND NOT A TANK, deliberately: ^5.56mm carries InvalidTargets: Medium, Heavy, so a rifle
+# cannot engage an abrams or a t90 at all and a silent garrison would prove nothing. The humvee is
+# Armor Light / TargetTypes Ground, Vehicle, Light, which 5.56mm.E3's ValidTargets: Infantry, Vehicle,
+# AirLight matches.
+#
+# NO AutoTarget IS ADDED TO V01, and that is the difference from the sibling scenario. ^CivBuilding
+# ships none, so `autoTarget?.Stance ?? UnitStance.FireAtWill` leaves the BUILDING on FireAtWill in
+# both arms -- the DEFCON flag is meant to be the only thing holding it, so the stance must not be.
+#
+# THE DISCRIMINATING PAIR. test-defcon2-holdfire-garrison-skirmish is this directory with ONE quantity
+# changed -- DefconEscalation.ModeDefault, Escalation -> Skirmish -- and it is REQUIRED to fail. See
+# README.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	House: v01
+		Owner: Neutral
+		Location: 40,16
+	Probe: humvee
+		Owner: USA
+		Location: 34,16
+		Facing: 768
+	Man1: e1
+		Owner: Russia
+		Location: 43,19
+	Man2: e1
+		Owner: Russia
+		Location: 44,19
+	Man3: e1
+		Owner: Russia
+		Location: 43,20
+	Man4: e1
+		Owner: Russia
+		Location: 44,20
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,4
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 34,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 44,20
+
+Rules: rules.yaml

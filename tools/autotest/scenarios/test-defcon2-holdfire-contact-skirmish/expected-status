@@ -1,0 +1,40 @@
+fail
+BY DESIGN, NOT BY MERIT. This directory is the CONTROL arm of
+test-defcon2-holdfire-contact. Its rules.yaml differs from the treatment's by exactly one
+quantity -- DefconEscalation.ModeDefault, Escalation -> Skirmish -- and
+DefconEscalationState's constructor answers that with `Level = NoLevel` (0) outright, so
+DefconFireDiscipline.HoldsFire(0) is false and NOTHING on this map is holding fire.
+
+Two enemy tanks on FireAtWill, ten cells apart, mutually in range on an unfogged map, engage
+each other within a couple of autotarget scan intervals (AutoTargetInfo.Min/MaximumScanTime-
+Interval are 3 and 8 ticks). The shared body's hold-window assertion then fails on whichever
+of its four observables moves first -- ammunition, health, Test.GetImpactEffectCount, or the
+automatic-coloured target line. FAIL is the only outcome this arm can honestly produce.
+
+WHY IT EXISTS. A green treatment is not evidence unless something could have made it red
+(AUTOTEST.md, "A green run is not evidence unless something could have made it RED"). The
+recorded failure of that rule is test-autotarget-preempt-air, where BOTH required arms passed
+and the fix had already shipped on the strength of the green one. This arm is what makes the
+treatment's silence mean "the rule held" rather than "nothing was ever going to fire here".
+
+A PASS HERE IS LOUDLY RED AND FALSIFIES THE TREATMENT, NOT THIS FILE. It would mean two
+enemy tanks in mutual weapon range on FireAtWill did not engage each other in an ordinary
+Skirmish -- so the geometry, the stances, the ownership or the targeting is wrong in BOTH
+directories and the treatment's green was measuring nothing. Report and stop; do not move the
+window or re-run hoping for the other answer.
+
+THE ONE FAILURE THIS DECLARATION MUST NOT ABSORB, because it produces the declared outcome
+for the wrong reason: a setup fault. The shared body fails at SETUP rather than in the hold
+window when the pair is not a live targeting pair (Test.GetTargetOrder does not resolve to
+Attack), when the separation is outside either weapon envelope, or when the match opens at
+DEFCON 3 or 1. Those verdicts all begin `fail: SETUP` and they are staging faults in BOTH
+arms. Read the reason string; a `fail: SETUP` here is not this arm doing its job.
+
+The verdict line to expect carries `defcon=0` in its census. If it reads `defcon=2` the
+override did not merge and this directory is a second copy of the treatment -- which today
+would fail too, and two identical arms both failing looks exactly like a clean result.
+
+REMOVE THIS FILE only if the control legitimately starts passing, which would mean the map
+can no longer separate the two hypotheses and needs new geometry rather than a new
+declaration. A hang, a crash, or a run that never reaches a verdict still reds under it: a
+declaration buys silence for the one outcome it names and nothing else.

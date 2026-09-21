@@ -188,19 +188,16 @@ namespace OpenRA.Test
 			return nodes;
 		}
 
-		static MiniYamlNode Find(IEnumerable<MiniYamlNode> nodes, string key)
-		{
-			var node = nodes.FirstOrDefault(n => n.Key == key);
-			Assert.That(node, Is.Not.Null, $"`{key}` is not in the shipped rules — this fixture is pinning nothing.");
-			return node;
-		}
-
 		[Test]
 		public void TheSupplyRouteOptsOutOfVaporisation()
 		{
-			var sr = Find(TopLevel(null), "SUPPLYROUTE");
+			// FindAll, not first-match: since 2026-09-19 rules/cameo-captions.yaml (authored, deliberately
+			// NOT in mod.yaml's Rules list) declares SUPPLYROUTE a second time to caption its cameo, and a
+			// root-level file enumerates before ingame/, so first-match returned the caption node and this
+			// test went red while structures.yaml still carried the line. Same trap as ^TechBuilding below.
+			var sr = FindAll(TopLevel(null), "SUPPLYROUTE");
 
-			Assert.That(sr.Value.Nodes.Any(n => n.Key == Opt), Is.True,
+			Assert.That(sr.Any(d => d.Value.Nodes.Any(n => n.Key == Opt)), Is.True,
 				"SUPPLYROUTE lost its `-Vaporizable:` line, so one nuke is now an instant win. The SR is not " +
 				"invulnerable — it has Health: HP: 75000 and is merely UNTARGETABLE, via a target type no weapon " +
 				"lists — and VaporizeWarhead does not consult target types, so nothing else stands between a " +
@@ -209,7 +206,7 @@ namespace OpenRA.Test
 				"spot (ConquestVictoryConditions.cs:76-77). That replaces the designed, relievable, reversible " +
 				"contestation siege with an instant purchase.");
 
-			Assert.That(sr.Value.Nodes.Any(n => n.Key == "Health"), Is.True,
+			Assert.That(sr.Any(d => d.Value.Nodes.Any(n => n.Key == "Health")), Is.True,
 				"SUPPLYROUTE no longer declares Health. If it has become genuinely invulnerable the exemption " +
 				"above may be redundant — but check what replaced it before removing anything.");
 		}
@@ -217,9 +214,9 @@ namespace OpenRA.Test
 		[Test]
 		public void InFlightMissileBodiesOptOutOfVaporisation()
 		{
-			var template = Find(TopLevel(null), "^ShootableMissile");
+			var template = FindAll(TopLevel(null), "^ShootableMissile");
 
-			Assert.That(template.Value.Nodes.Any(n => n.Key == Opt), Is.True,
+			Assert.That(template.Any(d => d.Value.Nodes.Any(n => n.Key == Opt)), Is.True,
 				"^ShootableMissile lost its `-Vaporizable:` line, so every in-flight missile body in the game is " +
 				"vaporisable again. Warhead.AffectsParent only spares victim == firedBy, so a SIBLING warhead in " +
 				"the same salvo is fair game; VaporizeWarhead's radius test is horizontal-only and ignores " +

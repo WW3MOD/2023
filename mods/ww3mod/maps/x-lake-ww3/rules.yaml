@@ -1,0 +1,51 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON X-LAKE -- THE LAKE, WEST OF THE CENTRAL CAUSEWAY ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# RegionTerrainTypes IS DELIBERATELY EMPTY HERE, UNLIKE RIVER ZETA, and that is a judgement
+	# about this map rather than a default. On River Zeta the Water type IS the divide: 588 cells,
+	# one channel, nothing else on the map carries it. Here the 1941 water cells are one square lake in
+	# the middle of the map whose two lobes sit thirty cells either side of the crossing, so the type is
+	# an obstacle field and not a line. Naming a type would drag blobs nowhere
+	# near the border into the band and wash a large part of the map in the trait's amber fill,
+	# which is drawn over every border cell (DefconWall.RenderAnnotations). So the border is
+	# authored cell by cell below.
+	#
+	# HOW THESE CELLS WERE CHOSEN, and they are data rather than a derivation -- redraw any of them.
+	# A cell set separates the map in the 8-connected graph DefconWallRegion.Label floods if and
+	# only if it contains a 4-CONNECTED chain of blocked cells running from one Bounds edge to
+	# another. So the border is a shortest path: tools/nav-guard/defcon_border_designer.py runs
+	# Dijkstra over Bounds with terrain a player already reads as a barrier priced near zero and
+	# open ground priced ten times higher, which makes the route follow whatever the map actually
+	# has and cross open ground only where the map leaves no choice. The chain is then dilated by
+	# one cell, so the band is three cells thick everywhere except where Bounds clips it -- exactly
+	# the thickness the shipped HalfWidth of 1024 produces, and above the sqrt(2)/2 floor below
+	# which a diagonal band leaks through its own corners.
+	#
+	# THE BORDER RUNS DOWN THE LAKE BESIDE THE CENTRAL CAUSEWAY: 67 of 164 route cells are Cliffs and 40
+	# more are Water or River, so two thirds of it is terrain. It enters at the northern inlet, threads
+	# the twin cliff ridges that gate the centre, runs down the western lobe of the lake, and leaves by
+	# the southern inlet.
+	#
+	# IT DELIBERATELY DOES NOT RUN ON THE CAUSEWAY. The beach isthmus at x63-66 runs NORTH-SOUTH, parallel
+	# to this border rather than across it, so it is not a crossing to be closed -- and a band laid along
+	# it walls the central plaza and its neutral structure inside the border. That was measured, not
+	# guessed: 34 cells of ground sealed off from both sides on every vehicle locomotor, and the `bio` at
+	# (64,64) swallowed by the band. Running one lobe west of it leaves the causeway, the plaza and the
+	# structure whole on the eastern side and seals nothing at all.
+	#
+	# Verified statically, no launch: 484 band cells, all inside Bounds, engine load gate 2 components of
+	# 8304 and 7596; spawns (1,21) and (1,108) west, (128,21) and (128,108) east; all 15 locomotors
+	# separate and NONE seals a single cell. Distance to the band 57 and 55 west against 55 and 63 east.
+	# Capturables 8 west against 9 east, none inside the band.
+	DefconWall:
+		# THE 484 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.

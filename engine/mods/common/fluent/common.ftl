@@ -859,6 +859,19 @@ notification-removed-marker-tiles =
 notification-cleared-selected-marker-tiles = Cleared { $amount } marker tiles of type { $type }
 notification-cleared-all-marker-tiles = Cleared { $amount } marker tiles
 
+## EditorZoneBrush
+notification-added-zone-cells =
+    { $amount ->
+       [one] Added one cell to { $zone }
+      *[other] Added { $amount } cells to { $zone }
+    }
+notification-removed-zone-cells =
+    { $amount ->
+       [one] Removed one cell from { $zone }
+      *[other] Removed { $amount } cells from { $zone }
+    }
+notification-cleared-zone = Cleared { $amount } cells from { $zone }
+
 ## EditorActionManager
 notification-opened = Opened
 

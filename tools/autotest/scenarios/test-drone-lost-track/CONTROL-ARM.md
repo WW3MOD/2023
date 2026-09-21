@@ -4,17 +4,38 @@ The two arms must differ by **exactly one quantity**, because the thing being me
 *preference* rather than a binary. If they differ by anything else, a clustering difference has more
 than one available explanation and the run stops being evidence.
 
-## The edit
+## Selecting an arm — there is no edit any more
 
-One value in `mods/ww3mod/rules/ai/ai.yaml`, under `DroneOperatorBotModule@experimental`:
+The two arms are two scenario directories, and you pick one by running it:
+
+```bash
+./tools/autotest/run-test.sh --hidden test-drone-lost-track           # treatment
+./tools/autotest/run-test.sh --hidden test-drone-lost-track-control   # control (RED)
+```
+
+Nothing to revert, in either order, and **no rebuild** — it is mod YAML, read at map load. The
+arms share one Lua body at `mods/ww3mod/scripts/drone-lost-track-lib.lua`; the control directory
+differs from the treatment by exactly one stanza in its own `rules.yaml`:
 
 ```
-IntelSampleInterval: 25        # treatment (shipped default)
-IntelSampleInterval: 999999    # control
+Player:
+	DroneOperatorBotModule@experimental:
+		IntelSampleInterval: 999999
 ```
 
-Run the control, then revert with `git checkout mods/ww3mod/rules/ai/ai.yaml`. **No rebuild** — it is
-mod YAML, read at map load.
+**Why this replaced the old procedure, which was to edit `mods/ww3mod/rules/ai/ai.yaml` and then
+`git checkout` it back.** That edit was correct and it worked; what it could not be was *safe* on
+this machine. It mutates a file every scenario in the repo reads, and it has to stay mutated across
+a launch that is serialized against other people's launches — so any run that started while the
+control was in flight silently got a bot with the drone feature switched off, and nothing in its
+result would say so. A forgotten revert leaves the same landmine in the working tree indefinitely.
+The per-scenario override carries the same single quantity with none of that reach.
+
+**What the split does NOT change: the arms must still differ by exactly one quantity.** The
+directories are byte-identical except for that stanza and the title/comment text — `diff -r` them
+before believing any result that depends on the comparison. If someone edits one `rules.yaml` and
+not the other, a clustering difference gets a second available explanation and the run stops being
+evidence, which is the whole failure this file exists to prevent.
 
 ## Why this knob and not `LostTrackIntelSquares: 0`
 
@@ -40,12 +61,104 @@ one.
 
 ## Expected results
 
-| Arm | `IntelSampleInterval` | Expected today | Log signature |
-|---|---|---|---|
-| Control (RED) | 999999 | **FAIL** — drone prefers the dark region | `records=0`, `intel=0` on every launch |
-| Treatment | 25 | **FAIL** — a majority near V needs a larger `LostTrackIntelSquares` | `records>0`, `intel>0`, `intelkey` naming the truk |
+## 2026-09-15: the rig did NOT go green — what the leash fix actually bought
 
-**Both arms FAIL today, and that is the measured state, not a broken scenario.** The
+**The prediction in this section was wrong and is kept below rather than edited**, because the
+two ways it was wrong are worth more than the prediction was. Measured at hover 30, both arms:
+
+```
+tick  TREATMENT                                            CONTROL
+200   cell=43,27 reveal=287 intel=17                       cell=31,17 reveal=287 intel=0
+      bestintel=238 bestintelcell=47,53 bestintelreveal=0  records=0
+1800  cell=47,55 reveal=194 intel=57 bestintel=57          cell=47,55 reveal=248 intel=0
+```
+
+**It worked in intel space and still lost.** The hunt cell moved from 8 cells out to 1 and
+`IntelFalloff(247, 1, 28)` = 238, exactly as predicted below. But `bestintelreveal` went 14 → **0**:
+a cell nearer V is deeper inside ground the scout just verified. **Moving toward the contact buys
+intel by spending reveal.**
+
+**And the same raise fed the other side.** The candidate box went 45² = 2025 → 61² = 3721 and found
+a better prize: `bestReveal` 248 → 287. Hunt 192 → 238 (+46); the alternative 248 → 287 (+39) at a
+cell carrying its own intel. The deficit barely moved.
+
+**The term does move the pick.** The arms chose *different* cells at t200 for the first time ever
+here — 43,27 vs 31,17. It does not move it to the contact.
+
+**The t1800 retask is not the feature.** Both arms go to 47,55. And the treatment's `bestintel=57`
+there is exactly `IntelFalloff(60, 1, 28)`, i.e. `IntelSquares` returned `areaSquares` **exactly**,
+which happens when `ageTicks <= FreshSightingTicks` — the decay ramp would give ~89. The contact was
+being observed by t1800, so that launch is not a lost-track decision at all.
+
+**The shortfall is a BRACKET, 1.21×–1.28×, not a point.** The pre-registered formula needs the intel
+at the *reveal argmax*; the launch line prints it at the *chosen* cell, and this time those differ
+(the control proves the argmax is 31,17). Derivable: `worth_hunt` = 0 + 238 = 238 against a winner
+worth 287–304. The whole bracket is inside the ≤1.5× change-nothing band, as was the 1.315× measured
+at hover 22 — where both arms happened to pick the same cell, which is what made the point estimate
+sound then.
+
+**`LostTrackIntelSquares` stays at 250.** Two independent measurements, two different geometries,
+both inside the band.
+
+---
+
+### The prediction this section replaced (2026-09-15, falsified same day)
+
+`test-drone-lost-track`'s `expected-status` declaration is **deleted** as of this change. It
+declared a by-merit `fail` and its own closing line said to remove it in the same commit as
+whatever made the operator prefer the contact. (`pass` is not a declaration you can write:
+`expected-status.sh:115` rejects it with *"'pass' is the default and declares nothing; delete
+the file"*, so the evidence lives here instead.)
+
+**What changed is that a lost contact became reachable at all.** The hover ceiling was 22 cells
+against the operator's own 28-cell verifying radius, so the drone could never come within 6
+cells of a contact that had genuinely gone dark. Three constants moved together:
+
+| | was | now |
+|---|---|---|
+| `quadcopterdrone` `CarrierSlave.MaxDistance` (enforced leash) | 25 | 33 |
+| `DroneTargeter` `Range` (hard cap on tasking) | 25c0 | 33c0 |
+| `LeashCells`, both profiles (the bot's model) | 25 | 33 |
+| **`MaxHoverDistanceCells` = min(33, 33−3)** | **22** | **30** |
+
+**`LostTrackIntelSquares` is unchanged at 250.** The measured 1.315× shortfall sits inside the
+pre-registered ≤1.5× band and was never the lever. If this rig goes green, it is because the
+drone can reach the contact — do not read it as evidence that the term was mis-sized.
+
+**Predicted score at the first launch**, from the constants and the numbers already logged:
+
+```
+V is 30 cells from the operator, so the ceiling of 30 now admits V itself.
+  IntelFalloff(247, 0, 28) = 247 * 29/29 = 247      candidate exactly on V
+  IntelFalloff(247, 1, 28) = 247 * 28/29 = 238      nearest grid candidate, if 2-cell spacing misses V
+  worth_hunt  = reveal_hunt (~14, measured at 39,51) + 238..247  =  252..261
+  worth_expl  = 248 + 0                                          =  248
+```
+
+So the hunt cell wins by **4 to 13 squares**, and `score = worth*1000 − poiDistanceCells` puts
+the POI tie-break (hunt ~9 cells from the derrick, the old winner ~29) on the same side. **This
+is a narrow margin and it is honest about being narrow**: if the grid lands 2 cells off V rather
+than 1, the term loses again.
+
+**Two boundary conditions that could still refuse the cell, neither of which is the term.**
+`cellDist(18,45 → 47,54)` is `floor(sqrt(922))` = **30**, and the candidate test is
+`(cell - opCell).Length > maxHover`, so V is admitted with **exactly zero cells of margin** — any
+future change to the leash, the margin or the weapon puts it back outside. And V must still
+clear `MaxPoiDistanceCells` (40): it is ~9 cells from the derrick at 38,53, so that one is safe.
+
+**The control's expected cell is NOT necessarily 29,25 any more, and this is the part to read
+before calling a control run wrong.** `ChooseTargetCell` scans a `(2·maxHover+1)²` box, which
+grew from 45² = 2025 to 61² = 3721 candidates. The control's argmax is the best *reveal* in that
+larger set, and ground 30 cells out was not previously a candidate at all. **The RED criterion is
+therefore `records=0 intel=0`, verdict `fail`, and the drone not going to V — not the literal
+cell `29,25`.** A control that fails at some other exploration cell is a clean RED.
+
+| Arm (scenario to run) | `IntelSampleInterval` | Expected today | Log signature |
+|---|---|---|---|
+| Control (RED) — `test-drone-lost-track-control` | 999999 | **FAIL** — drone prefers the dark region (cell may differ from 29,25; the box grew) | `records=0`, `intel=0` on every launch |
+| Treatment — `test-drone-lost-track` | 25 | **PASS expected** since the 2026-09-15 leash fix — V is reachable, predicted worth 252-261 vs 248 | `records>0`, `intel>0`, `intelkey` naming the truk |
+
+**Both arms FAILED until 2026-09-15, and that was the measured state, not a broken scenario.** The
 majority-of-samples bar is the design intent and has not been lowered.
 
 **The batch is kept green by the declaration, not by the verdict.** This scenario ships an
@@ -131,7 +244,7 @@ winner `35,31` carries intel 34, so its own reveal `r` satisfies `r + 34 ≥ 315
 The term's *displacement power* is its value at the best hunt cell minus its value at the
 reveal argmax. `IntelFalloff` is monotonically decreasing in distance, so `bestIntel` is
 always at the **closest candidate to the vanish cell**, which the leash fixes at **8** cells
-(V sits 30 cells from the operator against a 22-cell leash; run 8 measured
+(V sat 30 cells from the operator against a then-22-cell leash; run 8 measured
 `bestintelcell=39,51`, exactly 8 out):
 
 > `247·(28−8+1)/29 − 247·(28−28+1)/29 = 178 − 8 = **170 squares**`
@@ -221,7 +334,7 @@ denominator was unaffected.
 **Scope, and it is narrower than any number here looks.** This is one point, not a
 calibration. `reveal=307` is this map's strongest exploration alternative; `bestintelreveal=95`
 is the terrain around one hunt cell; and the 8-cell closest approach follows from V sitting 30
-cells out against a 22-cell leash. That geometry is close to **worst case for the term**: a
+cells out against a then-22-cell leash. That geometry is close to **worst case for the term**: a
 contact nearer the operator would be reachable at lower falloff — at 0 cells the value is the
 full 247 rather than 178 — so the term would win comfortably. So whatever the re-measured
 shortfall turns out to be, it is an **upper bound on the general case**, and must never be

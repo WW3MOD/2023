@@ -41,7 +41,12 @@ namespace OpenRA.Mods.Common.Traits
 		/// the render path.</summary>
 		public static bool Participates(Player player)
 		{
-			if (player == null || player.NonCombatant || player.Spectating)
+			// ONE PREDICATE, NOT A FOURTH COPY (CombatantSides, 2026-09-15) -- and null-safe, as the
+			// bare form here already was. See SightingThreatLayer.Recompute for why the runtime
+			// `Spectating` arm cannot cover a map-authored spectator seat inside a MissionSelector
+			// map. @stable is NOT reachable through this widening: the bot arms below key on
+			// BotType, and no bot seat in this tree is an authored observer.
+			if (!CombatantSides.CountsAsASide(player))
 				return false;
 
 			if (player.IsBot)

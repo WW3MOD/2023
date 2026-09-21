@@ -151,6 +151,9 @@ test-crate-rearm | The map allows 2 possible players, but defines only 1 spawn p
 # the exploration-inflation bug being fixed on wt/bot-truth. Fix it with the rest of the cordon class
 # once that lands, so the two changes are not entangled in one unmeasured step.
 test-drone-lost-track | This map does not define a valid cordon.
+# 2026-09-15: the CONTROL arm of the same rig (a916d562) is byte-identical in geometry ON PURPOSE -- an A/B
+# pair must share one map -- so it inherits the same cordon line. Both leave together when the drone proof closes.
+test-drone-lost-track-control | This map does not define a valid cordon.
 test-infantry-seek-supplies | The map allows 2 possible players, but defines only 1 spawn points.
 
 # These five occur WITH the Red Alert content installed (verified by a local `make test`,

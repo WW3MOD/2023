@@ -1,4 +1,4 @@
-# The game-ender level autotest's overrides.
+﻿# The game-ender level autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -18,6 +18,27 @@ World:
 		NuclearReleaseDelayTicksOverride: 10
 
 	NuclearExchange:
+		# NO EscalationDelayTicks OVERRIDE, AND THAT ABSENCE IS NOW AN ASSERTION. This scenario
+		# carried `EscalationDelayTicks: -1` from 2026-09-16 to 2026-09-19 -- the escape hatch that
+		# restores the pre-ruling timing, where a victim's level rose on the tick the enemy clicked.
+		# It was set because the .lua's phase schedule was a column of constants that fired and then
+		# read a level forty ticks later, and the shipped rise lands a whole missile flight after
+		# the click (MissileDelay 200 on the B61 before its arc is even counted, and the arc is the
+		# map diagonal plus ApproachMargin over the missile's Speed).
+		#
+		# THE .lua NO LONGER HAS AN OPINION ABOUT WHEN A WARHEAD ARRIVES. Each launch snapshots
+		# Test.GetImpactEffectCount, waits for the detonation, and hangs its check off the tick the
+		# victim's band actually appeared -- so the shipped value applies and this run covers the
+		# deferral end to end, on all five launches, which nothing else in the tree did.
+		#
+		# DO NOT ADD IT BACK TO FIX A TIMING FAILURE. Every phase now sits at a known OFFSET from an
+		# observed event; a phase in the wrong place is a wrong offset, and the override would only
+		# hide the assertions this file gained.
+		#
+		# THE DEFERRAL IS ALSO covered World-free by NuclearExchangeStateTest
+		# (ReportLaunchAloneEscalatesNobody, SixReEntryVehiclesFromOneOrderEscalateOneRung). Those
+		# pin the state machine; this pins the plumbing between it, MissileStrikePower and the
+		# condition layer, which they cannot see.
 		# THE SIDE COOLDOWNS, COMPRESSED TO 60 TICKS FLAT against a shipped 5000/7000/9000/12000
 		# (5/7/9/12 minutes, the 2026-09-15 user ruling). This scenario measures WHAT reaching a
 		# level grants and to WHOM, never the cooldown -- so the cooldown is set as far out of the
@@ -30,52 +51,72 @@ World:
 		# test-nuclear-exchange's phase G2 -- but a scenario configured so the property could not
 		# hold is a scenario that would pass over its removal.
 		#
-		# EVERY LAUNCH BY ONE SIDE IS >= 140 TICKS AFTER THAT SIDE'S PREVIOUS ONE, so 60 never blocks
-		# a scripted shot.
+		# EVERY LAUNCH BY ONE SIDE IS A WHOLE MISSILE FLIGHT AFTER THAT SIDE'S PREVIOUS ONE -- 257
+		# to 605 ticks, depending on the warhead -- because since 2026-09-19 each launch waits for
+		# the previous one's escalation to be OBSERVED. So 60 never blocks a scripted shot, by a
+		# much wider margin than the hand-arranged 140-tick spacing it used to need.
 		#
-		# AND 60 IS THE UPPER BOUND ON THE .lua's CHECK GAP, WHICH IS THE LESS OBVIOUS CONSTRAINT.
-		# Every phase there reads its band 40 ticks after the rise that granted it, and 40 has to be
-		# BELOW this number: a band that was never granted counts down its own constructed interval,
-		# so if the gap exceeded 60 it would have reached zero on its own and read `ready` whether the
-		# grant ran or not. Raising this value is safe; LOWERING it below ~45 silently makes four
-		# phases of that file vacuous. Found at review, 2026-09-15, after the gap had been 65.
+		# AND 60 IS STILL THE UPPER BOUND ON THE .lua's CHECK GAP, WHICH IS THE LESS OBVIOUS
+		# CONSTRAINT AND IS UNCHANGED BY THE RETIMING. SupportPowerInstance.Tick pins a DISABLED
+		# power's countdown back to full every tick (SupportPowerManager.cs:399-401), so a band
+		# whose grant reached the CONDITION layer and never reached MakeBandsReady starts THIS
+		# interval running at the rise. The .lua reads each band 12 ticks after it appears, so an
+		# ungranted timer reads `charging:48` there and the check fails. Raising this value is safe;
+		# lowering it below ~20 silently makes four phases of that file vacuous. Found at review,
+		# 2026-09-15, when the gap was 40 against a bound of 60 -- the margin is now 48.
+		#
+		# THE GAP'S LOWER BOUND MOVED AND IT IS WORTH KNOWING WHY. It used to have to exceed
+		# NuclearExchangeInfo.GrantRetryTicks (30), because the anchor was the RISE, before the band
+		# condition had crossed from the World actor to the Player actor. The anchor is now the tick
+		# the band was SEEN to leave `hidden`, which IS that crossing, so all that remains is one
+		# ServicePendingReady pass and 12 is a dozen times what that needs.
 		KilotonCooldownTicks: 60
 		TwentyKilotonCooldownTicks: 60
 		FiftyKilotonCooldownTicks: 60
 		HundredKilotonCooldownTicks: 60
 
 	# ==== SHIPPED LOBBY CONFIGURATION, PINNED. THE ABSENT LINE IS THE POINT OF THE FILE ====
-	# Every value below is the trait's own shipped default (PowersLobbyOptions.cs:68, :111, :144,
-	# :185); they are written out and LOCKED so no saved session or host default can move one out
-	# from under the run, not to change anything.
+	# Every value below is the trait's own shipped default; they are written out and LOCKED so no
+	# saved session or host default can move one out from under the run, not to change anything.
 	#
 	# PowersSandboxCheckboxEnabled IS FALSE AND MUST STAY FALSE. ProvidesPrerequisite@SandboxEvent
-	# grants `powers.event` while that option is on (player.yaml:192-194), which is the one
-	# prerequisite the three game-enders declare and no faction provides. Turn it on and every
-	# assertion here passes on a build with the defect fully intact -- which is exactly why
-	# test-nuclear-exchange cannot see this bug: its rules.yaml sets it for unrelated reasons.
+	# grants `powers.event` while that option is on (player.yaml), which is the one prerequisite the
+	# three game-enders declare and no faction provides. Turn it on and every assertion here passes
+	# on a build with the defect fully intact -- which is exactly why test-nuclear-exchange cannot
+	# see this bug: its rules.yaml sets it for unrelated reasons.
 	#
-	# HighYieldNuke IS ON, AND THAT IS WHAT MAKES PHASES F AND H MEAN ANYTHING. That power is band 5
-	# (6 Mt) and declares `powers.event` with NO faction name beside it, so under the user's ruling
-	# of 2026-09-14 -- "national ender only", exactly one END cameo per side -- it is armed by
-	# nobody. The scenario asserts it reads `hidden` at an OPEN END LEVEL, and a negative
-	# assertion is only evidence while every OTHER gate on that power is open: leave the checkbox
-	# at false and `hidden` would be true because its RequiresCondition was unsatisfied, which is
-	# not the thing under test. ON and LOCKED is the setting that makes the reading about
-	# attribution.
+	# TWO MORE PINS USED TO LIVE HERE AND WERE REMOVED ON 2026-09-15 WITH THE OPTIONS THEY PINNED.
+	# `high-yield-nuke` and `tactical-nuke` were retired that day; each gated exactly one event-tier
+	# power. Neither removal weakens a phase of this scenario, and the reasoning differs per power,
+	# so both halves are written out:
 	#
-	# TacticalNuke IS OFF, its shipped default. It is a BAND 2 power that also declares
-	# `powers.event`, so it is what a broader fix would have leaked into the 20 kt level; phase D
-	# asserts it stays dark, which is the negative control on the fix's scope.
+	#   * HighYieldNuke WAS PINNED ON, and that was what made phases F and H evidence: they assert
+	#     it reads `hidden` at an OPEN END LEVEL because it names no nation, and a negative
+	#     assertion is only evidence while every OTHER gate on the power is open. With the checkbox
+	#     gone that gate is now open UNCONDITIONALLY -- the power's RequiresCondition is
+	#     `nuclear-release-gameender` alone, satisfied at an open END level -- so the reading is
+	#     still about attribution and no longer depends on this file remembering to tick a box.
+	#     STRICTLY STRONGER. What refuses it is NuclearGameEnders.ArmableBy: subtract the overridden
+	#     `powers.event` and its owner set is EMPTY.
+	#     (PHASE A also asserts `hidden` on this power but is NOT an attribution reading and never
+	#     was: it reads at RELEASE, which is level 1, so the game-ender band is ungranted and the
+	#     band alone explains it. It is the baseline F and H are measured against. The pin made no
+	#     difference there either way.)
+	#
+	#   * TacticalNuke WAS PINNED OFF, and phase C's negative control USED TO REST ON THAT. It no
+	#     longer does, and this is the one place in the change where a control's claim NARROWED
+	#     rather than held: TacNuke is band 2, its RequiresCondition is now `nuclear-release-20kt`
+	#     alone and IS satisfied at level 2. What keeps it dark is the EVENT TIER -- band 2 is below
+	#     the GameEnder rung, so NuclearExchangeInfo.OverriddenPrerequisites never waives
+	#     `powers.event` for it (ArmableAtTopRung), and sandbox is locked off above. The control
+	#     therefore still binds, but on "the prerequisite override did not reach below the top rung"
+	#     rather than on "the grant path re-checked the power's own condition". The .lua says the
+	#     same thing at TACNUKE; keep the two in step.
 	PowersLobbyOptions:
 		NuclearArsenalCheckboxEnabled: true
 		NuclearArsenalCheckboxLocked: true
 		PowersSandboxCheckboxEnabled: false
 		PowersSandboxCheckboxLocked: true
-		HighYieldNukeCheckboxEnabled: true
-		HighYieldNukeCheckboxLocked: true
-		TacticalNukeCheckboxEnabled: false
-		TacticalNukeCheckboxLocked: true
 
 	# THE FINAL EXCHANGE STAYS OFF, by leaving DoomsdayStrikeInfo.RunInTestMode at its default false
 	# (DoomsdayStrike.cs:100-104, :458-459). Stated as a comment rather than written as

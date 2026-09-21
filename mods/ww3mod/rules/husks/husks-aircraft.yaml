@@ -64,7 +64,7 @@ BADR.Husk:
 
 BADR.Husk.EMP:
 	Inherits: BADR.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 B52.Husk:
 	Inherits@Type: ^AircraftHusk
@@ -94,7 +94,7 @@ B52.Husk:
 
 B52.Husk.EMP:
 	Inherits: B52.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 BULL.Husk:
 	Inherits@Type: ^AircraftHusk
@@ -124,7 +124,7 @@ BULL.Husk:
 
 BULL.Husk.EMP:
 	Inherits: BULL.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 U2.Husk:
 	Inherits@Type: ^AircraftHusk
@@ -150,7 +150,7 @@ U2.Husk:
 
 U2.Husk.EMP:
 	Inherits: U2.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 U2.NATO.Husk:
 	Inherits@Type: ^AircraftHusk
@@ -176,7 +176,7 @@ U2.NATO.Husk:
 
 U2.NATO.Husk.EMP:
 	Inherits: U2.NATO.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 TRAN.Husk:
 	Inherits@Type: ^HelicopterHusk
@@ -217,7 +217,7 @@ TRAN.Husk2:
 
 TRAN.Husk.EMP:
 	Inherits: TRAN.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 TRAN.Husk.moving:
 	Inherits@Type: TRAN.Husk
@@ -269,7 +269,7 @@ littlebird.Husk:
 
 littlebird.Husk.EMP:
 	Inherits: littlebird.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 littlebird.Husk.moving:
 	Inherits@Type: littlebird.Husk
@@ -322,7 +322,7 @@ HELI.Husk:
 
 HELI.Husk.EMP:
 	Inherits: HELI.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 HELI.Husk.moving:
 	Inherits@Type: HELI.Husk
@@ -437,7 +437,7 @@ HALO.Husk:
 
 HALO.Husk.EMP:
 	Inherits: HALO.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 HALO.Husk.moving:
 	Inherits@Type: HALO.Husk
@@ -488,7 +488,7 @@ MI28.Husk:
 
 MI28.Husk.EMP:
 	Inherits: MI28.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 MI28.Husk.moving:
 	Inherits@Type: MI28.Husk
@@ -539,7 +539,7 @@ HIND.Husk:
 
 HIND.Husk.EMP:
 	Inherits: HIND.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 HIND.Husk.moving:
 	Inherits@Type: HIND.Husk
@@ -594,7 +594,7 @@ FROG.Husk:
 
 FROG.Husk.EMP:
 	Inherits: FROG.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 FROG.Husk.ground:
 	Inherits@Type: ^Husk
@@ -633,7 +633,7 @@ MIG.Husk:
 
 MIG.Husk.EMP:
 	Inherits: MIG.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect
 
 MIG.Husk.ground:
 	Inherits@Type: ^Husk
@@ -667,4 +667,4 @@ SMIG.Husk:
 
 SMIG.Husk.EMP:
 	Inherits: SMIG.Husk
-	Inherits: ^EmpVisualEffect
+	Inherits@EMP: ^EmpVisualEffect

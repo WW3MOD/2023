@@ -1,0 +1,117 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: DEFCON 2 hold-fire, ambush by proxy (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES.
+#
+# READ SITE 6 -- AutoTarget.TriggerNearbyAmbushAllies (AutoTarget.cs:1018) -- is AMBUSH BY PROXY. It
+# springs OTHER units by writing their latch directly, without ever consulting their stance and
+# without going anywhere near their fire path, so one spotted or shot ambusher can light off a whole
+# lane. The two in-tree callers are AutoTarget.INotifyDamage.Damaged (:712, the DAMAGE trigger, which
+# is what this scenario pulls) and AmbushTickIdle (:803, the DETECTION trigger).
+#
+# THE TRIGGER IS DAMAGE, AND IT IS DELIVERED BY AN ORDER. A shot somebody ordered is exempt from the
+# DEFCON 2 hold by construction, so the abrams can be clicked onto the bait at either level -- which
+# is what lets the two arms share one script and differ by one quantity.
+#
+# THE ATTRIBUTION PROBLEM, AND HOW THE GEOMETRY SOLVES IT. An ally only fires from AmbushTickIdle's
+# stock branch, `if (isSpotted || ambushTriggered)`. The proxy contributes only the SECOND term. So
+# an ally that the enemy can SEE would spring on its own and the control arm would prove nothing
+# about the proxy. Fog is therefore ON and the three allies are made undetectable to USA while the
+# bait is left plainly visible:
+#
+#   ^StandardVision strength by range:  10 @0-4c · 9 @4-7c · 8 @7-10c · 7 @10-13c · 6 @13-16c
+#     · 5 @16-19c · 4 @19-22c · 3 @22-25c · 2 @25-28c · 1 @28-32c
+#   An actor is DETECTED when the viewer's strength at its cell STRICTLY exceeds Detectable.Vision
+#   (MapLayers.cs:576). A stationary vehicle carries +1 from DetectableAddativeModifier@Stationary.
+#
+#   Bait   26,16  bmp2. Detectable.Vision left at the ^Vehicle default 2, +1 stationary = 3. Twelve
+#                 cells from the probe, so USA reads strength 7 there: 7 > 3, DETECTED. The abrams
+#                 can be clicked onto it and it will spring on damage.
+#   Ally1  28,11  t90, Detectable.Vision raised to 7 in rules.yaml, +1 stationary = 8. Fourteen to
+#   Ally2  28,16  fifteen cells from the probe, so USA reads strength 6 there: 6 > 8 is FALSE,
+#   Ally3  28,21  UNDETECTED. Detection would need the probe inside 7 cells -- half the distance --
+#                 so this has a margin rather than a boundary.
+#   Probe  14,16  abrams. HoldFire, so the only thing it ever does is the one click it is given.
+#
+# AmbushCoordinationRadius is 10 cells and the three allies sit 5.4, 2.0 and 5.4 from the bait, so
+# they are inside the proxy's reach. TankRound.T90 is Range 24c0 / MinRange 1c512 and they stand 14
+# to 15 cells from the probe, so they can shoot it -- which is what makes their silence meaningful.
+# Russia's own vision of the probe is strength 7 at 12c and 6 at 14c against the abrams' effective
+# Detectable 3, so the allies can SEE what they are not shooting at.
+#
+# THE DISCRIMINATING PAIR. test-defcon2-holdfire-ambush-skirmish is this directory with ONE quantity
+# changed -- DefconEscalation.ModeDefault, Escalation -> Skirmish -- and it is REQUIRED to fail. See
+# README.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Probe: abrams
+		Owner: USA
+		Location: 14,16
+		Facing: 768
+	Bait: bmp2
+		Owner: Russia
+		Location: 26,16
+		Facing: 256
+	Ally1: t90
+		Owner: Russia
+		Location: 28,11
+		Facing: 256
+	Ally2: t90
+		Owner: Russia
+		Location: 28,16
+		Facing: 256
+	Ally3: t90
+		Owner: Russia
+		Location: 28,21
+		Facing: 256
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,4
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 14,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 28,16
+
+Rules: rules.yaml

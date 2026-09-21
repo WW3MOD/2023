@@ -92,10 +92,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Name of the SR actor used to detect SR-capture wins.")]
 		public readonly string SupplyRouteActorType = "supplyroute";
 
-		[Desc("Tick interval between win-rule evaluations. Default 25 = once per second.")]
+		[Desc("Tick interval between win-rule evaluations. Default 25 ticks = 1.5 s at the mod's",
+			"60 ms timestep (16.667 ticks/s). This string read \"once per second\" until 2026-09-19,",
+			"which is the RA-era 25 tps assumption; the INTERVAL is unchanged.")]
 		public readonly int EvaluationInterval = 25;
 
-		[Desc("Option 4.D: tick interval between POI income-timeseries samples. Default 25 = 1s.")]
+		[Desc("Option 4.D: tick interval between POI income-timeseries samples. Default 25 ticks",
+			"= 1.5 s at the mod's 60 ms timestep, not the 1 s this string used to claim.")]
 		public readonly int PoiSampleInterval = 25;
 
 		[Desc("Option 4.D: emit the per-player income_samples timeseries arrays into result.json.",
@@ -117,6 +120,12 @@ namespace OpenRA.Mods.Common.Traits
 		bool active;
 		bool finished;
 		int countdown;
+
+		// The match deadline in TICKS, resolved ONCE at WorldLoaded from config.TimeLimitSeconds and
+		// world.GameSpeed.Timestep. GameSpeed.Timestep, NOT world.Timestep -- the SpeedMultiplier
+		// block below lowers world.Timestep, and resolving the deadline against the lowered value
+		// would scale the tick count by the speed-up instead of leaving it alone.
+		int timeLimitTicks;
 
 		// The authoritative match seed (lobby RandomSeed — from Test.RandomSeed or the
 		// DateTime.Now fallback), captured at load so SerializeVerdict can stamp the verdict.
@@ -187,7 +196,9 @@ namespace OpenRA.Mods.Common.Traits
 				// Light load-time logging only. SR discovery is deferred to first
 				// Tick because IWorldLoaded fires BEFORE SpawnMapActors instantiates
 				// the actors — at this point world.Actors doesn't yet include them.
-				diag($"WorldLoaded: scorer={config.Scorer} winrule={config.WinRule} timeLimit={config.TimeLimitTicks} ticks ({config.TimeLimitSeconds}s)");
+				timeLimitTicks = config.TimeLimitTicksAt(world.GameSpeed.Timestep);
+
+				diag($"WorldLoaded: scorer={config.Scorer} winrule={config.WinRule} timeLimit={timeLimitTicks} ticks ({config.TimeLimitSeconds}s at {world.GameSpeed.Timestep} ms/tick)");
 				diag($"WorldLoaded: world has {world.Players.Length} players, {world.Actors.Count()} actors (pre-SpawnMapActors)");
 
 				active = true;
@@ -210,12 +221,18 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var a in world.Actors.Where(a => a.Info.Name == info.SupplyRouteActorType))
 				diag($"  {info.SupplyRouteActorType} #{a.ActorID} owned by {a.Owner?.InternalName ?? "<null>"} at {a.Location} (IsInWorld={a.IsInWorld} IsDead={a.IsDead})");
 
-			// Filter to actual bot combatants. The Observer player (local human's
-			// spectator slot) is Playable but spectating in intent — its PlayerReference
-			// has Spectating: True but the lobby-slot path in Player.cs ignores that
-			// for playable slots, so the runtime Spectating flag stays false. Use
-			// IsBot as the discriminator: tournament scenarios place bot combatants
-			// only, never humans.
+			// Filter to actual bot combatants. The Observer player (local human's spectator slot) is
+			// Playable but spectating in intent — its PlayerReference has Spectating: True.
+			//
+			// UPDATED 2026-09-15: the first half of this comment used to say the lobby-slot path in
+			// Player.cs ignores that flag for playable slots. It no longer does — the constructor
+			// copies NonCombatant/Playable/spectating on BOTH branches. THE CONCLUSION IS UNCHANGED
+			// AND THE `IsBot` DISCRIMINATOR IS STILL REQUIRED, for the OTHER reason: the runtime
+			// `Player.Spectating` property is `!inMissionMap && (...)` (Player.cs:86) and every
+			// tournament scenario is a MissionSelector map, so the property still reads false for an
+			// authored spectator. Use IsBot: tournament scenarios place bot combatants only, never
+			// humans. (CombatantSides.CountsAsASide is the general answer where the seat may be a
+			// human; here IsBot is strictly narrower and is what this trait actually means.)
 			foreach (var player in world.Players.Where(p => !p.NonCombatant && p.IsBot))
 			{
 				var srActor = world.Actors.FirstOrDefault(a =>
@@ -314,7 +331,9 @@ namespace OpenRA.Mods.Common.Traits
 			foreach (var p in state.OriginalSrOwner.Keys)
 				scores[p] = scorer.ComputeScore(p, world, state);
 
-			// Periodic diagnostic — every 5 evaluations (5 sec real-time at 25/s).
+			// Periodic diagnostic — every 5 evaluations = 125 ticks = 7.5 s of real time at the mod's
+			// 16.667 ticks/s. The "5 sec at 25/s" this comment used to claim is the 1.5x tick-rate
+			// error catalogued in DOCS/reference/conventions.md; the CADENCE is unchanged.
 			if (world.WorldTick % (info.EvaluationInterval * 5) < info.EvaluationInterval)
 			{
 				var scoreStr = string.Join(" / ", scores.Select(s => $"{s.Key.InternalName}={s.Value.Total}"));
@@ -322,7 +341,7 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			// Evaluate win rule.
-			var verdict = winRule.EvaluateEndState(world, state, scores, world.WorldTick, config.TimeLimitTicks);
+			var verdict = winRule.EvaluateEndState(world, state, scores, world.WorldTick, timeLimitTicks);
 			if (verdict == null)
 				return;
 

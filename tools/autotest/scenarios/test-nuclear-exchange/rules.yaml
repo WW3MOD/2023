@@ -1,4 +1,4 @@
-# The nuclear exchange autotest's overrides.
+﻿# The nuclear exchange autotest's overrides.
 
 World:
 	-StartGameNotification:
@@ -31,9 +31,31 @@ World:
 
 	# ==== THE SIDE COOLDOWNS, COMPRESSED. THE SHIPPED VALUES ARE 5000/7000/9000/12000. ====
 	# 5/7/9/12 minutes is the 2026-09-15 user ruling and it is what ships; compressed here to
-	# 300/320/340/360 ticks (18-22 s) because what this run measures is a MECHANISM -- does one shot
-	# silence a side's whole arsenal, and does a level rise honour a cooldown already running --
-	# rather than a duration. Thirty-three real minutes of waiting would measure nothing extra.
+	# 900/700/1400/1000 ticks because what this run measures is a MECHANISM -- does one shot silence
+	# a side's whole arsenal, and does a level rise honour a cooldown already running -- rather than
+	# a duration. Thirty-three real minutes of waiting would measure nothing extra.
+	#
+	# ==== RAISED FROM 300/320/340/360 ON 2026-09-19, AND THE REASON IS A LOWER BOUND ====
+	# Two phases of the .lua need a victim who is STILL RELOADING FROM ITS OWN SHOT at the moment an
+	# enemy warhead escalates it: phase D (the level rise must not zero a running timer) and phase G2
+	# (the same, at the top rung, through the ArmableAtTopRung path). Since 2026-09-16 the escalation
+	# lands at the warhead's IMPACT plus EscalationDelayTicks, so the interval each cooldown must
+	# outlast is `enemy flight + 50 + the .lua's own gaps` rather than a fixed 65 ticks.
+	#
+	# MEASURED, NOT DERIVED (run 260919_205330 on this map): the B61Low flies 110 ticks to its
+	# detonation and the Iskander 83, because `PowersSandboxCheckboxEnabled: true` below makes
+	# SandboxRemovesLaunchDelay drop MissileDelay entirely (MissileStrikePower.cs:515). The bounds
+	# that follow are KilotonCooldownTicks > 321 and FiftyKilotonCooldownTicks > 451. The values here
+	# are ~2.8x and ~3.1x those, which also covers the MissileDelay-restored case (703 and 1101) in
+	# case this scenario ever runs with sandbox off.
+	#
+	# THE FIRST ATTEMPT AT THIS AVOIDED RAISING THEM AND FAILED. It had the victim fire its own
+	# warhead on the tick the incoming explosion was seen, on the belief that a flight outlasts a
+	# 300-tick cooldown; with MissileDelay dropped it does not, and USA read `charging:43` when asked
+	# to fire. Polling for readiness does not rescue that shape either -- the window between USA
+	# becoming ready (t425) and the escalation landing (t427) was two ticks. The .lua now checks this
+	# setup explicitly in both phases and fails with "SCENARIO SETUP" naming the constant to raise,
+	# so a future drift cannot be mistaken for a free-shot bug in the build.
 	#
 	# ALL FOUR ARE COMPRESSED, WHERE THE v1 VERSION OF THIS FILE COMPRESSED ONLY THE FIRST. It had
 	# to: the cooldown was per-band and only the 1 kt band was ever fired. Under v2 a side's whole
@@ -41,14 +63,64 @@ World:
 	#
 	# THEY ARE KEPT DISTINCT RATHER THAN SET TO ONE NUMBER, and that is the point of the odd values:
 	# a build that applies the FIRED band's cooldown and a build that applies the firer's own band,
-	# or simply the first entry in the table, are indistinguishable at 300/300/300/300. Phase E
-	# separates them -- Russia's 20 kt shot must still be reloading at a tick where USA's 1 kt shot
-	# has recovered, and that only holds because 320 > 300.
+	# or simply the first entry in the table, are indistinguishable at one flat value.
+	#
+	# THEY ARE NO LONGER IN ASCENDING ORDER, AND THAT IS NOT AN OVERSIGHT. Nothing reads them as an
+	# ordering since the numeric check below replaced phase E's inference. What each one has to
+	# satisfy is written above; TwentyKilotonCooldownTicks is the one that must be SHORT, because
+	# Russia has to be off cooldown again by the time it is escalated to 100 kt.
+	#
+	# HOW THAT CLAIM IS MADE CHANGED ON 2026-09-19. Phase E used to separate two of them by
+	# inference -- Russia's 20 kt shot still reloading at a tick where USA's 1 kt shot had
+	# recovered, which only held because 320 > 300 -- and that needed the two launches to sit inside
+	# one cooldown of each other. With the escalation deferred to the warhead's impact, the second
+	# launch waits a whole missile flight for the level that permits it, and the two are no longer
+	# that close. So the .lua reads the applied value as a NUMBER instead: forty ticks after each of
+	# the four shots, the firer's band must carry `<that band's entry> - 40`, within six ticks. That
+	# is strictly stronger, needs no interleaving, and covers all four rather than two of them --
+	# but it does need these four to stay further apart than the tolerance. The smallest gap here is
+	# 200 ticks against a COOLDOWN_TOLERANCE of 6; do not bring them within ~20 of each other
+	# without widening that constant in the .lua.
 	NuclearExchange:
-		KilotonCooldownTicks: 300
-		TwentyKilotonCooldownTicks: 320
-		FiftyKilotonCooldownTicks: 340
-		HundredKilotonCooldownTicks: 360
+		# > 321 (measured bound, see above): USA must still be reloading from this at phase D.
+		KilotonCooldownTicks: 900
+		# SHORT ON PURPOSE: Russia fires its 20 kt early and must be off cooldown again before
+		# phase F3 reads its newly granted 100 kt as `ready`.
+		TwentyKilotonCooldownTicks: 700
+		# > 451 (measured bound): USA must still be reloading from this at phase G2, the top rung.
+		FiftyKilotonCooldownTicks: 1400
+		# No lower bound beyond the 40-tick read in phase G3; distinct from the other three so the
+		# numeric check can name it.
+		HundredKilotonCooldownTicks: 1000
+		# NO BLANK LINE ABOVE, DELIBERATELY. There was one here and it was removed 2026-09-16: a blank
+		# line between sibling keys INSIDE a nested node is the one shape whose failure mode is
+		# SILENT. If it split the node, the four cooldown overrides above would be dropped and this
+		# scenario would quietly run at the shipped 5/7/9/12-minute values -- still producing a
+		# verdict, just not the one it claims to measure, with nothing in lint to say so. The YAML
+		# gate cannot adjudicate that, so the hazard is removed rather than tested for.
+		#
+		# NO EscalationDelayTicks OVERRIDE, AND THAT ABSENCE IS NOW AN ASSERTION. This scenario
+		# carried `EscalationDelayTicks: -1` from 2026-09-16 to 2026-09-19 -- the escape hatch that
+		# restores the pre-ruling timing, where a victim's level rose on the tick the enemy clicked.
+		# It was set because the .lua's phase schedule was a column of constants that fired and then
+		# read a level 65 ticks later, and the shipped rise lands a whole missile flight after the
+		# click (MissileDelay 200 on the B61 before its arc is even counted, and the arc is the map
+		# diagonal plus ApproachMargin over the missile's Speed -- a number that changes with map
+		# size and that no phase constant could track).
+		#
+		# THE .lua NO LONGER TRACKS IT, IT WATCHES IT. Each launch snapshots
+		# Test.GetImpactEffectCount, waits for the detonation, and hangs its check off the tick the
+		# victim's band was seen to leave `hidden`. So the shipped value applies here and this run
+		# covers the deferral end to end, on all four launches -- which nothing else in the tree did.
+		#
+		# TWO PHASES NEEDED A VICTIM WHO IS RELOADING WHEN IT IS ESCALATED (D and G2), and a flight
+		# is longer than every cooldown below, so that can no longer happen by itself. It is now
+		# built rather than waited for: the victim fires its own warhead ON THE TICK THE INCOMING
+		# EXPLOSION IS SEEN, so the escalation lands ~50 ticks into a 300- or 340-tick lockout. The
+		# claim each phase makes is unchanged; see the .lua's refireOnImpact.
+		#
+		# DO NOT ADD THE OVERRIDE BACK TO FIX A TIMING FAILURE. Every phase now sits at a known
+		# OFFSET from an observed event; a phase in the wrong place is a wrong offset.
 
 	# Both halves of the arsenal gate. `nuclear-arsenal` is the host's checkbox over all thirteen
 	# warheads; `powers-sandbox` is what provides the `powers.event` prerequisite that no faction

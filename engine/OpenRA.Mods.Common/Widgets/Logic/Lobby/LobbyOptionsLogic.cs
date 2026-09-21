@@ -122,7 +122,7 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			NuclearExchangeInfo.PostureOptionId,
 			// Which weapons this match permits — the question most worth being able to
 			// re-read once the shooting starts.
-			"tactical-nuke", "high-yield-nuke", "nuclear-arsenal", "powers-sandbox",
+			"nuclear-arsenal", "powers-sandbox",
 			// And WHICH TIERS may be bought at all. These four replaced the single
 			// `nuclear-highest-yield` cap dropdown (decision 02) — a host can now switch off one
 			// tier and leave the ones above and below it on, which no cap could express.
@@ -210,11 +210,14 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 		//     !sandbox && mode != DefconGameMode.Escalation` (NuclearUnlockClock.cs:319) -- and the
 		//     four tier checkboxes say so in their own generated description: "Ignored in Escalation,
 		//     where nothing nuclear is purchasable at all".
-		//   * tactical-nuke / high-yield-nuke / nuclear-arsenal gate powers whose `Prerequisites:
-		//     powers.event` no faction provides (player.yaml:144), so outside the sandbox they decide
-		//     nothing; in Escalation the ladder decides what may fire and these are pure noise. They
-		//     are HIDDEN here rather than retired outright -- see WORKSPACE/bugs/discovered.md for
-		//     why retiring them is not the mechanical change it looks like.
+		//   * nuclear-arsenal gates powers whose `Prerequisites: powers.event` no faction provides
+		//     (player.yaml:144), so outside the sandbox it decides nothing; in Escalation the ladder
+		//     decides what may fire and it is pure noise. It is HIDDEN here rather than retired
+		//     outright, because unlike the two it used to sit beside it still gates thirteen powers
+		//     that ARE reachable -- ten in nuclear-arsenal.yaml plus @B61Mid, @Kinzhal and @GBU57.
+		//     Its two neighbours `tactical-nuke` and `high-yield-nuke` WERE retired on 2026-09-15:
+		//     each gated exactly one event-tier power, so deleting the gate left the ladder band and
+		//     the event tier deciding the same thing the checkbox had been shadowing.
 		internal static readonly HashSet<string> EscalationInertOptionIds = new()
 		{
 			NuclearUnlockClockInfo.IntervalOptionId,
@@ -222,8 +225,6 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			NuclearUnlockClockInfo.TwentyKilotonPurchasableOptionId,
 			NuclearUnlockClockInfo.FiftyKilotonPurchasableOptionId,
 			NuclearUnlockClockInfo.HundredKilotonPurchasableOptionId,
-			"tactical-nuke",
-			"high-yield-nuke",
 			"nuclear-arsenal",
 		};
 
@@ -336,15 +337,16 @@ namespace OpenRA.Mods.Common.Widgets.Logic
 			{ DefconEscalationInfo.FirstWarheadsOptionId, SectionEscalation },
 			{ NuclearExchangeInfo.PostureOptionId, SectionEscalation },
 
-			// Arsenal — which weapons this match permits, in ascending yield. TWO of these four
-			// now render: `nuclear-arsenal` is hidden at the trait (world.yaml,
-			// NuclearArsenalCheckboxVisible: False) and `powers-enabled` is hidden by id in
-			// HiddenOptionIds above, so a host sees the tactical and high-yield gates only.
-			// Both mappings are kept rather than deleted: they cost nothing, and they are what
-			// puts either option back in the right section if it is ever un-hidden — an option
-			// with no entry here lands in the implicit "Other" bucket at the bottom instead.
-			{ "tactical-nuke", SectionArsenal },
-			{ "high-yield-nuke", SectionArsenal },
+			// Arsenal — which weapons this match permits. NEITHER of these two renders today:
+			// `nuclear-arsenal` is hidden at the trait (world.yaml, NuclearArsenalCheckboxVisible:
+			// False) and `powers-enabled` is hidden by id in HiddenOptionIds above. Both mappings
+			// are kept rather than deleted: they cost nothing, and they are what puts either option
+			// back in the right section if it is ever un-hidden — an option with no entry here lands
+			// in the implicit "Other" bucket at the bottom instead.
+			//
+			// `tactical-nuke` and `high-yield-nuke` used to sit here and were the only two Arsenal
+			// rows a host actually saw. They were retired on 2026-09-15, so what renders in this
+			// section now is the unlock clock below and nothing else.
 			{ "nuclear-arsenal", SectionArsenal },
 			{ "powers-enabled", SectionArsenal },
 

@@ -22,6 +22,8 @@ OpenRA uses `WDist` (World Distance) units throughout. Notation `NcXXX`:
 
 Map placement: units on the LEFT facing right → `Facing: 768` (East); on the RIGHT facing left → `Facing: 256` (West). Conversion: `WAngle.FromFacing(old)` where old RA facing × 4 = WAngle.
 
+**The four compass NAMES exist only in the Lua binding — `FieldLoader` has no name table for `WAngle`, so a `Facing: East` in YAML is a hard parse error.** *(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* `AngleGlobal` publishes `North => WAngle.Zero`, `NorthWest => 128`, `West => 256`, `SouthWest => 384`, `South => 512`, `SouthEast => 640`, `East => 768`, `NorthEast => 896` (`engine/OpenRA.Mods.Common/Scripting/Global/AngleGlobal.cs:23-37` — note they walk *counterclockwise*, per this section). `FieldLoader.ParseWAngle` parses an integer and nothing else (`engine/OpenRA.Game/FieldLoader.cs:250-253`), so a placed actor's `Facing: East` in a `map.yaml` throws `FieldLoader: Cannot parse 'East' into WAngle` **at map load, before a single tick.** The trap is that a scenario's `.lua` doing `Actor.Create(..., Facing = Angle.East)` is correct and the `map.yaml` line next to it is not, so the same word is right in one file and fatal in the other. Corpus check costs nothing and needs no build: `grep -rnE '^\s+(Turret)?Facing: ' … | grep -vE ': -?[0-9]+$'`.
+
 **Converting a bearing back to a cell step:** `WVec.FromSpeedAndAngle(speed, angle)` (`WVec.cs:94`) is the exact inverse of `WVec.Yaw` (`WVec.cs:66`). To turn a bearing `WAngle` (e.g. one built from a cell-space `WVec(dx,dy).Yaw`) back into a cell-space step, use `FromSpeedAndAngle` and take `Sign(X)/Sign(Y)` — it respects the "north = −Y" + counterclockwise convention automatically, avoiding hand-rolled `Cos()/Sin()` sign errors.
 
 **A `RateOfTurn`-style field in YAML is a raw `WAngle`, not a facing — and this has now been mis-read three separate times.** `new WAngle(20)` is 20 raw units; consumers read `.Facing`, which is `Angle / 4` (`WAngle.cs:67`). So `HorizontalRateOfTurn: 20` (`Missile.cs:99`) means **5 facings/tick ≈ 7.03°/tick**, not 20 of anything a reader would guess. **Grep the consumer for `.Facing`, `>> 2` or `(sbyte)` before trusting any raw angle you see in YAML** — `WAngle`'s own `[0, 1023]` normalisation guarantees nothing about the range or units the *consumer* accepts. (Worked case in [`missiles.md`](missiles.md) §4: a field the engine re-decodes through `(sbyte)(Angle >> 2)` has a usable range of `[0, 511]`, and `Missile` decodes that one field three different ways.)
@@ -54,6 +56,8 @@ Map placement: units on the LEFT facing right → `Facing: 768` (East); on the R
 **The `ticks / TicksPerSecond` idiom is rate-immune but NOT exact, and the loss is a property of the constant 25.** *(Promoted 2026-09-02 from DISCOVERIES; arithmetic re-derived in this pass rather than taken from the entry.)* `mods/ww3mod/scripts/test-helpers.lua` tells scenario authors to budget in ticks and divide by `TestHarness.TicksPerSecond`; `AssertWithin` recovers the budget as `math.floor(seconds * TicksPerSecond)`. In IEEE-754 doubles `floor((t/25)*25)` returns `t - 1` for **1145 of the first 20000 integers** — `402 → 401`, and `29`, `57`, `58`, `113`–`116`, `201`, `203`, `205`, `207` among the small ones. Multiples of 25 are always safe. **The loss can never occur at 16**: 16 is a power of two, so `t/16` and its inverse are both exact in binary — all 1145 casualties are at 25 alone. *(The in-tree comment at `test-helpers.lua:31-33` says "at 25, 16 or both", which overstates the scope; the count and the examples there are right. Left for a code owner — this pass touched only markdown.)*
 
 **The general rule: a float round-trip through a non-power-of-two divisor is not an identity.** One tick rarely matters on its own, and it matters exactly where it is most likely to be spent — a deadline trimmed to its measured margin has already given the tick away.
+
+**`1000 / world.Timestep` is a THIRD error in this family, and it is the one that uses the right constant and truncates it.** *(Promoted 2026-09-20 from `DISCOVERIES.md`.)* The familiar failure assumes 25 tps — the wrong constant. This one materialises a ticks-per-second **integer** from the correct timestep: at 60 ms it is `1000 / 60 = 16`, not 16.667, so every duration built by multiplying it runs **4% fast** (ten minutes becomes 9600 ticks = 576 s; a 90-minute limit ends about 3.6 minutes early). It is invisible wherever the display derives from the same tick count — **the clock lies consistently, which is the whole reason it survives** — and becomes visible the moment anything else draws a boundary against real minutes. **The remedy is arithmetic, not a bigger constant: multiply before dividing.** `minutes * 60 * 1000 / timestep` is exact (`10 * 60 * 1000 / 60 = 10000`), and an `int` cannot hold 16.667, so any code that materialises a ticks-per-second number has already lost the 4% before it multiplies. Both errors land within a few per cent of plausible, which is what makes them survive review.
 
 **Sequence `Tick` is milliseconds against a FIXED 40 ms clock, and is NOT scaled by `Timestep`.**
 *(Promoted 2026-09-05 from DISCOVERIES, re-read at `main @ 95bdffb2`.)* `Animation.Tick()` calls `Tick(40)`
@@ -160,6 +164,8 @@ Each unit type has a base template file and two faction files:
 
 A unit type is defined in three tiers: an abstract template `^E6` and a bare concrete `E6:` (`Inherits: ^E6`) live in the base file (`infantry.yaml`); the buildable faction variants `E6.america:` / `E6.russia:` (each `Inherits: ^E6`, adding `Buildable`/`RenderSprites`) live in the faction file (`infantry-america.yaml:95`, etc.). Keys are declared uppercase but actor lookup is case-insensitive. **To annotate every variant at once, override the `^Template`** — a trait added to `^E6` reaches the bare concrete and both faction variants in one line; single-hull tweaks (`bradley`, `bmp2`) go on the concrete key.
 
+**A faction variant REPLACES the whole value of a field it redeclares, so judging a `^Template`'s `Buildable` reads the opposite of the truth.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* The mod's idiom for *"this template is not itself buildable"* is `Buildable: Prerequisites: ~disabled` — **50 declarations across `mods/`, and `~disabled` has no `ProvidesPrerequisite` anywhere**, so the template alone genuinely can never be built. But each faction variant redeclares `Prerequisites` outright — `TECN.america` (`infantry-america.yaml:109-113`) and `TECN.russia` (`infantry-russia.yaml:109-113`) each set `~player.<faction>, ~techlevel.infonly`, and `techlevel.infonly` is granted at every tech level (`player.yaml:206-225`) — so the unit is fully buildable through the variant. MiniYaml replaces rather than merges here, exactly as it does for a warhead override (see §"Weapons live under `Weapons:`" below). **Read a `~disabled` on a `^Template` as "see the faction files", never as "this unit is switched off"**; the mistake reads as a whole mechanic being disabled when it is live.
+
 This is also the reliable way to add a trait from **map/test `rules.yaml`**: override a `^Template` (e.g. `^Combatant`) or a bare hull key (`t90`, `bradley`), as `demo-wgm-suite/rules.yaml` does. Overriding a **faction-suffixed** concrete key (`ar.america`) from map rules has been observed to throw `LoadFromManifest<Rules>, duplicate values found for the following keys: ar.america: [ActorInfo,ActorInfo]` at load — prefer the template.
 
 ### Weapon `ValidTargets`: `Air` ⊃ `Helicopter` (the two are NOT disjoint)
@@ -175,6 +181,27 @@ That asymmetry is the design: ground autocannons and MGs list `Helicopter` and s
 
 **The suppression is caused by BYSTANDERS, not only by the intended victim — an actor with a `HitShape` and no enabled `Targetable` swallows the explosion and the sound of any shell landing on it.** `ActorTypeAtImpact` (`CreateEffectWarhead.cs:67-96`) walks `FindActorsOnCircle(pos, WDist.Zero)` and, for every actor whose hitshape contains the impact point, sets `anyInvalidActor = true` unless the warhead `IsValidAgainst` it (`:89-92`) — and `IsValidAgainst` fails immediately when `GetEnabledTargetTypes()` is empty (`:107`). One such actor is enough: the method returns `Invalid` and `DoImpact` returns before the sprite and before `Game.Sound.Play` (`:155`). Because `^1x1Shape` spans a whole cell, an untargetable full-cell actor silences *every* shell in its cell. **Damage is unaffected** — `CreateEffectWarhead` and `WarheadAS.IsValidImpact` (`WarheadAS.cs:75-85`) are the only two sites carrying this early-out; `DamageWarhead.DoImpact` has no position-level gate. So "the shell did nothing" and "the shell did damage but looked and sounded like nothing" are different defects. Since `db01b0ae` both sites skip cosmetic ground cover (`victim.IsGroundCover()`, `CreateEffectWarhead.cs:82`, `WarheadAS.cs:48`), which is what un-silenced shells landing on `^CivField`; any *other* untargetable-but-hitshaped actor still swallows them.
 
+### An armament's `RequiresForceFire` is a per-WEAPON opt-out from AutoTarget, so "does this unit auto-attack X" is not an actor-level question
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)*
+
+> **There are TWO fields named `RequiresForceFire` and they sit on opposite ends of the shot.** This section is `Armament.Info.RequiresForceFire`, on the SHOOTER's weapon, filtered inside the `Armaments.Where(...)` at `Traits/Attack/AttackBase.cs:504`. The other is `Targetable.RequiresForceFire`, on the VICTIM, which short-circuits the whole method at `:479-480` and composes into an AI blind spot — see [`architecture.md` §"`RequiresForceFire` is an AI-participation switch two layers away"](architecture.md).
+
+`AttackBase.ChooseArmamentsForTarget` walks **every** armament, and each armament excludes itself only by its
+own flags. So a unit's AutoTarget configuration says what the unit *may* do and says nothing about which of its
+weapons will actually be picked: reading the actor's `AutoTarget` block alone answers "yes" for everything, and
+reading only the primary armament answers "never".
+
+The shipped instance is the drone operator, and it is correct as authored rather than a defect: `DR`'s primary
+`DroneTargeter` carries `RequiresForceFire: True`, so every AutoTarget scan skips it, while the secondary
+`DroneJammer` carries no such flag, no `RequiresCondition` and no `AmmoPool` binding — leaving it the **sole
+survivor of the scan filter and therefore DR's only auto-targetable weapon**. The jammer is live *because* the
+gun is not. `^DR` additionally removes `StancePositioningExecutor` and `GrantConditionOnBotOwner@tacpos` so a
+bot lane cannot silence it, with a protective comment saying so at the site.
+
+**Rule: answer "does this auto-attack X" per ARMAMENT.** The per-actor stance is a permission; the per-armament
+flags are the selection.
+
 ### There are TWO `ValidTargets` gates on every shot: the weapon's gates AIMING, the warhead's gates IMPACT — and only one of them has a default
 
 *(Promoted 2026-09-02 from DISCOVERIES, every citation re-read at `main @ 26f9cec0`.)*
@@ -188,6 +215,47 @@ So a capability granted at weapon level and never restated at warhead level is *
 **Rule: before writing anything that depends on a weapon reaching an exotic target type, read the WARHEAD, not the weapon.** The weapon-level declaration is the one you find first and the one that cannot do the work. Same detector as [§Four shapes](README.md#four-shapes-of-confident-correctness-claim-with-nothing-behind-it) #3 — name the line you would delete to break the property.
 
 **Corollary for `^Tree`, whose name lies:** it is this mod's template for *"neutral decoration with forest cover and `Trees`-only targeting"*, not for trees. `BOXES01-09`, `ICE01-05` and `UTILPOL1/2` inherit it too, so a behavioural trait hung on `^Tree` also lands on crates and ice floes — which is how `b74f2aaa` briefly made them invulnerable. The template carries a comment saying so (`rules/ingame/decoration.yaml:143-145`); **check an abstract template's inheritor list before hanging anything on it.**
+
+### The warhead's per-cell actor test is a CONJUNCTION, and the state it reads is the state at IMPACT, not at authoring time
+
+*(Promoted 2026-09-20 from DISCOVERIES, read at `main @ a21583fd`.)* `Warhead.IsValidAgainst` is one
+expression — `ValidTargets.Overlaps(targetTypes) && !InvalidTargets.Overlaps(targetTypes)`
+(`engine/OpenRA.Mods.Common/Warheads/Warhead.cs:57`). A cell is skipped when **either** half rejects the
+actor standing in it, so **deleting the clause that names your case does not grant it.** Three shapes make
+the surviving clause bite where nobody expects it:
+
+- **A vehicle husk is not a vehicle.** `^Husk` advertises `NoAutoTarget, Husk` and carries no `Ground`,
+  `Water` or `Trees` (`rules/husks/husks-vehicles.yaml`), so the **default** `ValidTargets` of
+  `Ground, Water` (`Warhead.cs:30`) never overlaps it. Removing `Vehicle` from an `InvalidTargets` list
+  therefore admits nothing: the cell is still skipped, by the other clause.
+- **An actor with no `Targetable` at all has an EMPTY target-type set**, and `BitSet.Overlaps` is false
+  against any `ValidTargets` whatsoever. A dropped supply crate is in that state, and so is `^CivField`
+  (deliberately — see §"Crop fields and trees carry a `Building` trait" in
+  [`architecture.md`](architecture.md)).
+- **Warhead delays reorder which state gets tested.** A nuclear weapon's damage warheads fire at
+  `Delay: 0-1` and its smudge warheads at `Delay: 2-6`, so **every vehicle inside the blast is already a
+  husk by the time the later warhead runs its test** — and the husk fails the `ValidTargets` half. A
+  target-type edit made by reading the YAML is an edit against the wrong state.
+
+**Rule: when a permission test is a conjunction, check the other clause against the state the actor will
+be in at the moment the check runs.** The detector is cheap — name the target-type set the victim
+actually advertises at that delay, not the one its live template declares.
+
+**The terrain half of the same loop is a whitelist with the same failure mode.** Two lines earlier,
+`LeaveSmudgeWarhead` drops any cell whose *terrain type* omits the smudge type from `AcceptsSmudgeType`
+(`Warheads/LeaveSmudgeWarhead.cs:73-84`), and a `TerrainType@` block that names no `AcceptsSmudgeType`
+accepts **none** — silently, with no lint and no log. Because terrain templates are multi-cell and
+axis-aligned, that gate paints *rectangles*, while an actor-test skip paints single footprint cells: the
+SHAPE of an unmarked region says which of the two gates dropped it. (Worked instance: TEMPERAT `Rock` and
+`Cliffs` accepted nothing at all until 2026-09-09, when they were given the five `Scar*` types only —
+`tilesets/temperat.yaml:36-44`, and `Beach` at `:76-84` on the same precedent. `Crater` and `Scorch` are
+still deliberately absent from all three, because adding them would change every non-nuclear weapon in the
+mod.) A `SmudgeType` that a terrain type accepts but no `SmudgeLayer` declares is a runtime
+`NotImplementedException` (`:111`), not a lint error.
+
+**And only the `x` cells of a `Building` footprint are in the ActorMap**, so a per-cell actor test reaches
+far fewer cells than `Dimensions:` suggests: `Building.OccupiedTiles` (`Traits/Buildings/Building.cs:180`)
+excludes `OccupiedPassable` (`=`) entirely. A `4,3` tree template with one `x` blocks one cell, not twelve.
 
 ### A warhead's `ValidTargets` is checked against `Air` once the impact clears `AirThreshold` — so an airburst on the wrong weapon detonates silently
 
@@ -215,6 +283,31 @@ still be announced, and do nothing to the ground.
 `IsValidTarget` (`GameRules/WeaponInfo.cs`), and splash warheads run each candidate through it — an actor
 with no enabled target types is an invalid victim for every weapon in the game. **Override `TargetTypes`
 to a value nothing lists** rather than removing the trait.
+
+### A valid ACTOR at the impact point DELETES the terrain test, so a water effect can splash on a bridge deck
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* The natural hypothesis — that impact effects read the map's raw terrain instead of a bridge's custom terrain — is **false in this engine**: `Map.GetTerrainIndex` consults `CustomTerrain` first (`Map.cs:1729-1739`), and an intact bridge template types its deck `Bridge`, whose target types do not include `Water`. The terrain answer is already correct. What goes wrong is one level up: `CreateEffectWarhead.DoImpact` consults terrain **only when no actor matched** — `if (actorAtImpact == ImpactActorType.None && !IsValidAgainstTerrain(world, pos)) return;` (`Warheads/CreateEffectWarhead.cs:147`, with the comment above it saying so outright) — and `ActorTypeAtImpact` returns `Valid` on the **first** actor the warhead is valid against (`:85-113`). So **one matching actor is enough**, and `^Bridge` advertises `Targetable: TargetTypes: Ground, Water, Bridge` (`mods/ww3mod/rules/ingame/civilian.yaml:303-304`) — it literally claims to be water. `Warhead.ValidRelationships` defaults to `Ally | Neutral | Enemy` (`Warheads/Warhead.cs:36`), so the bridge being neutral rules nothing out.
+
+The guard is `InvalidTargets`, which beats `ValidTargets` (see the section below), so naming `Bridge` there is the whole fix — and both this mod and upstream RA already knew: WW3MOD applies `Ship, Structure, Bridge` to its water effect warheads from `^Explosion` down (`rules/weapons/weapons-defaults.yaml:19`). **Two things generalise past bridges.**
+
+- **When an effect is picked by target type, ask which ACTOR is standing at the impact before you suspect the terrain query.** Terrain is the half with a lookup you can read and misread; the actor half has no lookup at all, just a bitset on a trait, which is why it does not attract suspicion.
+- **An idiom applied fourteen times and skipped four is a defect, not a design.** The four misses here all traced by `git log` to one ancient WIP commit, i.e. they predate the idiom rather than being deliberately excluded. **Check the skipped ones before assuming intent.**
+
+And a bound worth keeping, because it says which reports this does *not* explain: `HitShape.DistanceFromEdge` uses a **single** origin at `self.CenterPosition`, and a bridge inheriting `^1x1Shape` is a one-cell rectangle there. **So the bug was never the whole deck — it is roughly one cell at the span's centre, and hits at a bridge's ends were always correct.** Any report of splashes along a whole bridge is a *different* defect and must not be closed by this fix.
+
+### A launcher that fires a DUMMY weapon: its firepower is not reachable from its `Armament`
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)*
+
+Three shipped launchers bind their ammo pool to an armament whose weapon does nothing, because what is actually
+delivered is a **spawned actor**: `iskander` and `HIMARS` through `MissileSpawnerMaster`, `DR` through
+`CarrierMaster`. `IskanderTargeter` is an `InstantHit` carrying `Damage: 50` with every `Versus` entry at 0;
+`HIMARSTargeter` inherits it; `DroneTargeter` is `Damage: 0` and its armament sets `AmmoUsage: 0` as well.
+
+**Consequence beyond tooltips: any code that assesses a unit's firepower by walking `Armament` → `Weapon` →
+warhead concludes these three are harmless.** The damage lives on the spawned actor's own weapon
+(`IskanderExplosion`), which is not reachable from the launcher's armament at all. Check for a spawner trait
+before trusting a threat-assessment, scoring or UI path that walks armaments.
 
 ### `TargetDamage` scales by distance from the victim's CENTRE, so which cell of a building you clicked changes the damage
 
@@ -264,6 +357,16 @@ launcher's own `Explodes` (`vehicles-russia.yaml`) never builds a support-power 
 
 **When a weapon both grants a capability in `ValidTargets` and excludes an armour class in `InvalidTargets`, check that no target of that capability advertises the excluded class.** The grant fails silently: there is no lint for a `ValidTargets` entry that can never match. See also [§A change believed made, documented as made, and inert](#a-change-believed-made-documented-as-made-and-inert) — this is one of its worked instances.
 
+### A condition BAND and a condition LATCH look identical in YAML, and two traits gated on the pair MULTIPLY
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* The damage ladder ships **both** shapes and the suffix is the only tell. `heavy-damage-attained` is `ValidDamageStates: Heavy, Critical` — a **latch** that stays on all the way down — while `critical-damage` is `Critical` alone (`mods/ww3mod/rules/defaults.yaml:295-300`). So **below 25% HP both conditions hold at once**, and a template that declares one modifier trait per condition has *both* enabled.
+
+**`Util.ApplyPercentageModifiers` then MULTIPLIES them — there is no max-wins and no dedupe** (`engine/OpenRA.Mods.Common/Util.cs:238-246`). `133% x 200%` is `266%`, not `200%`. The infantry ladder does **not** have this shape: it uses the exclusive `light-damage` / `medium-damage` / `heavy-damage` bands, so **reading an `-attained`/`critical` pair as if it were the exclusive pattern is the trap**, and the mod's aircraft template is exactly such a pair (with a PITFALL comment naming this at `mods/ww3mod/rules/ingame/aircraft.yaml:451-454`). *Anyone sizing a replacement ladder from a single band's number lands a third off.* **Size any change to a paired template for the PRODUCT, not for one band** — and see [§"Critical damage" names TWO thresholds](#engine-behaviors-that-surprise-debugging-gotchas) for the converse failure, where picking the non-latched condition leaves a consumer dark in the band it was meant to cover.
+
+**And `ApplyPercentageModifiers` TRUNCATES** — it accumulates in `decimal` and returns `(int)a` (`:245`). A 10-tick base at 133% is 13 ticks, not 13.3 and not 14; **small base values lose a meaningful fraction to the cast**, which is its own reason not to reason about a paired ladder from the percentages alone.
+
+**Related misnomer, because it decides whether a rate-of-fire change happens at all: `BurstWaitMultiplier` does NOT scale reload, and does not scale the within-burst gap either.** Its `[Desc]` reads *"Modifies the reload time of weapons fired by this actor"* (`engine/OpenRA.Mods.Common/Traits/Multipliers/BurstWaitMultiplier.cs:14`), but the only consumer applies it to `Weapon.BurstWait` — the delay *between* bursts (`Traits/Armament.cs:829`). `Weapon.ReloadDelay` and `Weapon.BurstDelays` (the shot-to-shot gap inside one burst) are both untouched. **A weapon with `Burst: 1` is therefore barely affected by it, and a weapon that leans on `ReloadDelay` is immune.** Check which of the three fields a weapon actually uses before predicting anything from this trait.
+
 ### `DamageState` has no `None`, so `Dead` is the only "never" a threshold field has — and that off-state is emergent
 
 *(Promoted 2026-09-02 from DISCOVERIES, enum re-read at `main @ 26f9cec0`.)*
@@ -299,6 +402,18 @@ WW3MOD's armor population is exactly nine: `Concrete, Heavy, Indestructable, Kev
 
 **So any "this weapon cannot hurt anything" judgement must be made against the ruleset's armor population, never against the table alone** — and three further shapes make such a judgement unprovable outright, because each ends at the same empty filter and therefore **fails open to full damage**: a null `ArmorInfo.Type`, a **conditional** `Armor` (it is a `ConditionalTraitInfo`, so it can be absent at runtime, and the filter also drops `IsTraitDisabled`), and a non-empty `HitShapeInfo.ArmorTypes` that excludes the class. `DangerFieldLayer.RulesetArmorTypes`/`WarheadIsHarmless` implement this test and fail open on all three; they are NUnit-pinned in `DangerFieldKernelTest`.
 
+**Before writing an identity value into a `Versus` table to "make it explicit", grep for who reads the
+table's KEY SET rather than its values.** `ArmorInfo.ProvideTooltipDescription`
+(`engine/OpenRA.Mods.Common/Traits/Armor.cs:62`) decides what a unit tooltip's Armour row says by asking
+whether **any** `DamageWarhead` in the entire ruleset names this type —
+`rules.Weapons.Values…Any(wh => wh.Versus.ContainsKey(Type))` (`:73`). It is a global existence check, not
+a per-weapon one. So adding `Kevlar: 100` to a single table is mechanically a no-op on damage (100 is the
+identity) and **flips that flag for the whole game**, changing every infantry tooltip from "None" to
+"Kevlar" and advertising a protection the damage model still does not grant. `ArmourTooltipRowTest` cannot
+catch it: it passes `discriminated` as a literal, so it pins the formatter and never exercises the lookup.
+**Presence and magnitude are two different signals, and here one of them is load-bearing for the UI.**
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `a21583fd`.)*
+
 ### `Penetration` is compared against `Thickness × ArmorDirectionPercent`, so reading it without the attack direction ranks weapons BACKWARDS
 
 *(Promoted 2026-09-01 from DISCOVERIES, verified against `main @ 60c1cda4`. Arithmetic over read code — not measured in game.)*
@@ -317,6 +432,50 @@ Worked on shipped data against `abrams` (`Thickness: 700`, `Distribution: 100,40
 Two rules follow. **(1)** Any surface showing penetration must also show attack direction, or it is actively misleading rather than merely incomplete. **(2)** `Armor.Thickness` alone never answers "will this hurt it" — the direction term is not a modifier you can round away; it is 10× on the weapon class designed to exploit it.
 
 `TopAttack: true` is set at exactly five sites: `weapons-missiles.yaml:6` (`ATGM`) and `weapons-ballistics.yaml:880, 974, 1007, 1097` (artillery rounds). It is **not** on `RPG`, `TankRound.*`, `WGM.*`, `Hellfire.*` or `Stinger.quad` — so `ATGM` is the only infantry weapon in the mod that behaves this way.
+
+#### `Armor.Type` and `Armor.Thickness` are two independent halves, and only one is gated on a `Versus` table
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* They are adjacent fields on one trait and are
+consumed by different code on different terms:
+
+- **`Type` is inert unless some warhead's `Versus` table names it.** `DamageWarhead.DamageVersus` applies a
+  modifier only for classes a table actually lists; an unlisted class takes the default 100 % (the full rule is
+  §"`Versus`: an OMITTED armor class is FULL damage" above, where `Kevlar` is the standing example).
+- **`Thickness` is read straight off the trait on EVERY hit** and compared against `Penetration` whatever the
+  type is called. It never consults a table.
+
+So an actor can be meaningfully armoured through a type that no weapon in the game discriminates on. `gtwr` is
+the shipped case — `Type: Unarmored, Thickness: 25` (`structures-defenses.yaml:103-105`), the sole
+`Thickness > 0` paired with an undiscriminated type — and a tooltip that gated the whole armour row on the type
+being discriminated suppressed the thickness with it. **Giving a class real protection is a `Versus:` edit in
+the weapons files, or a `Thickness:`, never an `Armor.Type:` edit.** *(The tooltip's own discrimination test is
+the global key-set existence check described above — which is also why writing an identity `100` into one
+table changes every tooltip in the game.)* `Thickness` is **millimetres**
+(`Armor.cs:28`), and the roster is coherent in that unit (aircraft 3–20, APC 10–19, MBT 280–700, bunker 2000).
+
+#### Five facings, four values — and the two flag-selected ones are hard switches
+
+`ArmorInfo.Distribution` is `{ Front, Side, Rear, Top, Bottom }` **in percent** (`Armor.cs:31-32`), consumed
+only by `DamageWarhead.ArmorDirectionPercent`. Three things that are easy to get wrong:
+
+1. **`distribution[1]` is read for BOTH flanks**, so left and right cannot differ. Any UI must show one
+   mirrored side number.
+2. **The entries are percentages, never millimetres.** The per-facing mm figure is `thickness × armorPercent /
+   100` (**integer** division) and exists as a number nowhere in the YAML.
+3. **The horizontal facings interpolate; roof and belly do not.** The four cardinals are exact and the code
+   blends between neighbours by impact angle, while `TopAttack` → `[3]` and `BottomAttack` → `[4]` are hard
+   switches chosen by an explicit weapon flag — real distinct facings, not approximations of an angle.
+   `BottomAttack` is authored on exactly one weapon, `ATMine`.
+
+**Per-facing armour is a VEHICLES-ONLY feature and is near-mute across the roster** *(census, as of
+`a21583fd` — re-derive before relying on it)*: every `Distribution` in the mod is in `vehicles*.yaml`, and
+`ArmorDirectionPercent` returns a flat 100 % unless `distribution.Length == 5`, so aircraft, structures and
+defences — which author `Thickness` but no `Distribution` — really are uniform. Of the sixteen vehicles that
+author one, only `abrams` (`100,40,15,10,10`) and `t90` (`100,60,40,15,15`) are differentiated; thirteen carry
+the identical flat `100,80,80,80,60` against a `^Vehicle` fallback of `100,50,25,10,10`. **A vehicle wearing
+the APC boilerplate at MBT thickness gets an absurd roof** — `t72` is the live instance (280 mm × 80 % = 224 mm
+overhead against the T-90's 42 mm, halving `ATGM` effectiveness against it). That is a class of authoring bug
+invisible in the YAML, because the numbers look like every neighbour's.
 
 ### Bullets DO lead a moving target — the lead lives in `Armament`, not in `Bullet`
 
@@ -407,6 +566,25 @@ Both throwing forms prevent the mod loading **at all** — every map, not just t
 
 **Detector for all three:** `--dump-balance-json` ([below](#resolve-the-ruleset-before-you-trust-an-inheritance-edit---dump-balance-json)) resolves the whole ruleset in seconds without a game slot.
 
+**The same case fact makes a case-sensitive READ unsound, and that direction has its own cost.** *(Promoted 2026-09-20 from `DISCOVERIES.md`.)* Everything above is stated as a hazard for **writing** YAML. But actor names are lowercased only *after* the merge, so `grep "^heli:"` is **not a test for whether the actor `heli` exists** — and its negative result looks exactly like proof of absence. The shipped mod mixes conventions freely *within a single file* (`aircraft-america.yaml` has `littlebird:` at `:100` and `HELI:` at `:286`), so a sweep over every rules file for `^heli:` and `^tran:` returns nothing while both actors are defined in uppercase and resolve normally. **Rule: grep for actor definitions with `-i`, always.** The near-miss it produced was a short and entirely wrong chain of inference — `[ActorReference]` → the indexer throws on a missing key → therefore picking that starting-units package crashes the match at world load — and what should have stopped it sooner was that **two independent signals said the actor existed**: the lint gate passes at its recorded baseline, and an `[ActorReference]` to a genuinely undefined actor would have to be either an error or a baselined one. **When a cheap local check contradicts a gate that runs over the whole ruleset, suspect the check.**
+
+**Deleting a line from a MiniYaml block is a TWO-SIDED edit, and the silent side is the dangerous one.** *(Promoted 2026-09-20 from `DISCOVERIES.md`.)* Removing one key can eat the newline **above** it — gluing the following trait onto the previous value, e.g. `OwnerType: InternalName<TAB>RenderSprites:` — and it can eat the blank separator **below** it. The loader then reports `FieldLoader: Cannot parse 'InternalName\tRenderSprites:' into 'OwnerType'`, which reads as a problem with a field nobody touched. **When a FieldLoader parse error quotes a value containing another key's NAME, the defect is a missing newline, not a wrong value.**
+
+The blank-line half fails silently and is the expensive one. Cause 1 above says blank lines between top-level entries are significant; what is worth adding is *how you get there without meaning to*: **the blank line is usually the line immediately after the last key in a block, so deleting that last key and deleting the separator are the same keystroke.** Three of four defects in one routine deletion arrived that way, and the loud glued-newline failure is what masked them — had it not fired, the mod would have loaded with one actor silently absorbing another, which is the far more expensive outcome.
+
+**No gate but the YAML one can see this class at all.** Neither the Release build, nor the Debug analyzer gate, nor the NUnit suite loads mod rules — so **a green build and a green suite say nothing whatsoever about whether the mod can start.** And **a red YAML gate is not "one lint error": it may mean the sweep never happened.** A failure inside `Ruleset.LoadDefaults` aborts before the first `Testing map:` line, produces a few hundred lines against the ~111,000 a completed sweep produces, and validates **nothing** — not the other YAML in the same merge, not one map. **Check whether the run reached `Testing map:` before concluding anything about scope: an early abort exonerates every file it never read.** Same family as the zero-byte-log and piped-exit-code traps recorded elsewhere in this document.
+
+### MiniYaml's indent arithmetic is not `leading_whitespace / 4` — a tab is one level and does not reset the space count
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* `MiniYaml.cs`'s line scanner treats a tab as one level on its own
+**and does not reset the running space counter**, while a leftover run of 1-3 spaces is discarded and
+contributes nothing. So a tab-two-spaces-tab prefix is **two** levels, six spaces is **one**, and two spaces
+is **zero**. **Any tool reasoning about YAML structure by a regex on leading tabs silently returns an empty
+result for a space-indented file** - and an empty result from a structural checker reads exactly like a
+clean one. `lua_gate.map_actor_names` did that, and would have switched off every actor-global check for
+such a scenario while still printing OK. If you write a static checker over this tree's YAML, port the
+arithmetic rather than approximating it, and give the checker a file it is required to FAIL on.
+
 ### Removing an inherited trait: `-Key` matches the FULL node key
 
 `-TraitName:` removes an inherited node only by **exact key match, including any `@label`** — `ResolveInherits` does `resolved.RemoveAll(r => r.Key == removed)` and throws `There are no elements with key '<key>' to remove` if nothing matched (`MiniYaml.cs:482-483`). So `-SquadManagerBotModule:` does **not** remove `SquadManagerBotModule@experimental.america.fixedwing`; you must write `-SquadManagerBotModule@experimental.america.fixedwing:`. There is no "remove all instances of this trait type" wildcard form — each labeled instance must be listed.
@@ -414,6 +592,21 @@ Both throwing forms prevent the mod loading **at all** — every map, not just t
 **Prefer ATTACHING a trait to the actors that need it over REMOVING it from the actors that do not.** Because a `-Key:` matching nothing is fatal, every removal is a standing dependency on a shared parent continuing to supply that trait — so the day someone takes the trait off the parent, *all N* removals throw at once and the mod stops loading, at N sites none of which were touched. Attaching cannot fail at load, and it makes the revert one edit instead of N.
 
 **A REDUNDANT removal is a hard error too, and inside a map's `rules.yaml` that error is SWALLOWED.** Stripping a trait on a base actor and then stripping it again on a derived actor that already `Inherits:` the stripped parent leaves the second `-Key:` with nothing to match, so it throws like any other mismatch. In mod rules that surfaces as a load-error dialog; in **map** rules it does not — `Map.PostInit` wraps the whole rules load in a `catch`, logs `Failed to load rules for <title> with error` to `debug.log`, sets `InvalidCustomRules`, and **falls back to `Ruleset.LoadDefaultsForTileSet`** (`Map.cs:540-547`; the scenario-rules loader has an identical catch at `:698-704`). Every actor type the map defined then ceases to exist. The map does not report a rules problem — it dies later and elsewhere, typically in the density pass at `actorsRules[actorType]` (`Map.cs:988`) with `KeyNotFoundException: The given key '<your custom actor>' was not present in the dictionary`, which reads exactly like a typo in the map's actor list and is nothing of the sort. **On a `KeyNotFoundException` naming a map-defined actor type, grep `debug.log` for `Failed to load rules` before debugging the actor list.**
+
+### A merged top-level node means ONE FILE CANNOT ANSWER "is this gated?"
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* `Player:` is defined in five loaded files and MiniYaml merges them, so a trait block for one actor can be split across the tree — and a reader who opens the file the block "belongs" in and finds no `Prerequisites:` line has established **nothing about the gate**. The worked instance cost a confident, reviewed, propagated-into-three-files wrong conclusion: `nuclear-arsenal.yaml` really does declare no tier for its own entries, and every one of them is tiered in `player.yaml`'s `Player:` node, deliberately kept in one block because a tier table split across two files is a table nobody can read. **The premise was literally true and the conclusion was false, which is exactly why it survived review**, and nothing in the file being read says the other half exists.
+
+**Resolve the ruleset instead of reading a file** — `--dump-balance-json`, or a fixture reading the same files through `MiniYaml.FromFile` (see §"Resolve the ruleset before you trust an inheritance edit"). Two corollaries:
+
+- **A hand-rolled text scan over MiniYaml is evidence about your regex, not about the file, until a real parser agrees with it.** Both of these produced confident false alarms inside one task: `grep "^\t\tKey:"` in bash **double** quotes matches nothing, because the shell passes a literal backslash-`t` and basic grep reads `\t` as `t`, so the pattern means `^ttKey:` and returns a clean-looking empty result (use `grep -P`, `$'\t'`, or no anchor — and run a control that MUST match before believing an empty result); and an `awk` keyed on the last-seen block header **mis-attributes fields across intervening blocks**, which here attributed ten `RequiresCondition:` lines from *actor* definitions to the final power in the `Player:` node and manufactured a gate that did not exist. **When a quick scan and a parsing reader disagree, suspect the scan** — it is the one with no scope, no merge and no indentation model.
+- **A capture taken with a lobby option that disables the mechanism under discussion cannot be evidence about the shipped configuration.** "I saw it in a screenshot" is the register in which that goes unchallenged, and the scenarios that exercise a feature are precisely the ones most likely to have switched its guard off. **Before citing a capture as evidence about default behaviour, read that scenario's `rules.yaml` for the option that makes the capture possible.** The general form is worse than one bad screenshot: *a scenario that switches a gate off to focus on something else stops being evidence about anything downstream of that gate*, and its green is genuine, so nothing in the tree flags it.
+
+**Free gate nobody had mentioned: `--check-yaml` REFUSES a scenario map with no playable slot.** A new scenario whose players are all map-authored combatants fails the single-scenario lint with `Error: Found no playable player` and exit 1, before any launch. `PlayerReference.Playable` defaults to false and plenty of traits deliberately do not test it, so an all-non-`Playable` cast is otherwise a perfectly reasonable scenario shape. One `Playable: True` satisfies it.
+
+### `Rules:` as an INLINE VALUE is a file list, not a child block — and a static tool that walks child nodes sees nothing
+
+`MiniYaml.Load` treats a non-null `mapRules.Value` as a file list and appends it to the mod's rule files (`engine/OpenRA.Game/MiniYaml.cs:627-630`), separately from `mapRules.Nodes` (`:636`). Both forms are legal and several shipped maps and scenarios use the inline one. **Any static tool that reads a map by walking `Rules:`' child nodes therefore returns no overrides at all for those maps** — silently, and in the direction that looks like "this map overrides nothing". A map that overrode a **locomotor** that way would be invisible to `nav-guard`. Related: [§"Maps must declare `Rules: rules.yaml`"](#maps-must-declare-rules-rulesyaml).
 
 ### Resolve the ruleset before you trust an inheritance edit: `--dump-balance-json`
 
@@ -487,6 +680,7 @@ with passable cells.
   `UseTargetableCellsOffsets` would leave it with no targetable position at all. `LOGISTICSCENTER` is
   exactly this shape (`rules/ingame/structures.yaml:435-436`, `Footprint: ++ =+`) and carries the
   offsets (`:413`).
+- **A third index disagrees with both: an actor's `CenterPosition` is the DIMENSIONS-BOX centre, which need not sit over any occupied cell.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `Building` sets `CenterPosition = Map.CenterOfCell(TopLeft) + Info.CenterOffset(world)` (`Building.cs:350`), and `CenterOffset` is half the diagonal of the **`Dimensions` box** (`:207-211`), not of the footprint. For a `Dimensions: 2,2` actor whose `Footprint` occupies one corner cell — `__ x_`, the shape most of the mod's trees use — the centre lands on the box's interior corner, **724 units (0.71 cells) diagonally off the occupied cell's own centre**. Anything anchored at `CenterPosition` inherits that offset: `ProximityExternalCondition` registers its trigger at `self.CenterPosition + Info.Offset` (`Traits/Conditions/ProximityExternalCondition.cs:75-81`, re-anchored in `Tick` at `:105-110`), so a radius **smaller than the box offset covers no cell centre at all** and the aura fires for nobody. The shipped instance: `^TreeHusk` carried `Range: 384` (`husks/husks.yaml:155-158`) against a 724-unit offset and granted `object-proximity` on 0.0% of cells until it was corrected. **When siting an aura on a multi-cell building, either add the box offset to the radius or cancel it with `Offset:`** — the per-husk `Offset:`/`Range:` pairs at `husks.yaml:166-218` and the derivation kept at `rules/ingame/decoration.yaml:1-30` are the worked examples. Related: radius on a cell-placed population is a **step function**, since only discrete separations exist, so a radius mid-plateau is free robustness over one sitting on a plateau edge.
 - Changing a cell from `+` to `=` **removes the post-service bounce.** A unit parked on a transit-only
   cell is pushed off by `Mobile.OnBecomingIdle`; on an `=` cell it stays. Anything that relied on that
   shove to free a dock needs an explicit vacate — see
@@ -495,6 +689,39 @@ with passable cells.
 **Shipped examples, as of `main @ 95bdffb2`:** `SUPPLYROUTE` is 3x3 `=+= +++ =+=` (`structures.yaml:285-286`)
 — all four corners stoppable, five transit-only cells. `LOGISTICSCENTER` is 2x2 `++ =+` (`:435-436`) with
 exactly one stoppable cell, `(0,1)`, under the crane. Neither has ever blocked movement.
+
+### `Dimensions` is a BOUNDING BOX, not the shape — a `CenterPosition`-anchored trait on a padded Building fires off-centre
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`. Geometry over read code and authored YAML — never launched.)*
+
+A Building's `CenterPosition` is the centre of its **`Dimensions` box**, not of its authored footprint:
+`Building.CenterOffset` is `(CenterOfCell(dim) - CenterOfCell(1,1)) / 2` = `512 × (dim - 1)` per axis
+(`Traits/Buildings/Building.cs:207-211`), applied once at construction (`:350`). Any trait that anchors at
+`self.CenterPosition` therefore acts from the box centre — and **when the footprint carries an empty padding
+column, the box centre is displaced into the padding, away from the mass a player sees.** The error scales
+with the padding, not with the actor's size.
+
+The live case was forest cover. `ProximityExternalCondition` anchors its trigger at `self.CenterPosition`
+(`Traits/Conditions/ProximityExternalCondition.cs:75`), while the forest *shadow* reads `Building.Density`,
+which `Map.SetDensityLayer` stamps per footprint cell at `location + d.Key`. Cover and shadow — the two halves
+of forest concealment — were therefore anchored on different points, and the clump actors (`TC01` footprint
+`==_ xx_`, `TC04` `x==_ xx=_ x___`, `Density: 0` in the padding) put only 27–50 % of their own authored density
+inside their own 1-cell cover circle, against 100 % for the single-trunk trees the radius was chosen from.
+The single-trunk case was the one the original reasoning was checked on; the clumps are the bulk of the forest.
+
+**Fixed by a per-actor `Offset` on the trigger, not by a bigger `Range`** — `Offset: -512,0,0` on TC01–TC03,
+`-1024,-512,0` on TC04, `0,512,0` on TC05 (`ingame/decoration.yaml:580`, `:596`, `:612`, `:628`, with the
+derivation in that file's own header at `:33-53`). Two things to carry:
+
+- **The field is ADDED, not subtracted.** `ProximityExternalCondition` does `position += Info.Offset` at both
+  call sites; the `[Desc]` used to say "Offset to subtract from center" and was backwards. It now states the
+  box-centre trap in place (`:39-43`).
+- **The proximity test is STRICT** — `HorizontalLengthSquared < range.LengthSquared` — so a cell at exactly
+  `Range` is **not** covered. Size an offset to leave margin rather than to land on the boundary.
+
+A one-cell-radius emitter cannot span a 3-cell-wide mass whatever offset it is given (TC04/TC05 cap at 63.6 %
+of their own density); that needs a second emitter. `T01.Husk` already carried an `Offset` workaround, so this
+had been hit once before and not generalised.
 
 ### Disabling a string field: bare colon, not `""`
 
@@ -517,6 +744,29 @@ A map's `rules.yaml` is loaded **only** when `map.yaml` names it under the top-l
 
 **The two halves also have different detectors, which is the trap inside the trap.** `--dump-balance-json` resolves the default ruleset and will surface a mis-cased key or a bad inherit, but it **never reads a map's `rules.yaml` at all** — so the one failure this section is about is invisible to the detector the section next door recommends. Before believing a map-scoped YAML edit took effect, confirm in this order: the file is named in `map.yaml`; the top-level key matches the defining file's casing byte for byte; blank lines separate top-level entries; the `Inherits@` above your override is not putting it back. All four are cheaper than one launch. A near-miss worth quoting: `demo-light-events` needs `Weapons: weapons.yaml` as a *separate* declaration from `Rules: rules.yaml` — declaring only `Rules:` would have loaded seven light envelopes and dropped the one weapon carrying the warhead emitter, i.e. a demo 6/7 correct, with the seventh looking like a bug in the warhead.
 
+**THE CHAIN ABOVE IS ONLY HALF THE TAX: a bodiless actor also needs `AlwaysVisible:`.** *(Promoted
+2026-09-20 from DISCOVERIES; re-read at `a21583fd`.)* `CheckDefaultVisibility` counts
+`IDefaultVisibilityInfo` traits on every actor and wants **exactly one** — zero and two are both errors
+(`Lint/CheckDefaultVisibility.cs:39`, message at `:43`: ``Actor type `X` does not define a default
+visibility type``). `AlwaysVisibleInfo` is the trait that supplies it (`Traits/Modifiers/AlwaysVisible.cs:17`),
+and nothing about an actor that is never created, never drawn and never in the world suggests a
+*visibility* trait is required. **This is the more dangerous of the two faults because it is the quiet
+one:** fixing only the `Interactable` chain removes the loud ``not constructible`` line and leaves the
+other error on every actor on every map. Four buy proxies shipped that way drew **2,555 lint errors across
+326 maps** from two faults per actor.
+
+The two faults are one checklist, and the way to find the rest of it is to read the pass list once and ask
+which passes take `foreach (var actorInfo in rules.Actors)` with no filter: `CheckDefaultVisibility`,
+`CheckTraitPrerequisites`, `CheckTooltips` (Buildable only), `CheckInteractable` and
+`CheckConflictingMouseBounds` all do, and between them they are the whole tax on a bodiless buildable
+actor. **A trait's `Requires<>` is half of what the gates enforce, and the `ILintRulesPass` set is not a
+single rule either** — satisfying the one pass a document names says nothing about the other thirty-eight
+in `engine/OpenRA.Mods.Common/Lint/`. Both faults are reproducible in ~30 ms with no gate and no mod load,
+extending the `ActorInfo(string, params TraitInfo[])` technique above: `TraitsInConstructOrder()` answers
+the first and `TraitInfos<IDefaultVisibilityInfo>().Count` answers the second, and the test should build
+the trait set **by reflection from the shipped YAML with `Inherits:` resolved** rather than from a
+hand-mirrored list — a hand-mirrored list stays green through exactly this failure.
+
 ### Which YAML gate catches a misspelled trait field — the fast ones do not
 
 `FieldLoader.UnknownFieldAction` is bound at `CheckYaml.cs:66`, **before** the branch on whether a map argument was supplied, so the handler is armed in both modes. What differs is what each mode then *evaluates*:
@@ -526,6 +776,8 @@ A map's `rules.yaml` is loaded **only** when `map.yaml` names it under the top-l
 - **`--dump-balance-json`** never binds `UnknownFieldAction` at all (grep `DumpBalanceJsonCommand.cs`: zero hits).
 
 **Practical rule:** the per-map shortcut and `--dump-balance-json` are not substitutes for `make test` when you have added or renamed a trait field, or removed an inherited trait. They remain worth running — `--dump-balance-json` forces the full `ResolveInherits` pass in seconds and catches load-order and resolution failures neither of the others reaches, which makes it the cheap smoke test for an **inheritance** edit (a `-Trait:` removal that finds nothing throws *"There are no elements with key … to remove"*, `MiniYaml.cs:483`, so an exit-0 dump is positive evidence a removal bit). But a delta that touches AI YAML has not been linted until the pathless form has seen it; if you must skip it, cross-check the block's keys against the `Info` class's `public readonly` fields by hand.
+
+**No YAML gate validates chrome collections at ALL.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* Nothing under `engine/OpenRA.Mods.Common/Lint/` references `ChromeProvider` or `ImageCollection` — the grep returns zero files — so a misspelled `ImageCollection:`, a region naming a sheet that does not exist, or a rectangle running off the canvas is caught by no lint, no `make test` and no `--dump-balance-json`. It surfaces as a throw from `ChromeProvider.GetImage` (`engine/OpenRA.Game/Graphics/ChromeProvider.cs:145`) **the first time the widget draws**, which for a rarely-opened panel can be long after the merge. Chrome edits are verified by rendering them, not by linting them — see [`DOCS/recipes/SCREENSHOT.md`](../recipes/SCREENSHOT.md).
 
 ### `Tooltip` + `Buildable` + `Interactable` are a locked chain on any bodiless actor
 
@@ -628,6 +880,176 @@ For a clean scenario that prints exactly one line: the header. **The general for
 
 **The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads every scenario' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
+### A duplicate child key is LATENT until another file overrides that actor — the override is the detonator
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, mechanism re-read at `main @ 554895ba`. Extends the section above, which says what the merge *does*; this says when it is *reported*.)*
+
+**Inside a single source, repeated child keys are folded together and nothing is reported.** `ResolveInherits` hands each child to `MergeIntoResolved` (`engine/OpenRA.Game/MiniYaml.cs:427`), which keys the list with a `HashSet` and, on the second sighting, replaces the first node **in place** with `MergePartial(existing, override)` (`:438`, stored at `:443-444`).
+
+**The conflict check that throws lives in the OTHER `MergePartial`** — the `MiniYaml`-pair overload at `:520-539` — and nothing calls it on an actor's trait list until a **second source defines the same top-level key** (`MergeNode`, `:587`). So the duplicate is the charge and an ordinary override is the detonator. The failure names neither the file that was edited nor the field that is wrong.
+
+Three details, each of which changes what you would conclude:
+
+- **`IntoDictionaryWithConflictLog` clears its output dictionary first** (`engine/OpenRA.Game/Exts.cs:454`). The two calls at `:525` and `:527` are therefore **two independent checks, one per side** — not one check over the union. An override redefining a key the base also defines is fine; only a list that repeats a key *within itself* throws. Read without `:454`, the code looks like it would reject every override ever written.
+- **`Inherits` is exempt from the fold but NOT from the check.** `ResolveInherits` branches on `Inherits`/`Inherits@` before reaching `MergeIntoResolved`, so two plain `Inherits:` lines both apply, in order — and are still two nodes with the same key, so they still throw under an override. This is the one shape where collapsing the duplicate would change behaviour; labelling it (`Inherits@X:`) is the only correct fix.
+- **The diagnostic is stricter than the merge it guards.** `:525-530` throws on a shape `:538-589` would then have merged deterministically (`overrideNodes.Value ?? existingNodes.Value` — **second wins, per key, with the union of children kept**). The exception is a correctness tripwire, not a failure of the merge algorithm — which is why the fix belongs in the *shipped actor*, not in the overriding file, and why turning the override off only re-hides the defect.
+
+**Operational consequence: every new override file is a detonator for whichever latent duplicates it happens to touch.** A 2026-09-20 sweep found ~20 blocks with duplicate direct children across the loaded manifest; one (`A10`) detonated the first time any file overrode it. The rest are live and waiting for their first overrider. The permanent guard is `engine/OpenRA.Test/DuplicateChildKeyTest.cs` (~90 ms, in the merge gate), which resolves the manifest lists plus every shipped map's declared rules and fails naming the actor and every `file:line`.
+
+### The set of actor names you may override is mod.yaml's `Rules:` LIST, not the rules DIRECTORY
+
+**A top-level key in a loaded file that matches nothing already present is not an error and not a no-op.** MiniYaml has no notion of "override an existing actor": `Merge` simply adds the node, and **the mod gains a NEW actor** whose entire definition is whatever the override file wrote. With no `Tooltip`, no `Interactable`/`RenderSprites`, such an actor fails `Actor type 'x' does not define a default visibility type` and `The following buildable actor has no (enabled) Tooltip` — **on every map, forever.** One override file naming five dead actors produced 3,650 unrecorded lint errors (ten messages × 365 maps) against a baseline of 22; the per-map multiplication is the tell that the defect is in one actor definition rather than in one map.
+
+`mods/ww3mod/rules/` and the manifest's `Rules:` list differ by ~20 files — all of `weapons/` and `sound/`, the `campaign/` tree, `ingame/old.yaml`, `ingame/vehicles-ukraine.yaml`. **Any tool that builds an actor universe with `os.walk` over the rules directory is counting actors that are not in the game**, and is simultaneously *missing* loaded ones: the manifest merges seven lists through `MiniYaml.Merge` — `Rules`, `Weapons`, `Voices`, `Notifications`, `Music`, `ModelSequences` (`engine/OpenRA.Game/GameRules/Ruleset.cs`) and `Sequences` (`SequenceSet.cs`) — so `weapons/` and `sequences/` are loaded and are not under `Rules:`. **Scanning by directory is wrong in both directions at once.**
+
+Two corollaries, both paid for:
+
+- **A generator and its checker that share a wrong universe agree with each other**, and no amount of running them proves anything. The checker must derive its universe from a *different* authority than the thing being tested, or both must be corrected together and the check must name what it rejects.
+- **An unloaded `rules/` file is still visible to every directory-walking NUnit fixture.** `VaporizeScopeTest` went red on a tree whose C# was byte-identical to the last green build, because a new unloaded file declared `SUPPLYROUTE` a second time and the fixture's first-match `Find` returned the wrong node. The walk **over-approximates** the loaded rules, so a fixture asking a per-actor question must union the declarations — and **a branch that changes anything under `mods/` still needs `dotnet test`**, because several fixtures assert on files rather than on code.
+
+### A MiniYaml template of PURE `-Key:` removals cannot exist, and the obvious workaround throws too
+
+Both failure modes are loud — an exception at rules load naming the exact key — so this costs minutes, not a session. It is recorded because the broken shape is the one anyone would try first.
+
+1. **Removal-only template.** `ResolveInherits` consumes a `-Key:` against the accumulator of the node it is *written in*, before that node's result is folded into the child (`MiniYaml.cs:478-484`). A template whose only children are removals runs them against an empty list and dies on the first: `There are no elements with key 'X' to remove` (`:482-483`).
+2. **Giving the mixin `Inherits: ^Parent` so the removals have something to bite** moves the throw to the *child*, which now reaches `^Parent` twice — once through its own chain, once through the mixin — and the duplicate-parent guard fires with `Parent type '^X' was already inherited by this yaml tree` (`:467-474`). **That guard is per TREE, not per node**, so it catches diamond inheritance however deep the two paths are.
+
+**The shape that works is a SUBCLASS, not a mixin**: `^UnarmedHelicopter: Inherits: ^Helicopter` with the removals below it, and actors naming *that* as their single parent. **MiniYaml inheritance is single-path subtyping, not composable mixins** — any "remove some of what my parent gave me" template must *be* a subtype of that parent; you cannot factor removals out sideways and apply them to several unrelated parents. `-Key:` is positional (see §"There is no 'own beats inherited' rule") **and** scoped to the node it appears in, which is the half that is easy to miss because only the positional half is documented.
+
+### A trait declared under the wrong system actor is not IGNORED, it is ADDED — and a lobby option then makes the SERVER reject the client
+
+**MiniYaml does not validate `TraitLocation` at merge time.** A scenario `rules.yaml` writing `World: MapLayers: ExploredMapCheckboxEnabled: true` does not override the Player-actor `MapLayers` (`mods/ww3mod/rules/player.yaml:3`) and is not ignored: it creates a **second** `MapLayers`, on the World actor. `MapLayers` is `[TraitLocation(SystemActors.Player | SystemActors.EditorPlayer)]` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:18`) and implements `ILobbyOptions` (`:20`), so the session then offered the option id `explored` **twice**.
+
+**Where it fails is three layers from the edit, and on the other side of the wire.** `LobbySettingsNotification.ClientJoined` builds a dictionary keyed on the option id, threw `ArgumentException: An item with the same key has already been added. Key: explored`, and the server dropped the joining client (`Server.cs:617`). The client logged `Attempted to read past the end of the stream`, stayed on the main menu and never built a world — so: **no `lua.log`, a twelve-line `debug.log`, no exception file, and a full watchdog timeout.** Every one of those is the signature of "the rules failed to load", which is what the runner's own timeout branch greps for, and none of it is what happened: the rules loaded fine.
+
+> **When a run produces `TIMEOUT-FAIL` with no `lua.log` and a tiny `debug.log`, read `server.log`.** The failure was on the server, and the client-side logs the harness reads cannot contain it. `run-test.sh` now polls `server.log` for `Dropping connection` and reports `outcome=LAUNCH-FAIL exit=3` — the same "nothing ran, so this is not a test result" family as the exit-127 and zero-byte-log traps in `CLAUDE.md`.
+
+**The authoring-time check is seconds:** every trait a scenario declares must sit under the system actor its `TraitLocation` names, and grepping the trait's `.cs` for `[TraitLocation(` is the whole of it. `--check-yaml` also catches it — this scenario was authored under an instruction not to run that gate.
+
+### A lobby option has TWO spellings, and converting a trait field into one SILENTLY DISABLES every `rules.yaml` that set it
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)*
+
+**1. Grepping for the option ID finds the minority of the places that set it.** A map or scenario can pin an option two ways: by the wire id in its Lua, or by overriding the **trait Info field the option is BUILT from** in its `rules.yaml`, which contains the id nowhere. **Before scoping any lobby-option change, grep for BOTH the id and the `*Info` field names that feed `new LobbyOption(...)` / `new LobbyBooleanOption(...)`** — and grep for the field being **assigned** (`^\s*Field: `), not merely named, because `grep -l` on the field over-counts: most hits are comments *discussing* it. The two errors run in opposite directions — the id grep under-counts and the field grep over-counts — and both are in the direction of carelessness.
+
+**2. Converting an Info field into a lobby option keeps compiling, keeps loading, and stops being read.** `LobbyCommands.LoadMapSettings` registers **every** option a trait yields with that option's own `DefaultValue`, for every match, whatever a map or scenario `rules.yaml` says (`engine/OpenRA.Mods.Common/ServerTraits/LobbyCommands.cs:1386-1389`) — a `rules.yaml` can set trait *fields* and has no way to set a lobby *option*. So the instant a constructor switches from `info.SomeTicks` to `settings.OptionOrDefault(id, …)`, the registered default wins and the scenario's carefully-pinned field is never consulted again. **Nothing warns: the field still exists, the YAML still parses, the lint gate still passes, and the scenario still runs — at the shipped default instead of at the value it asked for.** That is exactly the shape that survives a test run: a demo pinning a clock to 300 ticks because a capture has ~200 s would compile, lint, launch, draw and capture its frames during the full five-minute shipped clock — a demo of its own subject not happening, with a green exit code.
+
+**The escape hatch has to be a second field, and the idiom is already in-tree.** `TimeLimitManagerInfo.TimeLimitTicks` (`engine/OpenRA.Mods.Common/Traits/World/TimeLimitManager.cs:57`, read at `:139-142` *before* any minute conversion) is exactly this: an absolute override in ticks, non-zero meaning "overrides the lobby dropdown entirely", documented as intended for scenario `rules.yaml`. Copy it rather than inventing one. **And choose the SENTINEL PER FIELD, not per file:** `0` is the natural "not in play" and is right for a duration that cannot legally be zero, but it is **wrong** for any field where zero is a real setting — and unifying two sentinels for tidiness is how a documented setting gets deleted in silence. **A cheap check before you convert:** `grep -rn '<FieldName>' tools/autotest/scenarios/ mods/*/maps/`. Every hit is a caller about to be silently ignored.
+
+**3. Deleting a lobby option does not freeze it at its default — it INVERTS it whenever the registered default is `true`.** `GrantConditionOnLobbyOption` computes `OptionOrDefault(Option, !GrantWhenOptionDisabled)` and then `shouldGrant = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled` (`Traits/Conditions/GrantConditionOnLobbyOption.cs:47-50`), so **the REGISTERED default and the UNREGISTERED fallback are independent values.** Every WW3MOD gate uses `GrantWhenOptionDisabled: true`, which makes the unregistered fallback grant the condition — matching the shipped behaviour only for options whose registered default is OFF. Delete an option that defaults ON and the gate flips. **The safe lever for removing a lobby ROW is always visibility; deletion is only safe for an option whose registered default is already `false`.**
+
+## Launch args and the autotest harness: five traps that produce a confident wrong answer
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`; verified against code at `main @ 554895ba`.)* Each of these returns a clean-looking result that is about something other than what was asked.
+
+### `--hidden` autotest runs write NO screenshots, while `result.json` still lists them
+
+Observed at `main @ 442859aa` running `./tools/autotest/run-test.sh --hidden test-field-swallows-nuke`: the run reported `PASS (3 screenshot(s))`, `result.json` and `manifest.json` both listed three PNG paths with `captured_at` timestamps, and **the run directory contained no PNG at all** — only `debug.log`, `lua.log`, `manifest.json`, `result.json`. The identical run with `--background` wrote all three files.
+
+`--hidden` never maps a window (`SDL_WINDOW_HIDDEN`; `tools/autotest/run-test.sh:17` calls it the unattended/tournament profile), so the framebuffer grab has nothing to read — and the harness records the capture as successful anyway.
+
+**Consequence, and it cuts against a standing CLAUDE.md preference:** `--hidden` is right for an assertion scenario and **wrong for any scenario whose answer is a frame.** Use `--background` (the default) for captures. **Treat a `result.json` that lists screenshots as a claim, not as evidence, until `ls` shows the files.** [`DOCS/recipes/SCREENSHOT.md`](../recipes/SCREENSHOT.md) already warns that `--minimized` can give blank PNGs on macOS; this is the Windows sibling, one step worse — no file rather than a blank one. *Unverified half:* the leading hypothesis is that the screenshot writer swallows the failure of an unmapped surface and appends the manifest entry regardless; nobody has read the TestMode screenshot path in the engine to confirm it.
+
+### A single-client autotest launch seats ONE slot, so a second `Playable: True` side has no `Player` at all
+
+`CreateMapPlayers` builds a `Player` for every **non-playable** map player, then one per lobby slot — with `if (client == null) continue` (`CreateMapPlayers.cs:108-121`). `run-test.sh` launches a single local client (`Launch.Map=<scenario>`, `run-test.sh:924`), so it seats exactly one slot. A scenario authoring two `Playable: True` sides gets one `Player` and one empty slot, and `Player.GetPlayer("<the other one>")` returns **nil** — not a broken player, not a defaulted one, nothing. No bot fills it either: an autotest server is `ServerType.Local`, so `SkirmishLogic.ClientJoined` early-returns and **nothing is ever auto-seated.**
+
+Three consequences, in increasing order of expense:
+
+- **The shape every passing two-sided scenario already uses** is exactly ONE `Playable: True` seat, for the client, with the other side a bare map player or a `Bot:` map player. `Enemies:` on a map player still makes the relationship, so nothing about the match is weaker for it.
+- **A scenario that passes is not evidence its `Players` block is sound** — only that nothing read the part that is broken. `test-crate-rearm` and friends carry two `Playable: True` seats and are not counterexamples: nothing in them resolves the second player by name.
+- **The trap behind the trap.** The obvious fix — drop `Playable: True` from the second side — silently changes what any consumer filtering on `Player.Playable` can see, and can turn an assertion **vacuously green** rather than red. `Playable` is a lobby-slot fact (see [`architecture.md` §"`CountsAsASide`, NOT `Playable`"](architecture.md)); the honest filter for "who is in this match" is `CombatantSides.CountsAsASide`, or at minimum `!p.NonCombatant`, which also drops the synthetic `Everyone` player (`CreateMapPlayers.cs:124-132`). **When a scenario fix changes a player flag, grep the code under test for that flag before committing.**
+
+Also: a `Test.Fail` on the first line of `WorldLoaded` produces an **empty `lua.log`**, which is the documented tell for "the game never launched". One `print` above the guard costs nothing and separates the two.
+
+### A launch-arg setting is PERSISTED, not session-only — `Settings.Save()` runs on every server join
+
+`Settings.Save()` writes back every field differing from its *compiled* default and **deletes** nodes that match it (`Settings.cs:421`, the erase at `:436-438`), and it runs on ordinary paths — including on every server join (`engine/OpenRA.Game/Network/UnitOrders.cs:266`). Two consequences that bite in opposite directions:
+
+- A command-line override (`Section.Field=value`, applied at `Settings.cs:408-412`) is **written to `settings.yaml`** and sticks until explicitly turned off. `Debug.SyncCheckUnsyncedCode=true` passed once to a launcher is still true next week.
+- A hand-edited `settings.yaml` value that happens to equal the compiled default is **silently erased** on the next join.
+
+So hand-editing `settings.yaml` was never a workable substitute for a launch arg, and a launch arg was never a safe way to make a one-off measurement. A harness that changes settings for a run must back them up and restore them (`run-tournament.sh` does; `run-test.sh` gained the same on `4061796b`).
+
+### A test-mode lobby flag is a SHARED dependency — grep the scenario tree for who forces it on
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* Seven autotest scenarios force `PowersSandboxCheckboxEnabled: true`
++ `Locked: true` in their own `rules.yaml` (it is the only route to `powers.event`, which no faction
+provides). **So any new behaviour hung on that flag is automatically live in all seven** — and extending it to
+zero a launch delay would have landed on the one scenario whose assertion is precisely that the shipped delay
+IS applied, failing the only guard in the tree against the value it removes, **on correct behaviour**. The
+resolution is a per-sub-behaviour opt-out in that scenario rather than a weakened assertion, which keeps the
+guard pointed at the shipped value. **Before hanging anything new on an existing lobby option, grep the
+scenario tree for who forces it on.**
+
+**Corollary on the authority order, which the C# header did not state:** checkbox defaults in a
+`*LobbyOptions` trait are ordinary `TraitInfo` fields, so YAML *can* override them and those scenarios do. At
+runtime `LobbyInfo.GlobalSettings.OptionOrDefault(id, csharpDefault)` means **host lobby tick > registered
+default (= the C# field as overridden from YAML) > the C# field as `OptionOrDefault`'s fallback**, the last
+reached only when the option is not in `GlobalSettings` at all (trait stripped, old saved session).
+`Locked: true` removes the host from that ordering, which is why the scenarios set both. "These are C#
+checkbox defaults with no YAML override" is true of `mods/ww3mod/rules/world.yaml` and false of the scenario
+tree.
+
+### `Launch.Benchmark` forces the SERIAL relight path, so a benchmark does not measure the shipped one
+
+`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:879`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
+
+**So the three instruments that make a relight measurable are the same three that switch off the thing being measured.** Any profile with `Launch.Benchmark`, the perf graph, or the perf text overlay is timing the serial sweep. That is deliberate and it is also stable — a benchmark profile keeps measuring what it always measured — but **a figure taken under `Launch.Benchmark` is not a figure about shipped play**, and an A/B whose arms differ in whether sampling is on is comparing two different code paths rather than two configurations.
+
+### A staleness bound derived from a THRESHOLD preserves the threshold, not the behaviour — and they can be orders of magnitude apart
+
+A refresh gate that tolerates a quantity drifting by `Threshold` before it acts looks like a licence to be `Threshold`-stale in general. It is not. That tolerance is real only **on a plateau**, where the delta never reaches the threshold and no refresh is ever issued. In the *moving* regime the staleness the shipped code actually accepts is `interval × rate`, which on the nuclear fireball envelope is `5 × 0.515 = 2.6` intensity units against a `TerrainRefreshThreshold` of `0.04` (`engine/OpenRA.Mods.Common/Lighting/LightEventDefinition.cs:158`, consumed at `LightEventManager.cs:236`) — **65× the threshold.**
+
+The lever this was found on derived its eligibility condition as `rate × tailInterval ≤ Threshold`, i.e. `rate ≤ 0.002` intensity/tick, and **never fired once**: `NukeSarmatRV`'s `Warhead@FireballLight` table (`rules/weapons/weapons-nuclear-arsenal.yaml`) has its slowest segment at `0.13 / 49 = 0.00265`, and every other segment is 3× to 200× above the limit. The derivation was sound as a *sufficient* condition and useless as a *practical* one. Reverted in full.
+
+**Two rules, and the second is the cheap one.** *When deriving a safety bound from a constant, check what the code already does at runtime before assuming the constant describes it.* And: **before shipping a gate whose predicate depends on authored data, evaluate the predicate against that data by hand.** The eligibility condition here was a pure function of a static YAML table — minutes to check, no build, no launch — and it would have shown the lever inert before it consumed a serial A/B slot on a machine where launches are the scarce resource. This is the [§"A change believed made, documented as made, and inert"](#a-change-believed-made-documented-as-made-and-inert) shape, caught by arithmetic rather than by a run.
+
+### `--speed` and a compressed clock are NOT the same lever, and only one of them keeps the simulation honest
+
+*(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* `TestModeSpeedMultiplier` implements **`IWorldLoaded`** and divides `world.Timestep` there (`engine/OpenRA.Mods.Common/Traits/World/TestModeSpeedMultiplier.cs:30-40`). A trait constructor that reads `self.World.Timestep` to convert a lobby's **minutes into ticks** runs during world setup, i.e. **before** `WorldLoaded`. So under `--speed N` the tick counts are unchanged and only the wall-clock length of a tick moves.
+
+**`--speed` buys wall clock without touching a single simulated quantity.** A scenario that wants shipped timing inside an unattended slot should reach for it and never for an override field. **The inverse is the trap: an override field genuinely changes what is simulated, so a scenario that compresses a clock is no longer evidence about the clock it compressed.** That is right for a single-mechanism probe and fatal for a scenario whose subject *is* the clocks.
+
+**And a multiplier is not the divisor you asked for.** `world.Timestep = Math.Max(1, oldTimestep / multiplier)` is **integer** division, so `--speed 8` on a 60 ms timestep gives 7 ms — a real multiplier of 60/7 = **8.57x**. Derive expected wall clock from `ticks * newTimestep`, never from `ticks / (16.67 * N)`. `--speed 4` is exact (15 ms); 8 and 16 are not.
+
+### A CRASH AFTER a verdict is reported as that verdict — the crash hunt is scoped to the no-result branch
+
+`run-test.sh` finds `exception-<utc>.log` files newer than the run marker and reports `OUTCOME=CRASH`, but the entire hunt sits **inside `if [ ! -f "${RESULT_FILE}" ]`** (`tools/autotest/run-test.sh:1095-1146`). So a scenario that writes `Test.Pass` at tick N and then dies at tick N+100 comes back **PASS**, with the exception log on disk and nobody looking at it. This is invisible to short single-mechanism scenarios, which pass at the end of what they measure; it bites a long scenario that passes in the middle of a match still running. **The countermeasure is structural and costs nothing: never write a verdict earlier than the last thing the scenario cares about**, so there is no window left behind a green.
+
+### `ConquestVictoryConditions` is INERT IN TEST MODE AT EVERY ENTRY POINT, so `WinState` can never become true
+
+`ITick.Tick` returns on `TestMode.IsActive` (`engine/OpenRA.Mods.Common/Traits/Player/ConquestVictoryConditions.cs:62`) — deliberately, and the comment says why: the harness owns the verdict, so victory tracking would only race the test's own assertions. But `objectiveID` is assigned **only inside that same method** (`:44`, `:73`), so it stays `-1`; and `INotifyTimeLimit.NotifyTimerExpired` opens with `if (objectiveID < 0) return;` (`:93`). **The two facts compose into something neither states: a test-mode match can run its time limit, open an endgame, fly a whole salvo and annihilate the map, and every player's `WinState` will still read `Undefined`.** A scenario asserting on `WinState` is asserting on something that cannot become true — it fails identically whether the ending worked perfectly or never happened at all.
+
+**Two consequences beyond the flag.** First, **anything else living inside `NotifyTimerExpired` is equally unreachable from a scenario** — including this trait's team arithmetic, which no map, no Lua and no length of run can execute. When a bug is reported at N call sites, *establish reachability per site before promising a test per site*: one site can be live-but-unreachable-from-tests, one already dead, and only one actually biting. Second, **prefer a projection of the MECHANISM over a projection of its CONSEQUENCE.** `WinState` is downstream of an objective system test mode deliberately disables; the endgame trait's own phase value is the ending itself. *If the thing you are asserting has no direct projection, that absence is itself the finding.*
+
+> **And write the fail text so it cannot accuse a component the same readings exonerate.** A poller that samples a state machine every few ticks, sees level 3 then level 1, and reports *"the level never left 3"* has named the one component provably correct — the intermediate phase can be **one tick long**, because it ends on the first qualifying event rather than on a clock. Sampling is only sound for states with a guaranteed minimum duration, and "this phase always lasts a while" is an assumption about gameplay, not about code: **if a state machine has a transition you want to assert on, expose the transition TICK, not just the current state.** A fault that misattributes costs more than a fault that fires late, because it sends the next reader to the wrong file.
+
+### "Copy the nearest working scenario" imports departures you did not choose
+
+Scenario `rules.yaml` files carry deliberate deviations, and a comment naming one is not a statement about the default. The worked instance: a tournament scenario sets `PlayerResources.DefaultCash: 7500` *"because the default 5000 is fine for normal games"* — and 5000 is not the default. `mods/ww3mod/rules/player.yaml:1047` leaves `DefaultCash` **commented out**, so `PlayerResourcesInfo.DefaultCash = 20000` applies (`Traits/Player/PlayerResources.cs:32`) and is also what the `startingcash` dropdown defaults to. The tournament's value is a **62% cut presented as a raise**, and a scenario copying it while claiming shipped defaults inherits that silently. **When a scenario's stated goal is "shipped defaults", read the DEFAULT from the C# field or the uncommented YAML, not from the comment in the file you are copying.** Commented-out YAML is the specific shape that misleads: the value is right there in the file, one `#` away from being true.
+
+## A semantic change to a YAML field is a MIGRATION, and a migration is only complete against the tree at the instant it lands
+
+*(Promoted 2026-09-20 from DISCOVERIES; verified at `main @ a21583fd`.)* `ShakeScreenWarhead.Intensity`
+changed meaning from the numerator of an inverse-square falloff to **peak screen displacement in pixels**
+(`Warheads/ShakeScreenWarhead.cs:30` and the `[Desc]` around it). The commit that did it retuned every call
+site - every call site that was on `main` at that moment. A weapons file created the same day on a branch
+merged afterwards, and a later commit copied the un-migrated blocks into four more warheads, so twelve
+weapons spent two days asking for 35-150 px of camera throw against the retuned references' 13 and 20.
+
+**Nothing could catch it, and each reason is general.** `--check-yaml` validates that a field EXISTS on a
+trait; the field name did not change and still took an int. The unit suite had a dedicated fixture over the
+same weapons covering blast physics, flash envelopes and smudge radii - and no assertion on shake, because
+shake is not physics anyone had written a law for. **And the clamp that stops a bad number from being
+unplayable is the same clamp that stops it from being obvious:** `ScreenShaker` soft-clamps the SUM of live
+effects through a `tanh`, so a 7x error and a 1.6x error render as the same picture.
+
+**Two defences, neither of which existed:** rename the field when its meaning changes, so the old spelling
+fails to load; or have the retuning commit add a check that enumerates call sites **from the files** rather
+than from a list typed at the time. Any branch open across the instant a semantic change lands
+reintroduces the old semantics on merge, silently, because the spelling is unchanged.
+
 ## A change believed made, documented as made, and inert
 
 **The most expensive defect shape in this codebase is not a missing mechanism. It is a mechanism that is present, documented, wired up, lint-clean — and evaluates to nothing.** Six separate defects fixed on 2026-08-22 were all this shape, and none of them was found by reading the code, because reading is exactly what these survive: the comment beside them is accurate about intent, the citation is real, the field is genuinely set, the trait is genuinely mounted. What is false is the *value the expression produces at the inputs the mod actually supplies*.
@@ -680,17 +1102,97 @@ The first two shapes were the whole list until 2026-08-27. Shapes three and four
 
 **RA-era 25 ticks/second is the default assumption of anyone writing a duration comment, and it is wrong for this mod everywhere.** WW3MOD's `default` game speed is `Timestep: 60` (`mod.yaml:382`) = **16.67 tps**, so a tick count annotated "N seconds at 25 tps" really runs **1.5× longer**. This is not an incident; four fresh sites turned up on 2026-08-22 alone, on top of the two already banked. `SupplyRouteContestation`'s `BaseTicks: 1500` was annotated "60s" (really 90 s), `MinTicks: 500` "20s" (30 s), `BaseRecoveryTicks: 3000` "120s" (180 s). **Grep `at 25 tps` before trusting any duration comment**, and prefer expressing tick-domain quantities in ticks with the seconds figure derived, not asserted.
 
-**There is a THIRD tick base, and it is the one that decides what a correction should aim at.** Beyond wall-clock 16.67 and the harness's 25, the engine's own Lua converter computes `ticksPerSecond = 1000 / defaultGameSpeed.Timestep` in **integer** arithmetic (`DateTimeGlobal.cs:31`), so `DateTime.Seconds(n)` runs at **16**, not 16.67. A scenario mixing `DateTime.Seconds` with `AssertWithin` is mixing two bases whose ratio is 25/16 = 1.5625, not 1.5. **Consequence: if `TestHarness.TicksPerSecond` is ever corrected, the target is `16` — correcting it to the mathematically exact 16.67 would open a fresh 4% divergence against the engine converter, of exactly the kind being closed.** The same integer division is why `TimeLimitManager.cs:110` runs time limits ~4% short (below, §Engine behaviors that surprise). Both tripwire scenarios and all three constants are pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`, which fails at `dotnet test` rather than silently in a game nobody reran.
+**THERE USED TO BE A THIRD TICK BASE. It was deleted on 2026-09-19 and there are now two.** This paragraph previously recorded that the engine's own Lua converter computed `ticksPerSecond = 1000 / defaultGameSpeed.Timestep` in **integer** arithmetic (`DateTimeGlobal.cs:31`), so `DateTime.Seconds(n)` ran at **16** rather than 16.67 and the ratio against the harness was 25/16 = 1.5625. All of that was true and none of it is any more: `DateGlobal` converts through `TickTime.TicksForSeconds`, which multiplies before dividing, so `DateTime.Seconds(60)` is now **1000 ticks rather than 960** — 4.2 % more, in the lenient direction for every "did it happen by N" deadline in the suite.
+
+**So the two surviving bases are wall-clock 16.667 and the harness's 25, and their ratio is exactly 1.5.** ⚠️ **The prescription this paragraph used to carry — *"if `TestHarness.TicksPerSecond` is ever corrected, the target is `16`"* — is now EXACTLY BACKWARDS and must not be followed.** Correcting the harness constant to 16 would re-open the 4 % divergence against the engine converter that the sentence existed to prevent; the target is the true **16.667**. `AutotestTickRateTest` asserts the 1.5 ratio directly and would fail on a 16. That inversion is the point worth carrying beyond this entry: **a rule of the form "aim at X" is a claim about a defect that is still live, and it becomes an instruction to re-create the defect the moment the defect is fixed.** Both tripwire scenarios and both constants are pinned by `engine/OpenRA.Test/OpenRA.Mods.Common/AutotestTickRateTest.cs`, which fails at `dotnet test` rather than silently in a game nobody reran. The same integer division ran time limits ~4 % short and is likewise fixed (below, §Engine behaviors that surprise).
 
 **Census of surviving sites (as of 2026-08-30, `5eb27755`), so "still live at ten other sites" is checkable rather than asserted.** Comments whose seconds figure is *wrong*: `SmartMove.cs:25` ("~3 sec at 25 tps", really 4.5 s), `EvacDriveOffMath.cs:32` ("25 ticks/s ⇒ 20s"), `TournamentConfig.cs:100` ("standard 40 ms tick"), `SupportPower.cs:24` ("Parsed at 25 ticks/second"), `mods/ww3mod/scripts/scenario.lua:31` (`briefingDuration = 375`, "~15 seconds", really 22.5 s), `test-missile-hellfire-probe.lua:168`. Comments that correctly *describe the harness base* rather than the game's, and are fine: `test-autotarget-preempt-air.lua:140`, `test-stance-redirect-midadjust.lua:50`, `test-stance-anchor-move.lua:46`. Three were corrected on 2026-08-30 — `test-dry-inrange-idle-oscillation.lua:21` (250 ticks is 15 s not 10 s), `test-critical-no-panic.lua:10` (300 ticks is 18 s not 12 s), and `test-visual-concealment-gauge.lua:45`, **which was wrong in the diagnostic direction**: it divided `TimeToBeStill: 200` (`infantry.yaml:142`) by 25, got 8.0 s, and concluded the capture request's "12.0" was mistaken. 200 ÷ 16.67 is exactly 12.0 — the request was right and the comment argued the reader out of a correct number. `Map.cs:265` is a throughput note where the rate is not load-bearing.
 
 **It is not only code comments — on 2026-08-27 two instances were found in the docs themselves**, one of them inside this curated bank: `game-model.md` described the clearing `CaptureDelay: 1000` as "~40 s" (it is **60 s**), and `DOCS/recipes/TELEMETRY.md` sized its log volume at "25 ticks/sec". Both are now corrected. **Grepping the source tree for this error is not sufficient — grep `DOCS/` too**, and note that neither instance contained the string `25 tps`: one had done the division silently and only the *result* was wrong. The reliable tell is a seconds figure sitting beside a tick count; recompute it rather than scanning for a phrase. The harness-side instance is the widest-reaching and is covered in [`DOCS/recipes/AUTOTEST.md`](../recipes/AUTOTEST.md); the `world.Timestep`-vs-`GameSpeed.Timestep` mechanism is under [§Engine behaviors that surprise](#engine-behaviors-that-surprise-debugging-gotchas).
+
+**A comment that JUSTIFIES a workaround by naming an engine limit is trusted the way a derivation is, and
+only half of it is checkable from the file.** *(Promoted 2026-09-20 from DISCOVERIES.)* A weapons-file
+header stated that past `ScalePercent 1600` a sprite "cannot be magnified further, so the extra size is
+spent on a ring of sprites instead", and a weapon drew five copies of one animation on exactly that
+reasoning. **There is no ceiling:** `scale` is a plain float multiplied into the quad
+(`Graphics/SpriteRenderable.cs`, handed to `SpriteRenderer.DrawSprite` as `scale * s.Size`) and nothing in
+that path clamps anything. One grep would have settled it; two passes quoted the claim back as established
+fact instead. **The "therefore we do Y" half is right there in the YAML and verifiable; the premise sits in
+engine code nobody re-reads**, and "fix verifiably-wrong statements on sight" does not help when the
+statement is only wrong somewhere else.
+
+Two tells worth carrying. The workaround's own arithmetic often refutes it: that ring applied its offset as
+`pos + Offset * ScalePercent / 100`, which moved the copies under 5 % of the sprite's radius — so the stated
+purpose (size) was not what it delivered (five additively-blended copies, i.e. brightness). And **when a
+comment admits a divergence, measure the divergence in the comment.** A note reading "the copies are NOT
+equivalent today — this one omits the fog palette's own alpha" sat accurate and honest in
+`WorldRenderer` while a user reported the symptom as a bug; the same note carrying *"4.35x at the commonest
+visibility"* reads as a defect rather than a nuance. The number is what decides whether the next reader
+fixes it or walks past.
+
+### A field added to fix a defect DEFAULTS to the old behaviour, so its absence is indistinguishable from the pre-fix value
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* This is a property of the class, not of any one field: for the
+default path to stay bit-identical, a new field's default has to be the behaviour the fix replaced. So
+`StartRadius` unset and `StartRadius: 0` reach the engine identically, and a weapon authored from a
+pre-fix template inherits the pre-fix physics with **no lint error, no failing test and no log line**.
+`--check-yaml` catches a field that does not exist; nothing catches a field that is absent and defaults
+back.
+
+The failure is silent, at a distance, in someone else's commit. Eight nuclear weapons were added in a new
+file the day after a shockwave-birth fix landed, every one of them a point source at a flat sound speed -
+the precise defect just fixed - and nothing went red, for two compounding reasons worth recognising
+separately. The fixture read `MiniYaml.FromFile(...weapons-superweapons.yaml)`, one hard-coded filename, so
+the new file was invisible to it; and every test iterated a two-name array inline. **A hard-coded fixture
+list is not a bug when it is written, because at that moment it IS the population.** It fails in the
+safest-looking direction: the two weapons it names are still correct, so the suite is honestly green about a
+shrinking fraction of what it claims to cover.
+
+**So: when you add a field to fix a defect, the test that pins it must assert over a list DERIVED FROM THE
+FILES** - or over a list whose staleness is itself an assertion - **and must assert the field is set at
+all** (`Assert.That(startRadius, Is.GreaterThan(0))`), so "defaulted back" fails loudly rather than reading
+as an unset field nobody looks at. `NuclearYieldTest.AllNukes` (`:163`, consumed at `:294`, `:327`) is the
+in-tree instance of the derived-list form.
+
+### Every quantity checked against its own law, and nothing checking the RELATIONSHIP between them
+
+*(Promoted 2026-09-20 from DISCOVERIES - four instances from one week's nuclear-presentation work, kept as
+one rule because the shape recurred four times and the instances did not.)* The recurring failure is a
+suite in which **every** test compares a value to its own derivation, every test passes, and the property
+the player actually perceives belongs to neither subsystem and is asserted nowhere:
+
+- **A presentation ramp measured in ticks, sitting in front of a simulation phase also measured in ticks,
+  with nothing tying them together.** A shockwave ring's fade-in was 20-154 ticks while the supersonic
+  phase it was meant to reveal lasted 1-55, so the whole fast sweep rendered at 0.3-3 % opacity. The
+  simulation was right, the YAML-reading tests were right, and the player saw a ring that appeared late and
+  crawled.
+- **Two quantities in different subsystems whose RATIO is what is seen.** A light radius on one exponent
+  and the sprite drawn over it on another: neither number wrong, the ratio swinging an order of magnitude
+  across the ladder, and below a threshold the lit ground sat entirely under the sprite. **When a user
+  reports an effect is invisible, ask what is DRAWN OVER IT before asking how bright it is** - and the tell
+  that this class is in play is that the complaint is about a magnitude, the magnitude is provably correct,
+  and the two cases the user says look right are the extremes of some *other* ordering.
+- **A per-weapon law check passes on a ladder with a hole in it** whenever the hole is a deliberate
+  hand-tuned exception. **Assert MONOTONICITY across the sorted ladder as well as each value against the
+  law** - they are different assertions, they fail on different bugs, and the monotonicity one catches
+  every hand-capped exception that inverts the order without needing to know the law.
+- **An absolute tolerance on a quantity spanning five orders of magnitude is a percentage tolerance that
+  gets STRICTER as the number grows**, so it passes the small cases that could hide a real error and fails
+  the large ones over rounding. Use a relative tolerance (`Within(0.5).Percent`) whenever the subject is a
+  ladder.
+
+**The generalisation: "the physics is correct and the player cannot see it" is a class of bug that green
+simulation tests are structurally unable to report.** Ask separately what is on screen during the ticks the
+new behaviour occupies. And when a rendering constraint and a physical derivation collide on this mod's
+maps, **the map is the binding constraint and the physics is the decoration** - expect visual exponents to
+end up compressed, and say so where a file would otherwise keep claiming a derivation it no longer has.
 
 ### Detectors worth running before you believe a mechanism works
 
 - **Reduce the expression at the mod's real inputs.** Integer division, a threshold compared against a range, a percentage of a small base — substitute the shipped numbers and compute. `distance / 10240` against an 8192 radius is zero; `Count × Interval` at 2×2 is two frames.
 - **Grep every reader of a field you are about to tune**, not its declaration. Zero readers is common and silent: `InaccuracyPerProjectile`, `DamageAtMaxRange` and `MovementInaccuracy` are all set in shipped YAML and all inert. **A reader is not enough — read the line AFTER it too.** `BurstRandomize` (instance 10) had a reader, on the right line, doing the right arithmetic, into a variable the next statement overwrote.
 - **Ask what each field a code path reads equals when NOBODY sets it.** The dangerous default is not zero-as-disabled; it is a live value that looks legitimate — `Penetration` defaults to 1 (a divisor, not a no-op), `ImpactPosition` defaults to the map origin (a valid coordinate). Then ask the second half: is that default *reachable on my delivery path*? An `Explodes` payload never goes near the projectile code that would have set it.
+- **When a conclusion rests on a flag never being reset, grep every ASSIGNMENT of that flag — and then ask whether the notification that would re-trigger it still fires when the value it carries is zero.** *(Promoted 2026-09-20 from DISCOVERIES.)* Reading the latch is not reading the mechanism: what decides the behaviour is who *else* clears the flag, and whether the handler is even called at zero damage. Both questions are static, neither needs a launch, and either alone catches the error. The live instance: `Cargo`'s emergency-bail latch is cleared by `Load()` as well as by the damage-state reset (`Cargo.cs:707-711`, with the reason in-file), so an audit that traced only the reset concluded the bail could fire once and never re-arm. The zero-damage half has teeth because `Health.InflictDamage` runs `notifyDamage` unconditionally — there is no "applied damage was zero, skip the notification" branch — while some `INotifyDamage` handlers open with `if (e.Damage.Value <= 0) return;` and others do not.
 - **When a comment names an intent, open the function it calls.** Instance 9 was a correct trigger calling a decrement named as a reset. The call site read exactly as intended and there was nothing to reduce.
 - **When the fix IS "correct a factual claim", grep the FILE for the claim — never your own diff.** *(Promoted 2026-09-01 from DISCOVERIES.)* One such correction cost four rounds: the original statement was wrong, the reviewer's replacement SHA was wrong, and the commit that fixed both **left the same false phrase stale ten lines below**, because the author reviewed the change they had made rather than searching for the sentence they had just declared false. **A factual claim is usually repeated near itself**, so the diff is the wrong search scope. This is not hypothetical for the reference bank either: on 2026-09-01 a stale `^E6` claim was found sitting in *two* places in `economy.md`, with three different and equally wrong line citations between them, and fixing only the first would have left the doc still asserting it.
 - **A curation pass is also a doc audit, and the two wrong statements it finds will not be the ones you were looking for.** Both `economy.md` defects above surfaced while verifying an unrelated DISCOVERIES entry against code — not by reading `economy.md`, which nobody had reason to re-read because its claims are the ones agents are told to trust. **Verifying a candidate claim against source is the only routine activity that re-reads the bank at all**, so when a promotion check touches a doc section, spend the extra minute on the surrounding paragraph.
@@ -714,6 +1216,8 @@ Hook install (once per clone): `ln -sf ../../tools/git-hooks/pre-commit .git/hoo
 **Release builds have no analyzers at all.** `engine/Directory.Build.props:51-56` removes every `Analyzer` item when `Configuration=Release`. So any target that routes through a Release build contributes **zero** analyzer coverage, however many projects it compiles — and a `make` target that depends on it still goes green.
 
 That is not hypothetical: it was the whole of the long-standing Windows/Linux gate asymmetry. Both platforms read the same solutions; they diverged on which **engine target** the mod's `check` depends on. `make.ps1` routes `check` into `engine\make.cmd check`, a Debug `-warnaserror` build of `engine/OpenRA.sln`; `Makefile:191` is `check: engine`, and the engine's `all` target is **Release**. Linux/macOS was not missing projects from a solution — it was building the right solution in the wrong configuration.
+
+**`OpenRA.Test` is NOT BUILT BY ANY SOLUTION BUILD, IN EITHER CONFIGURATION — so a green `all` is no evidence that the test project COMPILES.** *(Promoted 2026-09-20 from `DISCOVERIES.md`, verified at `main @ a21583fd`.)* `engine/OpenRA.sln:60-61` gives `OpenRA.Test` an `ActiveCfg` for Debug **and** Release and **no `Build.0` for either**. In MSBuild solution semantics `ActiveCfg` without `Build.0` means *a member of the solution that is not built*, so `dotnet build` on that solution skips it in EVERY configuration — it is the only project in the file in that state (`OpenRA.WindowsLauncher` is missing one deliberately, `:66-68`, Release only, because `Directory.Build.props` sends every `OutputPath` to `engine/bin` and the packaging scripts copy `bin/*.dll` by wildcard; adding one would ship NUnit inside the Linux and macOS packages). **So this is NOT an instance of the Release/analyzer split above: switching to Debug does not help, because the configuration was never the reason.** `make all` builds `engine/OpenRA.sln` (skips it) and then `WW3MOD.sln`, which is `OpenRA.Game` + `OpenRA.Mods.Common` and nothing else; `make test` depends on `all` and inherits exactly that. **The ONLY thing in the tree that compiles the test project as a gate is a hand-added csproj line** — `Makefile:246` and `make.ps1:373`, both naming `engine/OpenRA.Test/OpenRA.Test.csproj -c Debug -warnaserror`, under a comment at `Makefile:239` stating this fact. **That line is invisible from the solution files**, so a reader checking "is the test project covered?" by opening `OpenRA.sln` concludes it is, because the project is right there in the list. It is the right shape, not a workaround waiting to be tidied. **The gap is widest exactly where it is most dangerous** — a merge, a rename or an extract-and-share refactor, where the compile break lands in a fixture rather than in shipped code and the author has no reason to think they touched tests at all.
 
 **Generalise this: when two CI lanes disagree about what they catch, diff the target graph, not the solution files.** `make.ps1` and `Makefile` are independent implementations of the same target names in this repo and have drifted before.
 
@@ -749,13 +1253,73 @@ make all 2>&1 | grep "warning CS0618"     # exit 0; every compiled assembly repo
 Four things decide whether this works, and three of them are traps:
 
 - **Use `make all`, never `make check`.** No project file in this repo sets `TreatWarningsAsErrors`, so under `make all` `CS0618` stays a warning and every assembly compiles and reports. But `make check` passes `-warnaserror` on the command line (`Makefile:211`, `engine/Makefile:104`, `make.ps1:165`) — under it the census becomes an error, the build stops at the first failing project, and you get a partial answer that looks complete. **Renaming the member instead has the same failure** for the same reason; it is the obvious first idea and it returns ~37.
-- **`make all` covers 8 of the 11 C# projects, and NOT because of solution membership.** `engine/OpenRA.sln` lists ten projects, but `OpenRA.Test` and `OpenRA.WindowsLauncher` have no `Release|Any CPU.Build.0` entry, so a Release build skips them; `tools/fp-determinism/FpDeterminism.csproj` is in no solution at all. Grepping the `.sln` for `Project(` returns 10 and reads like a refutation of this — **the exclusion is in the solution's configuration block, not its project list.** Build those three by hand or the census silently under-reports, and one of them is the test assembly. Same family as the target-graph rule above.
+- **`make all` covers 8 of the 11 C# projects, and NOT because of solution membership.** `engine/OpenRA.sln` lists ten projects, but `OpenRA.Test` has no `Build.0` in EITHER configuration and `OpenRA.WindowsLauncher` has none for Release, so a Release build skips them (see the bullet above); `tools/fp-determinism/FpDeterminism.csproj` is in no solution at all. Grepping the `.sln` for `Project(` returns 10 and reads like a refutation of this — **the exclusion is in the solution's configuration block, not its project list.** Build those three by hand or the census silently under-reports, and one of them is the test assembly. Same family as the target-graph rule above.
 - **Non-C# surfaces are outside the instrument entirely.** Before claiming a member has *N* readers, state that you also checked YAML, Lua and chrome, and that the type is not `FieldLoader`/`Info`-reflective or exposed through a `ScriptPropertyGroup` — the compiler cannot see any of those bindings.
 - **Revert by restoring the one line**, and confirm with `git status --porcelain` before committing.
 
 **What it does NOT answer.** It enumerates consumers of a *member*. It cannot answer "which classes implement interface `I` but not `J`" — for that, "implementors" is not even a well-posed count: at one commit `INotifyOwnerChanged` gave 58 files containing the string, 106 total mentions, and 52 declaration-shaped lines. Three defensible numbers for three different questions.
 
 **The rule: write an enumeration as a claim with its method attached, never as a bare number.** Not *"17 sites"* but *"17 sites; grep `\bfa\.Owner\b` over `engine/**/*.cs`; recall unverified"*. A bare number is indistinguishable from a measurement at the point of reuse, and it will be reused. **If a design decision depends on an enumeration being complete, buy the recall-complete instrument** — one attribute and one build is cheaper than the design being wrong.
+
+**The one instrument stronger than the compiler census, and it is free: check whether the member's own
+ACCESSIBILITY already bounds the search space.** *(Promoted 2026-09-20 from DISCOVERIES; re-read at
+`a21583fd`.)* `World.nextAID` is `private` to a **sealed, non-partial** `World`, so the language confines
+every access to that one file — there are exactly two, the declaration and the post-increment (`World.cs:556`,
+`:559`). `NextAID()` is `internal` with **no `InternalsVisibleTo` anywhere in `engine/`**, so its callers are
+confined to `OpenRA.Game`, and there is exactly one. `new Actor(` has exactly two sites tree-wide, both on
+the simulation path. **That is a recall-complete enumeration rather than a grep census** — not because the
+greps were thorough, but because `private` in a sealed non-partial class and `internal` without
+`InternalsVisibleTo` are *language guarantees* about where a hit could possibly be. The reasoning is carried
+in-code at `World.cs:563-583`, including the warning not to reach for `SyncHash` as the justification
+instead. **Ask this before reaching for the `[Obsolete]` instrument; when it applies it costs nothing and is
+stronger.**
+
+**A testing-mechanics trap that hides half of a red run: NUnit stops at the FIRST failed assertion in a
+`[Test]`, so two subjects in one test means one verified subject.** A guard-deletion run over a `[Test]`
+asserting two effects reported `Failed: 1` naming only one of them — which read as success, when in fact the
+other half was never evaluated in that run at all. Split, the same mutation reports `Failed: 2` and names
+both. **A red-first run only proves what it NAMES; if one test covers N subjects, a red run proves 1 of N.**
+(`Assert.Multiple` is the other fix, where splitting is not wanted.)
+
+**And the ceiling of the IL-scan technique, which should be stated wherever it is used.** `IlScan` is a
+linear byte walk over `call`/`callvirt`/`newobj` tokens: **it proves a call token appears in a method body.
+It does not prove the result is used, used correctly, or reachable.** A guard asserted that way survives
+inverting its own `!`, and survives transposing two same-typed `uint` arguments — which *compiles*. Three
+repairs, in order of strength: give the value its own type and make the comparison an instance method so
+there is nothing to transpose; hand the caller an already-filtered sequence so no branch exists at the call
+site; and **assert the ABSENCE of the dangerous call rather than the presence of the safe one** — a wrapper
+that swallows the raw sweep makes `Has.None` on it strictly stronger than "the filter is called", because a
+filter call can be present and its result discarded. (Demonstrated by doing exactly that: the positive
+assertion passed and the negative one caught it.) Pair any `World`-free rule test with a wiring test, or you
+have pinned an algorithm nobody is obliged to call.
+
+### Reflection over the loaded assemblies answers "implements A but not B" — grep structurally cannot
+
+*(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* The `[Obsolete]` + `CS0618` trick above finds
+consumers of a **member**. It cannot answer "which classes implement interface A but not interface B", because
+the interface may be inherited from an abstract base and **never named in the file** — there is no text to
+match. A throwaway NUnit case answers it exactly, in ~40 lines:
+
+```csharp
+foreach (var t in asm.GetTypes().Where(t => t.IsClass && !t.IsAbstract)) {
+    var i = t.GetInterfaces();   // transitive closure — inherited interfaces included
+    if ((i.Contains(typeof(INotifyAddedToWorld)) || i.Contains(typeof(INotifyRemovedFromWorld)))
+        && !i.Contains(typeof(INotifyOwnerChanged)))
+        rows.Add(t.FullName);
+}
+```
+
+`GetInterfaces()` returning the **transitive closure** is what makes this a regression check rather than a
+census: once a base class gains the interface, every subclass drops out of the result set — direct evidence the
+base handler reaches them all. Anchor each assembly with `typeof(SomePublicType).Assembly`. Three gotchas, each
+of which cost a run or a compile:
+
+- **`TestContext.Progress.WriteLine` does NOT survive `dotnet test`'s default console logger.** The test passes
+  and the output vanishes. Write to a file from inside the test.
+- Many Cnc trait classes are **internal**, so `typeof(TSResourceLayer)` fails `CS0122`. Use a public type such
+  as `ChronoshiftPaletteEffect` to anchor `OpenRA.Mods.Cnc`.
+- **It narrows the reading list; it does not do the reading.** Of 37 hits on the run that produced this, 12 died
+  to a YAML-presence grep and the other 25 had to be read for actual owner-dependence.
 
 ### `A() ?? B` in a decision path — check that both arms answer the same QUESTION
 
@@ -794,6 +1358,43 @@ of cells, so "nearest wall by perpendicular distance" is a sound intuition — b
 anything comparing the two must normalise it. In the ground call the sort origin and the reachability
 predicate also read **different actors' positions**: the key is `searchOrigin`, the predicate paths from
 `self.Location` (`:210-211`).
+
+### A value whose contract is "what the PLAYER asked for" must be STATED at the site holding the input, never read back out of the machinery that consumed it
+
+*(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)*
+
+Inference is safe only while the machinery is a pure carrier, and silently wrong the moment it applies a
+**per-unit** transform — and it fails invisibly, because every unit's value is individually plausible.
+
+The worked instance. `AttackMoveActivity.OriginalDestination` was derived by running the queued move
+closure once at construction and reading the resulting `Move.Destination`. At the player-order site that
+closure relocated through `Mobile.NearestMoveableCell` **first**, so the recorded value was the relocated
+cell, not the click — and `NearestMoveableCell` is per-unit by construction (`Mobile.cs:850-871`: it tests
+`CanEnterCell`/`CanStayInCell` against the unit's own locomotor and gates on `CanReach`, the unit's own
+pathfinding domain). **Two different harms, and which one appears depends on the selection's shape, so
+testing one reads as clean:**
+
+- **Homogeneous selection** — `CanEnterCell` at `BlockedByActor.Immovable` ignores movable units, so every
+  unit relocates to the *same* cell. The group consistently marches somewhere the player never clicked.
+  Self-consistent and silent.
+- **Heterogeneous selection** (the standard infantry + armour push) — the units disagree, a consumer that
+  compares chains by `(Cell, OrderType)` finds no common suffix, and one click dedupes into N waypoints
+  with the selection split between them.
+
+**The cheapest available evidence is a same-shaped sibling that is correct.** Plain Move never had this and
+the difference is one argument: `Mobile.MoveTo` takes `evaluateNearestMovableCell` (`Mobile.cs:709-711`) and
+`Mobile.ResolveOrder` passes it `true` (`:1117`, `:1138`), so relocation happens later in `Move.OnFirstRun`
+and the construction-time destination is still the click. Shift-G was therefore honest for Move and
+dishonest for AttackMove, on the same screen, for the same click. Look for that sibling before arguing from
+first principles. The fix is scoped by the same reasoning: of the `AttackMoveActivity` construction sites,
+only the player-order one pre-relocated (`AttackMove.cs:151-152`, with the reasoning now carried as an
+in-file PITFALL at `:127-144`); rally point, paradrop, resupply, Hunt, Patrol, AttackWander, Guard,
+Reservable, aircraft and the Lua binding all pass a raw cell, so the inferring constructor is correct for
+them and stays.
+
+**Neither test suite reaches this class.** The harm is a divergence *across* a selection, held in an internal
+activity field: NUnit has no `World`, and a Lua binding that exercises the behaviour cannot assert on the
+field. Pin the two structural facts that together forbid it instead of trying to observe the divergence.
 
 ## `make.ps1 all` can silently NO-OP after a checkout, leaving the previous SHA's binaries
 
@@ -856,7 +1457,43 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **Bare `find` in the VERSION check** (fixed 2026-08-30). With Git-for-Windows on PATH it resolved to GNU `find.exe`, errored, fell through to `:noengine` and sat on `pause` **forever at ~0% CPU** — indistinguishable from a slow computation; an agent waited ten minutes believing shadows were being generated. Now `%SystemRoot%\System32\find.exe` by absolute path.
 - **`cmd.exe` parses redirection operators on `@REM` lines.** An angle bracket inside a batch comment is a live redirect, not documentation — the comment removed on 2026-09-01 carried a literal bracketed path on the argument-passing branch. Keep redirect, pipe and escape characters out of `.cmd` comments.
 
+## An MSYS absolute path handed to a NATIVE Windows process resolves against the current drive
+
+*(Promoted 2026-09-20 from DISCOVERIES.)* `REPO_ROOT=$(cd ... && pwd)` yields `/c/Users/...` under MSYS/Git
+Bash. Hand that to anything that is not an MSYS program — `dotnet`, a native `python3`, any `.exe` — and the
+leading `/` is resolved against the current drive instead, so the path silently does not exist. Two
+instances sat in one script: a `python3 -c` sanity check that raised `FileNotFoundError` (reported), and a
+`MOD_SEARCH_PATHS`/`ENGINE_DIR` pair handed to `dotnet OpenRA.Utility.dll` that made the mod search come up
+short and wrote a **zero-byte** dump (not reported, and invisible because the first fault fired and took the
+blame). **When a script fails on a path, check every path it hands out, not the one in the traceback.**
+
+**The fix is relative paths, which is already the house form in this tree.** `utility.sh`,
+`tools/impact-scar/extract-palettes.sh` and `engine/utility.sh` all pass `ENGINE_DIR=".."` with
+`MOD_SEARCH_PATHS="../mods,./mods"` after cd-ing into `engine/`; relative paths are drive-agnostic, need no
+`cygpath`, and behave identically under MSYS, native Windows, Linux and macOS. For the Python side the
+equivalent move is to pipe the file in on **stdin** (`python3 -c '...' < "$FILE"`) so the SHELL opens it —
+path translation stays where it already works, and the Python source can then be single-quoted, which
+removes every escaping hazard as a side effect.
+
+**And a zero exit from `OpenRA.Utility` does not mean the mod loaded.** With no env vars set,
+`cd engine && dotnet bin/OpenRA.Utility.dll ww3mod --dump-balance-json` prints `The available mods are:` —
+**empty** — and exits **0** with a usage line. That is a successful exit with no mod loaded, which is
+exactly what a hand-check reads as "works". **Require the leading `{` before believing a dump**, the same
+shape as the zero-byte-log and exit-126 traps recorded for `utility.sh` in `CLAUDE.md`.
+
+**Related, and it turned a portability wart into data loss: a validator must never delete its subject.** The
+failing check above carried `rm -f "${OUT_FILE}.tmp"` on its failure branch, so a broken CHECK destroyed a
+good 454 KB DUMP and printed a message naming the wrong party. **That branch is reached both when the
+artifact is bad AND when the validator is bad, and it cannot tell which** — so it may not destroy evidence,
+and its message may not assert which side failed.
+
 ## Engine behaviors that surprise (debugging gotchas)
+
+- **`Actor.Location` LEADS a moving unit by one cell, and unit speed does not widen the window.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Actor.Location` is `OccupiesSpace.TopLeft` (`Actor.cs:78`) and for a `Mobile` actor `TopLeft => ToCell` (`Mobile.cs:314`) — **the cell being moved INTO**. `ToCell` is assigned when a move BEGINS, not when it completes (`Mobile.IsLeavingCell` encodes the same semantics: `ToCell != location && FromCell == location`). So the reported cell runs one ahead of where the unit physically is, and **a Speed-25 rifleman's reported cell jumps exactly as fast as a tank's** — the intuition that a slow unit gives a poll a wide margin is backwards, because the first tick of the queued move is enough. Anything reading where a unit *arrived*, *spawned* or *stopped* by polling `Actor.Location` is reading its destination. Use a notification hook — for a Supply Route delivery that is `Trigger.OnProduction`, which fires from `INotifyProduction.UnitProduced` inside the same frame-end task, after `CreateActor` and after the MoveTo is queued but **before any activity has ticked**, so `ToCell` is still the spawn cell — or `CenterPosition` when an approximate position will do. **The independent tell that such a reading is an instrument fault rather than an engine one:** a reported "entry cell" that is not on the map perimeter cannot have come from `ChooseClosestMatchingEdgeCell` at all.
+
+- **`INotifySold.Sold` means "this actor got home alive"; `Selling` is only the INTENT.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Sold` fires from exactly two places — `RotateToEdge.cs:466`, reached only by an actor that physically reached the map edge, and `Sell.cs:45` for a building selling in place. `Sellable.cs:83` raises `Selling`. So a unit ordered to evacuate and killed en route raises `Selling` and never `Sold`, and reading the wrong one turns *"recovered"* into *"tried to recover"*.
+
+- **`Cargo.MaxWeight` is a weight BUDGET that the tooltip prints as a headcount.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* `Cargo.cs:47` renders `$"{MaxWeight} infantry"`, which is only a passenger count while every passenger weighs 1 — true today because `Passenger.Weight` defaults to 1 (`Passenger.cs:29`) and is overridden nowhere in `mods/`. **The first `Passenger.Weight: 2` authored in this mod silently makes every transport tooltip overstate its capacity, and nothing fails.** Found from the reverse error: `pbox`/`hbox` descriptions claimed "Garrisons 2 soldiers" against a `MaxWeight` of 4, so the hand-written figure and the generated row disagreed on screen.
 
 - **`FindTilesInCircle` / `FindTilesInAnnulus` THROW above 56 cells rather than clamping, and nothing at the call site says so.** *(Promoted 2026-09-06 from DISCOVERIES, re-read at `main @ 6e5721ae`.)* `Map.FindTilesInAnnulus` rejects any `maxRange` past `MapGrid.MaximumTileSearchRange` (`Map/Map.cs:1994-1995`, ceiling **56** at `Map/MapGrid.cs:113`), so a radius over 56 cells takes the game down at the instant of the call. `FindTilesInCircle` reads like a search helper, its argument is a plain cell count, and there is no clamp, no guard and no `[Desc]` mentioning a maximum anywhere on the traits that reach it. This has now caught **four** callers in this repo and every one was found by crashing rather than by reading: `Radar.Range: 56c0` via `AffectsMapLayer.ProjectedCells` (2026-08-21 — note `56c0` resolves to 57, so the effective ceiling is **55c0**), an autotest radar scenario (`10a03ea0`), a support power's `CameraRange: 68c0` (`9d197f66`), and `TerrainLighting.AddLightSource`'s light radius (2026-09-06). **Treat any WDist that reaches a `FindTiles*` call as capped at 55c0 until you have read the callee.**
 
@@ -921,6 +1558,8 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **The logging thread is the engine's only long-lived FOREGROUND thread — keep `IsBackground = true` on it or the process never exits.** Every other long-lived engine thread (Server/Connection/MapCache/graphics) sets `IsBackground = true`; `Log.DoWork` spins until its cancellation token fires, and the token is cancelled **only** in `Log.Dispose()` (cancel + `Thread.Join`, `Log.cs:187-192`), reached via the `finally { Log.Dispose(); }` in each entrypoint (`OpenRA.WindowsLauncher/Program.cs:81-83`, `OpenRA.Launcher/Program.cs`). A .NET foreground thread keeps the process alive after `Main` returns, so any exit that bypasses that finally (a signal kill mid-shutdown, or a main-thread hang between `Game.Exit` and the finally) leaves the thread spinning and **pins the process** — the mechanism behind lingering `dotnet.exe`/`OpenRA.exe` after the game closes. WW3MOD sets `IsBackground = true` on the Log thread (`Log.cs:59-68`, PITFALL comment inline) so the runtime reaps the process on every exit path; clean exits still `Log.Dispose()` (cancel + join + final flush), so no log lines are lost.
 - **`world.Actors` includes positionless PlayerActors — enumerate-then-read-position NREs on them.** `world.Actors => actors.Values` (`World.cs:522`) yields every `PlayerActor` and the world actor, not just spatial units — each `Player` adds and `Initialize`s a `PlayerActor` into the same dict (`Player.cs`), and a `PlayerActor` has no `IOccupySpace`. both `Actor.CenterPosition => OccupiesSpace.CenterPosition` (`Actor.cs:79`) and `Actor.Location => OccupiesSpace.TopLeft` (`Actor.cs:78`) dereference `OccupiesSpace`, so reading `.CenterPosition` **or `.Location`** on one throws `NullReferenceException`. A relationship filter does **not** exclude it: an enemy `PlayerActor`'s `Owner` is *itself*, so `RelationshipWith(Owner) == Enemy` passes it through — the bug that crashed a bot game to desktop on tick 0 when a HelicopterSquad's `FindClosestEnemy` fell through to the `world.Actors` scan before the ThreatMap had data (`HelicopterStates.cs`, guarded at `:226` with `a.OccupiesSpace != null`). Any bot code that enumerates `world.Actors` (rather than a spatial query) and later reads a position must filter `a.OccupiesSpace != null` — and because a `FirstOrDefault`/`Where` predicate evaluates left-to-right, the **field-access order matters**: put an occupancy-implying trait test (`HasTraitInfo<…Info>()`, e.g. a hut / `IPositionableInfo` filter) or the `OccupiesSpace != null` guard **before** any `a.Location`/`.CenterPosition` term, or the scan NREs the moment it reaches a positionless actor (re-occurred in `EngineerRouteOpenBotModule.FindBridgeHutAt`, a `Location`-first predicate, fixed @ `caff1c5f`). Spatial-partition queries (`World.FindActorsInCircle`) are safe by construction — they only ever hold actors that occupy space.
 - **`Actor.Trait<T>()` THROWS when the trait is absent, so a null check downstream of it is dead code — and the trait that "cannot be missing" is enforced by `Requires<>`, which is not the same guarantee.** `Trait<T>()` is `World.TraitDict.Get<T>(this)` (`Actor.cs:465-467`), and `TraitDictionary.Get` throws `InvalidOperationException: Actor <name> does not have trait of type …` (`TraitDictionary.cs:158-165`). The non-throwing accessor is `TraitOrDefault<T>()` (`:470-473`). **The shape to watch for is a constructor doing `x = self.Trait<T>()` with `if (x == null)` guards further down the file** — the guards read as defensive and can never fire, so the actual failure mode is a load-time crash, not the degraded behaviour the guards imply. Live instance: `GarrisonProtection` caches `health = self.Trait<IHealth>()` in `Created` (`:61`) and then guards `if (health == null || health.IsDead)` at `:71` and `:84`. `GarrisonProtectionInfo` declares `Requires<GarrisonManagerInfo>` and `Requires<CargoInfo>` but **no `Requires<HealthInfo>`** (`:19`), and `V19.Husk` strips `-Health:` (`civilian.yaml:441`) while keeping both garrison traits — so the throw is reachable in principle and is only unreached because no shipped map places that actor. **`Requires<>` is all the lint can see**: it is what makes an absent trait a load error instead of a runtime one, and a trait you dereference unconditionally belongs in that list.
+- **A blocked activity TELLS the blockers to move, so a ring of your own idle units blocks nothing.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* `ActorExts.NotifyBlocker` fans a blockage out to every `INotifyBlockingMove` on every blocking actor (`engine/OpenRA.Mods.Common/ActorExts.cs:62-77`), and `Mobile.OnNotifyBlockingMove` (`Mobile.cs:1034-1046`) reads: an actor that `!AppearsFriendlyTo(blocking)` **returns immediately**; an actor that `IsIdle` **queues a `Nudge` and drives out of the way**; only a non-idle friendly falls through to `IsBlocking = true`. So the sim contains machinery whose whole job is to clear the obstruction, and a blocked-path activity is precisely what wakes it. Three stagings that actually block, in descending faithfulness: **enemy-owned** blockers (early-out at `AppearsFriendlyTo`), friendly blockers that are **not idle**, or **immobile** actors. **Second trap in the same staging: infantry do not block infantry.** Exit search goes through `pos.GetAvailableSubCell(c)` (`Activities/UnloadCargo.cs:141`) and up to three infantry share one cell, so a ring of eight riflemen leaves free subcells and every search succeeds — only a full-cell occupant, i.e. a vehicle, blocks an infantry exit. Generalises past unloading: **"I placed obstacles" is a claim about the frame you are looking at, not about the tick the code runs on** — before staging any blockage, ask what the code under test does when it finds itself blocked.
+- **A Lua `AmmoCount` on a pool the actor does not declare THROWS rather than returning zero.** `AmmoPoolProperties.AmmoCount` raises `LuaException("Invalid ammopool name …")` when no pool matches the name (`Scripting/Properties/AmmoPoolProperties.cs:36-38`); `MaximumAmmoCount` is the same shape. A scenario that reads a shared `primary-ammo` + `secondary-ammo` pair across a lane table therefore **kills the whole run** the moment one lane's actor carries a single pool — the failure presents as a dead scenario, not as a missing number. Same accessor-choice family as the `Trait<T>()` / `TraitOrDefault<T>()` rule below.
 - **Reading any trait of a Disposed actor throws — so a bot squad module must prune dead members *before* it ticks squad states, not on a slower scan cadence.** `TraitDictionary` guards every lookup with `CheckDestroyed`, which throws `InvalidOperationException: Attempted to get trait from destroyed object` on a Disposed actor (`TraitDictionary.cs:81-84`) — `TraitOrDefault` included, so there is no "safe" trait read. A module whose state-update interval is shorter than its membership-prune interval will therefore hold dead actors in `Squad.Units` for the gap and CTD the first time a state touches a trait (the concrete crash: `HelicopterSquadBotModule` updated squads every 5 ticks but pruned only every 100, so a state tick's `GetRole` → `TraitOrDefault<AIHelicopterRole>` hit a destroyed hind). The engine-standard invariant is **prune-before-update**: `SquadManagerBotModule.CleanSquads()` runs on every `BotTick` before any `s.Update()` (`SquadManagerBotModule.cs:229-233`); `HelicopterSquadBotModule.PruneSquads()` (`:355`, `RemoveAll` on `IsDead`/`!IsInWorld`/foreign owner) mirrors it and is called at the top of `UpdateSquads` (`:249`). Enforce list hygiene upstream at the single choke point that runs before every update — don't scatter per-site trait-read guards through the squad states (they rot; the choke point can't be bypassed).
 - **A ground unit CANNOT path off the map, and it is structural rather than a tuning limit.** `Locomotor.MovementCostForCell` returns `PathGraph.MovementCostForUnreachableCell` for every cell where `!world.Map.Contains(cell)` (`Locomotor.cs:194-195`), so **every** `Mobile` pathfind terminates at the playable boundary by construction — no destination, cost table or locomotor tuning gets a ground unit past it. Aircraft escape only because `Fly` takes a `WPos` and never consults a locomotor. So "make ground units drive off the edge like aircraft do" is not a matter of picking a farther target cell: the pathfinder refuses it, and the only way out is to stop asking the pathfinder and drive `IPositionable.SetCenterPosition` directly (what `Drag` does — see the `SetCenterPosition` rule below for the cell-vs-position consequences that follow).
 - **`Map.GetTerrainInfo(CPos)` / `GetTerrainIndex(CPos)` are UNGUARDED — an off-map cell throws `IndexOutOfRangeException`.** `GetTerrainInfo(CPos)` (`Map.cs:1649`) delegates to `GetTerrainIndex(cell)` (`:1627`), which does a raw `cachedTerrainIndexes[cell.ToMPos(this)]` array index (`:1637`) with no bounds check — so any code that can hand it a cell past the map edge crashes hard. The engine idiom everywhere else is to gate it behind `Map.Contains(cell)` (`:1363`) first (Aircraft land checks, Wanders, Missile trails, HeliEmergencyLanding, AIUtils all do); the `Rules.TerrainInfo.GetTerrainIndex(string/TerrainTile)` *overload* is safe (no per-cell array). The recurring source of off-map cells is death effects: a `FallToEarth`/`SpawnActorOnDeath` husk or a `LeavesTrailsCA` ballistic-missile trail whose `CenterPosition` drifts past the edge. When adding a per-cell terrain read, either `Contains`-guard it or `Map.Clamp` (`:1654`) the cell into bounds first. (Contrast the harmless `Rules.TerrainInfo` string overload.)
@@ -932,14 +1571,17 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **`Activity.QueueChild` APPENDS to the child chain — it does not replace.** `if (childActivity != null) childActivity.Queue(activity); else childActivity = activity;` (`Activity.cs:220-226`). So a multi-leg activity that cancels its current child and immediately queues the next leg runs the **stale, cancelled** leg first. `Cancel` only sets `State = Canceling` for a child already past `Queued` (`Activity.cs:209`; a never-run child is marked `Done` and skipped), and a `Canceling` child that is never ticked again sits in the slot indefinitely. The fix is to **drain**: after cancelling, tick the child until `ChildActivity == null` *before* queuing the replacement.
 - **`Activity.Cancel` tests `IsInterruptible` on ITSELF, never on its child — so `IsInterruptible = false` on a child does NOT make the composition uncancellable.** `Cancel` returns early on its own `!IsInterruptible` (`Activity.cs:214-215`), then calls `ChildActivity?.Cancel(self)` (`:217`) and sets its own `State` regardless of what the child did (`:220`). A non-interruptible child therefore refuses, stays `Active`, and the parent goes `Canceling` around it. **Whether that orphans the child depends on `ChildHasPriority`, and this is the qualification to carry:** under the default `true` (`Activity.cs:103`) `TickOuter` runs `TickChild(self) && (finishing || Tick(self))` (`:125`), so the parent's `Tick` is not even reached until the child completes and the child is safe. It is the handful of `ChildHasPriority = false` activities — `RotateToEdge`, `Enter`, `MoveAdjacentTo`, `SmartMoveActivity`, `AttackMoveActivity`, `PickupUnit`, `FlyOffMap`, `FlyAttack`, `SeekSupplyProvider` — whose own `Tick` runs alongside the child and typically opens with `if (IsCanceling) return true;`, dropping it. **If a parent's cleanup depends on a child finishing, set `IsInterruptible = false` on the PARENT** (`RotateToEdge.cs:291-297` does exactly this before its final `Drag`, with the reasoning inline).
 - **`IPositionable.SetCenterPosition` moves the WORLD POSITION only — the actor's CELL does not follow.** `Mobile.SetCenterPosition` (`Mobile.cs:554`) assigns `CenterPosition` and fires notifications but never calls `SetLocation` (`:607`); only `SetPosition` does both (`:529`, `:545`). Since `Actor.Location` is `OccupiesSpace.TopLeft` = `Mobile.ToCell`, **an actor driven by `Drag` can be rendered several cells outside `Map.Bounds` while `Actor.Location` is still a valid in-bounds cell.** Two consequences that are easy to get backwards: a predicate testing `self.Location` to detect "has left the map" is dead code for a `Mobile` actor, and the unit **keeps blocking the cell it left from** for the whole leg, because `AddInfluence`/`RemoveInfluence` only re-run on `SetLocation` (`Mobile.cs:607-617`). This is `Mobile`-specific — `Aircraft.TopLeft` is `Map.CellContaining(CenterPosition)` (`Aircraft.cs:263`), so an aircraft's `Location` *does* go off-map, which is what `FlyOffMap` terminates on (`FlyOffMap.cs:116`).
+- **A QUEUED ORDER BOUNDARY IS A STATE BOUNDARY — splitting a move in two destroys the corner it was supposed to contain.** *(Promoted 2026-09-20 from DISCOVERIES; verified at `a21583fd`.)* Two queued `Move` orders do **not** produce a corner arc. The first completes at its waypoint, the unit settles on the cell centre with `FromCell == ToCell`, and the second turns it in place before setting off (`Activities/Move/Move.cs:213-216`). The arc — and with it the `ToCell` retargeting that is the interesting behaviour — happens only between cells of **one** path, in `MoveFirstHalf`'s chained-turn branch, which opens the arc and in the same step calls `mobile.SetLocation(mobile.ToCell, …, nextCell.Value.Cell, …)` (`:709-722`). Generalises past movement: **anything that exists only *within* one activity — arc turning, carryover progress, mid-path retargeting — is destroyed by splitting the order, and splitting is the natural way to write the setup.** A run staged that way can drive, stop, turn and finish perfectly happily without ever entering the state under examination.
+  - **Corollary: `self.Location` on a dying mobile actor is a RESERVATION, not a position.** `Mobile.TopLeft` is `ToCell` (`Mobile.cs:314`), and mid-corner `ToCell` is already the cell *after* the turn. A husk spawns at `self.Location` (`SpawnActorOnDeath.cs:158`) and then drags to that cell's centre (`Husk.cs:263`), so the wreck's straight drag line is neither the death facing nor the living unit's heading — it is a third direction, and the three coincide only on a straight leg, which is why anything derived from the wrong one is a no-op on most kills. Any death-time code reading `self.Location` — spawn cells, drop points, score attribution by cell — inherits this and can be up to one and a half cells from the body. *(The husk-facing case itself is fixed: `Husk` now settles onto the drag line via `HuskSettleGeometry.SettleFacing`, `Husk.cs:108-121`.)*
+  - **Corollary: `Turn` cannot be used on a husk.** `Turn.Tick` advances via `Util.TickFacing(…, TurnSpeed)` (`Turn.cs:46-47`) and `Husk.TurnSpeed` is `WAngle.Zero` (`Husk.cs:95`), so the activity never completes — the `Drag(…, facing)` overload that queues a `Turn` (`Drag.cs:41-44`) would hang a wreck forever.
 - **`ITick` traits KEEP FIRING for an actor removed from the world but not disposed — `IsInWorld` is not a tick gate.** Actors and traits are ticked from two different places: `World.Tick` iterates `actors.Values` calling `a.Tick()` (`World.cs:499-500`), which drives **activities** only; `ITick` traits are driven on the next line by `ApplyToActorsWithTraitTimed<ITick>` (`:502`) → `TraitDictionary.ApplyToAllTimed` (`TraitDictionary.cs:305-316`), a plain indexed walk of the trait container with **no `IsInWorld` and no `Disposed` filter**. `World.Remove` sets `IsInWorld = false`, drops the actor from the `actors` dict and fires `INotifyRemovedFromWorld` (`World.cs:398-405`) but never touches the trait container — an actor leaves that only via `World.TraitDict.RemoveActor(this)` inside `Actor.Dispose`'s frame-end task (`Actor.cs:469`). Removed-but-not-disposed is a **reachable** state, not a theoretical one: a Carryall pickup calls `cargo.World.Remove(cargo)` with no `Dispose` (`Activities/PickupUnit.cs:174`), as does loading into cargo, and the actor is `World.Add`ed back later. Throughout the carry its `ITick` traits run with `CenterPosition` frozen at the pickup point — so any proximity/aura trait keeps operating from a stale position and can even re-grant a condition one tick after `INotifyRemovedFromWorld` revoked it. Any world-position-dependent `ITick` trait needs an explicit `if (!self.IsInWorld) { …release…; return; }` at the top of `Tick` (`SupplyProvider.cs:186`, with the mechanism written up inline). Corollary: `INotifyRemovedFromWorld` is the right place to *release* state but is no guarantee the trait has stopped; the terminal pair for permanent teardown is `INotifyKilled` + `INotifyActorDisposing`.
 - **`IsDead || !IsInWorld` is NOT a sufficient liveness test for a host actor, because it does not cover CAPTURE — a captured building is alive, in world, and now hostile.** *(Promoted 2026-09-01 from DISCOVERIES.)* This bites any multi-tick errand that validates its destination once and then drives to it. The concrete case is the Logistics Centre, which is capturable by inheritance and easy to assume is not: `LOGISTICSCENTER:` (`mods/ww3mod/rules/ingame/structures.yaml:392`) → `^Building` (`:69`) → `^BasicBuilding` (`:10`) → `^NeutralOrOccupiedCapturable` (`:169-176`, `CaptureManager` plus `Capturable@neutral` / `@occupied`), and it additionally carries `OwnerLostAction: ChangeOwner` / `Owner: Neutral` (`:394-396`). **So a supply truck can set out toward its own depot and complete the delivery into an enemy's.** The fix ships and is the pattern to copy — add the relationship term: `host.IsDead || !host.IsInWorld || !self.Owner.IsAlliedWith(host.Owner)` (`Activities/DeliverSupply.cs:104`, reasoning in-file at `:91-101`). **Whenever an activity re-checks a host across ticks, check ownership alongside liveness; the two are independent and only one of them is obvious.**
 - **`Actor.GetConditionCount(name)` is a public, cache-backed read of a granted condition by name, and it works for conditions nothing consumes.** `GetConditionCount` (`Actor.cs:636`) reads a cache that `GrantCondition` (`:674`) populates unconditionally through `UpdateConditionState` — `conditionCache[condition] = conditionState.Tokens.Count` (`:660`) is written *before* the consumer fan-out, so the count is recorded even when no trait on the actor declares a `RequiresCondition` for that token. This is the honest way to read a state a C# activity grants: `evacuating` comes from `RotateToEdge.cs:145` (`self.GrantCondition("evacuating")`) and is otherwise declared only as a bare `ExternalCondition` on the unit templates. Bot code that instead infers such a state from a *cause* (e.g. "all pools empty ⇒ must be evacuating") misses every other trigger. The suppression stack is read the same way — `GetConditionCount("suppressed")`, with the name kept as an Info field rather than hard-coded.
 - **A `HitShape`'s `Radius` does not affect AIMING at all — it reaches damage through two different doors, and only one of them can shut.** `HitShape.TargetablePositions` (`HitShape.cs:126-136`) returns `CenterPosition + TargetableOffsets` and never reads `Radius`; `TargetableOffsets` defaults to `{ WVec.Zero }`. So a weapon aims at the actor's centre whatever the radius. The radius is consumed only by (a) `DistanceFromEdge`, which `SpreadDamageWarhead` uses for falloff (`SpreadDamageWarhead.cs:74`) — for a circle that is `max(0, |d| - Radius)`, so shrinking the radius costs exactly `Radius` world-units of lethal envelope and nothing else; and (b) `CenterProximityPercent`, which `TargetDamageWarhead` uses to scale damage (`TargetDamageWarhead.cs:93`) — for a circle that is `100 × (Radius − d) / Radius`, which **hits zero AT the radius**. Door (b) is therefore a hard cutoff and door (a) is a 1:1 trade. **Worked case, because it is counter-intuitive:** `^Drone` sets `Radius: 1` (`aircraft.yaml:386-388`) against the `Radius: 32` it would inherit from `^NeutralAirborne` (`:89-91`), which looks like it should make the quadcopter unhittable. It does not — the mod's real AA (Stinger and its `9M311`/`Stinger.quad` heirs, `weapons-missiles.yaml:555-559`: `Damage: 5000, Spread: 256, Penetration: 20`) is `SpreadDamage`, so the whole cost is 31 units against a weapon whose own `Inaccuracy` is 300. **The one weapon it genuinely shuts out is `20mm_CRAM`** (`weapons-ballistics.yaml:543-557`), whose own block declares only a `TargetDamage` warhead; the `SpreadDamage` in its resolved ruleset comes from `Inherits@HitEffects: ^MinimalExplosionEffectsAir` (`weapons-effects.yaml:677-690`), which sets `ValidTargets: Air` and **no `Damage:`** — a target-type scaffold so `CreateEffect` renders, not a damage half. CRAM does literally zero damage to a drone. Pinned by `DroneHitShapeTest`. **When a hitshape radius looks decisive, ask which warhead class reaches the victim first** — and note that the drone radius has no recoverable intent: `git log -S` gives one commit (`e62150de`, 2024-01-07) that changed it 8 → 1 while doing something unrelated, and it has never been 32.
-- **`world.Timestep` is MUTABLE runtime state; `world.GameSpeed.Timestep` is the invariant.** `World.Timestep` is a plain field (`World.cs:43`) initialised from the match speed (`:218`, `Timestep = ReplayTimestep = GameSpeed.Timestep`) and then **written at runtime** by three consumers — the debug speed button (`SpeedControlButtonLogic.cs:61`), `TestModeSpeedMultiplier.cs:40`, and `BotVsBotMatchWatcher.cs:178`. `World.GameSpeed` is `public readonly` (`:41`). **Any display of ELAPSED or REMAINING match time must format with `world.GameSpeed.Timestep`** — formatting an accumulated `WorldTick` with the mutable field retroactively rescales the whole match history (a ten-minute game read 05:00 the instant you pressed 2x). The distinguishing pathology is *retroactive rescaling of an accumulator*, not "uses `world.Timestep`": most `FormatTime` call sites convert a **future** duration (support-power charge, build time) where the currently-effective timestep is arguably right. When auditing this class of bug, grep for `WorldTick`-derived quantities, not for `Timestep`. The three `WorldTick`-anchored readouts (game clock `GameTimerLogic.cs:49`, time-limit countdown `TimeLimitManager.cs:131`, strategic victory `StrategicProgressWidget.cs:70`) all now use `GameSpeed.Timestep` and carry PITFALL comments. **Known-unfixed consequence of the same field:** `TimeLimitManager.cs:110` computes `ticksPerSecond = 1000 / World.Timestep` in integer division against the 60 ms baseline (`mod.yaml:380-383`) ⇒ **16, not 16.67, so ww3mod time limits run ~4% short in gametime** (a "20 minute" limit is 19200 ticks = 1152 s); it also reads the mutable field. Left alone deliberately — changing it moves the tick budget every win rule and countdown reads. **The Lua test harness disagrees with the same baseline, in the safe direction:** `TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:26`, consumed at `:69`, `:99` and `:203`; the file's own header block explains why it is deliberately left at 25) while `DefaultSpeed: default` (`mod.yaml:358`) resolves to `Timestep: 60` (`:382`) ⇒ **16.67 ticks/s**. So every `AssertWithin(n)` window is **1.5× longer than it reads**, which is why nothing has been truncated and nobody noticed. The hazard is the opposite direction: anyone *tightening* a deadline to a value that looks adequate in seconds is really setting two-thirds of it. Treat the harness constant as a scaling factor, not as a fact about the mod.
+- **`world.Timestep` is MUTABLE runtime state; `world.GameSpeed.Timestep` is the invariant.** `World.Timestep` is a plain field (`World.cs:43`) initialised from the match speed (`:218`, `Timestep = ReplayTimestep = GameSpeed.Timestep`) and then **written at runtime** by three consumers — the debug speed button (`SpeedControlButtonLogic.cs:61`), `TestModeSpeedMultiplier.cs:40`, and `BotVsBotMatchWatcher.cs:178`. `World.GameSpeed` is `public readonly` (`:41`). **Any display of ELAPSED or REMAINING match time must format with `world.GameSpeed.Timestep`** — formatting an accumulated `WorldTick` with the mutable field retroactively rescales the whole match history (a ten-minute game read 05:00 the instant you pressed 2x). The distinguishing pathology is *retroactive rescaling of an accumulator*, not "uses `world.Timestep`": most `FormatTime` call sites convert a **future** duration (support-power charge, build time) where the currently-effective timestep is arguably right. When auditing this class of bug, grep for `WorldTick`-derived quantities, not for `Timestep`. The three `WorldTick`-anchored readouts (game clock `GameTimerLogic.cs:49`, time-limit countdown `TimeLimitManager.cs:131`, strategic victory `StrategicProgressWidget.cs:70`) all now use `GameSpeed.Timestep` and carry PITFALL comments. **FIXED 2026-09-19, and the "left alone deliberately" that stood here was overturned rather than forgotten.** `TimeLimitManager` computed `ticksPerSecond = 1000 / World.Timestep` in integer division against the 60 ms baseline ⇒ 16, not 16.67, so **ww3mod time limits ran ~4 % short in gametime** (a "20 minute" limit was 19200 ticks = 1152 s). The stated reason for leaving it — that changing it moves the tick budget every win rule and countdown reads — was correct about the consequence and was accepted as the price: the manager's ruling was that the clock becomes HONEST and the lobby values are NOT re-tuned to preserve the short durations, so **timed matches are now ~4 % longer** and a 90-minute limit really runs 90 minutes. The conversion is `TickTime.TicksForMinutes` (`TimeLimitManager.cs:152`), which multiplies before dividing; `world.Timestep` is still the source but is read **once in the constructor** (`:137`), before any of the three mutators can have run. **The Lua test harness disagrees with the same baseline, in the safe direction:** `TestHarness.TicksPerSecond = 25` (`mods/ww3mod/scripts/test-helpers.lua:26`, consumed at `:69`, `:99` and `:203`; the file's own header block explains why it is deliberately left at 25) while `DefaultSpeed: default` (`mod.yaml:358`) resolves to `Timestep: 60` (`:382`) ⇒ **16.67 ticks/s**. So every `AssertWithin(n)` window is **1.5× longer than it reads**, which is why nothing has been truncated and nobody noticed. The hazard is the opposite direction: anyone *tightening* a deadline to a value that looks adequate in seconds is really setting two-thirds of it. Treat the harness constant as a scaling factor, not as a fact about the mod.
 - **`Game.RunAfterTick` runs INSIDE synced code — so the "click this button for the test driver" idiom CTDs on any in-match UI action.** `RunAfterTick` (`Game.cs:735`) queues onto `delayedActions`, which is drained by `PerformDelayedActions()` **from the first line of `Game.LogicTick()`** (`:822-824`) — a synced context. Any UI action that touches the order generator therefore trips `World.OrderGenerator`'s setter → `Sync.AssertUnsynced("The current order generator may not be changed from synced code")` (`World.cs:170`) and throws. **That is the ONLY `AssertUnsynced` call site in the engine** — an independent grep of the whole tree (2026-09-02) returns six hits: the definition at `Sync.cs:205`, this one call, and four comments/string literals in `TestGlobal.cs` and `TestGlobalSyncTest.cs`. One tripwire guarding one setter is why *"dispatches a UI handler from Lua"* is a silent bug class: everything a UI handler does other than reassigning `World.OrderGenerator` runs synced with nothing to complain. (Scope the claim to `AssertUnsynced` — `Sync.RunUnsynced` has a *separate* guard that throws `"RunUnsynced: sync-changing code may not run here"` on a hash mismatch, `Sync.cs:200-201`.) **When you need to know whether a state is protected, enumerate its WRITERS, not the callers of the guard** — `OrderGenerator = …`/`CancelInputMode()` has 76 sites across 14 files. `World.CancelInputMode()` (`:178`) is the common route in, so opening an in-game menu panel is enough. **The asymmetry is what makes this easy to ship: the real `OnClick` never trips it**, because input handling is already an unsynced context — the button works for a human and explodes for the driver. The pre-match idiom got away with it only because at the **main menu** there is no `World` and nothing asserts sync at all; copying it into a hook that fires in-match is where it breaks. **Fix is one wrapper:** `Game.RunAfterTick(() => Sync.RunUnsynced(world, () => …))` (`Sync.cs:165`). Keep both — `RunAfterTick` defers past construction, `RunUnsynced` solves the synced-frame problem, and they are different problems.
   - **Diagnostic corollary for screenshot drivers: a crash still produces a PNG, and it is BLACK.** The pending capture command is consumed by the CTD, so the manifest gains a normal-looking entry pointing at an all-black image. **File size is the cheap tell** (~34 KB vs ~1.1 MB for a healthy full-screen capture) — a driver that only checks "did the PNG appear" reports success on a crashed game. Grep the log for `Exception of type` before trusting a capture.
-- **A right-click resolves through an `OrderPriority` contest, so naming the order a test expects assumes the answer to a question the UI decides at click time.** `UnitOrderGenerator.OrderForUnit` walks the `IIssueOrder` targeters in **descending `OrderPriority`** and takes the first that accepts (`OpenRA.Mods.Common/Orders/UnitOrderGenerator.cs:271-309`, the descending sort at `:280` — **corrected 2026-09-01 from `:222-234`; note the file is under `OpenRA.Mods.Common/`, not `OpenRA.Game/`**; the whole descending list is walked *twice*, the second pass against `Target.FromCell`). `AttendAlly`'s targeter is priority **7** (`AttendAlly.cs:35`) and `AttackBase`'s is **6** (`AttackBase.cs:465`) — so clicking a wounded ally with a medic selected issues **`AttendAlly`, not `Attack`**, and the medic ends up in an `AttackMoveActivity` wrapped around a `Follow` (`AttendAlly.cs:127-128`) where treatment happens only via that activity's 10-tick rescan. A scripted test that issues the order by name therefore never runs the contest and can pass while the player-visible path stays broken. **Use `Test.ClickOrder` (`Scripting/Global/TestGlobal.cs:324`), which resolves the real chain and returns the winning OrderString, whenever routing is part of what is under test.**
+- **A right-click resolves through an `OrderPriority` contest, so naming the order a test expects assumes the answer to a question the UI decides at click time.** `UnitOrderGenerator.OrderForUnit` walks the `IIssueOrder` targeters in **descending `OrderPriority`** and takes the first that accepts (`OpenRA.Mods.Common/Orders/UnitOrderGenerator.cs:352-370`, the descending sort at `:361` — **cites corrected 2026-09-20 from `:271-309`/`:280`, themselves corrected 2026-09-01 from `:222-234`; note the file is under `OpenRA.Mods.Common/`, not `OpenRA.Game/`**; the whole descending list is walked *twice*, the second pass against `Target.FromCell`). `AttendAlly`'s targeter is priority **7** (`AttendAlly.cs:35`) and `AttackBase`'s is **6** (`Attack/AttackBase.cs:519` — corrected 2026-09-20 from `AttackBase.cs:465`) — so clicking a wounded ally with a medic selected issues **`AttendAlly`, not `Attack`**, and the medic ends up in an `AttackMoveActivity` wrapped around a `Follow` (`AttendAlly.cs:127-128`) where treatment happens only via that activity's 10-tick rescan. A scripted test that issues the order by name therefore never runs the contest and can pass while the player-visible path stays broken. **Use `Test.ClickOrder` (`Scripting/Global/TestGlobal.cs:324`), which resolves the real chain and returns the winning OrderString, whenever routing is part of what is under test.**
   - **The drawn cursor and the executed click resolve through the SAME path, so a cursor that lies and a click that misbehaves are one defect, not two** (promoted 2026-09-01 from DISCOVERIES). `UnitOrderGenerator.Order` (`:52`) and `GetCursor` (`:135`) both funnel into `OrdersForSelection` (`:197`/`:206`) → `OrderForUnit`; the deliberate comment at `:131-133` says so. **The practical consequence is the one worth carrying: a trait that accepts a click it cannot act on is a silent veto over every lower-priority targeter, and it still draws a cursor** — `OrderForUnit` returns the *first* acceptor walking down priority and never reconsiders. `Repairable`'s targeter is priority **5** (`Repairable.cs:77-79`), below Restock 7 and Deliver 6, so a higher-priority acceptor that no-ops swallows the repair the player was aiming for. **When a cursor is wrong, look for a targeter that accepts too eagerly, not for a rendering bug.**
 - **Deleting one term of a compound `PauseOnCondition`/`RequiresCondition` silently changes what the survivor MEANS.** A surviving term stops being a qualifier scoped by the deleted one and becomes the whole rule. The worked example: `PauseOnCondition: !ammo-primary || suppressed >= 10` was an *ammo* gate with a suppression term riding along as boilerplate; removing the unit's ammo pool made `!ammo-primary` dead, it was stripped, and `suppressed >= 10` was promoted unexamined into the armament's entire gating rule — switching that unit off under any incoming fire at all. **Grep for other truncated two-term conditions before trusting any of them as intentional**, and when you delete a term, re-derive the survivor's intent rather than assuming it was already independent.
 - **A unit below `Hunt` stance never WALKS to an auto-target, so a scan radius wider than the weapon buys nothing.** `AutoTarget` computes `allowMove = allowMovement && engagementStance >= EngagementStance.Hunt` (`AutoTarget.cs:635`, same line at `:596`/`:995`), and `Attack.TickAttack` turns that into a hard refusal: inside `if (!callerAllowedMove)` (`Activities/Attack.cs:280`), HoldPosition returns `UnableToAttack` unconditionally (`:282`) and Defensive returns it for a target that is merely **out of range** (`:284`). Only a *direct player order* passes `callerAllowedMove: true`. Note the Defensive refusal is narrow — a `tooClose` or `losBlocked` target still gets a `MoveWithinRange`. Consequence: widening the scan radius on a trait feeding `IOverrideAutoTarget` does nothing for a Defensive unit, because the attack layer is where the walking would have to happen and it declines; pair it with the idle/follow path instead. **Second-order trap that bites units you did not change:** `AttackMoveActivity` re-scans every 10 ticks *while marching* (`Activities/Move/AttackMoveActivity.cs:122`) and unconditionally cancels its move child whenever the scan returns any target (`:176`), then queues an attack a Defensive unit immediately abandons — so an `IOverrideAutoTarget` returning targets its owner cannot act on **interrupts that unit's march every 10 ticks, indefinitely**. Return only targets that are actionable *right now*; keep "noticed but not reached" state private (`HealerAutoTarget.cs:127` gates on `IsInHealRange` for exactly this reason).
@@ -958,7 +1600,7 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **A killing hit fires `Damaged` AND `Killed`, so any per-hit handler with a death handler beside it runs BOTH.** `Health.cs` clamps damage (`:189`), builds the `AttackInfo` with the DamageState evaluated *post*-clamp but `Damage` left unclamped (`:191-197`), then fires `INotifyDamage.Damaged` (`:199-201`) and, on a fatal hit, `INotifyKilled.Killed` (`:216-220`). `Cargo` implements both — a per-hit passenger-damage curve at `:641` and a transport-death curve at `:855` — so passengers of a transport destroyed in one blow take **both**. The load-bearing detail when writing such a guard is that `DamageState.Dead >= DamageState.Heavy`, so a naive "bail out if badly hurt" threshold also matches death; `Cargo.ShouldEmergencyBail` (`:593-595`) spells the exclusion out as `current >= bailAt && current < DamageState.Dead`. One documented exception: the `Damaged` arm early-returns for actors with `GarrisonProtectionInfo` (`:824-825`), so "both curves always run" is not quite universal.
   - **That early `return` has since widened its own scope, and this is the general hazard of guarding by early exit: a guard written to skip ONE block silently acquires every block later appended below it.** The `GarrisonProtectionInfo` bail was added (`c9699af9`) to skip legacy passenger-damage forwarding, and its comment still says exactly that. `Cargo`'s emergency-bail block was appended **32 lines below it** in a later, unrelated change (`4e8e29e2`, `EmergencyBailDamageState` at `Cargo.cs:115`, block `:857-943`) — so the bail has **never run for a garrison building**, because every garrisonable building in the mod carries `GarrisonProtection` beside its `Cargo` (`^CivBuilding` at `civilian.yaml:58`+`:121`; GTWR, PBOX, HBOX at `structures-defenses.yaml:118`+`:157`, `:218`+`:247`, `:313`+`:339`). No vehicle or aircraft `Cargo` carries the trait, so the guard bites buildings only and the feature looks alive everywhere it is tested. **Detector: when you append to a method, read upward for early returns before assuming your code runs** — and when a guard's comment names a narrower reason than its position enforces, the comment is the artefact that will stop the next reader checking.
 - **`Cargo.AfterUnloadDelay` is an EXIT delay, not a spacing delay, despite the name.** It is applied only in the `if (!unloadAll || !cargo.CanUnload())` branch (`Activities/UnloadCargo.cs:166-169`) — i.e. once, on the way out — and ww3mod sets it to `0` on every APC while aircraft use 40. The *spacing* between passengers is a separate mechanism: `NextUnloadDelay()` queued between passengers (`:179-186`), with `UnloadGroupSize = 2` and `InterGroupUnloadDelayMultiplier = 3` (`Cargo.cs:70`, `:85`). Tuning dismount pacing means the latter, never `AfterUnloadDelay`.
-- **"Critical damage" names TWO thresholds 25 percentage points apart, and the `critical-damage` condition is the stricter one.** `Health.cs:95-100` puts `Critical` below **25%** MaxHP and `Heavy` below **50%**. In YAML, `critical-damage` is granted only at `Critical` (`defaults.yaml:246-247`, `ValidDamageStates: Critical`) while `heavy-damage-attained` covers Heavy **and** Critical (`:243-245`). Note `heavy-damage` — no suffix — is `ValidDamageStates: Heavy` **alone** (`:241-242`), so it stops applying below 25%; the `-attained` suffix is what makes a condition cumulative downward, and picking the wrong one leaves a consumer dark in exactly the band it was meant to cover. Meanwhile the mod's "badly damaged" *design* cluster all fires at 50% — cook-off `StartIfBelow: 50`, smoke `StartFraction: 50`, and `VehicleCrew.EjectionDamageState = DamageState.Heavy`. **So a rule written against `critical-damage` because it "means badly damaged" fires at half the health the neighbouring rules do**, and the gap is silent. Pick the condition by threshold, not by name.
+- **"Critical damage" names TWO thresholds 25 percentage points apart, and the `critical-damage` condition is the stricter one.** `Health.DamageState` puts `Critical` below **25%** MaxHP and `Heavy` below **50%** (`Health.cs:105-108`). In YAML, `critical-damage` is granted only at `Critical` (`defaults.yaml:298-300`, `ValidDamageStates: Critical`) while `heavy-damage-attained` covers Heavy **and** Critical (`:295-297`). Note `heavy-damage` — no suffix — is `ValidDamageStates: Heavy` **alone** (`:292-293`), so it stops applying below 25%; *(all four citations corrected 2026-09-20 at `a21583fd`; they had drifted by ~52 lines in `defaults.yaml` and ~10 in `Health.cs`)* the `-attained` suffix is what makes a condition cumulative downward, and picking the wrong one leaves a consumer dark in exactly the band it was meant to cover. Meanwhile the mod's "badly damaged" *design* cluster all fires at 50% — cook-off `StartIfBelow: 50`, smoke `StartFraction: 50`, and `VehicleCrew.EjectionDamageState = DamageState.Heavy`. **So a rule written against `critical-damage` because it "means badly damaged" fires at half the health the neighbouring rules do**, and the gap is silent. Pick the condition by threshold, not by name.
 - **Selection priority is a GROUP FILTER, not a ranking.** `SelectableExts` (`engine/OpenRA.Game/SelectableExts.cs:96-103`) groups candidates by *exact* priority and returns only the top group — so a modifier cannot re-rank within a selection, it can only move a unit into or out of the winning band. `BaseSelectionPriority` seeds `int.MaxValue` (`:54-65`) and `ISelectionPriorityModifier` values are added afterwards (`:35-36`). The shipped ladder is **10, 8, 6, 4, 2, 1, 0** — there is deliberately nothing at 9, so a `-1` modifier demotes a unit out of its band without landing it in another one. Modifiers can be made conditional on a held key via `SelectionPriorityModifier.SuppressedBy` (`:31`, default `None`).
   - **The viewer-relationship offset is a bigger splitter than the entire YAML ladder, so "equalise the `Priority` values" cannot merge two actors with different owners.** `SelectionPriority` subtracts `PriorityRange = 30` per relationship step — Ally `−30`, Neutral `−60`, Enemy `−90` (`SelectableExts.cs:27`, `:44-47`) — against a shipped ladder whose entire span is 10. Since the group filter keys on **exact** equality, an own building and a neutral one can never share a band whatever their `Priority`, and a drag-box over both returns only the own one. **When a selection behaves as if a `Priority` edit did nothing, check the owners first**: the ladder only ever discriminates *within* one relationship tier. (The offset is skipped entirely when `a.Owner == viewer` or there is no viewer, `:39-40` — so it is also invisible in any single-player-owned test setup.)
   - **A C# default that no template overrides is easy to misread as "unset".** `SelectableInfo.Priority` defaults to `10` (`Traits/Selectable.cs:19`), and `^SelectableBuilding` pins `2` (`defaults.yaml:1005-1008`) — so an actor that inherits nothing selection-related sits at the **top** of the ladder rather than the bottom. Confirm which template an actor actually reaches before reasoning about its band.
@@ -984,3 +1626,133 @@ Two `utility.cmd` traps that are fixed but worth carrying, because both are **fa
 - **Condition tokens are PER-ACTOR counters, so a token minted on actor A is very often *valid* on actor B — holding the wrong actor's token is a live mis-revoke, not a harmless no-op.** `Actor.nextConditionToken` is initialised to `1` on **every** actor (`Actor.cs:104`) and incremented per grant, and `TokenValid` is just `conditionTokens.ContainsKey(token)` (`:701`). So two soldiers in one garrison routinely both hold tokens `1`, `2`, `3`, and revoking A's token against B removes **whatever unrelated condition on B happens to carry that id** (`RevokeCondition`, `:690`). The intuition that a foreign token "just won't match" is wrong in the direction that produces a silent, mislocated state change — and its reciprocal is a leak, since A's real token is now recorded nowhere and can never be revoked. Note `RevokeCondition` *throws* on an unknown token, so the usual `if (TokenValid(t))` guard converts the crash into the silent variant. **A stored token is only meaningful paired with the actor it was minted on; move the two together or store neither.**
 - **"Cached X" living beside "live X" is a two-reader hazard — find the readers before you name the symptom, because the field name gives the loud wrong one.** Worked example: `GarrisonManager.CachedArmaments` reads like the firing path and is not. The shot iterates the occupant's **live** traits — `AttackGarrisoned.DoGarrisonedAttack` walks `ps.DeployedSoldier.TraitsImplementing<Armament>()` (`AttackGarrisoned.cs:292`) and re-checks weapon validity (`:298`) and range (`:302`) — so a stale cache can never fire a weapon the occupant does not have, and damage numbers are never wrong. The cache has exactly **one** reader, `ScanForTarget` (`GarrisonManager.cs:858`), which uses it to size the scan circle and filter candidates. A desynchronised cache therefore *selects* targets on one soldier's weapon profile and hands them to a firing loop that rejects them on another's: **the port goes silent rather than misbehaving visibly.** Reasoning from the field name predicted "fires the wrong weapon" in two WORKSPACE docs; reading the readers gives the real symptom, plus a `NullReferenceException` at `:859` whenever a slot holds a soldier and a null cache. **Enumerate a cache's readers before predicting what its staleness looks like** — this is README shape 3 (the cited mechanism does not do the work) in its most ordinary form. PITFALL at the temptation site, `GarrisonManager.cs:1169-1174`.
 - **Ordering a bot passenger to board while queuing the carrier's Move in the SAME pass flies the transport EMPTY.** The `EnterTransport` orders land on the *infantry's* activity queues, but a queued `Move` on the *carrier's* own (empty, idle) queue starts IMMEDIATELY — so the carrier departs before any soldier boards. The engine gives no boarding-complete callback; boarding "completes" only when `Cargo.Load` fires, observable only by polling `Cargo.PassengerCount`. The correct shape (used by `MountedTransportBotModule` and now `HelicopterSquadBotModule.TryLaunchTransportMission`): stage a `Loading` task, dispatch the delivery only once `PassengerCount >= min` (or a partial on timeout), abort to the idle pool if nobody boarded — and queue the carrier's RETURN move right behind the `Unload` so it doesn't idle at the drop (a dedicated transport is free-pool-excluded, so nothing else re-collects it — see architecture.md §"The bot free pool self-heals").
+
+*(The bullets below were promoted 2026-09-20 from DISCOVERIES; every citation re-read at `main @ a21583fd`.)*
+
+- **`<player>.GetActors()` in Lua returns that player's own `PlayerActor` — the Lua twin of the
+  `world.Actors` bullet above, with a worse failure mode.** `PlayerProperties.GetActors`
+  (`Scripting/Properties/PlayerProperties.cs:78-81`) filters
+  `actor.Owner == Player && !actor.IsDead && actor.IsInWorld` over `Player.World.Actors`, and **a
+  `PlayerActor` satisfies all three**: `Player.cs` builds it with `new Actor(...)` then `Initialize(true)`,
+  and that `true` is `addToWorld`, so `Actor.Initialize` ends in `World.Add(this)`; it has no `Health`, so
+  `IsDead` is false; its `Owner` is its own `Player`. A sweep that destroys the result therefore destroys the
+  player. **`Destroy()` is not a local operation on a player actor and nothing complains when it happens** —
+  Lua `Destroy()` queues `RemoveSelf` → `Actor.Dispose()`, which at frame end runs
+  `World.TraitDict.RemoveActor` and sets `Disposed`; the next tick proceeds normally and **the failure
+  surfaces at whatever the engine reads next**, which has nothing to do with the code that caused it.
+  `TraitDictionary.CheckDestroyed` (`TraitDictionary.cs:84`) guards *every* lookup including
+  `TraitOrDefault`, so there is no safe read: an observed instance crashed 60 ticks later inside
+  `EnemyWatcher`, and `Health.cs`'s unguarded `attacker.Owner.PlayerActor.TraitsImplementing<...>()` would
+  have been next. **Guarding the read site fixes nothing** — a player whose actor is disposed has lost
+  `PlayerResources`, `MapLayers`, its support powers and its shroud, and there is no state to degrade to.
+  The invariant is *a Player's PlayerActor lives as long as the world*, it is relied on unguarded across the
+  engine, and the fix belongs at the site that broke it. Lua has no `OccupiesSpace` accessor and `a.Location`
+  would itself NRE on a player actor, so **the Lua-side guard has to be on `Type`: exclude `"player"` and
+  `"world"`.** Filtering it out of the engine API is deliberately NOT done — several in-tree callers use
+  `#p.GetActors()` as a *relative* baseline where the constant +1 cancels.
+  *(The same fact read positively is a useful bridge: because the player actor really is in the world, WW3MOD
+  can put support powers on it — `SupportPowerManager` only ever learns about powers through
+  `World.ActorAdded` — and a `ProvidesPrerequisite` on the player actor really does grant, because
+  `TechTree.GatherOwnedPrerequisites` filters on `a.Actor.IsInWorld`. That is a usable route from a lobby
+  condition to a `Buildable.Prerequisites` gate.)*
+- **`Animation.Tick()` is `Tick(40)` — the animation clock is a MILLISECOND BUDGET spent by the caller, not
+  a property of the sequence.** `Graphics/Animation.cs:229-232` is the only reason any sequence plays at its
+  authored speed. So the lever for "play this slower" is the caller, and spending fewer than 40 ms per game
+  tick stretches the same frames over more ticks with **no sequence edit at all**
+  (`CreateEffectWarhead.DurationScalePercent`, `:43`, is the in-tree consumer; at 100 the accumulator lands
+  back on zero every tick and the call reduces to `Tick(40)` exactly). Two consequences that are not
+  reachable from the sequence file: **a decelerating `ChangeTick` ladder concentrates the stretch on the
+  frames that were already slowest**, so integrate the ladder rather than counting frames before stretching
+  anything; and **stretching UNDROPS frames** — head frames faster than 40 ms advance more than once per game
+  tick and are never rendered at all today.
+- **`FlashPaletteEffect.Enable` ASSIGNS. It does not add, extend, or take a maximum** —
+  `remainingFrames = ticks` over a single shared counter (`Traits/PaletteEffects/FlashPaletteEffect.cs:49-54`),
+  with `frac = remainingFrames / Info.Length` (`:68`) ramping linearly down. The effect is a **sawtooth**:
+  instant full brightness, then a fade, with no plateau and no way to make one. **So staggered copies of it do
+  not lengthen a flash, they build a square wave** — six weapons shipped with two-to-five staged calls and
+  every one of them strobed over its own brightest seconds. **And because `frac` is a fraction of the
+  trait's fixed `Length` (30 on the `Nuke` effect, `palettes.yaml:160-162`), a warhead's `Duration` sets PEAK
+  BRIGHTNESS as well as length:** a `Duration: 8` does not produce a shorter white-out, it produces one that
+  starts at 27 % white and fades from there. **The general rule: an effect whose only state is a countdown
+  cannot be lengthened by re-triggering it, and a field that is a fraction of a fixed ceiling scales
+  amplitude when you scale it.** `Duration` is a name that actively hides the second half — read the effect
+  before scaling anything called Duration. Sustain belongs to something with a real envelope
+  (`LightEventDefinition`, `ScreenShaker`'s `ShakeParams`); this trait has a counter and a ratio.
+- **`FireClusterWarhead` fires the footprint's `X` cells AND THEN `RandomClusterCount` more — the two are
+  additive, not a total.** `Warheads/FireClusterWarhead.cs:58` walks `targetCells`, and the random block at
+  `:61-64` runs afterwards. A footprint with one centre `X` plus `RandomClusterCount: 3` is **four**
+  detonations, two of them co-located on the centre. Anything sizing a budget off the count in a comment is
+  low by however many `X` cells there are.
+- **Whole-pixel snapping is applied one step before the only consumer that could have used the precision, and
+  a degenerate `DrawLine` fails silently as NaN.** `Viewport.WorldToViewPx` returns `int2`
+  (`Graphics/Viewport.cs:326-327`) while `RgbaColorRenderer.DrawLine` takes `float3`, and `float2.ToInt2()`
+  **truncates rather than rounds** — so every endpoint of a tessellated curve snaps independently and lands up
+  to a pixel off in each axis. Worse, `DrawLine` normalises by its own length
+  (`delta = (end - start) / (end - start).XY.Length`), so **a segment whose two endpoints snap onto the same
+  pixel becomes four NaN vertices and draws nothing, with no exception and no log**: the failure mode of a
+  snapped curve is MISSING GEOMETRY, invisible to every error path. It is reachable at ordinary zooms in this
+  mod because `Viewport.EffectiveMinZoom` (`:97`) is not `MinZoom` — WW3MOD leaves `unlockMinZoom` set at
+  field-initialiser level (`:69`) and nothing clears it, so the floor sits well below `MinZoom`. Two
+  companions: **`WRot.AsMatrix` is not exactly length-preserving and its error is TANGENTIAL** (the matrix is
+  built from a quaternion whose components are 10-bit and whose squared length *"may differ slightly due to
+  rounding"*, `WRot.cs:156-157`), so **a tolerance on a rotated vector must be stated as an ANGLE, not as a
+  fraction of radius** — a radius-relative tolerance that sounds generous fails on the engine's own
+  quantisation and reads exactly like a handedness error. And **pick tessellation counts that DIVIDE the
+  angle unit**: 96 does not divide 1024, so integer division makes consecutive steps 10 or 11 units apart
+  against a fixed dash and the rhythm is irregular the whole way round; 128 divides exactly.
+- **`ActivityUtils.RunActivity` loops until the activity stops changing, so `Queue(...)` + `return true` runs
+  in the SAME tick, not the next one.** (`engine/OpenRA.Game/Traits/ActivityUtils.cs`, the
+  `if (act == prev) break;` do-while.) **Before reasoning about how long an actor lingers after its activity
+  finishes, check whether the follow-up runs in the same `RunActivity` loop** — a queued `CallFunc(Kill)` is
+  not a one-tick delay.
+- **`TraitOrDefault<T>` THROWS on a second implementor** — `InvalidOperationException`,
+  ``Actor X has multiple traits of type `T` `` (`TraitDictionary.cs:175`). It does not return the first and
+  does not fall back, so it is "at most one, or die", not the graceful degradation the name suggests. Use it
+  where a second implementor is a mod-configuration error you want to hear about, not where it is a case you
+  intend to tolerate.
+- **`Actor.Kill` returns SILENTLY on an actor with no `Health` trait** (`Actor.cs`), which turns any
+  fade-then-die trait into a permanent-invisibility bug: the actor fades to alpha 0 and stays alive,
+  functional and invisible forever, paying an `IRenderModifier` pass every frame, and nothing logs. The
+  tempting repair — clear the active flag in `Tick` after a `Kill` that did nothing — **silently restores
+  husks**, because `SpawnActorOnDeath` re-reads `ISuppressDeathRemains` at `RemovedFromWorld` and
+  `RemovedFromWorld` runs at frame end, *after* `Tick`. **A flag whose meaning is read after the tick that
+  would clear it cannot be cleared in that tick** — the correct shape is to refuse to begin.
+- **`Shader.SetVec` throws `KeyNotFoundException` at the first draw for a uniform the GLSL compiler
+  eliminated.** The name is resolved through a dictionary built from the program's *active* uniforms
+  (`Graphics/Shader.cs`), and a uniform nothing reads is not an active one — it is not a warning.
+  **Deleting a term from a shader means deleting its `SetVec` in the same edit.**
+- **Folder packages do NOT recurse, so mounting a directory does not mount anything below it.**
+  `Folder.Contents` enumerates with `SearchOption.TopDirectoryOnly` (`FileSystem/Folder.cs:35`) while
+  `GetStream`/`Contains` do a plain `Path.Combine` (`:44-60`). `mod.yaml` mounts `ww3mod|bits/misc/tiles` and
+  nothing below it, so loose overrides sitting in `bits/misc/tiles/{tem,sno,desert,int}/` are on disk,
+  tracked, and **have never been loaded by the game** — the `.mix` copies win. Anyone adding art there and
+  seeing no change in-game will assume their sequence is wrong. *(Mounting those four directories to fix one
+  file would also silently switch the others on, which is why new art goes in a new mounted directory
+  instead.)* Note also that `SmudgeLayerInfo.Sequence` carries no `[SequenceReference]`, so a typo in a
+  layer's sequence name is not a lint error — it is an `IndexOutOfRangeException` in `WorldLoaded`.
+- **An unbalanced `<para>` in a doc comment DELETES that member's entire documentation from the generated
+  XML.** Roslyn emits `<!-- Badly formed XML comment ignored for member "M:..." -->` in its place — not a
+  partial version. The signature is always the same and the author cannot see it: **a bare lead paragraph,
+  then two to five `<para>` opens with only the LAST one closed.** Three `@experimental` members were in that
+  state, and their doc comments were where the anti-latch and responsive-terms invariants were recorded — the
+  file said in prose that those invariants must not silently regress, and the mechanism recording them had
+  been silently switched off. **Nothing showed it except `make.ps1 check`**: the source still reads
+  correctly, and the loss is visible only in IntelliSense and the generated XML. House style (139 files)
+  wraps EVERY paragraph including the first, which is also what makes an imbalance obvious on sight.
+  `RCS1226` and `CS1570` are the same defect at two stages — the first fires on a multi-paragraph summary
+  using no `<para>` at all, the second once someone has started adding them and stopped halfway — so the
+  error count looks bigger than the problem. A ~1 s detector needs no build: group consecutive `///` lines
+  into blocks and compare `<para>` open counts against close counts per block.
+- **An error count from a red `make.ps1 check` is a FLOOR, not a total, because the gate has two build stages
+  and `exit`s at the first failure.** `Check-Command` builds the solution and exits on failure, and only then
+  builds `engine/OpenRA.Test/OpenRA.Test.csproj` separately — the test project is excluded from both `.sln`
+  files upstream and reaches no gate unless named. One run reported 22 errors; fixing those revealed 2 more
+  in the test project that had never been compiled under the gate's configuration at all. **Clear stage 1
+  before believing any count** (and see §"A green analyzer gate means what the TARGET GRAPH reaches" for why
+  these accumulate invisibly to `all` and to `dotnet test`).
+- **`foreach (Match m in Regex.Matches(...))` always trips IDE0220, and it is benign.** The message says the
+  implicit `object`-to-`Match` conversion "may fail at runtime", which reads like a live bug; it cannot fail,
+  because every element genuinely is a `Match`. `MatchCollection` implements both the non-generic
+  `IEnumerable` and `IEnumerable<Match>`, and `foreach`'s pattern-based lookup binds the type's own
+  `GetEnumerator()`, which is the non-generic one. `.AsEnumerable()` selects the generic interface, costs
+  nothing at runtime, and is the whole fix. The same holds for any BCL collection predating generics.

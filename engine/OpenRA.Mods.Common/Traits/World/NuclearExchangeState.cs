@@ -45,10 +45,20 @@
  *  2. AVAILABILITY. A side may fire band b iff b <= Level AND CooldownTicks == 0. Both halves are
  *     side-wide: a team of two fires ONCE per cooldown between them, not once each.
  *  3. FIRING. Side A fires band b (one activation, however many warheads the salvo delivers):
- *         A.CooldownTicks = the cooldown for band b            -- the firer pays, alone
- *         for every ENEMY side B: B.Level = max(B.Level, min(b + 1, 5))   -- PERMANENT
+ *         A.CooldownTicks = the cooldown for band b            -- the firer pays, alone, AT LAUNCH
+ *         for every ENEMY side B: B.Level = max(B.Level, min(b + 1, 5))   -- PERMANENT, AT IMPACT
  *     A's own Level is unchanged by its own fire, and A's allies share A's side, so they are not a
  *     separate case: they are the same row.
+ *
+ *     THE TWO HALVES HAPPEN AT DIFFERENT TIMES, AND THAT IS A USER RULING (2026-09-16): "when the
+ *     enemy fires a nuke, we instantly get the level up event, but it should happen when the nuke
+ *     explodes, so we see the correlation between the explosion, and after only a few seconds
+ *     perhaps we get the message of escalation". So ReportLaunch charges the cooldown and answers
+ *     the availability question -- both of which have to be settled the instant the button is
+ *     pressed -- and ApplyEscalation raises the victims' levels, which the trait schedules for the
+ *     detonation plus a short readable delay. ONE ApplyEscalation PER RELEASE ORDER, never per
+ *     warhead: an RS-28 flies six independently-aimed RVs and six calls would ratchet the enemy
+ *     six rungs off one click. The dedup lives in NuclearExchange, which owns the order.
  *  4. END. At Level 5 the side's NATIONAL game-ender is fireable under the same cooldown rule.
  *     Firing one sets FinalExchange on the outcome and takes NO cooldown -- the match is over, and
  *     a lockout the match never outlives would be a number nobody reads.
@@ -518,6 +528,28 @@ namespace OpenRA.Mods.Common.Traits
 			var cooldown = finalExchange ? 0 : CooldownTicksFor(band, cooldownTicksPerBand);
 			firer.CooldownTicks = cooldown;
 
+			// THE ESCALATION IS NOT APPLIED HERE. See rule 3 in the header: the firer pays at launch,
+			// the victims are raised at IMPACT. The caller owns the schedule and calls
+			// ApplyEscalation once per release order; this method's job ends with the cooldown.
+			return new NuclearLaunchOutcome(true, band, finalExchange, cooldown, NuclearLaunchRefusal.None);
+		}
+
+		/// <summary>
+		/// <para>THE SECOND HALF OF RULE 3: every side but <paramref name="firerSide"/> is raised to one
+		/// band above <paramref name="band"/>, capped at the top rung, permanently.</para>
+		///
+		/// <para>Split out of <see cref="ReportLaunch"/> so it can be applied at DETONATION rather than at
+		/// the click (user ruling, 2026-09-16 — see the header). Returns the number of sides that
+		/// actually rose, so a caller can log a shot that escalated nobody.</para>
+		///
+		/// <para>CALL IT ONCE PER RELEASE ORDER. It is idempotent in EFFECT — max() against a level that
+		/// never falls — so a second call at the same band changes nothing; what it is NOT safe against
+		/// is being called once per WARHEAD with an increasing band, which no caller does. The
+		/// multiplicity that matters (an RS-28's six RVs) is all at one band, so even the accident is
+		/// caught by the ratchet. The dedup in <see cref="NuclearExchange"/> is belt to this braces.</para>
+		/// </summary>
+		public int ApplyEscalation(int firerSide, int band)
+		{
 			// ONE BAND ABOVE WHAT LANDED ON THEM, CAPPED AT THE TOP RUNG, AND PERMANENT. Wherever it
 			// lands: there is no damage attribution and no demonstration shot, which is the rule
 			// decision 01 chose over decision 14's 10 % and which v2 keeps unchanged.
@@ -525,6 +557,7 @@ namespace OpenRA.Mods.Common.Traits
 			if (granted > NuclearReleaseLadder.Highest)
 				granted = NuclearReleaseLadder.Highest;
 
+			var raised = 0;
 			foreach (var key in sideKeys)
 			{
 				if (key == firerSide)
@@ -539,10 +572,86 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					s.Level = granted;
 					s.LevelSerial++;
+					raised++;
 				}
 			}
 
-			return new NuclearLaunchOutcome(true, band, finalExchange, cooldown, NuclearLaunchRefusal.None);
+			return raised;
+		}
+
+		/// <summary>
+		/// <para>THE FINAL EXCHANGE IS OPENING. Every side goes to the top rung with NO COOLDOWN, and
+		/// from here on rule 2 cannot refuse anybody.</para>
+		///
+		/// <para>THIS IS DEFECT (a) OF 2026-09-16, AND IT COST A REAL MATCH. The endgame hands every
+		/// surviving side its game-enders and fifteen seconds to aim them —
+		/// <see cref="DoomsdayStrike.BeginFinalExchange"/> grants the condition and calls
+		/// <see cref="SupportPowerInstance.MakeReady"/> — and touched NEITHER of the two numbers this
+		/// class holds. So the arming and the availability rule disagreed, in two separate places:</para>
+		///
+		/// <para>  * THE COOLDOWN, which is what actually bit. The victim's level rises on the trigger
+		///    tick, <see cref="NuclearExchange.MakeBandsReady"/> services that rise on the next one,
+		///    and it deliberately re-applies the side's remaining cooldown over MakeReady's zero — the
+		///    correct rule in open play, and a disaster here. In the recorded match (river-zeta,
+		///    debug.log) side 2 fired a 100 kt at ~tick 23500 for a 12000-tick lockout, the exchange
+		///    opened at 30957, and the game-ender it had just been handed was put back on a clock with
+		///    ~4500 ticks left — against a 250-tick window. The cameo never became Ready,
+		///    <see cref="SupportPowerInstance.Target"/> returns early on that, so NO ORDER WAS EVER
+		///    ISSUED and there is not one refusal line in the log to show for it.</para>
+		///
+		/// <para>  * THE LEVEL, on the OTHER path in. The time limit expiring opens the same window with
+		///    no launch anywhere, so every side is still at whatever rung it climbed to — usually 1.
+		///    <see cref="ReportLaunch"/> would then refuse the placed warhead with
+		///    <see cref="NuclearLaunchRefusal.AboveLevel"/> at resolution: armed, aimed, clicked, and
+		///    vetoed.</para>
+		///
+		/// <para>WHICH SIDE IS ON COOLDOWN WHEN THE EXCHANGE OPENS IS PURE TIMING LUCK, and that is the
+		/// argument for clearing rather than for shortening. In the recorded match the AI came off
+		/// cooldown at tick 30909 and fired 48 ticks later; the human was 7500 ticks into a 12000-tick
+		/// one. Same weapon, same window, and one of them was unwinnable.</para>
+		///
+		/// <para>IT RAISES THE LOWER RUNGS TOO, and that is intended rather than tolerated: the exchange
+		/// already contemplates a side firing a tactical warhead inside the window (see
+		/// <see cref="DoomsdayStrike.ReportExchangeLaunch"/>, which is careful not to count one as a
+		/// placement). Clearing the cooldown is what makes that reachable instead of theoretical.</para>
+		/// </summary>
+		/// <para>IT ALSO LATCHES <see cref="Released"/>, for a third refusal that would otherwise bite on
+		/// the time-limit path: <see cref="ReportLaunch"/> tests the gate BEFORE the band, so a window
+		/// that opened at DEFCON 3 would drop every placed warhead as
+		/// <see cref="NuclearLaunchRefusal.NotReleased"/>. That one is a QUIET refusal and the salvo
+		/// flies anyway, so it was never fatal — but it would leave the ledger reading "Hold" while
+		/// game-enders were in the air, and a final exchange IS a release by definition.</para>
+		///
+		/// <para>MODE-GUARDED like <see cref="Release"/>. Skirmish and Sandbox have no exchange at all;
+		/// their ending is the same salvo with none of this state behind it.</para>
+		/// <returns>True if anything changed, so the caller can stay quiet when it did not.</returns>
+		public bool OpenFinalExchange()
+		{
+			if (mode != DefconGameMode.Escalation)
+				return false;
+
+			var changed = !Released;
+			Released = true;
+
+			foreach (var key in sideKeys)
+			{
+				var s = sides[key];
+
+				if (s.Level < NuclearReleaseLadder.Highest)
+				{
+					s.Level = NuclearReleaseLadder.Highest;
+					s.LevelSerial++;
+					changed = true;
+				}
+
+				if (s.CooldownTicks > 0)
+				{
+					s.CooldownTicks = 0;
+					changed = true;
+				}
+			}
+
+			return changed;
 		}
 	}
 }

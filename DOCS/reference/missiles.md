@@ -65,6 +65,23 @@ Note this does **not** forbid operator retargeting onto a DIFFERENT enemy after
 the original target dies — that is intended and specified in §5. The rule is
 about re-homing on the target that was missed.
 
+**A missile that has lost guidance keeps being MEASURED against its real target, so `min_dist` is a true miss
+distance.** *(Promoted 2026-09-20 from DISCOVERIES, re-read at `a21583fd`.)* In `Missile.Tick` the block that
+refreshes `targetPosition` from the live target (`Projectiles/Missile.cs:1134`) sits **above** the
+freefall/homing branch (`move = FreefallTick()` at `:1158`) and is gated only on the target still being valid
+and locked — not on whether guidance is being applied. So a missile that drops to freefall stops *steering*
+while the trace keeps comparing it against where the target actually is. `MissileTrace.MinDist` is "closest 3D
+approach to `targetPosition` (segment-exact)" (`Projectiles/MissileTrace.cs:99`), which therefore reads as the
+genuine miss distance against a **moving** target rather than the distance to a frozen last-known point. That
+is what makes `min_dist > close_enough` a valid pass criterion for any *"the missile should stop tracking"*
+scenario — and `close_enough` is in the same record (`:86`, surfaced through `TestGlobal.GetMissileRecord`), so
+such a scenario can derive its threshold instead of hard-coding a distance.
+
+**Corollary for scenario authors: a STATIONARY target cannot detect a guidance drop.** `FreefallTick`
+(`:546-556`) keeps the current velocity and adds gravity — the missile flies *on*, it is not removed — so a
+ballistic missile already pointed at a stationary target still lands on it. The target has to move across the
+missile's path for the drop to be observable at all.
+
 ### I3 — Randomness is legitimate; systematic failure is not
 
 Missiles are *meant* to miss sometimes, unpredictably. What is unacceptable is a
@@ -434,6 +451,88 @@ No scenario can ever produce a verdict on *which* sound played *when*. Audio-tim
 to be pinned on tick arithmetic and data wiring, with a human listening test as the only
 end-to-end confirmation. Anyone reaching for `run-test.sh` to verify a sound bug should stop
 here.
+
+## 8b. More than half a strike's "flight time" is `MissileDelay`, in which the missile DOES NOT EXIST
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* A support power's order-to-impact
+figure is `missileDelay + PreLaunchTicks + EstimateArcTicks(...)` (`MissileStrikePower.cs:743`, `:856`), and
+**`MissileDelay` is not lead-in *to* the flight — it is dead air *before* it.** `SpawnActorEffect` holds the
+actor OUT of the world for the whole count and its `Render` returns `SpriteRenderable.None`
+(`Effects/SpawnActorEffect.cs:38-49`, `:60`), so nothing is drawn and the missile has no position. On the
+largest shipped map the arsenal's biggest weapon is **600 ticks of delay against 511 of flight** — i.e. more
+than half the number everyone quotes is a period in which there is nothing to watch. The mod's own vocabulary
+calls the field "in-flight lead", which is what makes this easy to get wrong. **When splitting a strike's
+latency, the boundary that matters is when the ACTOR ENTERS THE WORLD, not when the order resolves.** Five
+demo scenarios had already found this independently and overridden `MissileDelay` down to 60–100 in their own
+`rules.yaml` rather than living with the shipped 500–600.
+
+**Two neighbouring fields are inert on every shipped body, and each looks live.**
+`BallisticMissileInfo.PreLaunchTicks => LaunchRiseTicks > 0 ? LaunchRiseTicks + PostErectionWaitTicks : 0`,
+so **setting `PostErectionWaitTicks` alone buys nothing** — and every one of the fifteen missile bodies driven
+by a power ships `LaunchRiseTicks: 0` *(as of `a21583fd`; the Iskander above is a `MissileSpawnerMaster` slave,
+not a power body)*. Likewise `Acceleration: 0` with `InitialSpeedPercent: 100` takes `EstimateArcTicks`' early
+return, making flight time exactly `hDist / Speed` — so **`TerminalSpeed` is dead on every one of them**,
+including the ones that set it, because the early return precedes any terminal-phase simulation.
+
+**And the standoff is MAP-SIZE dependent, so every flight-time number is per-map and a single-map measurement
+does not transfer.** `MissileStrikeApproach.StandoffFor` is
+`clamp(|WVec(1024*X, 1024*Y, 0)| + margin, MinStandoff, MaxStandoff)` (`:246-251`), so the smallest and
+largest shipped maps differ by **2.2x in flight time for the identical weapon**. A scenario asserting on
+strike timing must state its own map size as a local constant.
+
+## 8c. `ApproachMargin` cannot lengthen the approach a player SEES, and raising it makes the arrival LOWER
+
+*(Promoted 2026-09-20 from DISCOVERIES; re-read at `main @ a21583fd`.)* The obvious answer to *"make it spawn
+further away so we can see it coming in from longer"* is to raise the margin, and **no value of it can work**,
+for a reason that is geometry rather than tuning. The flight path is the straight line through the aim point
+on the salvo's bearing, and **`MissileStrikeApproach.Bearing` does not take the margin as an argument at all**
+(`:192`; the margin enters only through `StandoffFor`, `:246`, and the two are combined independently at
+`:112-113`). So raising the standoff slides the BIRTH POINT further back along a line that is otherwise
+unchanged, and **the segment of that line lying over the map is identical to the world unit** — verified by
+bisection at every shipped map size, three homes and the full aim sweep, at 1x and 4x the margin, agreeing to
+within 4 wdist. All the extra distance is flown outside the board, where the only thing it adds is warning
+time.
+
+**And the camera cannot see past the board by anything like the distance involved.**
+`Viewport.CalculateMinimumZoom` lands the world window inside `MediumWindowHeights` 600..900 and the mod
+overrides none of it, so at the default Medium setting the world window is 1280x720 world px on any native
+resolution above 900 tall; at `TileSize: 24` the widest a visible HALF-window can ever be is **~40 cells**,
+and `Viewport.Center` clamps the camera CENTRE to the map bounds. Against that, the standoff is **90 cells on
+the smallest shipped map and ~200 on the largest.** There is no setting, resolution or camera position at
+which a player watches the missile be born. **Time in view is set by missile `Speed` alone** — roughly 0.4 s
+to 4.0 s across the arsenal at the Medium half-window. Speed is the lever; the margin is not.
+
+**Raising it would make the arrival slightly WORSE, which is the counter-intuitive part.**
+`BallisticMissileFly` ramps altitude linearly across the WHOLE standoff, so at a fixed distance from the
+target the fraction of that ramp still unspent is `remaining / standoff` — **a longer standoff leaves less of
+it and the warhead comes into view nearer the ground**, and altitude is drawn as a screen-y offset, so lower
+also means it enters the frame later. The arc term cannot buy the height back: `peak = standoff *
+tan(LaunchAngle) / 4` and the parabola's height at remaining fraction `f` is `4 * peak * f * (1 - f)`, which
+for small `f` tends to `tan * remaining` **with the standoff cancelling out**. ⚠️ **PITFALL for anyone
+modelling this: evaluate the arc at a distance that is genuinely small against the standoff.** At a
+full-diagonal crossing `f` is 0.9, `4f(1-f)` is nowhere near linear, and two standoffs differ by ~190 % —
+which looks like a refutation of the above and is just the approximation being used outside its range.
+
+**The bearing rule that replaced the old one, and why the obvious objection is wrong.** A bearing read off
+`home -> aim centroid` with the spawn walked BACKWARD up it always lands on the opposite side of home from
+the aim point — which is "behind my own Supply Route" **only while the aim point is inward of it**. The
+failing family is every aim point more than 90 degrees off the launcher's corridor, which is much wider than
+"directly behind you", and it was invisible because every scenario in the fixture aimed inward. The objection
+that a target behind the launcher cannot be approached from behind the launcher **is false, and the standoff
+is why:** the spawn only has to sit behind the TARGET by a map diagonal plus a margin, so it clears the
+launcher as well with room to spare. Hence the lean is capped and tapers to zero as the aim bearing swings to
+astern. **Two general shapes worth keeping: a fallback that is correct for a degenerate case is often the
+correct BASE for the whole case** — reaching for it only on exact coincidence means reaching for it in the
+one situation nobody hits — **and when an invariant admits a range of satisfying answers, check the endpoint
+the user described before assuming the constraint binds.**
+
+> **The one link in that chain read from code rather than from a run** is the viewport arithmetic, because
+> `CalculateMinimumZoom` reads `Game.Renderer.NativeResolution` and no test exercises it. What would settle
+> it: run `test-missile-strike-behind-own-sr` beside a copy whose `rules.yaml` quadruples the margin, and
+> compare **the tick gap between the missile's cell first falling inside `Bounds` and impact** (readable from
+> Lua, unlike "appeared on screen"). The prediction is that this gap is IDENTICAL in both runs while
+> order-to-impact grows. **If the in-bounds gap differs, the invariance argument above is wrong and the margin
+> is a visible-approach lever after all.**
 
 ## 9. Sizing a burst interval: use the missile's maximum LIFETIME, not its flight time
 

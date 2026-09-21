@@ -22,11 +22,11 @@ Categories: Test
 # END box with its countdown and no game-ender cameo ever appeared.
 #
 #   GRANT   -- after a four-launch climb USA's LEVEL is NuclearRung.GameEnder and
-#              USA's B83Strike must read `ready` in the support bin, not `hidden`.
+#              USA's TridentStrike must read `ready` in the support bin, not `hidden`.
 #   FIRE    -- and it must be ACTIVATABLE through the real order path, because "the cameo is there"
 #              and "I can pick the weapon and place the target" are different claims and the user
 #              made the second one.
-#   FACTION -- USA must NOT see the Sarmat and Russia must NOT see the B83. The 2026-09-14 ruling
+#   FACTION -- USA must NOT see the Sarmat and Russia must NOT see the Trident. The 2026-09-14 ruling
 #              (c8cadc8a) put `player.america` / `player.russia` on the three enders and this is the
 #              first thing in the tree that could notice it being undone.
 #   ONE EACH -- and nothing else. The user's ruling the same day is "national ender only", so the

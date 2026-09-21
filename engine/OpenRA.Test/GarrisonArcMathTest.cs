@@ -89,6 +89,36 @@ namespace OpenRA.Test
 				"being ignored or added with the wrong sign.");
 		}
 
+		// THE TWO GEOMETRIES THAT ACTUALLY RAN, kept as cases because both were misread once. Between
+		// them they are the whole arc contract: the port you are AT decides who may shoot you, and a
+		// shooter is admitted or refused by his bearing from the building, not by anyone's intent.
+		[Test]
+		public void TheGeometriesFromTheLiveRunsAreSettledByTheArcAlone()
+		{
+			// Run 260915_184006, HouseMT: Gunner on a NORTH-EAST port (896), ConeShooter on the same
+			// diagonal at 5.7 cells. Dead centre, and must be admitted -- so when that run reported the
+			// man untargetable, the arc was NOT the reason and the search had to move elsewhere.
+			Assert.That(Within(0, 896, 896), Is.True,
+				"a north-east port refuses a shooter standing on the north-east diagonal.");
+
+			// Same house, BehindShooter due SOUTH (512). 384 units off a cone of 140: refused, which is
+			// the assertion the whole scenario exists to make.
+			Assert.That(Within(0, 896, 512), Is.False,
+				"a north-east port admits a shooter due south of the building.");
+
+			// Run 260915_184416, HouseE1: the Rifleman manned a SOUTH-EAST port (640) because his rifle
+			// could not reach the north-east bait, and his behind-shooter was due south (512). 128 off a
+			// cone of 140 -- INSIDE by 12 units, so the hit that read as an arc failure was the arc
+			// working. This case is here so the next reader sees how little margin that was.
+			Assert.That(Within(0, 640, 512), Is.True,
+				"a south-east port refuses a shooter due south, whose bearing is 128 off a cone of 140 " +
+				"and therefore inside it. If this flips, the 2026-09-15 control-limb diagnosis is wrong.");
+
+			// And the boundary that makes the margin explicit rather than incidental.
+			Assert.That(Within(0, 640, 640 - 140), Is.True, "the south-east cone's own edge is excluded.");
+			Assert.That(Within(0, 640, 640 - 141), Is.False, "one unit past the south-east cone is admitted.");
+		}
+
 		[Test]
 		public void AnOmnidirectionalConeAdmitsEverything()
 		{

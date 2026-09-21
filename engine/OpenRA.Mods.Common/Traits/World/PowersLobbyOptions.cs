@@ -56,69 +56,6 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Display order for the airstrike cooldown option.")]
 		public readonly int AirstrikeCooldownDisplayOrder = 101;
 
-		[Desc("Label for the tactical nuclear strike checkbox.")]
-		public readonly string TacticalNukeCheckboxLabel = "Tactical Nuclear Strike (20 kt)";
-
-		[Desc("Tooltip for the tactical nuclear strike checkbox.")]
-		public readonly string TacticalNukeCheckboxDescription = "Allow the tactical nuclear strike support power";
-
-		[Desc("Default tactical nuclear strike setting. OFF by design -- the doomsday design this",
-			"power belongs to is unresolved (WORKSPACE/archive/plans/260324-nukes.md), so v1 ships it",
-			"one tickbox away rather than on.")]
-		public readonly bool TacticalNukeCheckboxEnabled = false;
-
-		[Desc("Lock the tactical nuclear strike option.")]
-		public readonly bool TacticalNukeCheckboxLocked = false;
-
-		[Desc("Show the tactical nuclear strike option.")]
-		public readonly bool TacticalNukeCheckboxVisible = true;
-
-		[Desc("Display order for the tactical nuclear strike option.")]
-		public readonly int TacticalNukeCheckboxDisplayOrder = 102;
-
-		[Desc("Label for the high-yield strategic nuclear strike checkbox.")]
-		public readonly string HighYieldNukeCheckboxLabel = "Strategic Nuclear Strike (6 Mt)";
-
-		[Desc("Tooltip for the high-yield strategic nuclear strike checkbox.")]
-		public readonly string HighYieldNukeCheckboxDescription =
-			"Allow the high-yield strategic nuclear strike. One detonation devastates the entire map";
-
-		[Desc("Default high-yield strategic nuclear strike setting. ON, DELIBERATELY, AND TEMPORARILY,",
-			"and this is the one field in this file whose default was chosen by the user rather than",
-			"derived from a design document -- so it is not a bug and it is not an oversight.",
-			"",
-			"THE USER'S WORDS, 2026-09-06: \"You can add the high yield nuke as a new power, even though",
-			"we might disable it later, but for testing we keep it (even after this session, I will deal",
-			"with it later before release ... so there will be two nuke powers).\" The intent is two",
-			"nuclear powers side by side in the palette, this one reachable WITHOUT the host ticking",
-			"anything, and the release default is the user's own call to make later. Flipping it is this",
-			"one word.",
-			"",
-			"WHAT THIS DOES **NOT** DO, because the neighbouring TacticalNukeCheckboxEnabled = false",
-			"invites exactly the wrong inference: it does NOT make the power fail OPEN. The registered",
-			"default (this field) and the unregistered fallback are SEPARATE VALUES.",
-			"GrantConditionOnLobbyOption reads OptionOrDefault(Option, !GrantWhenOptionDisabled)",
-			"(GrantConditionOnLobbyOption.cs:45-49) -- the fallback is `!GrantWhenOptionDisabled` from",
-			"player.yaml, never this field, which is only consulted when PowersLobbyOptions is present",
-			"to register the option in the first place. player.yaml keeps the same",
-			"GrantWhenOptionDisabled: true form the tactical nuke uses, so a build where this trait is",
-			"stripped, an old saved session, or a map that removes it all still resolve the option to",
-			"FALSE and grant `highyieldnuke-disabled`. Registered: on. Absent: off. Both, at once.",
-			"",
-			"That the weapon deserves the caution is not in question -- AtomicHighYield's blast wave has",
-			"MaxRadius 102 cells against ~92 cells centre-to-corner on the largest shipped map, so one",
-			"detonation at map centre reaches every cell of every map in the mod.")]
-		public readonly bool HighYieldNukeCheckboxEnabled = true;
-
-		[Desc("Lock the high-yield strategic nuclear strike option.")]
-		public readonly bool HighYieldNukeCheckboxLocked = false;
-
-		[Desc("Show the high-yield strategic nuclear strike option.")]
-		public readonly bool HighYieldNukeCheckboxVisible = true;
-
-		[Desc("Display order for the high-yield strategic nuclear strike option.")]
-		public readonly int HighYieldNukeCheckboxDisplayOrder = 103;
-
 		[Desc("Label for the extended nuclear arsenal checkbox.")]
 		public readonly string NuclearArsenalCheckboxLabel = "Nuclear Arsenal";
 
@@ -128,8 +65,10 @@ namespace OpenRA.Mods.Common.Traits
 
 		[Desc("Default extended nuclear arsenal setting. ON, deliberately, and the user's own ruling:",
 			"\"I want all of them added as nukes, gated behind the lobby option like the old nuke was, but",
-			"reachable from in game.\" It follows HighYieldNukeCheckboxEnabled rather than the tactical",
-			"nuke's false, and like that one it is expected to be revisited before release.",
+			"reachable from in game.\" Expected to be revisited before release. (It used to be described",
+			"here as following the high-yield nuke's default rather than the tactical nuke's; both of",
+			"those checkboxes were retired on 2026-09-15 and this is now the only weapon gate with a",
+			"default to choose.)",
 			"",
 			"ONE CHECKBOX FOR SIX POWERS, which is the reason this is not six fields. The powers differ by",
 			"yield across five orders of magnitude but they are one feature, and a lobby row per warhead",
@@ -297,46 +236,19 @@ namespace OpenRA.Mods.Common.Traits
 				{ "8min", "8 minutes" },
 			};
 
-			// The gate the tactical nuclear strike hangs off. The POLARITY is load-bearing and is
-			// the reason the mod pairs this with GrantConditionOnLobbyOption's GrantWhenOptionDisabled
-			// form rather than the direct one: that trait falls back to
-			// OptionOrDefault(id, !GrantWhenOptionDisabled), so a build where this option is not
-			// registered at all -- PowersLobbyOptions removed from world.yaml, an old saved session,
-			// a map that strips the trait -- reads FALSE and still grants the disabling condition.
-			// Written the other way round (grant when the option is enabled) the same absence would
-			// default to TRUE and hand every player a nuke nobody asked for.
-			yield return new LobbyBooleanOption(
-				"tactical-nuke",
-				TacticalNukeCheckboxLabel,
-				TacticalNukeCheckboxDescription,
-				TacticalNukeCheckboxVisible,
-				TacticalNukeCheckboxDisplayOrder,
-				TacticalNukeCheckboxEnabled,
-				TacticalNukeCheckboxLocked,
-				"Powers");
-
-			// The gate the HIGH-YIELD strategic nuclear strike hangs off. Registered with exactly the
-			// same shape as the tactical nuke above -- same "Powers" group, same GrantWhenOptionDisabled
-			// polarity on the player.yaml side -- and differing from it in ONE value: the default below
-			// is true rather than false, at the user's explicit request and temporarily. See the long
-			// note on HighYieldNukeCheckboxEnabled for why that does not weaken the unregistered-option
-			// safety property, which the consequence here makes worth being sure about: the tactical
-			// nuke handed to a player who did not ask for it is a balance problem, this one is a
-			// 102-cell blast that reaches every cell of every shipped map from its centre.
-			yield return new LobbyBooleanOption(
-				"high-yield-nuke",
-				HighYieldNukeCheckboxLabel,
-				HighYieldNukeCheckboxDescription,
-				HighYieldNukeCheckboxVisible,
-				HighYieldNukeCheckboxDisplayOrder,
-				HighYieldNukeCheckboxEnabled,
-				HighYieldNukeCheckboxLocked,
-				"Powers");
-
 			// One gate for the whole extended arsenal (rules/ingame/nuclear-arsenal.yaml): B61-12 at both
-			// its lowest and highest dial settings, W76-1, RS-28 Sarmat, B83-1 and Tsar Bomba. Same
-			// GrantWhenOptionDisabled polarity as the two nukes above, so an unregistered option still
-			// resolves to false and hides all six.
+			// its lowest and highest dial settings, W76-1, RS-28 Sarmat, B83-1 and Tsar Bomba. The
+			// GrantWhenOptionDisabled polarity on the player.yaml side is what makes an unregistered
+			// option resolve to false and hide all six: GrantConditionOnLobbyOption falls back to
+			// `!GrantWhenOptionDisabled` rather than to the default field below, so a build with this
+			// trait stripped, an old saved session or a map that removes it all fail CLOSED.
+			//
+			// This and `powers-sandbox` are the only two weapon gates left here. `tactical-nuke` and
+			// `high-yield-nuke` were retired on 2026-09-15: each gated exactly one `powers.event`
+			// power, a tier no faction provides, so outside the sandbox neither decided anything and
+			// the four per-tier NuclearUnlockClock checkboxes (decision 02) are the controls a host
+			// actually reaches for. The two powers are now gated by the ladder band and the event
+			// tier alone.
 			yield return new LobbyBooleanOption(
 				"nuclear-arsenal",
 				NuclearArsenalCheckboxLabel,
@@ -384,8 +296,6 @@ namespace OpenRA.Mods.Common.Traits
 
 		public bool AirstrikesEnabled { get; private set; }
 		public string AirstrikeCooldown { get; private set; }
-		public bool TacticalNukeEnabled { get; private set; }
-		public bool HighYieldNukeEnabled { get; private set; }
 		public bool NuclearArsenalEnabled { get; private set; }
 		public bool PowersSandboxEnabled { get; private set; }
 
@@ -400,10 +310,6 @@ namespace OpenRA.Mods.Common.Traits
 				.OptionOrDefault("airstrikes", info.AirstrikeCheckboxEnabled);
 			AirstrikeCooldown = self.World.LobbyInfo.GlobalSettings
 				.OptionOrDefault("airstrike-cooldown", info.AirstrikeCooldownDefault);
-			TacticalNukeEnabled = self.World.LobbyInfo.GlobalSettings
-				.OptionOrDefault("tactical-nuke", info.TacticalNukeCheckboxEnabled);
-			HighYieldNukeEnabled = self.World.LobbyInfo.GlobalSettings
-				.OptionOrDefault("high-yield-nuke", info.HighYieldNukeCheckboxEnabled);
 			NuclearArsenalEnabled = self.World.LobbyInfo.GlobalSettings
 				.OptionOrDefault("nuclear-arsenal", info.NuclearArsenalCheckboxEnabled);
 			PowersSandboxEnabled = self.World.LobbyInfo.GlobalSettings

@@ -6,6 +6,8 @@ decides whether a green run here means anything for the change you just made.
 """
 
 import argparse
+import contextlib
+import io
 import json
 import os
 import re
@@ -401,6 +403,303 @@ def lua_globals_defined(text):
     return {k: v for k, v in out.items() if k not in local}
 
 
+def local_used_before_defined(text):
+    """`local function F` referenced at a line ABOVE its definition — nil at runtime.
+
+    A Lua local is only in scope from its definition onward, so a body compiled earlier
+    resolves the name as a GLOBAL and gets nil. It is not a scoping subtlety that bites
+    only sometimes: the call fails every time it executes, and because the offender is
+    usually on a FAILURE path it survives every green run and dies the first time the
+    test tries to report something. That is exactly how it shipped on 2026-09-15 --
+    `attempt to call global 'ReportGeometry' (a nil value)` from a Test.Fail branch, in a
+    scenario this gate had just passed.
+
+    Forward declarations (`local F` on its own, then `function F(...)` or `F = function`)
+    are honoured: the name is in scope from the bare `local` onward, which is the standard
+    idiom for mutual recursion and must not be flagged.
+    """
+    findings = []
+    depth = table_depth(text)
+
+    # Definition point per local name, and any earlier forward declaration.
+    defined = {}
+    for m in re.finditer(r"^\s*local\s+function\s+([A-Za-z_]\w*)", text, re.M):
+        defined.setdefault(m.group(1), m.start())
+    for m in re.finditer(r"^\s*local\s+([A-Za-z_]\w*)\s*=", text, re.M):
+        defined.setdefault(m.group(1), m.start())
+
+    forward = set()
+    for m in re.finditer(r"^\s*local\s+([A-Za-z_]\w*)\s*$", text, re.M):
+        forward.add(m.group(1))
+
+    for name, def_pos in defined.items():
+        if name in forward:
+            continue
+
+        for m in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"\s*\(", text):
+            if m.start() >= def_pos or depth(m.start()) != 0:
+                continue
+
+            findings.append((
+                line_of(text, m.start()), name,
+                f"`{name}` is called here but is defined as a local on line "
+                f"{line_of(text, def_pos)}. A Lua local is only in scope from its definition "
+                f"onward, so this call compiles to a GLOBAL lookup and is nil at runtime: "
+                f"\"attempt to call global '{name}' (a nil value)\". Move the definition above "
+                f"this use, or forward-declare it with a bare `local {name}`."))
+
+    return findings
+
+
+# --------------------------------------------------------------------------------------
+# Reachability: which function bodies can ever run
+# --------------------------------------------------------------------------------------
+#
+# `demo-nuke-river-zeta` fired nothing on two consecutive runs. Its purchase loop was a
+# textbook `local function step() ... Trigger.AfterDelay(1, step) ... end`, complete and
+# correct, and the copy it was made from had lost the ONE line at the bottom of WorldLoaded
+# that starts it. Cameras panned, five screenshots were taken, the scenario exited clean.
+# The only symptom was cash sitting at its starting value.
+#
+# The trap that makes this worth a static check rather than a grep: the literal string
+# `Trigger.AfterDelay(1, step)` IS present in the file -- inside step(), as its own
+# reschedule. A person grepping for the kickoff finds it and concludes the loop is wired.
+# Deciding this needs scope, so the analysis below is a real reachability walk over function
+# bodies rather than a search for a spelling.
+
+LUA_BLOCK_OPEN = ("function", "if", "do", "repeat")
+LUA_BLOCK_CLOSE = ("end", "until")
+WORD_RE = re.compile(r"[A-Za-z_]\w*")
+
+
+def lua_function_spans(text):
+    """[(start, end)] for every `function` keyword in the file, or None if the scan desyncs.
+
+    `for`/`while` are NOT counted: their `do` is the block opener and counting both would
+    double. `elseif`/`else` continue a block rather than opening one, and tokenising on word
+    characters means `elseif` is one word and `endTick` is not an `end`.
+
+    Returning None on any mismatch is deliberate. This feeds a check that reports code as
+    unreachable, and a scanner that has lost its place would report LIVE code as dead --
+    the one failure a gate must not have. Silence is the right answer to "I no longer know
+    where I am".
+    """
+    stack, spans = [], []
+    for m in WORD_RE.finditer(text):
+        w = m.group(0)
+        if w in LUA_BLOCK_OPEN:
+            stack.append((w, m.start()))
+        elif w in LUA_BLOCK_CLOSE:
+            if not stack:
+                return None
+            kind, pos = stack.pop()
+            if (w == "until") != (kind == "repeat"):
+                return None
+            if kind == "function":
+                spans.append((pos, m.end()))
+    if stack:
+        return None
+    return sorted(spans)
+
+
+def _innermost(spans, pos):
+    """The tightest span STRICTLY containing pos, or None for file-scope code.
+
+    Strict at both ends, so a span's own `function` keyword counts as OUTSIDE itself. That
+    is what lets an anonymous closure be judged by where it is created.
+    """
+    best = None
+    for s, e in spans:
+        if s < pos < e and (best is None or s > best[0]):
+            best = (s, e)
+    return best
+
+
+def _pos_reachable(spans, reachable, pos):
+    inner = _innermost(spans, pos)
+    return inner is None or inner in reachable
+
+
+LOCAL_FUNC_DEF_RE = re.compile(r"(?<![\w.:])local\s+function\s+([A-Za-z_]\w*)\s*\(")
+NAMED_FUNC_DEF_RE = re.compile(r"(?<![\w.:])function\s+([A-Za-z_][\w.:]*)\s*\(")
+ASSIGNED_FUNC_DEF_RE = re.compile(r"(?<![\w.:])([A-Za-z_]\w*)\s*=\s*function\s*\(")
+LOCAL_DECL_RE = re.compile(r"(?<![\w.:])local\s+([A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*)")
+
+
+def lua_local_names(text):
+    """Names this file declares with an explicit `local`.
+
+    Narrower on purpose than lua_bindings(), which also collects parameters and loop
+    variables. A name counts as file-local here only when the file says `local` about it,
+    because being local is what makes "nothing references it" mean "nothing CAN call it".
+    A global may be called by the engine or by any other script the map loads.
+    """
+    out = set()
+    for m in LOCAL_DECL_RE.finditer(text):
+        out.update(x.strip() for x in m.group(1).split(","))
+    return out
+
+
+def lua_reachability(text):
+    """(spans, reachable) — which function bodies can be entered, transitively.
+
+    Roots are file-scope code plus every function bound to a GLOBAL name: the engine calls
+    WorldLoaded and Tick, and a global is callable from any other script the map loads, so
+    nothing here may declare one dead. From there:
+
+      * a function bound to a LOCAL name becomes reachable once its name is READ from
+        somewhere already reachable -- a direct call, a callback argument
+        (`Trigger.OnKilled(a, f)`), a table field (`{ drive = f }`), a `return f`: anything
+        that is not a write to it;
+      * an ANONYMOUS closure is reachable when the code that CREATES it is reachable. It is
+        a value being handed somewhere at that moment, and assuming it gets called is the
+        direction that errs toward silence.
+
+    Fixpoint, so a driver started from a function that is itself started from a callback is
+    reachable, and a chain of two orphans is not.
+
+    Returns (None, None) when the span scan desyncs — see lua_function_spans.
+    """
+    spans = lua_function_spans(text)
+    if spans is None:
+        return None, None
+
+    locals_ = lua_local_names(text)
+
+    # Which span is bound to which name, and the byte ranges that DEFINE a name rather
+    # than read it. `local f`, `function f(` and the `f` of `f = function(` are writes:
+    # counting any of them as a reference would make every function reachable from its own
+    # definition, which is precisely the bug being looked for.
+    named = {}
+    decl_ranges = []
+    for m in LOCAL_FUNC_DEF_RE.finditer(text):
+        kw = text.index("function", m.start())
+        named[kw] = (m.group(1), True)
+        decl_ranges.append((m.start(), m.end()))
+    for m in NAMED_FUNC_DEF_RE.finditer(text):
+        if m.start() in named:
+            continue
+        base = m.group(1).split(".")[0].split(":")[0]
+        named[m.start()] = (base, base in locals_)
+        decl_ranges.append((m.start(), m.end()))
+    for m in ASSIGNED_FUNC_DEF_RE.finditer(text):
+        kw = text.index("function", m.start())
+        if kw in named:
+            continue
+        named[kw] = (m.group(1), m.group(1) in locals_)
+        decl_ranges.append((m.start(), kw))
+    for m in LOCAL_DECL_RE.finditer(text):
+        decl_ranges.append((m.start(), m.end()))
+
+    by_start = {s: (s, e) for s, e in spans}
+    span_name = {}
+    for kw, entry in named.items():
+        if kw in by_start:
+            span_name[by_start[kw]] = entry
+
+    refs = {}
+    for name, is_local in span_name.values():
+        if not is_local or name in refs:
+            continue
+        found = []
+        for m in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"(?![\w])", text):
+            if any(a <= m.start() < b for a, b in decl_ranges):
+                continue
+            if re.match(r"\s*=(?!=)", text[m.end():]):
+                continue  # assignment target: rebinding a name does not call it
+            found.append(m.start())
+        refs[name] = found
+
+    reachable = set()
+    for _ in range(len(spans) + 1):
+        grew = False
+        for span in spans:
+            if span in reachable:
+                continue
+            entry = span_name.get(span)
+            if entry is None:
+                ok = _pos_reachable(spans, reachable, span[0])      # anonymous closure
+            elif not entry[1]:
+                ok = True                                           # global: exported
+            else:
+                ok = any(_pos_reachable(spans, reachable, p)
+                         for p in refs.get(entry[0], ()))
+            if ok:
+                reachable.add(span)
+                grew = True
+        if not grew:
+            break
+
+    return spans, reachable
+
+
+ORPHAN_ADVICE = (
+    "The scenario loads, its WorldLoaded runs, cameras and screenshots work, and this loop "
+    "never ticks once -- the only symptom is whatever it was supposed to change sitting at "
+    "its starting value. Beware the grep that says otherwise: the kickoff line "
+    "`Trigger.AfterDelay(1, {name})` is ALSO the reschedule INSIDE the body. Add the call at "
+    "the end of WorldLoaded, or hang it off the trigger that should start it."
+)
+
+
+def orphaned_drivers(text):
+    """A self-rescheduling local function that no reachable code ever starts.
+
+    Two conditions, both load-bearing:
+
+      1. it references ITSELF from inside its own body -- the self-rescheduling loop that
+         makes it a driver. A local that is merely never used is dead weight rather than an
+         inert scenario, and is a different and far noisier finding;
+      2. its body is unreachable by the walk above.
+
+    Condition 1 is also what settles the severity: a driver is what the rest of the scenario
+    hangs off, so one that cannot start means the run does nothing.
+    """
+    spans, reachable = lua_reachability(text)
+    if spans is None:
+        return []
+
+    by_start = {s: (s, e) for s, e in spans}
+    locals_ = lua_local_names(text)
+    out = []
+    seen = set()
+
+    def report(span, name, header_end):
+        body = text[span[0]:span[1]]
+        selfref = [x for x in re.finditer(r"(?<![\w.:])" + re.escape(name) + r"(?![\w])", body)
+                   if x.start() >= header_end - span[0]]
+        if not selfref:
+            return
+        line = line_of(text, span[0])
+        if line in seen:
+            return
+        seen.add(line)
+        out.append((
+            line, name,
+            "`{n}` reschedules itself (line {r}) but NOTHING EVER STARTS IT: no reachable "
+            "code outside its own body names `{n}`. ".format(
+                n=name, r=line_of(text, span[0] + selfref[0].start()))
+            + ORPHAN_ADVICE.format(name=name)))
+
+    for m in LOCAL_FUNC_DEF_RE.finditer(text):
+        span = by_start.get(text.index("function", m.start()))
+        if span is not None and span not in reachable:
+            report(span, m.group(1), m.end())
+
+    # The forward-declaration idiom -- `local f` on its own, then `f = function() ... end`.
+    # Used in the tree for drivers that reschedule from inside a closure, so it is not a
+    # hypothetical spelling; it is how test-aa-autotarget-thru-trees writes its poll loop.
+    for m in ASSIGNED_FUNC_DEF_RE.finditer(text):
+        if m.group(1) not in locals_:
+            continue
+        kw = text.index("function", m.start())
+        span = by_start.get(kw)
+        if span is not None and span not in reachable:
+            report(span, m.group(1), kw)
+
+    return out
+
+
 def line_of(text, pos):
     return text.count("\n", 0, pos) + 1
 
@@ -742,6 +1041,46 @@ def verdict_names(script_texts, seeds=None):
     return terminating
 
 
+def check_power_fired(name, scen_dir, own_text, findings):
+    """A scenario that CHARGES a support power and never fires one.
+
+    TestHarness.EnsurePower buys and waits for a charge; Test.ActivateSupportPower is the
+    only binding that puts it on the map. A rig with the first and not the second has built
+    its whole setup -- cash, sandbox checkbox, proxy actor, charge poll -- and then runs to
+    completion having launched nothing, which looks from the outside exactly like a rig that
+    fired and produced no effect. That is the same class of silence as an unstarted driver,
+    reached from the other end.
+
+    WARN rather than an error, because there is one honest shape here that the check cannot
+    tell from the mistake: a test asserting that a power BECOMES AVAILABLE -- that the buy
+    tab takes the order, or that a cooldown expires -- legitimately ensures a power and
+    never fires it. No scenario in the tree does that today; the severity is set for the one
+    that eventually will.
+
+    `own_text` must be the scenario's OWN body, exactly as check_verdict_reachable takes it.
+    EnsurePower is DEFINED in test-helpers.lua and every scenario in the tree declares that
+    helper, so a version of this check that scanned helper text would fire on all of them.
+    """
+    if "EnsurePower" not in own_text:
+        return
+    if "ActivateSupportPower" in own_text:
+        return
+
+    # SYMBOL, not `name`. Findings dedupe on (path, line, symbol, severity), and this one
+    # lands on the same file at the same line 0 with the same severity as
+    # check_verdict_reachable -- a `test-` scenario that charges a power and fires nothing
+    # usually trips both. Keying on the scenario name made the two collide and the SECOND
+    # one was dropped in silence. Caught by run_driver_e2e_acceptance, not by review.
+    findings.append(Finding(
+        "warn", repo_rel(os.path.join(scen_dir, name + ".lua")), 0,
+        "TestHarness.EnsurePower",
+        "calls TestHarness.EnsurePower but never names Test.ActivateSupportPower, so the "
+        "power is bought and charged and then nothing fires it. The scenario runs to "
+        "completion having tested nothing, and reads from the outside like a strike that "
+        "landed and did no damage. Either fire it, or -- if the point IS that the power "
+        "merely becomes available -- assert that readiness explicitly."))
+
+
 def check_verdict_reachable(name, scen_dir, luas, declared, own_text, findings, seeds=None):
     """A `test-` scenario whose Lua names no way to finish.
 
@@ -823,6 +1162,12 @@ def check_file(lua_path, api, extra_globals, actor_globals, findings):
         raw = fh.read()
     text = strip_lua(raw)
     rel = repo_rel(lua_path)
+
+    for lineno, symbol, message in local_used_before_defined(text):
+        findings.append(Finding("error", rel, lineno, symbol, message))
+
+    for lineno, symbol, message in orphaned_drivers(text):
+        findings.append(Finding("error", rel, lineno, symbol, message))
 
     bound = lua_bindings(text)
     own_globals = lua_globals_defined(text)
@@ -978,6 +1323,7 @@ def run_check(args):
     files = 0
 
     helper_cache = {}
+    scanned_shared = set()
     seeds = verdict_seeds()
 
     for name, d, luas in scenarios:
@@ -993,6 +1339,7 @@ def run_check(args):
 
         # Globals contributed by the helper scripts this map actually loads.
         extra = {}
+        shared_declared = []
         for s in declared:
             if s in luas:
                 continue
@@ -1007,6 +1354,7 @@ def run_check(args):
                 with open(path, "r", encoding="utf-8", errors="replace") as fh:
                     helper_cache[path] = lua_globals_defined(strip_lua(fh.read()))
             extra.update(helper_cache[path])
+            shared_declared.append(path)
 
         if not declared:
             for lua in luas:
@@ -1016,6 +1364,30 @@ def run_check(args):
                     "loads: its WorldLoaded never runs, nothing in it is checked here, and "
                     "the scenario starts and does nothing."))
             continue
+
+        # A SCRIPT OUT OF THE SCENARIO DIRECTORY IS STILL A SCRIPT THIS SCENARIO RUNS.
+        # Until 2026-09-15 `check_file` was reached only from the loop over `luas` — the .lua
+        # files sitting IN the scenario folder — so a body kept in mods/ww3mod/scripts and
+        # shared between scenarios was loaded by the engine and checked by nothing. The gate
+        # said "OK — every reference resolves" having resolved none of it, which is the false
+        # green this tool exists to prevent, wearing the tool's own uniform. It covered
+        # javelin-probe-lib.lua (4 scenarios) from the day it was written.
+        # Cached by PATH, so a lib shared by N scenarios is read and scanned once; the
+        # per-scenario `extra`/`actors` still differ, and identical findings dedupe below.
+        # SCANNED ONCE, under the first scenario that declares it. Re-scanning per declaring
+        # scenario would be stricter — `extra` and `actors` are per-scenario, so a symbol
+        # resolving in the first declarer could be missing in the second — but every scenario
+        # in the tree declares test-helpers.lua, which turns "stricter" into 320 scans of the
+        # same file and pushed a full run past nine minutes. The residual blind spot is narrow
+        # and worth naming: a shared lib that reads a map-actor global is validated against ONE
+        # map's `Actors:` block. A lib referencing map actors by name is already a mistake — it
+        # cannot be shared — so the check that would catch it is the one it should never need.
+        for path in shared_declared:
+            if path in scanned_shared:
+                continue
+            scanned_shared.add(path)
+            files += 1
+            check_file(path, api, extra, actors, findings)
 
         for lua in luas:
             # Only gate the scripts the map actually loads; an orphan .lua in the
@@ -1029,11 +1401,39 @@ def run_check(args):
             files += 1
             check_file(os.path.join(d, lua), api, extra, actors, findings)
 
+        # WHICH TEXT COUNTS AS *THIS SCENARIO'S* ASSERTION.
+        #
+        # The check asks whether the scenario names any way to reach a terminal verdict, and
+        # it has to be strict about whose text may answer: test-helpers.lua contains literal
+        # Test.Fail calls and EVERY scenario declares it, so letting helper text stand as the
+        # body would grade all 320 of them green by construction.
+        #
+        # It used to enforce that by only ever reading <dir>/<name>.lua. That is right for a
+        # scenario that keeps its body next to its map, and SILENTLY SKIPS one that does not:
+        # no file, no call, no finding — the check simply did not run, and nothing said so.
+        # An A/B pair sharing one body in mods/ww3mod/scripts is exactly that shape.
+        #
+        # So the body is now: the scenario's own <name>.lua if it has one, PLUS every script
+        # it declares that is not a universal helper. `test-helpers.lua` is named explicitly
+        # rather than inferred because being universal is the whole reason it is excluded —
+        # if a second repo-wide helper is ever added it belongs on this list, and until it is
+        # added the failure is a scenario grading green on that helper's verdict calls.
+        UNIVERSAL_HELPERS = ("test-helpers.lua",)
+        body_texts = []
         own = os.path.join(d, name + ".lua")
         if os.path.basename(own) in declared and os.path.exists(own):
             with open(own, "r", encoding="utf-8", errors="replace") as fh:
-                check_verdict_reachable(
-                    name, d, luas, declared, strip_lua(fh.read()), findings, seeds)
+                body_texts.append(strip_lua(fh.read()))
+        for path in shared_declared:
+            if os.path.basename(path) in UNIVERSAL_HELPERS:
+                continue
+            with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                body_texts.append(strip_lua(fh.read()))
+
+        if body_texts:
+            body = "\n".join(body_texts)
+            check_verdict_reachable(name, d, luas, declared, body, findings, seeds)
+            check_power_fired(name, d, body, findings)
 
     seen, deduped = set(), []
     for f in findings:
@@ -1380,7 +1780,259 @@ def run_wiring_acceptance():
                                 "WorldLoaded = function() Test.Skip('x') end", f, seeds)
         results.append(("...and one reaching Test.Skip does not fire", not f))
 
+        # -- mode 5: the same question for a scenario whose BODY is a shared script in
+        # mods/ww3mod/scripts rather than a .lua in its own folder (an A/B arm pair).
+        # Before 2026-09-15 mode 4 could not see this shape AT ALL: the check was reached
+        # only when <dir>/<name>.lua existed, so a shared body that asserted nothing was
+        # not reported as silent — it was never examined, and the gate printed OK. Both
+        # halves are asserted here; the negative half is the one that was broken.
+        results.extend(_shared_body_acceptance())
+
     return results
+
+
+def _shared_body_acceptance():
+    """run_check over a scenario whose only body lives in the shared scripts folder."""
+    import tempfile
+    global SCENARIOS, MOD_SCRIPTS
+    saved = (SCENARIOS, MOD_SCRIPTS)
+    out = []
+    rules = "World:\n\tLuaScript:\n\t\tScripts: test-helpers.lua, zz-lib.lua\n"
+    try:
+        for label, body, want in (
+                ("a shared body that reaches no verdict is reported",
+                 "WorldLoaded = function()\n\tlocal a = 1\nend\n", True),
+                ("...and a shared body that reaches Test.Fail does not fire",
+                 "WorldLoaded = function()\n\tTest.Fail('x')\nend\n", False)):
+            with tempfile.TemporaryDirectory() as root:
+                scen = os.path.join(root, "scenarios")
+                scripts = os.path.join(root, "scripts")
+                d = os.path.join(scen, "test-zz-shared")
+                os.makedirs(d)
+                os.makedirs(scripts)
+                _write(os.path.join(d, "map.yaml"), WIRING_MAP + "Rules: rules.yaml\n")
+                _write(os.path.join(d, "rules.yaml"), rules)
+                _write(os.path.join(scripts, "zz-lib.lua"), body)
+                # Stands in for the real universal helper: it CONTAINS a verdict call, which
+                # is exactly why it must not be allowed to answer for the scenario.
+                _write(os.path.join(scripts, "test-helpers.lua"),
+                       "function TestHarnessFail() Test.Fail('h') end\n")
+                SCENARIOS, MOD_SCRIPTS = scen, scripts
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    run_check(argparse.Namespace(scenario=None, strict=False, json=False))
+                fired = "reaches a terminal Test verdict" in buf.getvalue()
+                out.append((label, fired == want))
+    finally:
+        SCENARIOS, MOD_SCRIPTS = saved
+    return out
+
+
+# --------------------------------------------------------------------------------------
+# Acceptance test for the orphaned-driver check
+# --------------------------------------------------------------------------------------
+#
+# The negative cases are the point of this block. A check that reports "nothing ever starts
+# this" has to be trusted not to fire on the four ways the tree actually DOES start one, or
+# the first person it lies to turns it off.
+
+DRIVER_ORPHAN = """
+local tick = 0
+local fired = false
+
+local function step()
+\ttick = tick + 1
+\tif not fired then
+\t\tlocal ready = TestHarness.EnsurePower(USA, Proxy, PowerKey, tick)
+\t\tif ready then
+\t\t\tfired = true
+\t\t\tTest.ActivateSupportPower(USA, PowerKey, CPos.New(38, 20))
+\t\t\treturn
+\t\tend
+\tend
+\tTrigger.AfterDelay(1, step)
+end
+
+WorldLoaded = function()
+\tCamera.Position = WPos.New(1, 2, 0)
+end
+"""
+
+DRIVER_FORWARD = """
+local remaining = 5
+local function startPolling()
+\tlocal step
+\tstep = function()
+\t\tremaining = remaining - 1
+\t\tTrigger.AfterDelay(1, step)
+\tend
+\tTrigger.AfterDelay(1, step)
+end
+
+WorldLoaded = function() startPolling() end
+"""
+
+
+def _driver_variant(kickoff):
+    return DRIVER_ORPHAN.replace(
+        "\tCamera.Position = WPos.New(1, 2, 0)\n",
+        "\tCamera.Position = WPos.New(1, 2, 0)\n\t" + kickoff + "\n")
+
+
+def run_driver_acceptance():
+    """Every shape that starts a driver must stay silent; every shape that cannot must fire."""
+    with_start = DRIVER_ORPHAN.replace(
+        "local function step()",
+        "local function start()\n\tTrigger.AfterDelay(1, step)\nend\n\nlocal function step()")
+
+    cases = (
+        # -- positive: the live incident of 2026-09-10, verbatim in shape.
+        ("a self-rescheduling driver nothing starts is reported", DRIVER_ORPHAN, 1),
+        # -- negative: the four ways the corpus actually starts one.
+        ("...and the same driver with its kickoff restored is not",
+         _driver_variant("Trigger.AfterDelay(1, step)"), 0),
+        ("a driver started from a Trigger.OnKilled callback is not reported",
+         _driver_variant("Trigger.OnKilled(Victim, step)"), 0),
+        ("a driver stored in a table field is not reported",
+         _driver_variant("Drivers = { drive = step }"), 0),
+        ("a driver started indirectly through another function is not reported",
+         with_start.replace("\tCamera.Position = WPos.New(1, 2, 0)\n",
+                            "\tCamera.Position = WPos.New(1, 2, 0)\n\tstart()\n"), 0),
+        # -- the forward-declaration idiom, which the tree uses for poll loops.
+        ("a forward-declared `local f` / `f = function` driver, kicked off, is not reported",
+         DRIVER_FORWARD, 0),
+        ("...and the same one with its kickoff removed is reported",
+         DRIVER_FORWARD.replace("\tend\n\tTrigger.AfterDelay(1, step)\nend", "\tend\nend"), 1),
+        # -- transitivity: reachability is a walk, not one hop.
+        ("a chain of two orphans (the starter is itself never called) is reported",
+         with_start, 1),
+    )
+
+    out = [(desc, len(orphaned_drivers(strip_lua(text))) == want)
+           for desc, text, want in cases]
+
+    out.extend(run_power_acceptance())
+    out.extend(run_driver_e2e_acceptance())
+
+    # The span scanner underpins all of the above, so pin the arithmetic it gets wrong when
+    # `for`/`while` are counted alongside their `do`, and the bail-out on a desync.
+    out.append(("function spans: `for ... do ... end` inside a body does not close it",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\tfor i = 1, 3 do\n\t\tx = i\n\tend\n\ty = 1\nend\n"))
+                == [(6, 59)]))
+    out.append(("function spans: `repeat ... until` is balanced",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\trepeat\n\t\tx = 1\n\tuntil x\nend\n")) is not None))
+    out.append(("function spans: an identifier merely STARTING with `end` is not an `end`",
+                lua_function_spans(strip_lua(
+                    "local function f()\n\tendTick = 1\nend\n")) is not None))
+    out.append(("function spans: an unbalanced file returns None rather than guessing",
+                lua_function_spans(strip_lua("local function f()\n\tx = 1\n")) is None))
+    return out
+
+
+def run_driver_e2e_acceptance():
+    """Both new checks, driven through run_check() over a synthetic scenario on disk.
+
+    The unit cases above prove the ANALYSIS discriminates. This proves it is actually
+    plumbed: a finding that never reaches a Finding() is a check nobody will ever see fire,
+    and wiring is exactly what this gate exists to doubt. It also pins the severity split --
+    an unstarted driver must be an ERROR (exit 2, it makes the scenario inert) and an unfired
+    power a WARNING (exit 1, a readiness-only test is a legitimate shape).
+    """
+    import tempfile
+    global SCENARIOS, MOD_SCRIPTS
+    saved = (SCENARIOS, MOD_SCRIPTS)
+    out = []
+
+    driver_body = DRIVER_ORPHAN.rstrip("\n") + "\n"
+    fixed_body = driver_body.replace(
+        "\tCamera.Position = WPos.New(1, 2, 0)\n",
+        "\tCamera.Position = WPos.New(1, 2, 0)\n\tTrigger.AfterDelay(1, step)\n")
+
+    try:
+        for label, body, needle, want in (
+                ("run_check reports an unstarted driver as an ERROR",
+                 driver_body, "NOTHING EVER STARTS IT", True),
+                ("...and says nothing once the kickoff is restored",
+                 fixed_body, "NOTHING EVER STARTS IT", False),
+                ("run_check reports a charged-but-unfired power",
+                 "WorldLoaded = function()\n\tTestHarness.EnsurePower(USA, P, K, 1)\nend\n",
+                 "never names Test.ActivateSupportPower", True),
+                ("...and not one that fires it",
+                 "WorldLoaded = function()\n\tTestHarness.EnsurePower(USA, P, K, 1)\n"
+                 "\tTest.ActivateSupportPower(USA, K, CPos.New(1, 2))\n\tTest.Pass('x')\nend\n",
+                 "never names Test.ActivateSupportPower", False)):
+            with tempfile.TemporaryDirectory() as root:
+                scen = os.path.join(root, "scenarios")
+                scripts = os.path.join(root, "scripts")
+                d = os.path.join(scen, "test-zz-driver")
+                os.makedirs(d)
+                os.makedirs(scripts)
+                _write(os.path.join(d, "map.yaml"), WIRING_MAP + "Rules: rules.yaml\n")
+                _write(os.path.join(d, "rules.yaml"),
+                       "World:\n\tLuaScript:\n\t\tScripts: test-helpers.lua, "
+                       "test-zz-driver.lua\n")
+                _write(os.path.join(d, "test-zz-driver.lua"), body)
+                # The real universal helper both DEFINES EnsurePower and CALLS Test.Fail.
+                # If run_check ever lets helper text answer for a scenario, the power check
+                # fires on every scenario in the tree; this stand-in is what catches that.
+                _write(os.path.join(scripts, "test-helpers.lua"),
+                       "function TestHarness.EnsurePower(p, x, k, t)\n\treturn true\nend\n"
+                       "function TestHarnessFail()\n\tTest.Fail('h')\nend\n")
+                SCENARIOS, MOD_SCRIPTS = scen, scripts
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    code = run_check(argparse.Namespace(scenario=None, strict=False, json=False))
+                text = buf.getvalue()
+                ok = (needle in text) == want
+                if want and "NOTHING EVER STARTS IT" in needle:
+                    ok = ok and code == 2 and "[error]" in text
+                if want and "ActivateSupportPower" in needle:
+                    ok = ok and code == 1 and "[warn]" in text
+                out.append((label, ok))
+    finally:
+        SCENARIOS, MOD_SCRIPTS = saved
+    return out
+
+
+def run_power_acceptance():
+    """EnsurePower with no ActivateSupportPower fires; every other combination stays quiet.
+
+    The third case is the one worth having. EnsurePower is defined in test-helpers.lua,
+    which EVERY scenario declares, so a check fed helper text as well as scenario text would
+    report all 350 of them. It is asserted here rather than left to a comment.
+    """
+    ensure = "local ok = TestHarness.EnsurePower(USA, Proxy, Key, tick)\n"
+    fire = "Test.ActivateSupportPower(USA, Key, CPos.New(1, 2))\n"
+    helper = ("function TestHarness.EnsurePower(p, proxy, key, t)\n\treturn true, 'ready'\nend\n")
+
+    cases = (
+        ("a scenario that charges a power and never fires it is reported", ensure, 1),
+        ("...and one that fires it is not", ensure + fire, 0),
+        ("a scenario naming neither is not reported", "local x = 1\n", 0),
+        ("firing without EnsurePower is not reported", fire, 0),
+        ("the helper that DEFINES EnsurePower cannot make a scenario fire", helper, 1),
+    )
+
+    out = []
+    for desc, body, want in cases[:-1]:
+        f = []
+        check_power_fired("test-zz-power", "zz", body, f)
+        out.append((desc, len(f) == want))
+
+    # The last case is about WHOSE text is passed, so assert the contract directly: helper
+    # text alone would fire, therefore run_check must never hand it to this check.
+    f = []
+    check_power_fired("test-zz-power", "zz", helper, f)
+    out.append(("helper text WOULD fire, so run_check must pass the scenario body only",
+                len(f) == 1))
+    return out
+
+
+def _write(path, text):
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
 
 
 # MiniYaml's indent arithmetic is transcribed rather than approximated, so pin it: these are
@@ -1432,6 +2084,7 @@ def run_selftest(args):
     extra = [(f"miniyaml indent: {line!r} is level {want}",
               miniyaml_split(line)[0] == want) for line, want in MINIYAML_INDENT_CASES]
     extra += run_wiring_acceptance()
+    extra += run_driver_acceptance()
     for desc, ok in extra:
         print(f"  {'ok  ' if ok else 'FAIL'}  {desc}")
         if not ok:

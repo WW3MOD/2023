@@ -26,8 +26,27 @@ against the module's LosingArmyRatioPercent of 60.
                    anything: the exchange raises the other side's level wherever
                    the warhead lands, with no damage attribution at all.
 
-  PHASE B2 (t380)  THE SHARPEST ASSERTION IN THE RUN. Russia's 20 kt power now
-                   reads READY -- its level rose to 2 -- and the bot must STILL
+  THE FLIGHT       ~110 ticks, and the run WATCHES it rather than waiting out a
+  (t300..~t410)    constant. Since the 2026-09-16 ruling the victim's level does
+                   not rise on the click: it rises at the first warhead's IMPACT
+                   plus EscalationDelayTicks (50). Two assertions live in that
+                   window, and they are the coverage this scenario adds --
+                   nothing else in the tree ran the deferral end to end.
+
+                     (a) Russia's 20 kt stays HIDDEN on every tick from the
+                         launch until Test.GetImpactEffectCount moves. RED the
+                         moment an escalation is applied at the click, which is
+                         exactly what this scenario's deleted
+                         `EscalationDelayTicks: -1` override restored.
+
+                     (b) and is drawn within 50 + 40 ticks of that explosion.
+                         RED if the deferral never fires at all -- a dropped
+                         pending record, an impact never reported. (a) cannot
+                         see that: a level that never rises is also a level
+                         that never rises early.
+
+  PHASE B2         THE SHARPEST ASSERTION IN THE RUN. Russia's 20 kt power now
+  (rise + 12)      reads READY -- its level rose to 2 -- and the bot must STILL
                    not have fired. A level is PERMISSION, not a REASON. A bot
                    that fires here has the engine's generic SupportPowerBotModule
                    policy ("ready and a target scores well enough"), which is
@@ -39,29 +58,46 @@ against the module's LosingArmyRatioPercent of 60.
                    at any point for the rest of the match, and declines every
                    time it is asked.
 
-  PHASE C (t400)   Three of Russia's four humvees are killed. 500 against 2000
-                   is 25 %. Three and not four: a losing player and an
+                   AND STRONGER AGAIN WITH THE DEFERRAL: the bot now spends the
+                   whole 110-tick flight -- two evaluations -- holding a loaded
+                   1 kt with a warhead inbound, and then declines the 20 kt too.
+                   (110, not the ~305 the B61's MissileDelay implies: this
+                   scenario sets PowersSandboxCheckboxEnabled, and
+                   SandboxRemovesLaunchDelay drops that delay entirely.)
+
+                   READ 12 TICKS AFTER THE BAND APPEARS, not 80 after the rise.
+                   The anchor is the tick the condition arrived, so only one
+                   ServicePendingReady pass is owed; and 12 is far inside the
+                   300-tick interval an UNGRANTED timer would be running, which
+                   is what keeps READY non-vacuous.
+
+  PHASE C          Three of Russia's four humvees are killed. 500 against 2000
+  (rise + 32)      is 25 %. Three and not four: a losing player and an
                    annihilated one are different scenarios.
 
-  PHASE D (t700)   Exactly ONE launch, at band 2 (TwentyKiloton -- the highest
+  PHASE D (C+300)  Exactly ONE launch, at band 2 (TwentyKiloton -- the highest
                    band its LEVEL allows, not the 1 kt underneath) with reason
                    "HighestAllowed". The earliest legal launch is three
                    evaluations after the kills (LosingStreakRequired 3 x
                    EvaluationInterval 50 = 150 ticks); this reading sits three
                    further intervals past that.
 
-  PHASE E (t730)   And the bot's WHOLE arsenal went down with the shot -- its
+  PHASE E (C+330)  And the bot's WHOLE arsenal went down with the shot -- its
                    1 kt as well as the 20 kt it fired. A cooldown is side-wide.
                    Under v1 this read READY and a losing bot worked down its
                    ladder firing one warhead per band.
 
-  PHASE F (t1060)  And it comes back. Asserted so phase G means something: a bot
+  PHASE F (C+660)  And it comes back. Asserted so phase G means something: a bot
                    that never recovered would also never fire again.
 
-  PHASE G (t1160)  Still exactly one launch -- now on MinTicksBetweenLaunches
+  PHASE G (C+760)  Still exactly one launch -- now on MinTicksBetweenLaunches
                    ALONE, because phase F just proved the arsenal is loaded. That
                    separation is why the cooldown override is 300 rather than
                    something still running at this tick.
+
+Every offset from PHASE C on is the one this scenario used when the army cut was
+a fixed t400; only the ANCHOR moved, from a constant to the observed level rise.
+C above is the army-cut tick.
 
 WHY THE LAUNCH COUNT IS A BINDING AND NOT A BIN READ. A launch shows up in the
 support power bin only as a band going READY -> CHARGING, which a side cooldown
@@ -87,7 +123,7 @@ WHAT THIS DELIBERATELY DOES NOT MEASURE:
 
 THE SOFTEST ASSUMPTION IN THE RUN is that the two armies do not shoot each
 other. They sit fifty cells apart with HoldFire / HoldPosition on ^Combatant,
-and the whole run is ~1100 ticks -- but Russia IS a bot, and its ordinary ground
+and the whole run is ~1260 ticks -- but Russia IS a bot, and its ordinary ground
 modules are free to order its humvees anywhere. If phase C ever reports fewer
 than three kills, that is what happened, and the fault text says so rather than
 letting the run fail somewhere downstream as a mystery.

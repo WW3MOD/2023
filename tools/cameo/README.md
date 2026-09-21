@@ -197,26 +197,52 @@ Side-by-side at 6× with the rows ruled: `WORKSPACE/mockups/caption-vs-baked.png
 | Advance width, "PRECISION STR." | 56px | 57px | 1px over 14 characters |
 | Letter colour | `#FFFFFF`, 115/115 px | `CaptionColor`, white | exact |
 | Treatment | 1px outline, all 8 sides | `DrawTextWithContrast(…, 1)` | already an outline |
-| Last ink row | slot row 45 of 46 | `IconSize.Y - CaptionBottomMargin - 1` | equal at margin **0** |
+| Last ink row | slot row 44 of 46 | `IconSize.Y - CaptionBottomMargin - 1` | equal at margin **1** |
 
 So tracking, colour, weight and treatment need nothing. **The one real gap is
 antialiasing**, and it is the trap in this file:
 
-> The baked lettering is **1-bit**: every one of its 115 pixels is pure white.
-> FreeSansBold at 7px has **no fully opaque pixel at all** — max coverage 246,
-> median 124 — so generated text is a grey stipple where baked text is solid.
+> FreeSansBold at 7px has **no fully opaque pixel at all** — 3 of 1307 measured
+> through the engine's own freetype6 — so generated text is a grey stipple.
 >
 > **Over the solid black band you cannot see this.** Turn the band off and you
 > will, immediately, and the text will look weaker for no reason you can find in
-> the geometry. That is not a bug you have introduced; it is this, and the only
-> real fixes are a 1-bit bitmap font or disabling FreeType antialiasing engine-wide.
-> Neither is worth it while the band is on.
+> the geometry.
+>
+> **FIXED 2026-09-19, and the fix was neither of the two this paragraph offered.**
+> `CaptionFont` is now `CameoCaption` = `ww3mod|WW3Caption.ttf`, a generated 1-bit
+> pixel font (`tools/cameo/pixelfont.py`), and it needed **no engine change and no
+> engine-wide antialiasing switch**. FreeType antialiases EDGES: a pixel a contour
+> covers completely still returns 255. Set `unitsPerEm = ppem * 2^k` and every edge
+> lands on a pixel boundary at the shipped size, so the output is 1-bit for free.
+> 485 of 485 opaque. Run `python tools/cameo/pixelfont.py --verify`.
+>
+> **AND THE FIRST SENTENCE OF THIS PARAGRAPH USED TO BE WRONG.** It said the baked
+> lettering is 1-bit, "every one of its 115 pixels pure white". Measured over the
+> caption rows: `e4americaicon` is 125/130 pure white, but `e1americaicon` is 17/87,
+> `t90icon` 5/29 and `mediamericaicon` 11/63 — **most shipped baked lettering is
+> antialiased.** So "match the baked art" is not the argument for a 1-bit caption
+> font. The geometry claims above (5 ink rows, last ink row on slot row 45, 4px
+> pitch) all re-measured correct.
+>
+> **AND THE SLOT ROW IN THAT TABLE WAS WRONG UNTIL 2026-09-20.** The ART figure —
+> 5 ink rows ending on **sprite** row 46 — is right and has been re-measured again.
+> The slot row derived from it was not: `IconSpriteOffset` moves the sprite's
+> **centre**, not its top-left, so a 48-row cameo in a 46-row slot begins at slot
+> row `(46 - 48) / 2 + (-1) = -2` and sprite row 46 is **slot row 44**. Slot row 45
+> is unusable in any case — `PALETTE_FOREGROUND` composites the sidebar's cell frame
+> (`background-iconrow` row 46; `background-supportoverlay` row 47) over every slot
+> *after* the palette widget draws. The cost was a caption that lost its bottom glyph
+> row everywhere: `I` read as `T`, `L` as `I`, `E` as `F`.
 
-**`CaptionBottomMargin` must be 0**, and that is derived rather than chosen: the
+**`CaptionBottomMargin` must be 1**, and that is derived rather than chosen: the
 generated text's last ink row is `IconSize.Y - margin - 1` (the cache puts the
 line box at `slotHeight - margin - lineHeight`, `SpriteFont.DrawText` adds `size`
 to reach the baseline, and `lineHeight` *is* `size`, so the font cancels), and it
-has to equal the row the baked ink ends on. `CameoCaptionBandTest` asserts it.
+has to equal the row the baked ink ends on — **slot row 44**, not 45. It must also
+stay off slot row 45, which the sidebar's cell frame paints over.
+`CameoCaptionBandTest` asserts both, and derives the sprite's placement from
+`IconSize` and `IconSpriteOffset` rather than carrying a constant.
 
 ### Rollout order is decided by one fact
 
@@ -236,11 +262,23 @@ source images. Do not go looking for a `--strip-captions`.
 
 ### How much art still has lettering — and why "clean" is the weaker verdict
 
-`tools/cameo/rollout_survey.py` counts it: **115 buildable actors have a cameo**
-across **87 art files**, and of the 76 it can decode, **74 (101 actors) carry
-baked lettering**. Ten more are ShpTD, which its decoder cannot read at all, so
-their verdict is unknown rather than clean. `samicon` is in no repo file — it is
-base-game content loaded from the RA install, **not a missing sprite**.
+`tools/cameo/rollout_survey.py` counts it: **111 buildable actors have a cameo**
+across **93 art files** (re-counted 2026-09-20 and it moves — rerun the tool rather than
+quoting this), and of the 81 it can decode, **68 (83 actors) carry baked lettering**. Thirteen
+decodable files carry none. Eleven more are ShpTD, which its decoder cannot read at all, so their
+verdict is unknown rather than clean. `samicon` is in no repo file — it is base-game content
+loaded from the RA install, **not a missing sprite**.
+
+> **111 is the roster a player sees, and it is now the only count this repo states.**
+> `check_captions.py` reports the same 111 (= 97 in `rules/cameo-captions.yaml` + 14 live in
+> `rules/powers.yaml`) because all three tools take their universe from mod.yaml's `Rules:` list
+> through `captions_table.loaded_rules_paths()`. Until 2026-09-20 the survey instead walked
+> `mods/ww3mod/rules/**.yaml`, 18 files of which mod.yaml never loads, and reported **115** — the
+> same universe bug that put five phantom captions in a shipped rules file. Captioning an actor
+> in that gap is not harmless: it creates a bare actor and breaks every map's lint (2026-09-20;
+> see `WORKSPACE/DISCOVERIES.md`). The on-disk view survives as
+> `rollout_survey.py --all-on-disk`, which prints a warning that it counts actors not in the
+> game; it is an upper bound on ART work and nothing else.
 
 Two things about that tool are worth knowing before you trust a number from it:
 
@@ -362,5 +400,11 @@ Neither fit mode ever stretches non-uniformly.
 | `convert.py` | fit → caption → bevel → write; also does `--install` |
 | `badge.py` | renders the nuclear trefoil badge; `--install` writes the shipped art |
 | `binmock.py` | draws the whole support power bin offline, cameos and captions and badges |
-| `rollout_survey.py` | counts cameos, baked lettering and caption candidates across the roster |
+| `rollout_survey.py` | counts cameos, baked lettering and caption candidates across the LOADED roster; `--all-on-disk` for the rules directory instead |
+| `pixelfont.py` | generates `mods/ww3mod/WW3Caption.ttf`; `--verify` measures the 1-bit rule |
+| `ftprobe.py` | rasterises through the ENGINE's freetype6 via ctypes — no build, no launch |
+| `captions_table.py` | the authored caption table; writes `rules/cameo-captions.yaml` |
+| `check_captions.py` | gates that table: coverage, width, glyphs, key case, loaded-last, defined-in-a-loaded-file |
+| `contact_sheet.py` | `--all` every cameo at 4x (read the baked words); `--powers` the bin |
+| `caption_proof.py` | the before/after font sheet in `WORKSPACE/mockups/caption-font-1bit.png` |
 | `work/` | staging scratch (git-ignored; safe to delete) — where the renders land |

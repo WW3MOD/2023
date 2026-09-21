@@ -16,15 +16,16 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# WHAT THIS MEASURES: that the tactical nuclear strike, once the host has switched it ON in the
-# lobby, actually delivers. Its sibling test-tacnuke-lobby-gated-off asserts the other half — that
-# with the lobby option at its shipped default the power is not in the bin at all. The two are
-# separate scenarios rather than one because they need OPPOSITE lobby state, which is a rules-level
-# fact fixed before the first tick, not something a script can toggle mid-run.
+# WHAT THIS MEASURES: that the tactical nuclear strike, once a player can reach it at all, actually
+# delivers. It used to have a sibling, test-tacnuke-lobby-gated-off, asserting the other half — that
+# at the shipped lobby default the power was not in the bin. That checkbox was retired on 2026-09-15
+# and the sibling was deleted with it; the "not reachable by default" half is now carried by the
+# EVENT TIER, which is structural rather than configurable.
 #
-# THE ONE OVERRIDE THAT MATTERS is in rules.yaml: `PowersLobbyOptions: TacticalNukeCheckboxEnabled:
-# true` + `Locked: true`. That is the same lever the shipped Kinzhal scenario already uses for
-# MapLayers' explored/fog checkboxes, so the mechanism is precedented rather than novel here.
+# THE ONE OVERRIDE THAT MATTERS is in rules.yaml: `PowersLobbyOptions: PowersSandboxCheckboxEnabled:
+# true` + `Locked: true`, which is what provides this power's `powers.event` tier. That is the same
+# lever the shipped Kinzhal scenario already uses for MapLayers' explored/fog checkboxes, so the
+# mechanism is precedented rather than novel here.
 #
 # WHY THE VICTIM IS A t90 AND NOT A BUILDING. This scenario is about DELIVERY, not about warhead
 # shape — the Atomic warhead is reused unchanged from mslo's NukePower and was not written by this

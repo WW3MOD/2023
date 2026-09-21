@@ -215,9 +215,16 @@ namespace OpenRA.Mods.Common.Traits
 			// Kill rather than Dispose, so every accounting trait still runs. The debris traits are already
 			// suppressed by ISuppressDeathRemains above.
 			//
-			// PITFALL: Health.Kill routes through InflictDamage with ignoreModifiers TRUE (Health.cs:245), so
+			// PITFALL: Health.Kill routes through InflictDamage with ignoreModifiers TRUE (Health.cs:289), so
 			// this bypasses DamageMultiplier entirely. Anything the mod has made damage-immune that way - every
 			// tree carries DamageMultiplier: 0 - WILL die here if a warhead lists its target type.
+			//
+			// IT ALSO BYPASSES IDamageFloor, DELIBERATELY, and this loop is why that matters. `active` is
+			// never cleared, so the only thing standing between this and a Kill every tick for the rest of
+			// the match is the self.IsDead check above. An actor whose floor was honoured here could never
+			// satisfy it: the garrisonable emplacements (GTWR/PBOX/HBOX, which reach this through
+			// ^ExistsInWorld) would fade to invisible and then keep shooting, keep being targetable, and
+			// raise a full-MaxHP AttackInfo every tick forever.
 			self.Kill(attacker, damageTypes);
 		}
 

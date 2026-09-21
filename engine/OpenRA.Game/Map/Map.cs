@@ -174,6 +174,7 @@ namespace OpenRA
 			new("ShellmapScenario", required: false),
 			new("Players", nameof(PlayerDefinitions)),
 			new("Actors", nameof(ActorDefinitions)),
+			new("Zones", nameof(ZoneDefinitions), required: false),
 			new("Rules", nameof(RuleDefinitions), required: false),
 			new("FluentMessages", nameof(FluentMessageDefinitions), required: false),
 			new("Sequences", nameof(SequenceDefinitions), required: false),
@@ -204,6 +205,22 @@ namespace OpenRA
 		// Player and actor yaml. Public for access by the map importers and lint checks.
 		public IReadOnlyCollection<MiniYamlNode> PlayerDefinitions = ImmutableArray<MiniYamlNode>.Empty;
 		public IReadOnlyCollection<MiniYamlNode> ActorDefinitions = ImmutableArray<MiniYamlNode>.Empty;
+
+		/// <summary>
+		/// Named cell regions painted in the editor and stored in map.yaml's <c>Zones:</c> node. Empty
+		/// on every map that authors none, which is every map that predates the Zones tool.
+		/// </summary>
+		// NOT A MiniYaml MEMBER, unlike every other custom-yaml block below, because a zone is DATA
+		// the engine reads rather than rules it forwards to the mod. ZoneDefinitions is the codec
+		// adapter MapField drives; this is what callers use.
+		public MapZones Zones = MapZones.Empty;
+
+		/// <summary>The <c>Zones:</c> node as MapField sees it. Round-trips <see cref="Zones"/>.</summary>
+		public MiniYaml ZoneDefinitions
+		{
+			get => Zones.ToYaml();
+			set => Zones = MapZones.FromYaml(value);
+		}
 
 		// Custom map yaml. Public for access by the map importers and lint checks
 		public MiniYaml RuleDefinitions;

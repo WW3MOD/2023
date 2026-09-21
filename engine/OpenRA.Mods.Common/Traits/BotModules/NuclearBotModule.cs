@@ -279,7 +279,8 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// THE FINAL EXCHANGE IS CHECKED ON EVERY TICK, ahead of the evaluation beat. The window is
-			// DoomsdayStrikeInfo.FinalExchangeWindowTicks wide (250 shipped) and a bot that waited for
+			// DoomsdayStrikeInfo.FinalExchangeWindowTicks wide (500 shipped, raised from 250 on 2026-09-16)
+			// and a bot that waited for
 			// its 50-tick beat would still make it — but placing late is strictly worse than placing
 			// early and there is nothing to gain by the wait.
 			var strike = Doomsday();
@@ -425,7 +426,18 @@ namespace OpenRA.Mods.Common.Traits
 				? 100
 				: Info.SupplyRouteBonusPercent;
 
-			var aimPoints = Math.Max(1, missile.AimPoints);
+			// MissileStrikePower.AimPointsFor, NOT missile.AimPoints, AND THE DIFFERENCE WAS A
+			// SILENTLY SHORT PACKAGE. A game-ender's warhead count is map-derived
+			// (DoomsdayStrike.PackageSize) and the raw YAML field is inert for one -- so asking the
+			// field meant asking for the Sarmat's 6 on a map whose package is 4, getting 3 back from
+			// PickAimIndices after separation filtering, and having MissileStrikePower truncate to 3.
+			// Run 260920_140551 read `warheads=7` where two full packages of 4 were due.
+			//
+			// IT ALSO FIXES A FACTION ASYMMETRY THAT SURVIVED THE REDESIGN. The B83 left AimPoints at
+			// its default 1, so the America bot took the single-cell branch below and its whole
+			// package was laid on a BLIND RING around one target, while the Russia bot got ranked
+			// aim points for each warhead. Both nations now rank every point they fire.
+			var aimPoints = Math.Max(1, MissileStrikePower.AimPointsFor(world, missile));
 			aimCells.Clear();
 
 			if (aimPoints == 1)

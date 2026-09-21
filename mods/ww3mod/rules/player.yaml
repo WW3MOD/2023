@@ -178,7 +178,10 @@ Player:
 	# The third row is the one that matters. Written the other way round -- grant a `powers-sandbox`
 	# condition when the option is ENABLED -- the identical absence would default to TRUE and every
 	# match on a build with PowersLobbyOptions stripped, or an old saved session, would silently
-	# hand both factions the Tsar Bomba. Same trap as @tacnuke and @highyieldnuke above.
+	# hand both factions the Tsar Bomba. Same trap the retired @tacnuke and @highyieldnuke gates
+	# guarded against, and the same reason @nukearsenal in nuclear-arsenal.yaml is written this
+	# way: this is now one of the two survivors of that polarity, so there is no longer a
+	# neighbour to copy it from. Do not invert it.
 	GrantConditionOnLobbyOption@powerssandbox:
 		Option: powers-sandbox
 		Condition: powers-sandbox-disabled
@@ -234,8 +237,28 @@ Player:
 	# game-enders. See DoomsdayStrikeInfo.OverriddenPrerequisites.
 	MissileStrikePower@Sarmat:
 		Prerequisites: powers.event, player.russia
-	MissileStrikePower@B83:
+	# AMERICA'S NATIONAL GAME-ENDER SINCE 2026-09-20, symmetric to the Sarmat above: a MIRV ICBM
+	# whose warhead count is the same map-derived package Russia gets.
+	MissileStrikePower@TridentW88:
 		Prerequisites: powers.event, player.america
+	# ==== THE B83 IS RETIRED FROM ESCALATION, NOT FROM THE ARSENAL (2026-09-20) ====
+	# `player.america` is GONE from this line and that absence is the whole of the change. It is
+	# what NuclearGameEnders.NamesAnOwner reads: with only the licensed event tier left, the owner
+	# list is EMPTY, so ArmableBy refuses it and NEITHER the final exchange NOR the retaliation
+	# window can hand it to anybody. That is exactly the shape MissileStrikePower@HighYieldNuke has
+	# carried since the 2026-09-14 "national ender only" ruling, and it is now the B83's too.
+	#
+	# WHY THE WEAPON AND THE MISSILE SURVIVE. NukeB83 and B83Missile have five consumers that are
+	# nothing to do with Escalation: NuclearYieldTest's table, both nuke generators' hard-coded
+	# YIELDS dicts, tools/cameo/captions_table.py, tools/impact-scar/contact_sheet.py, and
+	# demo-nuke-arsenal, which tours all eight warheads and fires this one at tick 1480. The
+	# arsenal file's own scaling-law header also uses B83-1 as the landmark just below the 2.4 Mt
+	# blast/thermal crossover. It remains buyable under `powers-sandbox` like any event-tier power.
+	#
+	# DO NOT RE-ATTRIBUTE IT. Putting `player.america` back does not "restore a rung" -- it gives
+	# America TWO national enders and the final exchange would arm both.
+	MissileStrikePower@B83:
+		Prerequisites: powers.event
 	MissileStrikePower@TsarBomba:
 		Prerequisites: powers.event, player.russia
 	# Russia's four buy rungs, added by the manager at merge. Neither worker could write these:
@@ -259,6 +282,26 @@ Player:
 	# is meant to gate it is Phase 2 and is not wired yet.
 	MissileStrikePower@Kinzhal:
 		OrderName: KinzhalStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING (DEFCON 3). Firing was closed at the weapon, in
+		# Armament.CanFire -- but a support power never passes through an Armament, so this power,
+		# the Oreshnik and the GBU-57 were the one remaining way to put ordnance across a border the
+		# readout calls closed. Measured, not assumed: bought at tick 0 against 20000 starting cash,
+		# a Kinzhal lands its first impact roughly 39 s into a 300 s phase.
+		#
+		# PauseOnCondition, NOT RequiresCondition, and the difference is the whole point. Pausing
+		# clears SupportPowerInstance.Active (SupportPowerManager.cs:403) and therefore Ready (:226),
+		# so the power cannot be fired -- while leaving Disabled (:215) alone, so the cameo stays
+		# visible and the power stays PURCHASABLE. The rule is "no strikes during setup", not "no
+		# shopping during setup"; RequiresCondition would strip it from the buy tab altogether.
+		#
+		# Strict no-op in SKIRMISH, the default mode: it holds no DEFCON level at all, so
+		# GrantConditionOnDefconLevel grants nothing, defcon-3 never exists, and this line decides
+		# nothing. (This used to say "Skirmish and Sandbox", which was wrong about the second one and
+		# corrected 2026-09-19: Sandbox PINS a level, so a Sandbox match pinned at 3 does grant
+		# defcon-3 and does pause this power -- for the whole match, since nothing there moves the
+		# level. That is the mode behaving as documented rather than a defect, and Sandbox is a
+		# developer opt-in off the lobby dropdown since the same day.)
+		PauseOnCondition: defcon-3
 		# RUSSIA'S CONVENTIONAL RUNG. `powers.russia`, not `player.russia`, and the swap is what
 		# makes the sandbox toggle possible at all -- see THE THREE TIERS below. `player.russia` is
 		# provided by faction ALONE, so nothing could ever unlock this for an America player; the
@@ -367,6 +410,11 @@ Player:
 	# as the starting number, not a measured one.
 	MissileStrikePower@Oreshnik:
 		OrderName: OreshnikStrike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal for why this is
+		# PauseOnCondition rather than RequiresCondition, and why it is a no-op outside Escalation.
+		# This one matters most of the three: six independently-aimed warheads is the largest
+		# conventional payload that could have crossed a closed border.
+		PauseOnCondition: defcon-3
 		Prerequisites: powers.russia
 		# INTERIM ART. `artyicon` (artystrikicon) is the one cameo defined in sequences-misc.yaml that
 		# no power currently claims, so this costs no new drawing and creates no duplicate: the
@@ -549,6 +597,10 @@ Player:
 	# comments, understates every duration by 1.5x.
 	MissileStrikePower@GBU57:
 		OrderName: GBU57Strike
+		# NO CONVENTIONAL STRIKE DURING POSITIONING -- see the note on @Kinzhal. America's rung of
+		# the same ladder, gated the same way, so neither faction can open the match with ordnance
+		# the other cannot answer.
+		PauseOnCondition: defcon-3
 		# AMERICA'S CONVENTIONAL RUNG. See the note on @Kinzhal for why this is `powers.america`
 		# rather than `player.america`.
 		Prerequisites: powers.america
@@ -607,16 +659,6 @@ Player:
 		# not. Replace both together when the audio lands.
 		IncomingSpeechNotification: EnemyUnitsApproaching
 		SupportPowerPaletteOrder: 2
-	# The lobby gate for the tactical nuclear strike. §9.4: it ships, defaulting OFF, because the
-	# doomsday design it belongs to (WORKSPACE/archive/plans/260324-nukes.md) is unresolved in the
-	# user's own words, while the user asked for the power itself by name.
-	#
-	# THE POLARITY IS THE SAFETY PROPERTY. GrantConditionOnLobbyOption falls back to
-	# OptionOrDefault(Option, !GrantWhenOptionDisabled) when the option is not registered at all
-	# (GrantConditionOnLobbyOption.cs:47) -- so written THIS way round, an absent option reads false,
-	# `tacnuke-disabled` is granted anyway, and the power stays hidden. Written the other way round
-	# (Condition: tacnuke-allowed, GrantWhenOptionDisabled: false) the identical absence would
-	# default to TRUE and hand every player a nuke. Do not invert this.
 	# ---- B61-12, MIDDLE DIAL SETTING: 10 kt ---------------------------------------------------
 	# THE RUNG THAT WAS MISSING. `NukeB61Mod12Y10` has been in weapons-nuclear-arsenal.yaml since the
 	# arsenal landed (:723) and was fired by NOTHING -- a complete warhead with no way to reach it.
@@ -677,10 +719,6 @@ Player:
 		# field is cosmetic only -- it is a sort key for the support bin, not an index.
 		SupportPowerPaletteOrder: 15
 
-	GrantConditionOnLobbyOption@tacnuke:
-		Option: tactical-nuke
-		Condition: tacnuke-disabled
-		GrantWhenOptionDisabled: true
 	MissileStrikePower@TacNuke:
 		# RequiresCondition, NOT PauseOnCondition, and the difference is visible to the player.
 		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), and
@@ -688,11 +726,21 @@ Player:
 		# (SupportPowerManager.cs:196-200), so this makes the icon ABSENT. PauseOnCondition would
 		# instead leave a clickable-but-inert cameo reading "ON HOLD" (SupportPowersWidget.cs:241-244),
 		# which is the wrong answer for a power the host chose not to enable. §2.5.
-		# THE LOBBY GATE IS UNCHANGED and is still the first conjunct -- MissilePowerAsymmetryTest
-		# checks it survives, because its fail-safe polarity is what an absent lobby option relies
-		# on. The second conjunct is the nuclear release ladder's 20 kt band. Outside DEFCON
+		# THE LOBBY GATE IS GONE, RETIRED 2026-09-15, and what is left is the honest pair of gates.
+		# `tactical-nuke` used to be the first conjunct; it gated this one power and nothing else,
+		# and since this power is EVENT TIER (`Prerequisites: powers.event`, below) the checkbox
+		# only ever decided anything inside the sandbox -- where the host had to tick two boxes to
+		# reach one weapon. WHAT STILL HOLDS THE POWER SHUT is not weaker for its removal:
+		#   * Skirmish -- `powers.event` is provided by NO faction, so the proxy is never in
+		#     BuildableItems and the purchase is refused. The band below is granted on the first
+		#     tick outside Escalation, so it is the TIER doing the work here, as it always was.
+		#   * Escalation -- NuclearExchange arms a band on SupportPowerInstance.Permitted, which
+		#     ANDs prereqsAvailable, and NuclearExchangeInfo.OverriddenPrerequisites is read ONLY
+		#     on the GameEnder rung (NuclearExchange.ArmableAtTopRung). This is band 2, so the
+		#     event tier is never overridden for it and the exchange cannot arm it either.
+		# The remaining conjunct is the nuclear release ladder's 20 kt band. Outside DEFCON
 		# Escalation every band is granted on the first tick, so this is inert in Skirmish.
-		RequiresCondition: !tacnuke-disabled && nuclear-release-20kt
+		RequiresCondition: nuclear-release-20kt
 		# 20000 t = 20 kt. This power fires `Atomic`, whose yield is stated at
 		# weapons-superweapons.yaml:32 ("THE TACTICAL NUCLEAR STRIKE -- ~20 kt") and pinned as
 		# NuclearYieldTest.TacticalKt. The weapon is reached via tacnukemissile's Explodes
@@ -794,42 +842,27 @@ Player:
 		# placeholder, so unlike the two conventional strikes this does not want replacing later.
 		IncomingSpeechNotification: AbombLaunchDetected
 		SupportPowerPaletteOrder: 3
-	# The lobby gate for the HIGH-YIELD STRATEGIC nuclear strike. It ships defaulting ON -- the ONLY
-	# power in the mod that does -- and that is the user's explicit, temporary choice rather than a
-	# slip. Their words, 2026-09-06: "You can add the high yield nuke as a new power, even though we
-	# might disable it later, but for testing we keep it (even after this session, I will deal with it
-	# later before release ... so there will be two nuke powers)." Two nuclear powers side by side,
-	# this one reachable without the host ticking anything, and the release default is the user's own
-	# call to settle later. DO NOT "FIX" IT TO MATCH @tacnuke ABOVE.
-	#
-	# THE POLARITY BELOW IS NEVERTHELESS IDENTICAL TO @tacnuke'S, and that is not a contradiction --
-	# it is the whole reason the default above can be ON without anything failing open. The registered
-	# default and the unregistered fallback are SEPARATE VALUES and only one of them lives here.
-	# GrantConditionOnLobbyOption computes
-	#     optionEnabled = OptionOrDefault(Option, !GrantWhenOptionDisabled)
-	#     shouldGrant   = GrantWhenOptionDisabled ? !optionEnabled : optionEnabled
-	# (GrantConditionOnLobbyOption.cs:45-49). The fallback term is `!GrantWhenOptionDisabled` -- it is
-	# NOT PowersLobbyOptions' HighYieldNukeCheckboxEnabled, which is consulted only when the trait is
-	# present to register the option at all. So written THIS way round:
-	#     option registered and on (the shipped default) -> no condition -> the power is available
-	#     option registered and off (host unticked it)   -> `highyieldnuke-disabled` -> hidden
-	#     option NOT REGISTERED AT ALL                   -> falls back to false -> hidden
-	# The third row is the one that matters: PowersLobbyOptions stripped from world.yaml, an old saved
-	# session, a map that removes the trait. Written the other way round (Condition:
-	# highyieldnuke-allowed, GrantWhenOptionDisabled: false) that same absence would fall back to TRUE
-	# and hand a map-ending weapon to a build that never registered the option. Turning the checkbox
-	# default off before release is a one-word change in PowersLobbyOptions.cs and needs NO edit here.
-	GrantConditionOnLobbyOption@highyieldnuke:
-		Option: high-yield-nuke
-		Condition: highyieldnuke-disabled
-		GrantWhenOptionDisabled: true
 	MissileStrikePower@HighYieldNuke:
 		# RequiresCondition, NOT PauseOnCondition, for the reason spelled out on @TacNuke above:
 		# SupportPowersWidget filters the bin on `!p.Disabled` (SupportPowersWidget.cs:136), so this
 		# makes the icon ABSENT rather than leaving a clickable-but-inert "ON HOLD" cameo.
-		# Lobby gate unchanged (see @TacNuke above), plus the game-ender band: at 6 Mt this is
-		# "anything above ~200 kt" and is released only on the ladder's top rung.
-		RequiresCondition: !highyieldnuke-disabled && nuclear-release-gameender
+		# THE LOBBY GATE IS GONE, RETIRED 2026-09-15 alongside @TacNuke's -- see the long note there
+		# for the general argument. The half specific to THIS power is the one worth restating,
+		# because it is the one that looks alarming: this checkbox was the only gate in the mod that
+		# shipped defaulting ON, so removing it cannot have opened anything that was closed. What
+		# holds a 6 Mt map-ender shut is ATTRIBUTION, and it always was:
+		#   * Skirmish -- `powers.event` (below) is provided by no faction; not purchasable.
+		#   * Escalation -- this is band 5, so NuclearExchangeInfo.OverriddenPrerequisites DOES
+		#     apply and the event tier IS waived at the top rung. What refuses it is
+		#     NuclearGameEnders.ArmableBy: strip the overridden `powers.event` from this power's
+		#     Prerequisites and the OWNER set is EMPTY, and an empty owner set returns false. Under
+		#     the user's 2026-09-14 ruling -- "national ender only", one END cameo per side -- this
+		#     power names no nation, so it is armed by nobody. test-nuclear-ender-level phases F
+		#     and H are the standing guard on exactly that, and they got STRONGER when this
+		#     checkbox went: they no longer depend on a scenario remembering to tick it on.
+		# The remaining conjunct is the game-ender band: at 6 Mt this is "anything above ~200 kt"
+		# and is released only on the ladder's top rung.
+		RequiresCondition: nuclear-release-gameender
 		# 6000000 t = 6 Mt. This power fires `AtomicHighYield`, whose yield is stated at
 		# weapons-superweapons.yaml:736 ("THE YIELD IS ~6 Mt") and pinned as
 		# NuclearYieldTest.StrategicKt. Reached via highyieldnukemissile's Explodes
@@ -1500,9 +1533,23 @@ Player:
 	DefconCasualtyObserver:
 	# Grants exactly one of these at a time and REVOKES it when the level moves -- unlike
 	# GrantConditionOnLobbyOption, which grants once in Created and can never take it back.
-	# Nothing consumes these three yet; that is the next piece of the feature, and until it lands
-	# `--check-yaml` will report them as a granted-but-unconsumed WARNING on the Player actor
-	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate).
+	#
+	# `defcon-3` HAS THREE SHIPPED CONSUMERS, all in this file: the PauseOnCondition on
+	# MissileStrikePower@Kinzhal, @Oreshnik and @GBU57 -- "no conventional strike during Positioning".
+	# `defcon-1` and `defcon-2` have NONE as of 2026-09-19, verified with
+	# `grep -rn "defcon-1\|defcon-2\|defcon-3" mods/ tools/`, which returns those three
+	# PauseOnCondition lines and nothing else in either tree.
+	#
+	# THE TWO UNCONSUMED ONES ARE KEPT DELIBERATELY (manager's ruling, 2026-09-19) and are NOT dead
+	# code to re-file as such. They are the modder-facing hook for per-level actor rules: the levels
+	# are a first-class concept the mod already moves, and granting all three uniformly is what makes
+	# keying a rule on any rung a one-line YAML edit rather than an engine change. They cost a
+	# condition token each and nothing else.
+	#
+	# `--check-yaml` reports the two as a granted-but-unconsumed WARNING on the Player actor
+	# (CheckConditions.cs:70-71 -- emitWarning, not emitError, so it cannot fail the gate). That
+	# warning is expected and is not a defect to fix by deleting them.
+	#
 	# Key a consumer on any one of them, or on `defcon-1 || defcon-2` for "2 or below".
 	GrantConditionOnDefconLevel:
 		Conditions:
@@ -1526,13 +1573,19 @@ Player:
 	# the first second, because the only gate was `Prerequisites: powers.america` / `powers.russia`
 	# and a faction is not a clock. The user's ruling (decision 22) was to make the bar true.
 	#
-	# THE WARNING THE OLD TEXT CARRIED IS STILL LIVE, so read it before touching either trait: nine
+	# THE WARNING THE OLD TEXT CARRIED IS STILL LIVE, so read it before touching either trait: eight
 	# scenarios under tools/autotest/scenarios fire nuclear powers and every one fires inside the
 	# first three minutes, so a schedule that applied to them would show up as a demo that silently
-	# stops firing rather than as an error. Eight of the nine set PowersSandboxCheckboxEnabled: true
-	# and Sandbox SUSPENDS the clock, which is why none of them needed an edit; the ninth
-	# (test-tacnuke-lobby-gated-off) is gated on a conventional control with no yield at all. A NEW
-	# scenario that fires a nuke without sandbox must set `nuclear-unlock-interval` to 0.
+	# stops firing rather than as an error. ALL EIGHT set PowersSandboxCheckboxEnabled: true and
+	# THE CHECKBOX suspends the clock, which is why none of them needed an edit. (Read "Sandbox"
+	# here as the "Sandbox: All Support Powers" LOBBY CHECKBOX -- PowersLobbyOptions -- and not as
+	# DefconGameMode.Sandbox, which is an unrelated feature that happens to share the word and has
+	# nothing to do with the unlock clock. Spelled out 2026-09-19 because the two were named alike
+	# and the collision has already misled a reader.) (This read NINE until
+	# 2026-09-15, the ninth being test-tacnuke-lobby-gated-off, which was exempt for a different
+	# reason -- a conventional control with no yield at all. It was deleted with the lobby option it
+	# measured, so the exemption is now uniform.) A NEW scenario that fires a nuke without sandbox
+	# must set `nuclear-unlock-interval` to 0.
 	#
 	# `nuclear-release-unrestricted` is the Tsar Bomba's gate, is granted whenever the mode is not
 	# Escalation, and the clock DOES NOT TOUCH IT -- decision 04 keeps that weapon out of normal play

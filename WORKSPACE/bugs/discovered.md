@@ -5,6 +5,134 @@
 
 ---
 
+- [2026-09-20] [MEDIUM] **`demo-nuke-arsenal` cannot fire two of its six warheads, and has not been
+  able to since the powers were faction-tiered.** The demo fires all six shots from USA
+  (`demo-nuke-arsenal.lua` `SHOTS`, all `Test.ActivateSupportPower(USA, ...)`), but
+  `MissileStrikePower@Sarmat` and `MissileStrikePower@TsarBomba` both declare
+  `Prerequisites: powers.event, player.russia` (`player.yaml:238-239`, `:242-243`). Prerequisites
+  are ANDed (`TechTree.cs:65-70`) and a `player.<faction>` name is an identity "provided by faction
+  alone ... and NEVER by the sandbox option" (`player.yaml:227-230`) -- so shot 4 (Sarmat) and shot
+  6 (Tsar Bomba) are permanently `hidden` for an america player and the demo's own
+  `[NOT FIRED: ...]` fallback is what runs. Its map.yaml header still describes the Sarmat's "six
+  separate fireballs" and the Tsar Bomba's 246-cell blast as things the viewer will watch.
+  **Not fixed here** -- the fix is a decision (fire those two from the Russia player the map already
+  defines, or move the demo to a russia client) and it belongs with whoever owns that scenario.
+  Note `wt/final-exchange` is retiring the B83, which touches shot 5 of the same table, so the two
+  edits want doing together. Verified by reading only; not launched.
+  (found while working on: wt/nuke-perf, the nuke perf rig, which hit the identical wall and spent
+  three launch slots on it)
+
+- [2026-09-20] [MEDIUM] **The AT mine's 10000-damage direct-hit warhead has never detonated, because
+  a paste typo made its two warheads `Warhead@Spread` twice instead of `@Target`/`@Spread`.** In
+  `rules/weapons/weapons-explosions.yaml` the `ATMine` block carried `Warhead@Spread` twice — first
+  `TargetDamage` (Damage 10000, Spread 512, Penetration 500), then `SpreadDamage` (Spread 256,
+  Damage 4000, Delay 1). MiniYaml merges same-key siblings into ONE node, second-wins on the node's
+  own value and on every leaf (`MiniYaml.cs:439`/`:538`), so the mine has only ever fired a single
+  `SpreadDamage` warhead doing **4000** at spread 256 — and carrying `Penetration: 500` inherited
+  from the dead twin, which is legal because `Penetration` sits on the abstract `DamageWarhead`
+  (`Warheads/DamageWarhead.cs:25`) and so loads silently onto either subclass. **Every other weapon
+  in the file writes the pair as `Warhead@Target` + `Warhead@Spread`** (`OreExplosion` immediately
+  below it, and `RocketPods`/`SurfaceToAirMissile` in the sibling files), so `@Target` is almost
+  certainly what was meant. **It was NOT changed to `@Target`** while fixing the load-time
+  duplicate: restoring it roughly triples the mine's output against a direct-hit target and adds a
+  512-spread 10000-damage component that nothing has ever been balanced against, on a weapon whose
+  whole role is an ambush one-shot. That is a balance change needing a combat-sim pass per
+  `DOCS/recipes/BALANCE.md`, not a cleanup. The surviving block is written out exactly as the engine
+  was already resolving it and is commented in place.
+  (found while working on: sweeping the duplicate-child-key class out of the loaded YAML)
+
+- [2026-09-20] [LOW] **The A-10's 30mm GAU-8 has never reloaded while docked, because a paste typo
+  made its reloader `@1` twice instead of `@1`/`@2`.** In `rules/ingame/aircraft-america.yaml` the
+  A10 block carried `ReloadAmmoPool@1` twice — `AmmoPool: primary-ammo` in the primary group and
+  `AmmoPool: secondary-ammo` in the secondary group. MiniYaml merges same-key siblings second-wins
+  (`MiniYaml.cs:438`/`:538`), so the actor resolved to ONE reloader pointed at `secondary-ammo`; the
+  primary block was inert from the day it was written. **Every other two-pool aircraft in both faction
+  files writes the pair as `@1` primary + `@2` secondary** (america `:186`/`:221`, `:362`/`:391`,
+  `:625`/`:653`; russia `:186`/`:218`, `:361`/`:404`, `:639`/`:667`), so `@2` is almost certainly what
+  was meant. **It was NOT changed to `@2`** while fixing the load-time duplicate: that is a balance
+  change (the 30mm would start regenerating ammo while docked), and it would also silently alter the
+  derived `A10.Airstrike` (`:687`), whose `-ReloadAmmoPool@1:` currently removes the one merged trait
+  and would then leave a live `@2` reloading its 2 Hellfires on a one-pass strafe actor that also has
+  `-Rearmable:`. Needs a balance ruling, and a combat-sim pass per `DOCS/recipes/BALANCE.md`, not a
+  cleanup. The surviving block is commented in place.
+  (found while working on: making the cameo caption table loadable)
+
+- [2026-09-19] [MEDIUM] **The DEFCON 2 transition banner is destroyed before anyone sees it, and the
+  mode's signature phase is therefore invisible in the common case.**
+  `DefconTransitionBannerWidget` keeps a single `shownLevel`/`shownAtTick` pair and overwrites both on
+  the next level edge (`:142-143`), while `Draw` holds a banner for `BannerHoldTicks` = 4000/60 = 66
+  ticks (`:168-173`). DEFCON 2 routinely ends inside that window: run `260915_012829` went 3 -> 2 on the
+  clock at tick 5000 and 2 -> 1 on a kill at tick **5001** — recorded verbatim at
+  `DefconEscalation.cs:288-292`, where it is filed as an *observability* problem for a test poller. It
+  is also a player-facing one. The player sees only `OPEN WAR / A life has been taken`, never
+  `WEAPONS FREE / The holding period has run out. The border is open.`, and the two `DefconAlert.Play`
+  calls land on consecutive ticks and clip each other. **Do not fix this by queueing the banners**: the
+  DEFCON 1 banner would then be delayed four seconds behind a banner claiming the border has just
+  opened, while autonomous fire is already live — a lie instead of an omission. The proposal is a
+  single combined banner naming both causes and the phase's length, filed as §B6 of
+  `WORKSPACE/audit/escalation-gameplay-review-260919.md`. Reachable at the shipped defaults; no
+  scenario currently asserts on either banner.
+  (found while working on: the whole-match Escalation gameplay review)
+
+- [2026-09-19] [MEDIUM] **An Escalation lobby with three or more sides gets no border AND a total
+  cease-fire, so the correct play is to park in an enemy base and wait for the clock.** Decision 15
+  rules that Escalation requires exactly two sides and says it is to be enforced in the lobby;
+  **nothing enforces it.** `NuclearExchange.cs:28-31` and `:764-768` state the gap in their own words
+  and log a warning. Independently, `DefconWall`'s derivation refuses to draw a line from anything but
+  two alliance groups (`:397-402`) — deliberately, on the reasoning that a line pointing somewhere
+  nobody chose is worse than no line — so the wall stays down for the whole of DEFCON 3. But the
+  Positioning cease-fire is gated on the mode and the level, not on the border existing
+  (`DefconFireDiscipline.CeasesFire`), so it still applies: every weapon on the map is cold, nothing
+  is separated, and a player can drive their entire army into an undefended enemy base and open fire
+  the instant the clock expires. **The wall's absence is the correct half; the cease-fire surviving it
+  is what makes the match broken rather than merely ordinary.** Two fixes ranked as §B3 of
+  `WORKSPACE/audit/escalation-gameplay-review-260919.md` — a lobby-side refusal (right) or making
+  `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
+  Escalation is not the default game mode.
+  (found while working on: the whole-match Escalation gameplay review)
+- [2026-09-19] [LOW — not fixed] **The Windows installer ignores a `/D=` install path on the command
+  line.** `packaging/windows/buildpackage.nsi:41` opens `.onInit` with an unconditional
+  `ReadRegStr $INSTDIR HKLM "Software\OpenRAWW3MOD" "InstallDir"`. NSIS applies `/D=` to `$INSTDIR`
+  *before* `.onInit` runs, so that read overwrites whatever the caller asked for — and when the
+  registry value is absent `ReadRegStr` sets `$INSTDIR` to the empty string, which the following
+  `StrCmp` then replaces with the Program Files default. Either way the `/D=` path is discarded.
+  Consequence: `WW3MOD-<tag>-x64.exe /S /D=D:\Games\WW3MOD` silently installs to Program Files, and
+  a scripted or unattended deployment cannot choose its own directory. Inherited from the stock
+  OpenRA mod SDK, not introduced by the installer-safety work.
+  **Deliberately left alone**, and the reason matters: fixing it means honouring a path that no
+  interactive guard ever sees, because **silent mode calls neither `.onVerifyInstDir` nor the
+  directory page's leave callback**. As it stands the value `.onInit` settles on is the registry
+  value or the built-in default, and `:44-49` now validates the registry value, so the silent path
+  cannot reach the Desktop. Honouring `/D=` re-opens that door and has to come with its own
+  validation — `IsUnsafeInstDir` on the post-`/D` value, with a hard abort rather than a greyed
+  button, since there is no dialog to grey. Worth doing if unattended installs are ever wanted;
+  not worth doing blind.
+  (found while working on: installer safety, pipeline items [9] + [10])
+
+- [2026-09-19] [FIXED in `6a0a0554` on `wt/update-notice`] **The system-info consent prompt asked
+  permission to send data that went nowhere.** `SystemInfoPromptLogic.CreateParameterString()` has
+  exactly one consumer: `MainMenuLogic.LoadAndDisplayNews` appends it to the `WebServices.GameNews`
+  query. On `wt/update-notice` that URL moved to a static file on raw.githubusercontent.com, which
+  cannot consume the payload, so `mods/ww3mod/mod.yaml` sets `GameNewsSendClientInfo: false` and the
+  string is no longer built. Nothing is sent to anybody, which is the safe end state — the
+  alternative was putting an opted-in player's OS, GPU and locale in GitHub's request logs for no
+  purpose. But the first-launch dialog still says "We would like to collect some system details that
+  will help us optimize the OpenRA engine that WW3MOD runs on" and still offers Yes/No, and neither
+  answer now does anything. **The fix is to stop showing the prompt, not to reword it**: it is
+  reached from `MainMenuLogic`'s startup chain via `SystemInfoPromptLogic.ShouldShowPrompt()`, and
+  ww3mod would want that to return false rather than to ask a question with no consequence. The
+  stale-comment trail is recorded at `mods/ww3mod/languages/en.ftl` above
+  `label-mainmenu-system-info-prompt-text-a`, which is where the next person will look.
+  **FIXED 2026-09-19 in `6a0a0554`, by the manager's ruling.** `MainMenuLogic` now gates the prompt
+  on `webServices.GameNewsSendClientInfo`, and `AdvancedSettingsLogic` disables the matching Send
+  System Information checkbox on the same condition — it was the identical dangling control one
+  surface over. Mods that still send are untouched: the field defaults true, so `mods/ra` on this
+  engine gets the dialog exactly as before. **The one thing not to "tidy" later:**
+  `Settings.Debug.SystemInformationVersionPrompt` is deliberately left unbumped when the prompt is
+  skipped, so the dialog reappears if consent ever starts to mean something again. Bumping it would
+  silently spend the consent opportunity, and it is the obvious-looking wrong fix.
+  (found while working on: item [8], hosted news channel)
+
 - [2026-09-15] [FIXED on `wt/garrison-followups`] **`Indestructible` garrison buildings could not be
   reduced to their rubble state at all.** `GarrisonManager` clamped a building to 1 HP with an
   integer-percentage `IDamageModifier` (`maxAllowedDamage * 100 / damage.Value`), which truncates to
@@ -71,7 +199,7 @@
   wants its own change and its own run.
   (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
 
-- [2026-09-14] [MEDIUM — FIXED IN THE CONSUMERS, NOT AT SOURCE] **`Player`'s two constructor branches
+- [2026-09-14] [MEDIUM — **FIXED AT SOURCE 2026-09-15 on `wt/player-flags`**] **`Player`'s two constructor branches
   do not populate the same fields: the CLIENT branch never assigns `NonCombatant`, `Playable` or
   `spectating` from the `PlayerReference`, so those three are ALWAYS FALSE for any slot a lobby
   client occupies — including every `Playable: True` autotest Observer, where the harness seats its
@@ -105,6 +233,21 @@
   it wants its own measured change rather than a drive-by. **Whoever takes that on: the right fix is
   probably in `Player`'s constructor (copy the three flags in both branches, or hoist them above the
   `if`), not five copies of a widened predicate.**
+  **FIXED AT SOURCE 2026-09-15, branch `wt/player-flags` (not yet merged).** The three assignments
+  are hoisted above the `if` in `Player`'s constructor, so both branches copy the PlayerReference
+  through. `Playable` provably cannot move — `LobbyCommands.MakeSlotFromPlayerReference:1359-1362`
+  returns null for `!pr.Playable`, so every lobby slot's PlayerReference is already `Playable: True`.
+  `NonCombatant`/`spectating` can only move for a map-authored non-combatant/spectator slot with a
+  client in it; **0 of the 10 shipped maps have one** (every `NonCombatant: True` there is on
+  Neutral/Creeps, which are not playable). **BUT THE SOURCE FIX DOES NOT CLOSE THE COMMON CASE** —
+  `Player.Spectating` is still `!inMissionMap && (...)`, so for the **71** scenarios authoring
+  `Playable: True + Spectating: True` with no `NonCombatant` the property still reads false and the
+  bare `NonCombatant || Spectating` filter still admits them. `SightingThreatLayer.cs` and
+  `InfluenceStack.cs` were therefore ALSO collapsed onto `CombatantSides.CountsAsASide`, which reads
+  the authored flag. `BotVsBotMatchWatcher`'s in-code workaround comment was corrected rather than
+  deleted: its `IsBot` discriminator is still required, now for the MissionSelector reason only.
+  Pinned end-to-end by `test-observer-not-a-sighting-participant` (not yet run).
+
   **`test-bot-defcon-wall` IS NOT A COUNTEREXAMPLE** — it has no `NonCombatant` either
   (`map.yaml:45-50`) and its own debug.log shows the same phantom Observer side; its wall stands
   because it AUTHORS `Start: 44,0 / End: 44,59` (`rules.yaml:44-46`) and `DefconWall.WorldLoaded`
@@ -118,7 +261,8 @@
   `test-escalation-full-match`.
   (found while working on: `test-escalation-full-match`, the end-to-end Escalation smoke scenario)
 
-- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **`GARRISON_PANEL` cannot become visible: its
+- [2026-09-14] [MEDIUM — THE PANEL NEVER APPEARS] **[FIXED on `wt/garrison-panel`, off `main @
+  0a94c684` — not yet merged]** **`GARRISON_PANEL` cannot become visible: its
   visibility is written by a `LogicTicker` that is its own child, and `Widget.TickOuter` only ticks
   visible subtrees.** `GarrisonPanelLogic.cs:120` sets `panel.Visible = false` at construction, and
   the only other write is `:116`, inside the `OnTick` of `GARRISON_TICKER` — declared as a child of
@@ -137,7 +281,23 @@
   (found while working on: `wt/readout-corner`, teaching the DEFCON readout to lift over the two
   panels that share the bottom-right corner — the garrison half of that lift is consequently
   unreachable today, and the demo frame proving the lift had to use `CARGO_PANEL`)
+  > **FIX, 2026-09-15 (`wt/garrison-panel`).** Both halves of the finding re-derived at
+  > `0a94c684` before anything was touched and both held: `Widget.TickOuter` is gated on
+  > `IsVisible()` (`Widget.cs:512-518`) and `LogicTicker@GARRISON_TICKER` really was a child of
+  > `Container@GARRISON_PANEL`. `GarrisonPanelLogic` now assigns `panel.IsVisible` exactly as
+  > `CargoPanelLogic.cs:154-161` does, the ticker is gone from `ingame-player.yaml` (and from the
+  > dead `garrison-panel.yaml`, left in place rather than deleted — that is still the open
+  > judgement call recorded under 2026-08-19), and `GarrisonPanelVisibilityTest` pins the engine
+  > premise, the delegate mechanism and both shipped panels. **The suspicion in the last paragraph
+  > was right and is now settled: nothing else raised the panel.** The consequence nobody had
+  > drawn is that `test-garrison-suppression-readout` has been asking a human to look for a
+  > garrison panel in every frame it ever captured, and two screenshot readings passed anyway —
+  > so it now asserts `Test.GetPanelVisibility("GARRISON_PANEL") == "visible"` in code.
+  > ⚠️ **Still not launched by the author.** The panel is proven raisable; that it is legible,
+  > correctly positioned and shows the right rows is unverified and wants the capture this entry
+  > originally asked for.
 - [2026-09-14] [UNKNOWN SEVERITY — BEHAVIOURAL IMPACT NOT MEASURED] **Every trait that derives a
+- [2026-09-14] [**FIXED 2026-09-15 on `wt/player-flags`** — and the severity is now measured: LOW, see below] **Every trait that derives a
   team from `LobbyInfo.ClientWithIndex(player.ClientIndex)` reads the HOST'S team for map-authored
   players, because `Player.cs:191` deliberately hands them the host's client index** — `ClientIndex =
   world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index ?? 0;`, under its own upstream
@@ -157,7 +317,30 @@
     feeds is `pc.Team == q.PlayerReference.Team`: the CLIENT team of one player against the
     PLAYERREFERENCE team of another. Mixing the two vocabularies is suspicious on its face, but I did
     not work out whether it produces wrong alliances in practice.
-  ⚠️ **The severity is unknown because I measured neither.** The general shape is worth more than
+  **FIXED 2026-09-15, branch `wt/player-flags` (not yet merged).** Both sites now go through a new
+  shared `LobbyTeams.TeamFor` (`Traits/World/LobbyTeams.cs`, NUnit-pinned in `LobbyTeamsTest`), which
+  asks `ClientInSlot(p.InternalName)` and falls back to `PlayerReference.Team` — the same rule
+  `NuclearExchangeState.SideKeyFor` already uses, and the test pins the two equal so they cannot
+  drift. `StrategicVictoryConditions.cs:133,137` turned out to be a THIRD site with the identical
+  two lines and was fixed with them (ww3mod's yaml references that trait nowhere — dead code
+  carrying a live defect). The first lookup was also an unguarded `.Team` on a `SingleOrDefault`;
+  `LobbyTeams` is null-safe.
+
+  **SEVERITY, NOW MEASURED, AND IT IS LOWER THAN IT LOOKED — the two sites are not equal:**
+  - `ConquestVictoryConditions` — real, but **unreachable from any autotest scenario**. The team
+    arithmetic lives in `NotifyTimerExpired`, which returns on `objectiveID < 0`, and `objectiveID`
+    is assigned only inside the `Tick` that `TestMode.IsActive` returns from (the inertness recorded
+    in the 2026-09-14 `WinState` entry above, followed one step further). It IS live in a real lobby
+    (`player.yaml:1008`), where a `Playable: False, NonCombatant: False` map player with an authored
+    `Team:` was judged as though it sat on the host's team. **No scenario can prove this; NUnit and
+    reading are the gate.**
+  - `CreateMapPlayers` — **no behavioural delta, provably.** All three `GetClientForPlayer` call
+    sites in `SetupPlayerMasks` are already guarded by `PlayerReference.Playable`, and a playable
+    `Player` exists only for an occupied slot (`CreatePlayers` skips `ClientInSlot(kv.Key) == null`),
+    so both lookups return the same client for every argument that arrives. Changed anyway, to put
+    the `HACK:` comment's reasoning at the lookup instead of at three call sites.
+
+  ⚠️ **The severity was unknown at the time of writing because I measured neither.** The general shape is worth more than
   either instance: **`ClientWithIndex(p.ClientIndex)` answers "which client is associated with this
   player" and NOT "does a client own this player", and for map players those differ.** Ask
   `ClientInSlot(p.InternalName)` when the question is ownership. (found while working on: the nuclear
@@ -252,6 +435,32 @@
   appears in the 2026-09-02 `wt/tooltip-owner` DISCOVERIES entry, citing these same lines — is stale
   and must not be promoted.
   ~~`Vision` derives from `AffectsMapLayer` (`Vision.cs:29`), which~~
+## 2026-09-20 - TestMode records screenshots it never wrote, under `--hidden`
+
+**Symptom, from run `260920_154610_p32287` (`demo-doomsday-deadhand --hidden --speed 4`).** The
+harness logged
+
+    [TestMode] result written: skip (5 screenshot(s))
+
+and `result.json` listed **five** screenshot paths, each with its own `captured_at` timestamp. The
+run directory contains **zero PNGs**. The `--hidden` profile never maps a window, so rendering is
+suspended and nothing can be captured -- but the record is made anyway, so a reader (or a tool
+parsing `result.json`) is told five frames exist and can go looking for them.
+
+**Where the record is made:** `TestMode.cs` / `TestModeScreenshots.cs`, at the point the capture is
+enqueued rather than at the point a file lands on disk. Not traced further than that.
+
+**Why it matters beyond the tidiness.** It is the same *shape* as two traps CLAUDE.md already
+records -- the zero-byte log and the exit-127 launcher -- where an artefact that looks like evidence
+is really the absence of one. A demo whose whole verdict is "the frames are on disk, a person
+decides" is exactly the case where a phantom frame count is worst: `SKIP (5 screenshots)` reads as
+success.
+
+**Deliberately NOT fixed here.** It is not a one-line guard: the honest fix has to decide whether
+`--hidden` should refuse a capture request, record it as skipped, or keep the record and have the
+runner warn -- and that is a harness ruling rather than a scenario fix. Filed from `wt/final-exchange`
+while fixing an unrelated defect in the same run.
+
 ## TRIAGE LEDGER — 2026-09-02, `wt/bug-triage`, against `main @ 26f9cec0`
 
 **Read this before you pick anything up.** All 157 entries were re-checked against the code as it is
@@ -5321,7 +5530,18 @@ which is the single flip that would undo the ruling.
 
 (found while working on: the END-window game-ender grant, `wt/ender-grant`)
 
-## 2026-09-15 — Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it
+## 2026-09-15 — ~~Retiring `tactical-nuke` / `high-yield-nuke` is NOT the mechanical change backlog item ec11c977 assumes: deleting the option INVERTS its default rather than freezing it~~ **[DONE 2026-09-15, `wt/nuke-retire`]**
+
+> **RETIREMENT SHIPPED.** The recipe at the end of this entry was followed and held on every
+> point; the audit below re-derived independently and agreed. Two corrections to the entry
+> itself, both found while executing it: the scenario list names `test-nuclear-ender-window`,
+> which **does not exist** — the real one is `test-nuclear-ender-level`; and the count of
+> scenario `rules.yaml` files actually carrying an Info-field override was **4**, not 9/10
+> (`test-tacnuke-delivers`, `test-heavy-strike-wrecks-economy`, `test-nuclear-ender-level`,
+> `test-tacnuke-lobby-gated-off`). The other six mention the fields only in COMMENTS, which
+> `grep -l` does not distinguish from a setting — the same trap the entry identifies, one
+> level further in. What was NOT anticipated is in DISCOVERIES.md under the same date: the
+> two powers are held shut by **different mechanisms**, and one autotest control narrowed.
 
 **THE BACKLOG ITEM'S PREMISE IS CORRECT.** Both options gate one `powers.event` power apiece
 (`MissileStrikePower@TacNuke`, `MissileStrikePower@HighYieldNuke`), and `powers.event` is provided
@@ -5507,7 +5727,25 @@ wants one owner and one decision about which is authoritative. The cheap shape i
 `UnloadCargo` branch to defer to `GarrisonManager` when the actor has one, rather than counting the
 hold itself.
 
-## 2026-09-15: [low] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+## 2026-09-15: [RETRACTED, and replaced by a real one] `test-garrison-suppression-readout`'s `GarrisonCensus` counts shelter occupants as dead (found while: diagnosing the port-arc SKIP, `wt/civ-garrison`)
+
+**RETRACTED SAME DAY — the census was not broken.** This rested on a Cargo passenger reading
+`IsDead == true`, which `DOCS/recipes/AUTOTEST.md:352` refuted by direct measurement on 2026-09-06:
+passengers read `IsDead == false`, so the `not IsInWorld -> inShelter` branch was reachable and
+shelter occupants were always counted correctly. I cited that file as the source for the opposite
+claim without reading the line.
+
+**What running the fixed census DID expose is real, and worse: the house squad never enters the
+church.** Run 260915_182425 reported `house: 0 at ports, 0 in shelter, 6 still outside, 0 dead`, so
+the `02-suppressed` capture has been photographing six men in a field beside an empty building while
+its own `expects:` text describes a garrisoned one. Cause: `soldier.EnterTransport(house)` queues a
+`RideTransport` activity directly and does not board; `Test.ClickOrder` issues the real order and
+does. Third occurrence of that staging finding. **FIXED** on `wt/civ-garrison`.
+
+The census rewrite is kept anyway — it reads `GarrisonManager.PortStates` and `Cargo.Passengers`
+rather than inferring "at a port" from cell position — but it is an improvement, not a bug fix.
+
+### Original entry, wrong, kept so the retraction has something to point at
 
 ```lua
 if s.IsDead then dead = dead + 1
@@ -5521,7 +5759,115 @@ and the `inShelter` branch is unreachable. Every man in the hold is tallied as a
 its men do reach firing ports, so `atPorts` carries the assertion on its own. The census text it
 prints on failure would be actively misleading, though — it would report a full shelter as a wipe.
 
-**NOT FIXED.** It is a passing scenario I cannot re-run from this branch, and the correct instrument
-(`Test.IsLoadedInto`, added on `wt/civ-garrison`) changes what its census means; whoever next touches
-that scenario should switch it over and re-run. Same defect class as the two fixed here — see
-`WORKSPACE/DISCOVERIES.md` 2026-09-15.
+**FIXED 2026-09-15** on `wt/civ-garrison`. The census now asks `Test.IsAtGarrisonPort` then
+`Test.IsLoadedInto` before it asks the actor anything, so the four states are classified truthfully;
+the verdict expression (`atPorts + inShelter == 0` → Fail) is byte-identical, so the gate is
+unchanged and only what it *reports* was wrong.
+
+**A SECOND INSTANCE IN THE SAME FILE WENT WITH IT, and that one was not cosmetic.** The suppression
+grant was guarded by `if not s.IsDead`, which is not a liveness test on anyone who might be
+sheltering — it *excludes* them. The house squad exists purely to put a six-slot pip grid in the
+`02-suppressed` capture, and its own header says that works "even if none of them are ever deployed
+to a port" — so the guard was skipping exactly those men, and that frame has never been able to show
+a suppression pip on the civilian building, which is half of what its `expects:` text asks the
+reader to check. Both guards now use a shared `StillInTheMatch(s, building)`.
+
+**Consequence to look for when it next runs:** `02-suppressed` should now show suppression pips on
+the civilian building as well as the tower. That is a change to a screenshot, not to a verdict.
+
+- [2026-09-19] [LATENT — not reachable through any current caller] **All three root launchers
+  compute a wrong path if invoked by absolute MSYS path, and exit 0 while doing it.**
+  `launch-game.sh:25`, `launch-dedicated.sh:29` and `utility.sh:30` all build
+  `TEMPLATE_LAUNCHER` by interpolating `$0` **into a python source string**
+  (`python -c "import os; print(os.path.realpath('$0'))"`). MSYS converts POSIX paths in argv and
+  in env vars, but not one buried inside a larger quoted token it has no reason to parse — so
+  the native python receives `/c/Users/...` raw and resolves the leading `/` against the current
+  drive. Measured at `e0674307`: `$0 = ./launch-game.sh` → `C:\Users\fredr\worktrees\ww3mod\autotest-hygiene\launch-game.sh`
+  (correct); `$0 = /c/Users/fredr/.../launch-game.sh` → `C:\c\Users\fredr\...\launch-game.sh`
+  (a drive-root ghost). `TEMPLATE_ROOT` then feeds `MOD_SEARCH_PATHS` and `Engine.LaunchPath`.
+  **Not a live bug today** only because every caller in the tree uses the relative form after
+  `cd`-ing to the repo root (`run-test.sh:338-339`, `:742`; `run-tournament.sh:296`;
+  `run-synchash.sh:77`; `screenshot-infopanel.sh:67`). **It becomes live the first time someone
+  writes `"${REPO_ROOT}/launch-game.sh"`**, which is the natural thing to write and is how
+  `dump-stats.sh` acquired the same class of bug. Fix shape if it ever bites: pass `$0` as an
+  argument rather than interpolating it (`python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0"`),
+  which puts it back in argv where MSYS converts it. Not changed here — the item that found this
+  was scoped to fix only a *reaching* bug, and this one does not reach.
+  (found while working on: autotest-hygiene item [2], the MSYS-path audit of the three launchers)
+
+- [2026-09-19] [REAL, upstream-inherited] **`launch-dedicated.sh` never passes `MOD_SEARCH_PATHS`
+  to the server at all, so a dedicated server cannot find `ww3mod`.** `:74` is
+  `MOD_SEARCH_PATHS="${MOD_SEARCH_PATHS}"` on **its own line** — no `\` continuation onto `:75`'s
+  `dotnet bin/OpenRA.Server.dll`, and no `export` anywhere in the file. It is therefore a no-op
+  self-assignment to a shell variable, not an environment prefix. `OpenRA.Server/Program.cs:81-84`
+  reads the env var and, finding it unset, falls back to `Path.Combine(Platform.EngineDir, "mods")`
+  — i.e. `engine/mods` only, which holds `ra`/`common` but **not** `ww3mod` (that lives in the repo
+  root's `mods/`). The sibling `utility.sh:54` has the identical line correctly written as a
+  prefix on the same line as `dotnet`, which is what makes the deviation visible.
+  **Inherited from upstream, not a WW3MOD regression**: the split-line form is already present
+  before `cf876f39` ("Remove RUNTIME=mono support entirely"), whose diff context shows it
+  untouched. **Severity is low in practice** — nothing in this repo runs a dedicated server, and
+  no tooling calls this script; `git grep` finds only its own usage comments. Filed rather than
+  fixed because it is out of the scope that found it and because a one-line change to a launcher
+  nobody exercises should ride with a reason to run it.
+  (found while working on: autotest-hygiene item [2], classifying the three launchers)
+
+- [2026-09-19] [REAL — may already be one of the ten known 25-tps sites] **`TournamentConfig`
+  converts the match clock at 25 ticks/second, so every tournament runs 1.5× longer than its
+  config says.** `engine/OpenRA.Mods.Common/Tournament/TournamentConfig.cs:100-101` is
+  `/// <summary>Convert time limit to ticks at standard 40 ms tick (25 ticks/second).</summary>`
+  over `public int TimeLimitTicks => TimeLimitSeconds * 25;` — an RA-era assumption. The mod runs
+  at `Timestep: 60` (`mods/ww3mod/mod.yaml:381-382` `DefaultSpeed: default`, `:406` `Timestep: 60`)
+  = 16.667 ticks/s. **Checked before filing, because `Timestep: 40` does exist in this mod**
+  (`mod.yaml:417-418`, the `fastest` speed) and would make `*25` correct — but no shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all, and `run-tournament.sh:148-149` defaults
+  `GAME_SPEED="default"`. So `TimeLimitSeconds: 720` (twelve `tournament*.yaml` files) is
+  18000 ticks = **1080 real seconds, not 720**. The prose comment in each `tournament.yaml`
+  ("720s = 12 in-game minutes at standard 1× speed") is wrong by the same factor.
+  **Consequence is a mis-stated duration, not a broken run**: `run-tournament.sh:164`'s wall-clock
+  budget is `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`, and 4× absorbs the 1.5×. What it corrupts is
+  any reasoning about how long a tournament match represents. CLAUDE.md records that the 25-tps
+  error "is still live at ten other sites"; this may be one of the ten already counted — not
+  cross-checked against that list.
+  (found while working on: autotest-hygiene item [31], auditing scenario durations)
+  **[2026-09-19, FIXED — and the premise above is WRONG for 42 of the 53 configs.]** "No shipped
+  `tournament*.yaml` sets a `GameSpeed` key at all" is true of the 11 plain `tournament.yaml`
+  files and false of every `-smoke`, `-sanity`, `-quick`, `-eco-5min` and `-combat-12min` variant
+  plus `tournament-arena-composition-2p` and the repo-root
+  `tools/autotest/tournament-combat-12min-combatweighted.yaml`: all 42 set `GameSpeed: fastest`, which
+  `run-tournament.sh:148/302` forwards as `Test.GameSpeed` and `World.cs:217-220` resolves to
+  `Timestep: 40`, where `1000 / 40 = 25` exactly. **`* 25` was CORRECT for those 42 and their
+  durations have never been wrong.** The 11 that run at the 60 ms default were the real casualties
+  and were restated `720 -> 1080` alongside the arithmetic fix, preserving their 18000 ticks.
+  **The census is over the WHOLE REPOSITORY** (`grep -rl TimeLimitSeconds --include=*.yaml`), not over
+  `tools/autotest/scenarios/` — that narrower sweep returns 52 and drops the repo-root file above.
+  This correction was itself first written as "41 of 52" from the scenario-tree sweep; see the
+  DISCOVERIES entry, which is about exactly that. Full write-up: `WORKSPACE/DISCOVERIES.md` 2026-09-19.
+
+## 2026-09-19 — WATCH, not a confirmed bug: cursor reverting to the plain arrow after the banner fix (moved here from the repo backlog)
+Conditional item, closed in the backlog on 2026-09-19 because it turns on an observation only the user can make ("Dont know, can check later"). **Re-open only if the user reports the cursor STILL reverts to the bare arrow in play after pulling main @ ab2ac8b8 or later** (that main carries the banner EventBounds fix, cf86ea79 — the Escalation banners used to eat the cursor while not drawing). Two VERIFIED mechanisms of UNPROVEN incidence remain; one question separates them: does the bare pointer appear only over own/allied units while Alt is held (candidate 2), or everywhere at once (candidate 4)?
+- **Candidate 2 — the strong one.** `a144e9c9` made `UnitOrderTargeter.CanTarget` return false early (`UnitOrderTargeter.cs:60-61`) whenever `MovementModifierMath.YieldsToMovementOrder(modifiers, relationship)` — Alt held and the target an Ally (self counts as Ally, `Player.cs:250-251`) — so the terrain-only `AttackMoveTargeter` wins on the second pass. But that suppression is unconditional while `AttackMoveTargeter.CanTarget` accepts only with the modifier AND `target.Type == Terrain` AND `IMove` on the actor (`AttackMove.cs:209-212`). An ally with no `IMove` in the selection, or a cell where `OrderFallbackMath.AllowsRetryResult` filters the retry (`UnitOrderGenerator.cs:380`), yields no order and therefore no cursor — `CursorForOrders` drops null cursors (`:303`) and `:220` paints default. Fits the original report (Alt held for attack-move, varies with what is under the pointer). Standing rule already recorded at `WORKSPACE/DISCOVERIES.md` ("any future change that suppresses an order suppresses its cursor too"). Fix shape: add the missing cursor path for the suppressed case + a unit test.
+- **Candidate 4 — narrower, half-fixed.** `ad64a317` fixed a stuck `AttackMoveOrderGenerator` (dropped Alt KeyUp → generator stays installed → `GetCursor` null → bare pointer everywhere) by re-deriving the mode's lifetime per tick from live modifier state — for that generator ONLY. `GuardOrderGenerator.GetCursor` (`:63-66`) still returns null when `subjects` is empty and `ForceModifiersOrderGenerator` (`:37-41`) delegates upward; neither has the per-tick lifetime guard. Fix shape: the same guard as ad64a317.
+- Not applicable: `WORKSPACE/cursor-honesty-audit.md` covers "cursor promises an order the game refuses" — a different problem from "cursor disappears".
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **`make.ps1 smudge-gate` printed "Invalid
+  command" — the function existed and was called, but had no switch entry.** `SmudgeGate-Command`
+  has been part of `Test-Command` since it was written, so the gate ran as part of `.\make.ps1 test`
+  — but the `switch ($execute)` block at the bottom of `make.ps1` listed `nav-guard`/`n` and
+  `lua-gate`/`l` and never `smudge-gate`, so the fast standalone form fell through to
+  `Default { Write-Host "Invalid command" }`. Consequence was not a missing check but a missing
+  *inner loop*: the only way to run a ~1s buildless gate was to run the whole contended YAML target
+  with it. One-line fix, so fixed rather than filed.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the same switch)
+
+- [2026-09-19] [FIXED in this branch, `wt/smoke-gates`] **smudge-gate did not exist on Linux/macOS
+  at all: the Makefile had neither the target nor the dependency.** `make.ps1`'s `Test-Command`
+  calls `NavGuard-Command`, `LuaGate-Command` and `SmudgeGate-Command`; the Makefile's `test` target
+  read `test: all nav-guard lua-gate`. So the two platforms' nominally-equivalent `test` targets
+  differed by a whole gate, and a scar-coverage hole introduced on a Linux box would reach the
+  Windows merge gate to be found there — the same platform-drift shape the file's own `lua-gate`
+  comment records ("make.ps1 never did, so on Windows the gate had never run at all"), with the
+  platforms swapped. Fixed by adding a `smudge-gate` target and putting it in `test`'s prerequisites;
+  verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
+  `clean`), so this cannot newly redden anyone's `make test`.
+  (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)

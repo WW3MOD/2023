@@ -151,69 +151,13 @@ namespace OpenRA.Test
 				Assert.That(players.OrderByDescending(p => p.Score).First().Name, Is.EqualTo(first));
 		}
 
-		[Test]
-		public void SalvoArrivesSmallFirstThenCitiesThenFill()
-		{
-			// The user's ordering correction: outliers open, a distinct pause, then the cities as the
-			// climax, and the coverage fill strictly last so it cannot dilute it.
-			var cells = new List<CPos>
-			{
-				new(10, 10), new(20, 20),   // cities
-				new(30, 30), new(40, 40),   // outliers
-				new(50, 50),                // fill
-			};
-
-			var tiers = new List<DoomsdayTier>
-			{
-				DoomsdayTier.City, DoomsdayTier.City,
-				DoomsdayTier.Outlier, DoomsdayTier.Outlier,
-				DoomsdayTier.Fill,
-			};
-
-			var timings = new DoomsdayMath.ScheduleTimings(2, 40, 25);
-			var impacts = DoomsdayMath.BuildSchedule(cells, tiers, timings);
-
-			Assert.That(impacts.Count, Is.EqualTo(5));
-			Assert.That(impacts.Select(i => i.Tier), Is.EqualTo(new[]
-			{
-				DoomsdayTier.Outlier, DoomsdayTier.Outlier,
-				DoomsdayTier.City, DoomsdayTier.City,
-				DoomsdayTier.Fill,
-			}), "Wave order must be outliers, then cities, then fill.");
-
-			// Outliers: tight.
-			Assert.That(impacts[0].ArrivalOffset, Is.EqualTo(0));
-			Assert.That(impacts[1].ArrivalOffset, Is.EqualTo(2));
-
-			// THE PAUSE, and it must dominate the within-wave gap by enough to read as a separate event.
-			var pause = impacts[2].ArrivalOffset - impacts[1].ArrivalOffset;
-			Assert.That(pause, Is.EqualTo(40));
-			Assert.That(pause, Is.GreaterThan(timings.WithinWave * 8),
-				"The inter-wave pause must be far longer than the intra-wave spacing or the waves read as one.");
-
-			// Cities: tight, and landing together.
-			Assert.That(impacts[3].ArrivalOffset - impacts[2].ArrivalOffset, Is.EqualTo(2));
-
-			// Fill: after the climax, not folded into it.
-			Assert.That(impacts[4].ArrivalOffset - impacts[3].ArrivalOffset, Is.EqualTo(25));
-
-			// The whole sequence stays inside "a few seconds" — 69 ticks is 4.1s at the 60ms timestep.
-			Assert.That(impacts[^1].ArrivalOffset, Is.LessThanOrEqualTo(120));
-		}
-
-		[Test]
-		public void AnEmptyOutlierWaveDoesNotLeaveDeadAirBeforeTheCities()
-		{
-			// A map with no derricks and no isolated structures has nothing to open with. The pause is
-			// charged on ENTRY to a tier and only when something has already landed, so the cities should
-			// start at offset 0 rather than 40 ticks into an empty screen.
-			var cells = new List<CPos> { new(10, 10), new(20, 20) };
-			var tiers = new List<DoomsdayTier> { DoomsdayTier.City, DoomsdayTier.City };
-
-			var impacts = DoomsdayMath.BuildSchedule(cells, tiers, new DoomsdayMath.ScheduleTimings(2, 40, 25));
-			Assert.That(impacts[0].ArrivalOffset, Is.EqualTo(0));
-			Assert.That(impacts[1].ArrivalOffset, Is.EqualTo(2));
-		}
+		// THE TWO SALVO-SCHEDULE TESTS THAT SAT HERE WERE DELETED ON 2026-09-20 WITH THEIR SUBJECT.
+		// SalvoArrivesSmallFirstThenCitiesThenFill and AnEmptyOutlierWaveDoesNotLeaveDeadAirBefore-
+		// TheCities pinned DoomsdayMath.BuildSchedule, which laid out the map-wide Dead Hand salvo in
+		// an outlier wave, a pause and a city wave. There is no salvo: the ending is now two per-side
+		// packages on one evenly-spaced cascade, and the property that replaced "the waves must read
+		// as separate events" is "every warhead of both packages lands inside one bounded span",
+		// which FinalExchangeCascadeTest asserts. Recoverable from git if the wave shape ever returns.
 
 		[Test]
 		public void IsqrtIsExactAtAndAroundPerfectSquares()

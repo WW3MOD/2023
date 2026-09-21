@@ -125,6 +125,38 @@ namespace OpenRA.Test
 		}
 
 		[Test]
+		public void AKillIgnoresTheFloorSoAnIndestructibleActorIsStillKillable()
+		{
+			// THE REGRESSION THIS PINS. Health.Kill is InflictDamage(MaxHP, ignoreModifiers: true)
+			// (Health.cs:287-290), and the IDamageModifier the floor replaced lived inside
+			// `if (!ignoreModifiers && damage.Value > 0)` — so it never applied to a Kill. The first
+			// version of the floor did, which made every garrisonable building UNKILLABLE rather than
+			// merely indestructible-by-damage: HP floors at 1, IsDead never becomes true, INotifyKilled
+			// never fires, nothing is ever disposed. Vaporizable.ITick's only brake is
+			// `if (self.IsDead) return;` and it never clears `active`, so a faded-out GTWR/PBOX/HBOX
+			// would have called Kill EVERY TICK forever while still shooting and still targetable.
+			Assert.That(Health.IgnoresDamageFloor(true, 75000), Is.True, "a Kill must bypass the floor");
+			Assert.That(Health.IgnoresDamageFloor(false, 14000), Is.False, "ordinary damage must honour it");
+
+			// A heal or a zero-damage hit: the floor cannot bite either way, and skipping it keeps
+			// exact parity with the guard the modifier used to sit inside.
+			Assert.That(Health.IgnoresDamageFloor(false, 0), Is.True);
+			Assert.That(Health.IgnoresDamageFloor(false, -500), Is.True);
+
+			// And the composed result, which is the thing a player would notice: the same MaxHP hit
+			// reaches zero when the floor is bypassed and stops at the floor when it is not.
+			var floorOnAKill = Health.IgnoresDamageFloor(true, ChurchHp) ? 0 : Floor;
+			Assert.That(Health.ApplyDamageToHp(ChurchHp, ChurchHp, floorOnAKill, ChurchHp), Is.EqualTo(0),
+				"Health.Kill on an indestructible garrison must still take it to 0 HP, or nothing can " +
+				"ever dispose it and Vaporizable spins forever.");
+
+			var floorOnAHit = Health.IgnoresDamageFloor(false, ChurchHp) ? 0 : Floor;
+			Assert.That(Health.ApplyDamageToHp(ChurchHp, ChurchHp, floorOnAHit, ChurchHp), Is.EqualTo(Floor),
+				"ordinary damage of the same size must still stop at the floor — that is what " +
+				"Indestructible means.");
+		}
+
+		[Test]
 		public void AZeroFloorIsStillTheOrdinaryRuleAndStillKills()
 		{
 			// Every actor in the mod but the garrisonable buildings has no IDamageFloor at all, so it

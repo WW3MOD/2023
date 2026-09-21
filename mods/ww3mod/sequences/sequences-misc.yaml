@@ -789,6 +789,137 @@ scarband-rim:
 	bze3: bze3
 	bze4: bze4
 
+# ---- edge cuts of the five bands above ---------------------------------------
+# Selected by SmudgeLayer for cells the shore fade has marked as close to terrain
+# that refuses a scar -- see SmudgeLayerInfo.EdgeSequences.
+#
+# WHY SPARSER ART AND NOT LOWER ALPHA. A smudge is one flat alpha over a whole
+# cell, so at a boundary the CELL is the visible unit: dimming it is still a
+# cell-shaped tone step with square, axis-aligned edges, which is the artefact
+# reported at River Zeta's shoreline. Fewer pixels dissolve an edge; fainter ones
+# do not. (With ShoreFadeMinAlpha at 0.7 the whole ramp only spans alpha 0.8-1.0,
+# so there was very little dimming to see in the first place.)
+#
+# -e50 and -e25 carry 50% and 25% of their band's coverage, and are NESTED SUBSETS
+# of it -- same noise field, same seed, smaller quantile -- so a cell at the
+# waterline reads as the same stipple thinned out rather than a different scatter.
+#
+# SAME HAND-SYNC WARNING AS THE FIVE ABOVE. SmudgeLayerInfo.EdgeSequences carries no
+# [SequenceReference] for the same reason Sequence does not, so a typo in a group
+# name here or in world.yaml is not a lint error. ScarEdgeVariantTest checks the two
+# files against each other and against the art on disk; keep it in the loop.
+
+scarband-core-e50:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bya1: bya1
+	bya2: bya2
+	bya3: bya3
+	bya4: bya4
+
+scarband-core-e25:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bxa1: bxa1
+	bxa2: bxa2
+	bxa3: bxa3
+	bxa4: bxa4
+
+scarband-crater-e50:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	byb1: byb1
+	byb2: byb2
+	byb3: byb3
+	byb4: byb4
+
+scarband-crater-e25:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bxb1: bxb1
+	bxb2: bxb2
+	bxb3: bxb3
+	bxb4: bxb4
+
+scarband-char-e50:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	byc1: byc1
+	byc2: byc2
+	byc3: byc3
+	byc4: byc4
+
+scarband-char-e25:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bxc1: bxc1
+	bxc2: bxc2
+	bxc3: bxc3
+	bxc4: bxc4
+
+scarband-burn-e50:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	byd1: byd1
+	byd2: byd2
+	byd3: byd3
+	byd4: byd4
+
+scarband-burn-e25:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bxd1: bxd1
+	bxd2: bxd2
+	bxd3: bxd3
+	bxd4: bxd4
+
+scarband-rim-e50:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bye1: bye1
+	bye2: bye2
+	bye3: bye3
+	bye4: bye4
+
+scarband-rim-e25:
+	Defaults:
+		Length: *
+		UseTilesetExtension: true
+		TilesetOverrides:
+			INTERIOR: TEMPERAT
+	bxe1: bxe1
+	bxe2: bxe2
+	bxe3: bxe3
+	bxe4: bxe4
+
+
 
 ctflag:
 	idle:

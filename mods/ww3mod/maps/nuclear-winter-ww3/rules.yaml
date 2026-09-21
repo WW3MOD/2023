@@ -15,3 +15,47 @@ World:
 		Green: 0.93
 		Blue: 1.06
 		Ambient: 1.09
+	# ---- THE DEFCON 3 BORDER ON NUCLEAR WINTER -- THE TWO ESCARPMENTS THAT TERRACE THE VALLEY ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# RegionTerrainTypes IS DELIBERATELY EMPTY HERE, UNLIKE RIVER ZETA, and that is a judgement
+	# about this map rather than a default. On River Zeta the Water type IS the divide: 588 cells,
+	# one channel, nothing else on the map carries it. This map has no water; its only barrier is 276
+	# cells of Cliffs in six clusters, two of which are the escarpments this border uses and four of which
+	# are not. Naming a type would drag blobs nowhere
+	# near the border into the band and wash a large part of the map in the trait's amber fill,
+	# which is drawn over every border cell (DefconWall.RenderAnnotations). So the border is
+	# authored cell by cell below.
+	#
+	# HOW THESE CELLS WERE CHOSEN, and they are data rather than a derivation -- redraw any of them.
+	# A cell set separates the map in the 8-connected graph DefconWallRegion.Label floods if and
+	# only if it contains a 4-CONNECTED chain of blocked cells running from one Bounds edge to
+	# another. So the border is a shortest path: tools/nav-guard/defcon_border_designer.py runs
+	# Dijkstra over Bounds with terrain a player already reads as a barrier priced near zero and
+	# open ground priced ten times higher, which makes the route follow whatever the map actually
+	# has and cross open ground only where the map leaves no choice. The chain is then dilated by
+	# one cell, so the band is three cells thick everywhere except where Bounds clips it -- exactly
+	# the thickness the shipped HalfWidth of 1024 produces, and above the sqrt(2)/2 floor below
+	# which a diagonal band leaks through its own corners.
+	#
+	# THE BORDER FOLLOWS THE TWO ESCARPMENTS: 40 of 100 route cells are Cliffs, and they are the two
+	# terraces that step across the middle of the valley -- x40-61 at y25-31 and x40-61 at y40-46. The
+	# border comes down from the north edge, runs west along the upper terrace, south across the bench
+	# between them, west along the lower terrace, and out at the south edge. The straight runs between the
+	# terraces are open snowfield, and there is nothing on this map to make them anything else.
+	#
+	# Verified statically, no launch: 299 band cells, all inside Bounds, engine load gate 2 components of
+	# 3124 and 3577; spawn (1,64) south-west, (100,7) north-east, both exactly 35 cells from the band. All
+	# 15 locomotors separate and none seals a cell. Capturables 5 south-west against 6 north-east, none
+	# inside the band.
+	DefconWall:
+		# THE 299 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.

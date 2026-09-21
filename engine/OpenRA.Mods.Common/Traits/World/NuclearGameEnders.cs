@@ -1,4 +1,4 @@
-#region Copyright & License Information
+﻿#region Copyright & License Information
 /*
  * Copyright (c) The OpenRA Developers and Contributors
  * This file is part of OpenRA, which is free software. It is made
@@ -17,7 +17,7 @@
  * mechanisms with the same answer to this question:
  *
  *   * DoomsdayStrike.ArmGameEnders -- the FINAL EXCHANGE. Every surviving side is handed its
- *     game-enders for fifteen seconds when the ending begins.
+ *     game-enders for the length of the final exchange window when the ending begins.
  *   * NuclearExchange.MakeBandsReady -- the RETALIATION WINDOW at NuclearRung.GameEnder. One side
  *     is handed its game-enders for the length of the window, because it was hit by 100 kt.
  *
@@ -92,7 +92,16 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		// A NULL OVERRIDE LIST IS THE STRICT SETTING, matching the empty one: a caller that licenses
 		// nothing gets every prerequisite back.
-		static List<string> OwnerPrerequisites(SupportPowerInfo powerInfo,
+		//
+		// PUBLIC SINCE 2026-09-16, for the reason NamesAnOwner is public and one step further. This
+		// list is the EXACT argument handed to TechTree.HasPrerequisites, and that call is the last
+		// gate between a surviving side and a visible game-ender cameo: if it answers false,
+		// ArmGameEnders never calls MakeReady, prereqsAvailable stays false, Permitted stays false,
+		// and SupportPowersWidget draws NO ICON AT ALL -- which is what a player would report as
+		// "nothing appeared". A fixture cannot construct a TechTree, so the furthest a World-free
+		// test can follow that path is to pin what gets asked; see
+		// NuclearGameEndersTest.TheShippedEndersOwnerRequirementIsTheFactionIdentityAlone.
+		public static List<string> OwnerPrerequisites(SupportPowerInfo powerInfo,
 			IReadOnlyCollection<string> overriddenPrerequisites)
 		{
 			var required = powerInfo?.Prerequisites;

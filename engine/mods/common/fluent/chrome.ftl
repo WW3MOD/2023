@@ -72,6 +72,11 @@ label-marker-layer-num-sides = Number of Sides
 label-marker-alpha = Tile Alpha
 label-marker-mirror-mode = Mirror Mode
 label-marker-axis-angle = Axis Angle
+button-zone-clear = Clear Zone
+label-zone-brush-size = Brush Size
+label-zone-none-selected = Select a zone to paint.
+label-zone-splits-map = { $zone } splits the map into { $count } areas.
+label-zone-does-not-split-map = { $zone } does NOT split the map (1 area) - border DOWN
 
 button-map-editor-tab-container-select-tooltip = Selection
 button-map-editor-tab-container-tiles-tooltip = Tiles
@@ -113,6 +118,7 @@ button-select-categories-buttons-all = All
 button-select-categories-buttons-none = None
 
 label-tool-marker-tiles = Marker Tiles
+label-tool-zones = Zones
 
 ## gamesave-browser.yaml
 label-gamesave-browser-panel-load-title = Load game

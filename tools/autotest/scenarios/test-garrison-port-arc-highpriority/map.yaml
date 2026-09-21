@@ -98,9 +98,17 @@ Actors:
 	Rifleman: e1
 		Owner: USA
 		Location: 44,14
+	# 8.49 CELLS, NOT 11.31, AND THE DIFFERENCE IS THE WHOLE CONTROL. e1 carries 5.56mm.E3 at
+	# Range: 10c0 (weapons-ballistics.yaml:124-126) -- a third shorter than the mortar that pins the
+	# MT house. At (52,4) this man sat 11.31 cells out, OUTSIDE that range, so HouseE1's north-east
+	# ports had no target they could confirm, the deploy loop walked past them, and the Rifleman
+	# manned a SOUTH-facing port instead. Run 260915_184416 then read his behind-shooter landing hits
+	# as an arc failure when the arc was working perfectly: due south (512) against a south-east port
+	# (640) is 128 off a cone of 140, correctly INSIDE. Pinning a port by range means pinning it with
+	# the range of the weapon that actually scans.
 	BaitB: e1
 		Owner: Russia
-		Location: 52,4
+		Location: 50,6
 	BehindShooterB: e1
 		Owner: Russia
 		Location: 44,18

@@ -1,25 +1,22 @@
 # Tactical nuclear strike delivery autotest overrides.
 
 World:
-	# THE OVERRIDE THIS SCENARIO IS BUILT AROUND. The tactical nuke ships lobby-gated and OFF
-	# (proposal §9.4), so without this the power's trait is disabled by
-	# `RequiresCondition: !tacnuke-disabled` and there is nothing to fire. Enabled AND locked, the
-	# same shape the shipped Kinzhal scenario uses for MapLayers' explored/fog checkboxes: locking
-	# it means no lobby default, host setting or saved session can move it out from under the run.
-	#
-	# Its sibling test-tacnuke-lobby-gated-off deliberately omits this block, which is the whole
-	# content of that scenario.
-	#
-	# THE SANDBOX SWITCH IS THE SECOND HALF OF THE SAME GATE AND WAS ADDED 2026-09-07. The lobby
-	# checkbox above is necessary and is no longer sufficient: the tactical nuke is now EVENT TIER
-	# (`Prerequisites: powers.event`, player.yaml), and powers.event is provided by NO faction --
-	# only by the three unfiltered ProvidesPrerequisite traits gated on `!powers-sandbox-disabled`.
-	# With the checkbox on and sandbox off, the power is still not Permitted, so it is absent from
+	# THE OVERRIDE THIS SCENARIO IS BUILT AROUND, AND SINCE 2026-09-15 IT IS THE ONLY ONE. The
+	# tactical nuke is EVENT TIER (`Prerequisites: powers.event`, player.yaml) and powers.event is
+	# provided by NO faction -- only by the three unfiltered ProvidesPrerequisite traits gated on
+	# `!powers-sandbox-disabled`. Without sandbox the power is never Permitted, so it is absent from
 	# the buy tab, the purchase below is refused and the run fails at the very first assertion.
-	# Locked for the same reason the checkbox is: no lobby default or saved session may move it.
+	# Locked so no lobby default, host setting or saved session can move it out from under the run.
+	#
+	# `TacticalNukeCheckboxEnabled: true` + `Locked: true` USED TO SIT HERE TOO and was described as
+	# the override this scenario was built around. That checkbox was RETIRED on 2026-09-15: it gated
+	# this one power and nothing else, and since the power is event tier the checkbox only ever
+	# decided anything inside the sandbox -- where a host had to tick two boxes to reach one weapon.
+	# Its removal cannot make this scenario pass on a broken build: the gate it used to open is now
+	# permanently open, so everything this file asserts is decided by the tier above and by the
+	# missile itself. Its sibling test-tacnuke-lobby-gated-off, which existed to measure that
+	# checkbox at its shipped default, was deleted in the same change.
 	PowersLobbyOptions:
-		TacticalNukeCheckboxEnabled: true
-		TacticalNukeCheckboxLocked: true
 		PowersSandboxCheckboxEnabled: true
 		PowersSandboxCheckboxLocked: true
 		# AND THE ONE PIECE OF SANDBOX THIS SCENARIO MUST OPT OUT OF, 2026-09-08. Sandbox now

@@ -1,0 +1,54 @@
+World:
+	# ---- THE DEFCON 3 BORDER ON TWIN RIVERS -- THE NORTHERN RIVER, THEN STRAIGHT SOUTH ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# RegionTerrainTypes IS DELIBERATELY EMPTY HERE, UNLIKE RIVER ZETA, and that is a judgement
+	# about this map rather than a default. On River Zeta the Water type IS the divide: 588 cells,
+	# one channel, nothing else on the map carries it. The name is a trap here: this map's 368 water cells
+	# are 16 scattered components forming two rivers that BOTH sit far off-centre, one at x31-37 and one
+	# at x68-76, against spawns at x1 and x112. Naming a type would drag blobs nowhere
+	# near the border into the band and wash a large part of the map in the trait's amber fill,
+	# which is drawn over every border cell (DefconWall.RenderAnnotations). So the border is
+	# authored cell by cell below.
+	#
+	# HOW THESE CELLS WERE CHOSEN, and they are data rather than a derivation -- redraw any of them.
+	# A cell set separates the map in the 8-connected graph DefconWallRegion.Label floods if and
+	# only if it contains a 4-CONNECTED chain of blocked cells running from one Bounds edge to
+	# another. So the border is a shortest path: tools/nav-guard/defcon_border_designer.py runs
+	# Dijkstra over Bounds with terrain a player already reads as a barrier priced near zero and
+	# open ground priced ten times higher, which makes the route follow whatever the map actually
+	# has and cross open ground only where the map leaves no choice. The chain is then dilated by
+	# one cell, so the band is three cells thick everywhere except where Bounds clips it -- exactly
+	# the thickness the shipped HalfWidth of 1024 produces, and above the sqrt(2)/2 floor below
+	# which a diagonal band leaks through its own corners.
+	#
+	# THIS IS THE ONE MAP WHERE THE ANSWER IS A STRAIGHT LINE, AND THE REASON IS MEASURED RATHER THAN
+	# CONCEDED. A border laid along the eastern river follows real water for most of its length -- 53 of
+	# 148 route cells on open ground instead of 121 of 134 -- and it is rejected because that river is 40
+	# cells from the eastern spawns and 60 from the western ones. The derived bisector is equidistant from
+	# both sides by construction, and an authored border that hands one side a twenty-cell head start is a
+	# worse border however handsome the river it follows. So this line takes the northern river mouth
+	# where it can, from the north edge down to y25 where the channel bends away west, and then runs
+	# straight south at x60. It is honestly a midline, and a midline is what this map has.
+	#
+	# IT IS STILL WORTH AUTHORING. The derived bisector here swings with whichever spawns are occupied,
+	# and on the far pair it cuts a corner off the map: measured at the shipped HalfWidth, it seals 256
+	# cells of ground at x1-20, y104-126 away from both sides on every ground locomotor. This border seals
+	# two.
+	#
+	# Verified statically, no launch: 399 band cells, all inside Bounds, engine load gate 2 components of
+	# 8137 and 7340; spawns (1,22) and (1,92) west, (112,28) and (112,92) east, distance to the band 58
+	# and 57 against 48 and 51. All 15 locomotors separate; 2 cells at (62,21) and (63,21) are sealed for
+	# the two amphibious tracked classes only, where this map already carries 20 pocketed cells in the
+	# nav-guard baseline. Capturables 4 west against 6 east, none inside the band.
+	DefconWall:
+		# THE 399 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.

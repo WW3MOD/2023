@@ -231,10 +231,46 @@ namespace OpenRA.Mods.Common.Traits
 			"is two orders of magnitude more slack than the one-or-two-tick case needs.")]
 		public readonly int GrantRetryTicks = 30;
 
+		[Desc("Ticks between a nuclear warhead DETONATING and the victim's level actually rising.",
+			"",
+			"THE WHOLE OF THE 2026-09-16 USER RULING, which is about legibility and not about balance:",
+			"\"when the enemy fires a nuke, we instantly get the level up event, but it should happen",
+			"when the nuke explodes, so we see the correlation between the explosion, and after only a",
+			"few seconds perhaps we get the message of escalation\". The escalation used to be applied",
+			"at ORDER RESOLUTION -- the instant the enemy clicked, minutes before anything landed -- so",
+			"the banner fired against a quiet map and named a cause the player could not see.",
+			"",
+			"IT IS THE DELAY AFTER THE IMPACT, not the whole wait. The flight itself is however long the",
+			"missile takes, computed by " + nameof(MissileStrikePower) + " from the activity's own",
+			"arithmetic and reported here; this is only the beat between the flash and the banner.",
+			"50 ticks = 3.0 s at the mod's 60 ms timestep -- NOT 25 tps (see conventions.md).",
+			"",
+			"ZERO ANNOUNCES ON THE IMPACT TICK ITSELF, which is legal and is the setting for a scenario",
+			"that wants the flash and the banner on one tick.",
+			"",
+			"NEGATIVE IS THE ESCAPE HATCH: ESCALATE AT THE LAUNCH, which is byte-for-byte the behaviour",
+			"this mode had before 2026-09-16 and is NOT for a real match. It exists because deferring to",
+			"the impact drags the whole FLIGHT TIME into the escalation, and flight time is a quantity",
+			"several existing autotest scenarios have no opinion about and no way to compute: the shipped",
+			"B61Low carries " + nameof(MissileStrikePowerInfo.MissileDelay) + " 200 on its own, before the",
+			"arc, against scenarios that fire and then assert on the victim's level 70-80 ticks later.",
+			"Those scenarios measure the LADDER and the COOLDOWN, neither of which this field touches, so",
+			"the honest fix is to take the new variable back out of them rather than to retune a phase",
+			"schedule against a number that varies with map size.")]
+		public readonly int EscalationDelayTicks = 50;
+
+		/// <summary>Whether the escalation is applied at the launch rather than at the detonation.</summary>
+		// STATED ONCE, HERE, so the trait never re-derives "negative means at launch" at a call site.
+		public bool EscalatesAtLaunch => EscalationDelayTicks < 0;
+
 		void IRulesetLoaded<ActorInfo>.RulesetLoaded(Ruleset rules, ActorInfo info)
 		{
 			if (GrantRetryTicks < 0)
 				throw new YamlException($"{nameof(GrantRetryTicks)} must be 0 or positive.");
+
+			// NO BOUND ON EscalationDelayTicks. Negative is a documented meaning rather than an error
+			// (see the field), and there is no upper limit worth inventing: a delay longer than the
+			// match simply means nobody is ever escalated, which is a scenario's business.
 
 			// POSITIVE, NOT MERELY NON-NEGATIVE. A cooldown of 0 ticks is a side that may fire again
 			// on the tick after it fired, which is not a fast economy but no economy at all -- and it
@@ -332,6 +368,51 @@ namespace OpenRA.Mods.Common.Traits
 		readonly Dictionary<Player, (int FromBand, int TicksLeft)> pendingReady = new Dictionary<Player, (int, int)>();
 
 		/// <summary>
+		/// <para>ONE RELEASE ORDER THAT HAS BEEN FIRED AND HAS NOT YET ESCALATED ANYBODY. See
+		/// <see cref="NuclearExchangeState.ApplyEscalation"/> for the ruling this exists to carry.</para>
+		/// </summary>
+		// A STRUCT IN A LIST, IN INSERTION ORDER. Simulation state: it decides when a side's level
+		// rises, so it is walked in a fixed order on every client and is folded into ExchangeHash.
+		// Never a Dictionary keyed on Player -- a side can have two orders in the air at once (a
+		// teammate firing while your own warhead flies) and they must not collapse into one.
+		readonly struct PendingEscalation
+		{
+			/// <summary>The side that fired. It is the one side this launch does NOT escalate.</summary>
+			public readonly int FirerSide;
+
+			/// <summary>The band that was fired, as a <see cref="NuclearRung"/> value.</summary>
+			public readonly int Band;
+
+			/// <summary>The tick the release order resolved on. Impact reports are accepted on this tick only.</summary>
+			public readonly int OrderTick;
+
+			/// <summary>
+			/// The tick the FIRST warhead of this order detonates on, or <see cref="ImpactUnknown"/>
+			/// until a warhead has said. The first, not the last: the user's requirement is that the
+			/// message follows the explosion they saw, and a staggered salvo's later RVs are still
+			/// landing while they read it.
+			/// </summary>
+			public readonly int ImpactTick;
+
+			public PendingEscalation(int firerSide, int band, int orderTick, int impactTick)
+			{
+				FirerSide = firerSide;
+				Band = band;
+				OrderTick = orderTick;
+				ImpactTick = impactTick;
+			}
+
+			public PendingEscalation WithImpact(int impactTick)
+			{
+				return new PendingEscalation(FirerSide, Band, OrderTick, impactTick);
+			}
+		}
+
+		const int ImpactUnknown = int.MaxValue;
+
+		readonly List<PendingEscalation> pendingEscalations = new List<PendingEscalation>();
+
+		/// <summary>
 		/// One int covering every side's whole position, so a divergence anywhere in the exchange is
 		/// caught rather than silently played out.
 		/// </summary>
@@ -353,6 +434,17 @@ namespace OpenRA.Mods.Common.Traits
 					{
 						h = (h * 31) + state.LevelFor(side);
 						h = (h * 31) + state.CooldownFor(side);
+					}
+
+					// THE WARHEADS IN THE AIR COUNT TOO. A pending escalation is what a level rise is
+					// going to be a few seconds from now, so two clients disagreeing about one is two
+					// clients about to disagree about a level -- caught here rather than on the tick it
+					// lands, which is the whole point of hashing this trait at all.
+					foreach (var p in pendingEscalations)
+					{
+						h = (h * 31) + p.FirerSide;
+						h = (h * 31) + p.Band;
+						h = (h * 31) + p.ImpactTick;
 					}
 
 					return h;
@@ -740,8 +832,112 @@ namespace OpenRA.Mods.Common.Traits
 					Log.Write("debug", $"NUCLEAR COOLDOWN ENDED for side {side} " +
 						$"(tick {self.World.WorldTick}); every band up to {(NuclearRung)state.LevelFor(side)} is back.");
 
+			// BEFORE ReconcileGrants, AND THAT ORDER IS LOAD-BEARING. An escalation applied here raises
+			// a level; ReconcileGrants is what spots the rise and arms the newly granted bands. Running
+			// them the other way round would arm one tick late, every time, for no reason.
+			ServicePendingEscalations();
+
 			ReconcileGrants();
 			ServicePendingReady();
+		}
+
+		/// <summary>
+		/// Apply every escalation whose warhead has landed and whose readable beat has elapsed. See
+		/// <see cref="NuclearExchangeInfo.EscalationDelayTicks"/> for the ruling.
+		/// </summary>
+		// WALKED FORWARDS AND REBUILT RATHER THAN REMOVED-BY-INDEX, because the common case is an empty
+		// list and the uncommon one is a single entry. No allocation on a tick with nothing pending.
+		void ServicePendingEscalations()
+		{
+			if (pendingEscalations.Count == 0)
+				return;
+
+			var tick = world.WorldTick;
+			for (var i = pendingEscalations.Count - 1; i >= 0; i--)
+			{
+				var p = pendingEscalations[i];
+
+				// A RELEASE THAT PUT NO WARHEAD IN THE AIR still has to escalate, or a weapon could be
+				// fired for free by never reporting an impact. Every shipped path reports at least one
+				// (MissileStrikePower always resolves at least one aim point and reports each), so this
+				// is the fail-safe for a future power, a Lua binding, or a salvo aborted downstream --
+				// and it fails towards the rule rather than away from it.
+				if (p.ImpactTick == ImpactUnknown)
+				{
+					if (tick <= p.OrderTick)
+						continue;
+
+					Log.Write("debug", $"NUCLEAR ESCALATION: side {p.FirerSide}'s band {(NuclearRung)p.Band} " +
+						$"release at tick {p.OrderTick} reported no warhead impact; escalating on the " +
+						"order tick instead.");
+
+					p = p.WithImpact(p.OrderTick);
+				}
+
+				if (tick < p.ImpactTick + info.EscalationDelayTicks)
+				{
+					pendingEscalations[i] = p;
+					continue;
+				}
+
+				var levelsBefore = SnapshotLevels();
+				state.ApplyEscalation(p.FirerSide, p.Band);
+				pendingEscalations.RemoveAt(i);
+
+				Log.Write("debug", $"NUCLEAR ESCALATION at tick {tick}: side {p.FirerSide}'s band " +
+					$"{(NuclearRung)p.Band} detonated at tick {p.ImpactTick}" + EscalationSummary(levelsBefore));
+			}
+		}
+
+		/// <summary>
+		/// <para>A warhead belonging to a release this trait has already counted is due to detonate at
+		/// <paramref name="impactTick"/>. Called once per WARHEAD from
+		/// <see cref="MissileStrikePower"/>, on the synced order-resolution path, with the impact tick
+		/// the power itself computed — so this cannot drift from the flight the missile actually
+		/// flies.</para>
+		///
+		/// <para>IT CANNOT ESCALATE ANYBODY A SECOND TIME, and that is the requirement the whole
+		/// deferral had to survive: the RS-28 Sarmat flies SIX independently-aimed re-entry vehicles
+		/// and calls this six times. The escalation record was created ONCE, by
+		/// <see cref="ReportNuclearRelease"/>, on the order; these calls only tell it WHEN, and the
+		/// earliest one wins. That multiplicity is the reason the original author put the report at
+		/// launch time in the first place (MissileStrikePower.cs), and it is answered here rather
+		/// than abandoned.</para>
+		///
+		/// <para>MATCHED ON THE ORDER TICK, not on the firer alone. Two orders from the same side in one
+		/// match must not share a record, and the only way a warhead can belong to a record is if its
+		/// order resolved on the tick that record was made — which is exactly true, because the power
+		/// spawns every one of its missiles inside the same Activate call that reported the release.</para>
+		/// </summary>
+		public static void NotifyNuclearImpact(World world, Player firer, int impactTick, SupportPowerInfo powerInfo)
+		{
+			if (powerInfo is not MissileStrikePowerInfo missile || missile.NuclearYieldTons <= 0)
+				return;
+
+			world.WorldActor?.TraitOrDefault<NuclearExchange>()?.ReportNuclearImpact(firer, impactTick);
+		}
+
+		void ReportNuclearImpact(Player firer, int impactTick)
+		{
+			if (state == null || Mode != DefconGameMode.Escalation || pendingEscalations.Count == 0)
+				return;
+
+			var side = SideOf(firer);
+			var tick = world.WorldTick;
+
+			// Newest first: a side firing twice on one tick is not a thing any shipped power can do,
+			// but if it ever were, a warhead belongs to the more recent of the two records.
+			for (var i = pendingEscalations.Count - 1; i >= 0; i--)
+			{
+				var p = pendingEscalations[i];
+				if (p.FirerSide != side || p.OrderTick != tick)
+					continue;
+
+				if (impactTick < p.ImpactTick)
+					pendingEscalations[i] = p.WithImpact(impactTick);
+
+				return;
+			}
 		}
 
 		// Spot which sides rose since last tick and queue the readiness work for them. Driven off a
@@ -975,7 +1171,6 @@ namespace OpenRA.Mods.Common.Traits
 				return true;
 
 			var firerSide = SideOf(firer);
-			var levelsBefore = SnapshotLevels();
 			var outcome = state.ReportLaunch(firerSide, tons);
 
 			if (!outcome.Counted)
@@ -1022,13 +1217,84 @@ namespace OpenRA.Mods.Common.Traits
 			if (!outcome.FinalExchange)
 				SetSideCooldown(firerSide, outcome.CooldownTicks);
 
-			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
-				$"band {outcome.Band} -> cooldown {outcome.CooldownTicks}" + EscalationSummary(levelsBefore));
+			// ==== THE ESCALATION IS NOW SCHEDULED, NOT APPLIED (user ruling, 2026-09-16) ====
+			// "when the enemy fires a nuke, we instantly get the level up event, but it should happen
+			// when the nuke explodes". The record is created HERE, once per release order, and
+			// MissileStrikePower tells it when its warheads land; ServicePendingEscalations applies it
+			// at the first impact plus EscalationDelayTicks. See NotifyNuclearImpact for how six RVs
+			// from one click stay one escalation.
+			//
+			// A GAME-ENDER ESCALATES IMMEDIATELY AND IS THE ONE EXCEPTION THAT IS NOT CONFIGURABLE.
+			// There is no "correlation to see" on a launch that ends the match: the final exchange
+			// opens on the very next line, every side goes to the top rung there anyway
+			// (NuclearExchangeState.OpenFinalExchange), and a deferred record would either be redundant
+			// or -- if DoomsdayStrike is stripped from the world -- would leave the victim un-escalated
+			// with no match left to escalate in.
+			//
+			// EscalatesAtLaunch is the scenario escape hatch and takes the same path; see the field.
+			if (outcome.FinalExchange || info.EscalatesAtLaunch)
+			{
+				var levelsBefore = SnapshotLevels();
+				state.ApplyEscalation(firerSide, outcome.Band);
 
-			if (outcome.FinalExchange)
-				BeginFinalExchange(firer);
+				Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
+					$"band {outcome.Band} -> cooldown {outcome.CooldownTicks}" + EscalationSummary(levelsBefore));
+
+				// ONLY A GAME-ENDER OPENS THE ENDING. The escape hatch shares the escalation path above
+				// and nothing else -- a 1 kt fired in a scenario with EscalatesAtLaunch set must not
+				// end the match.
+				if (outcome.FinalExchange)
+					BeginFinalExchange(firer);
+
+				return true;
+			}
+
+			pendingEscalations.Add(new PendingEscalation(firerSide, outcome.Band, world.WorldTick, ImpactUnknown));
+
+			Log.Write("debug", $"NUCLEAR LAUNCH: {firer?.InternalName ?? "unknown"} (side {firerSide}) " +
+				$"band {outcome.Band} -> cooldown {outcome.CooldownTicks}; escalation deferred to " +
+				$"impact + {info.EscalationDelayTicks} ticks.");
 
 			return true;
+		}
+
+		/// <summary>
+		/// <para>THE FINAL EXCHANGE IS OPENING: every side to the top rung, every cooldown cleared, on
+		/// both the cameo's copy of the number and the ledger's. Called by
+		/// <see cref="DoomsdayStrike.BeginFinalExchange"/> from BOTH ways in — the time limit and a
+		/// game-ender release — before it arms anybody.</para>
+		///
+		/// <para>WHY THE TRAIT AS WELL AS THE STATE. <see cref="NuclearExchangeState.OpenFinalExchange"/>
+		/// clears the number the launch gate tests; this pushes the same zero onto every nuclear power's
+		/// own countdown, which is the number the CAMEO draws and the one
+		/// <see cref="SupportPowerInstance.Ready"/> reads. Clearing only the state would leave a side
+		/// legally able to fire a weapon whose icon is still greyed out with four minutes on it — which
+		/// is precisely the shape of the defect this fixes, just one layer down.</para>
+		///
+		/// <para>INERT OUTSIDE ESCALATION, where there is no exchange and no side cooldown to clear; the
+		/// state's own mode guard is what makes that true rather than a second test here.</para>
+		/// </summary>
+		public void OpenFinalExchange()
+		{
+			if (state == null || Mode != DefconGameMode.Escalation)
+				return;
+
+			var changed = state.OpenFinalExchange();
+
+			// EVERY BAND OF EVERY SIDE, unconditionally, and not only the sides that owed something.
+			// SetSideCooldown(0) leaves TotalTicks alone and empties the countdown (see SetCooldown),
+			// so a power that owed nothing is written the zero it already had. Cheap, and it means no
+			// cameo anywhere can still be drawing a clock when the window opens.
+			foreach (var side in state.Sides)
+				SetSideCooldown(side, 0);
+
+			// PENDING ESCALATIONS ARE DROPPED, not applied early and not left running. Every side is at
+			// the top rung as of the line above, so there is nothing left for one to raise; keeping them
+			// would only re-announce a level nobody can exceed, in the middle of the salvo.
+			pendingEscalations.Clear();
+
+			Log.Write("debug", $"FINAL EXCHANGE: every side to {NuclearRung.GameEnder} with no cooldown " +
+				$"(tick {world.WorldTick}){(changed ? string.Empty : "; nothing to change")}.");
 		}
 
 		/// <summary>Every side's level right now, in registration order, for the launch log's before/after.</summary>

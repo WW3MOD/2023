@@ -1,0 +1,43 @@
+fail
+BY DESIGN, NOT BY MERIT. This directory is the CONTROL arm of
+test-defcon2-holdfire-garrison. Its rules.yaml differs from the treatment's by exactly one
+quantity -- DefconEscalation.ModeDefault, Escalation -> Skirmish -- and
+DefconEscalationState's constructor answers that with `Level = NoLevel` (0), so
+DefconFireDiscipline.HoldsFire(0) is false and GarrisonManager.ScanForTarget (read site 5)
+runs normally.
+
+An empty port deploys as soon as that scanner returns a target which survives
+TargetConfirmTicks (10) across TargetScanInterval (8) -- ~30 ticks from the house flipping to
+Russia. The hold window is 300 ticks, ten times that, so this arm fails on a manned port long
+before it could fail for want of time. FAIL is the only outcome it can honestly produce.
+
+WHY IT EXISTS. A green treatment is not evidence unless something could have made it red
+(AUTOTEST.md). Without this arm, "the garrison did nothing" is indistinguishable from "nothing
+was ever going to happen here" -- and for a garrison that is not a hypothetical worry: the
+sibling scenario test-human-autoacquires-garrisoned-house keeps its garrison in shelter by
+THREE independent mechanisms that have nothing to do with DEFCON (the building's own AutoTarget
+held at HoldFire, and a probe placed sixteen cells out, beyond the shelter soldiers' 10c0).
+Any one of them arriving here by a careless edit would make the treatment pass for the wrong
+reason, and this arm is what would notice.
+
+A PASS HERE IS LOUDLY RED AND FALSIFIES THE TREATMENT, NOT THIS FILE. The two setup facts to
+check first, in this order, because they are the ones a copy-edit breaks:
+  1. V01 must have NO AutoTarget in either rules.yaml. ^CivBuilding ships none, which is what
+     leaves the building on FireAtWill via `autoTarget?.Stance ?? UnitStance.FireAtWill`.
+  2. The humvee must be INSIDE the shelter soldiers' 10c0 envelope (it is placed ~6.5 cells
+     out). Past ten cells, ScanForTarget finds nothing and no port deploys in either arm.
+Report and stop on a pass; do not widen the window or re-run hoping for the other answer.
+
+THE ONE FAILURE THIS DECLARATION MUST NOT ABSORB, because it produces the declared outcome
+for the wrong reason: a staging fault. Verdicts beginning `fail: SETUP` (house not Neutral,
+probe out of envelope, no EnterTransport order offered, house and humvee not a live targeting
+pair, match opened at DEFCON 3 or 1) and `fail: STAGING` (the riflemen never reached the
+shelter) are faults in BOTH directories, not this arm doing its job. Read the reason string.
+
+The verdict line to expect carries `defcon=0` in its census and `ports` above zero. If it
+reads `defcon=2` the override did not merge and this directory is a second copy of the
+treatment.
+
+REMOVE THIS FILE only if the control legitimately starts passing, which would mean the map can
+no longer separate the two hypotheses and needs new geometry rather than a new declaration. A
+hang, a crash, or a run that never reaches a verdict still reds under it.

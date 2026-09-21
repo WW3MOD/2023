@@ -437,7 +437,10 @@ namespace OpenRA.Test
 			("B61MidStrike", "powers.america"),
 			("B61MaxStrike", "powers.america"),
 			("W76Strike", "powers.america"),
-			("B83Strike", "player.america"),
+			// AMERICA'S NATIONAL ENDER SINCE 2026-09-20. `player.america` moved here from B83Strike,
+			// which kept `powers.event` alone -- so the B83 is Sandbox-only and is on NO tier this
+			// table describes, exactly like the unattributed 6 Mt strategic strike.
+			("TridentStrike", "player.america"),
 			("Ru9M729Strike", "powers.russia"),
 			("RuIskanderStrike", "powers.russia"),
 			("RuKinzhalNStrike", "powers.russia"),
@@ -532,7 +535,7 @@ namespace OpenRA.Test
 			// tab for whichever faction owns them.
 			var rows = PowerRows().ToDictionary(r => r.Order, r => r.Prerequisites);
 
-			foreach (var order in new[] { "SarmatStrike", "B83Strike", "TsarBombaStrike" })
+			foreach (var order in new[] { "SarmatStrike", "TridentStrike", "B83Strike", "TsarBombaStrike" })
 				Assert.That(rows[order] ?? string.Empty, Does.Contain("powers.event"),
 					$"`{order}` no longer names `powers.event`, so its faction can now buy a " +
 					"game-ender in a normal match.");

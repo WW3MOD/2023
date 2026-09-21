@@ -42,8 +42,15 @@
 		RequiresSelection: true
 		FullSequence: pip-yellow
 		AmmoPools: primary-ammo
-	GainsExperience:
-		ExperienceModifier: 1
+	# NO `GainsExperience: ExperienceModifier: 1` HERE, DELIBERATELY (2026-09-20).
+	# That override REPLACES cost-scaling: thresholds become 100/200/400/800 XP
+	# absolute (GainsExperience.cs:88-91), while a kill still awards victim cost
+	# x100 (GivesExperience.cs:50-52, ActorExperienceModifier 10000). One 50-credit
+	# kill is 5000 XP -- past rank 4 six times over, so a bailed-out crewman with a
+	# pistol hit rank 4 on his first kill of anything worth >= 8 credits, where every
+	# other actor in the mod needs 8x its own cost. Leaving the field unset takes the
+	# engine default (-1, GainsExperience.cs:44), which means "scale by Valued.Cost" --
+	# so crew thresholds track the Cost: 100 above and stay in step if it is retuned.
 	# Getting this man to the map edge alive credits his share of the crew back
 	# toward the rank of the exact vehicle he bailed out of. VehicleCrew tags him
 	# with that vehicle on spawn; an untagged crew actor credits nothing.

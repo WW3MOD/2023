@@ -4677,7 +4677,7 @@ namespace OpenRA.Mods.Common.Traits
 			// Not at the hold-fire level: drop the memory rather than let it go stale across the phase
 			// boundary. At DEFCON 1 ordinary autotargeting is permitted again and is the better behaviour
 			// (it re-acquires as targets die); at DEFCON 3 there is nothing to shoot across the border.
-			if (defconEscalation == null || !DefconFireDiscipline.HoldsFire(defconEscalation.Level))
+			if (defconEscalation == null || !DefconFireDiscipline.HoldsFire(defconEscalation.Mode, defconEscalation.Level))
 			{
 				defcon2Targets.Clear();
 				return;

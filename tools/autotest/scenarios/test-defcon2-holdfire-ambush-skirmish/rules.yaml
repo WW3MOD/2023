@@ -1,0 +1,82 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		# FOG ON, and it is load-bearing rather than flavour. AmbushTickIdle's stock branch is
+		# `if (isSpotted || ambushTriggered)`, and read site 6 contributes only the SECOND term --
+		# so an ally the enemy can SEE springs on its own and the control arm would prove nothing
+		# about the proxy. Without fog every actor is permanently visible and isSpotted is always
+		# true. Same reasoning, same words, as test-ambush-detection's rules.yaml.
+		FogCheckboxEnabled: true
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	-UnitDefaultsManager:
+	LuaScript:
+		Scripts: test-helpers.lua, defcon2-holdfire-ambush-lib.lua
+
+	# ===== THE ONE QUANTITY THAT SEPARATES THIS DIRECTORY FROM ITS -skirmish TWIN =====
+	# ModeDefault: Skirmish here, Escalation in the treatment. Nothing else in either directory
+	# differs except the map Title and the prose. `diff -r` the two before believing any result that
+	# rests on the comparison.
+	DefconEscalation:
+		ModeDefault: Skirmish
+		StartAtDefault: 2
+
+abrams:
+	# THE SHOOTER, and it must do nothing it was not told to do. HoldFire gates autonomous
+	# acquisition only; an ordered attack is unaffected by stance.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	# It must survive the control arm, where the bait and three t90s all engage it. Ten times the
+	# HP. A death at DEFCON 2 is a qualifying casualty that drops the level to 1 mid-measurement.
+	Health:
+		HP: 280000
+
+bmp2:
+	# THE BAIT. Ambush stance is what makes INotifyDamage.Damaged reach the proxy call at all:
+	# the handler returns early for Stance < Ambush, and only `if (Stance == UnitStance.Ambush)`
+	# sets the latch and calls TriggerNearbyAmbushAllies. Both fields because AutoTarget.cs:497
+	# picks InitialStanceAI for a non-Playable owner, which Russia is here.
+	AutoTarget:
+		InitialStance: Ambush
+		InitialStanceAI: Ambush
+	# It must survive the ordered shot: TankRound.Abrams lands 20000 + 3000 against a stock bmp2's
+	# 14000, and a kill drops DEFCON 2 to 1. Ten times the HP. One trait field rather than
+	# weakening the weapon, because a warhead override is constructed fresh rather than merged per
+	# field and would silently reset Penetration to the engine default of 1 (conventions.md).
+	#
+	# Detectable is deliberately NOT touched: the ^Vehicle default of 2, +1 from
+	# DetectableAddativeModifier@Stationary, means USA detects it out to 22 cells and it stands 12
+	# cells away. It must be visible for the click to be possible at all.
+	Health:
+		HP: 140000
+
+t90:
+	# THE ALLIES. Ambush so the proxy has something to write to (TriggerNearbyAmbushAllies only
+	# latches allies whose Stance == Ambush), and so their own AmbushTickIdle is the branch under
+	# observation. The Stage-3 gate is deliberately NOT granted: `enable-ambush-tactics` is
+	# per-unit and nothing here grants it, so AmbushTacticsGranted is false and the UNGATED STOCK
+	# path runs -- which is where `if (isSpotted || ambushTriggered)` lives.
+	AutoTarget:
+		InitialStance: Ambush
+		InitialStanceAI: Ambush
+	# THE ATTRIBUTION KNOB, and the only reason this scenario can blame read site 6 for anything.
+	# Detection requires the viewer's vision strength to STRICTLY exceed this value
+	# (MapLayers.cs:576); a stationary vehicle adds +1 on top. 7 (+1 = 8) puts the threshold at
+	# strength 9, i.e. inside 7 cells, while the probe stands 14 to 15 cells out where USA reads
+	# strength 6. So isSpotted is FALSE for all three allies and `ambushTriggered` -- written by
+	# nothing but the proxy -- is the only term that can make them fire.
+	#
+	# Firing grants `firinganyweapon`, which subtracts 1 and leaves the effective value at 7: still
+	# undetected at 14 cells, so an ally that opens fire does not retroactively justify itself.
+	Detectable:
+		Vision: 7
+	Health:
+		HP: 240000

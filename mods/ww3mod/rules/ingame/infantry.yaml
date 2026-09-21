@@ -2005,11 +2005,20 @@ AA:
 		TargetRelationships: Ally, Neutral
 		ForceTargetRelationships: Ally, Neutral, Enemy
 		PauseOnCondition: suppressed >= 10
+		# NOT A WEAPON. Repair is DamagePercent: -1 (weapons-other.yaml:377) and targets allies and
+		# neutrals. Same reasoning as the medic's Heal: the cease-fire is about fire, not about an
+		# engineer patching a vehicle while both sides position.
+		FiresDuringCeaseFire: True
 	Armament@ClearMines:
 		Name: clearmines
 		Weapon: ClearMines
 		Cursor: repair
 		OutsideRangeCursor: repair
+		# NOT A WEAPON. ClearMines carries DamageTypes: Disarm and no Damage: field at all
+		# (weapons-other.yaml:398-405), so it defaults to zero — it disarms mines and cannot hurt a
+		# unit. Worth noting that a `Damage: 0` grep does NOT find this one, which is a second reason
+		# the opt-out is written out per armament rather than detected.
+		FiresDuringCeaseFire: True
 	DetectCloaked@Mine:
 		Range: 2c0
 		DetectionTypes: Mine
@@ -2373,6 +2382,12 @@ SF:
 		ForceTargetRelationships: None
 		Cursor: heal
 		OutsideRangeCursor: heal
+		# NOT A WEAPON. Heal is DamagePercent: -10 (weapons-other.yaml:364) against allies only. The
+		# DEFCON 3 cease-fire stops shooting, not medicine: a medic who could not treat during the
+		# positioning phase would be idle for the whole opening and casualties from the previous phase
+		# would bleed out. Note the negative damage — this is why the opt-out is explicit and not a
+		# heuristic over the damage number.
+		FiresDuringCeaseFire: True
 		# PITFALL: do not put `PauseOnCondition: suppressed >= N` back on this armament. It used to
 		# carry `>= 10` — the lowest of the ten suppression tiers, below even the >30 at which the man
 		# goes prone — so any incoming fire at all stopped the medic treating anyone, and casualties
@@ -2524,6 +2539,11 @@ TECN:
 		PauseOnCondition: !loaded || !ammo-primary
 		FireDelay: 50
 		RequiresForceFire: True
+		# NOT A WEAPON. DroneTargeter is a dummy trigger (Damage: 0, weapons-other.yaml:714) whose only
+		# job is to give CarrierMaster something to fire so it releases a quadcopter. Blocking it during
+		# the DEFCON 3 Positioning phase would stop the operator deploying his recon drone, which is
+		# scouting rather than shooting and is exactly what the phase is for.
+		FiresDuringCeaseFire: True
 	AmmoPool@1:
 		Name: primary-ammo
 		Essential: true
@@ -2548,6 +2568,13 @@ TECN:
 		Name: secondary
 		Weapon: DroneJammer
 		NoSelfDefenseInterrupt: True
+		# PENDING RULING — DroneJammer is BLOCKED during the DEFCON 3 Positioning phase, by default.
+		# Unlike the four carved-out armaments it is a real if tiny attack: Warhead@Spread Damage: 3
+		# plus a GrantExternalCondition that disables the drone it hits (weapons-other.yaml:716-745).
+		# A soft kill is still a kill, so it holds fire with everything else until somebody says
+		# otherwise. TO ALLOW IT, add exactly one line here:
+		#     FiresDuringCeaseFire: True
+		# and nothing else changes — no C#, no other yaml.
 	RenderRangeCircle@2:
 		Armament: secondary
 		RangeCircleType: special

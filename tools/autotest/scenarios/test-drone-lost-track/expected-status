@@ -1,60 +1,62 @@
 fail
-The negative arm is BY MERIT: the @experimental drone operator genuinely does not
-yet prefer a lost-track contact over the stalest ground it could explore. The
-scenario and the code are both correct.
+BY MERIT, RE-DECLARED 2026-09-15 AFTER THE LEASH FIX. The @experimental drone operator still
+does not prefer a lost-track contact over the best ground it could explore. The scenario and the
+code are both correct; what moved is the geometry, and it was not enough.
 
-MEASURED, run 260901_084100_p5243_test-drone-lost-track, seed 119467278, on main
-at 3dd67e07 (build clean, NUnit 2104/2104):
+THIS DECLARATION WAS DELETED EARLIER THE SAME DAY AND IS BACK. The leash fix (hover ceiling 22 ->
+30, clearing the operator's 28-cell verifying radius) predicted 252-261 against 248 and a PASS.
+That prediction was wrong, in two ways that are worth more than the prediction was:
 
-    samples=86  near(<=18c of 47:54)=0 (0%)  mindist=25
+PAIRED LAUNCH LINES AT HOVER 30 -- treatment 260915_200535_p8719, control 260915_205136_p52938:
 
-The drone flew 18:45 -> 35:31, parked there for ~60 of 86 samples, and returned;
-it never approached the vanish cell. A late intruder (tecn.america at 21:46, t1221,
-27c from the vanish cell) is correctly ignored by the scenario as post-decision,
-and 22 of the 86 samples follow it. Both execution markers present.
+  tick  TREATMENT                                              CONTROL
+  200   cell=43,27 reveal=287 intel=17                         cell=31,17 reveal=287 intel=0
+        bestintel=238 bestintelcell=47,53 bestintelreveal=0    records=0
+  1800  cell=47,55 reveal=194 intel=57 bestintel=57            cell=47,55 reveal=248 intel=0
 
-THE OUTCOME ABOVE STANDS. TWO CLAIMS THAT SAT HERE ARE WITHDRAWN (2026-09-02).
+1. THE FIX WORKED IN INTEL SPACE AND STILL LOST. The reachable hunt cell moved from 8 cells out
+   to 1 (47,53) and IntelFalloff(247, 1, 28) = 238, exactly as predicted. But bestintelreveal
+   went 14 -> 0: a hunt cell nearer V sits deeper inside ground the scout just verified, so it
+   reveals nothing. Moving toward the contact BUYS INTEL BY SPENDING REVEAL.
 
-1. "25 against an 18-cell bar is a 1.389x shortfall, inside the pre-registered
-   <=1.5x band" COMPARED TWO DIFFERENT QUANTITIES. 1.389 is mindist/NearVanishCells
-   -- a ratio of CELL DISTANCES. The <=1.5x / >=1.8x band at CONTROL-ARM.md:135 is
-   pre-registered for the LostTrackIntelSquares MULTIPLIER, which CONTROL-ARM.md:130
-   defines in SCORE space as
-       (reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)
-   How far the drone parked from the vanish cell does not convert into how much
-   larger the intel constant would have to be, so the band was never entered and
-   "change nothing" was never earned. The accompanying "previously-reported
-   1.19-1.47x bounds" are recorded nowhere in this repo -- the same objection a
-   worker already raised against the 1.247x figure this file replaced.
+2. THE SAME RAISE FED THE OTHER SIDE. ChooseTargetCell scans a (2*maxHover+1)^2 box, 45^2 = 2025
+   -> 61^2 = 3721 candidates, and the bigger box found a better exploration prize: bestReveal
+   248 -> 287. Hunt went 192 -> 238 (+46); the alternative went 248 -> 287 (+39) at a cell that
+   also carries intel of its own. The deficit barely moved.
 
-   THE BOUND THAT IS ACTUALLY DERIVABLE, and it needs no further run: reveal_hunt
-   >= 0 and the hunt cell lost, so the multiplier lies strictly between 1.0x and
-   2.10x (CONTROL-ARM.md:118-127). That straddles BOTH thresholds. The sizing
-   question is OPEN, not settled.
+THE TERM DID MOVE THE PICK, AND THAT IS NOT NOTHING. The two arms chose DIFFERENT cells at t200
+for the first time in this scenario's history -- treatment 43,27, control 31,17, both against
+bestReveal 287 -- so the intel term demonstrably shifts the argmax. It does not shift it to the
+contact.
 
-2. THE MEASUREMENT IS STALE. It predates 1e0226b9, which replaced the drone's
-   rectangular revealed-area query with the vision DISC and removed up to 228
-   squares of corner credit per candidate -- ~19x MinRevealedSquares (12). Every
-   `reveal` in the run above was computed by the box. Both the hunt cell and the
-   reveal argmax lose corners, so the direction of the change is NOT predictable
-   from the old numbers and must be re-measured.
+THE SECOND LAUNCH IS NOT THE FEATURE WORKING. Both arms retask to 47,55 at t1800, one cell from
+the vanish cell. The control has records=0 and intel=0, so that is exploration ordering reaching
+the same ground once the nearer prize is consumed. Two further tells inside the treatment alone:
+its t1800 bestintel=57 is exactly IntelFalloff(60, 1, 28), i.e. IntelSquares returned areaSquares
+EXACTLY, which per DroneTaskingMath.IntelSquares happens when ageTicks <= FreshSightingTicks (50)
+-- the decay ramp at that age would give ~89. The contact was being OBSERVED by then, so t1800 is
+not a lost-track decision at all.
 
-WHAT THE NEXT RUN MUST CAPTURE, BECAUSE THE LAST ONE DID NOT. The multiplier needs
-`bestintelreveal=` off the `[drone] ... launch` line (DroneOperatorBotModule.cs:734).
-That line is engine-side and the Lua verdict string cannot carry it. The 260901 run
-dir held only PNGs and result.json, and the global debug.log had been truncated by a
-later launch before anyone read it -- so a run that reached a real verdict still
-could not answer the question it was spent on. run-test.sh now archives debug.log
-into the run dir for every outcome; read RUN_DIR/debug.log, never the global file.
+HOW SHORT, AND WHY IT IS A BRACKET RATHER THAN THE PRE-REGISTERED POINT ESTIMATE. The formula
+  multiplier = (reveal - bestintelreveal) / (bestintel - intel_at_reveal_argmax)
+needs the intel AT THE REVEAL ARGMAX. The launch line prints the intel at the CHOSEN cell, and
+this time the treatment's chosen cell (43,27) is NOT the reveal argmax -- the control proves the
+argmax is 31,17, because with intel 0 everywhere its winner must be it. So the denominator is
+unobserved and the exact figure is not derivable. What IS derivable, from the treatment beating
+both 31,17 and 47,53:
+  worth_hunt   = 0 + 238 = 238
+  worth_chosen = between 287 and 304  (>= the argmax's 287; <= bestReveal 287 + its own intel 17)
+  multiplier on bestintel  =  1.21x .. 1.28x
+1.21x is the LOWER bound, not the answer. The whole bracket sits inside the pre-registered <=1.5x
+band, whose ruling is: the term is roughly right and this is a hard case -- CHANGE NOTHING.
+(The earlier 1.315x, taken at hover 22, was sound because BOTH arms chose 29,25 there, which made
+intel_at_reveal_argmax observable. That coincidence is gone.)
 
-REMOVE THIS FILE in the same commit as whatever makes the operator prefer the
-lost-track contact. A pass against a live `fail` declaration is RED on purpose:
-it means the premise moved and this note is stale.
+DO NOT TOUCH LostTrackIntelSquares. Two independent measurements now put the shortfall inside the
+change-nothing band, and CONTROL-ARM.md names setting it to whatever flips this scenario as
+tuning-to-pass. The leash/weapon/model change stays: it was a coherence fix -- a lost contact was
+structurally unreachable before it -- and it is pinned by DroneLeashCoherenceTest. It is simply
+not sufficient on this geometry.
 
-The harness distinguishes "did not prefer the contact" from "never reached a
-verdict" by itself: run-batch.sh grades on run-test.sh's OUTCOME NAME rather than
-its exit code, so a hang, a crash or a lost outcome is RED under any declaration and
-is listed under "NEVER REACHED A VERDICT". An OK(fail) here means the scenario
-reached a verdict under its own power. Keep the evidence habit regardless -- 86
-samples and a position trace are why the measurement above is believable, not the
-tally.
+REMOVE THIS FILE in the same commit as whatever makes the operator prefer the lost-track contact.
+A pass against a live `fail` declaration is RED on purpose: it means the premise moved.

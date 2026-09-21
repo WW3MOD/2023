@@ -42,7 +42,12 @@ namespace OpenRA.Test
 			NuclearUnlockClockInfo.HundredKilotonPurchasableOptionId,
 		};
 
-		static readonly string[] WeaponGates = { "tactical-nuke", "high-yield-nuke", "nuclear-arsenal" };
+		// ONE, NOT THREE, SINCE 2026-09-15. `tactical-nuke` and `high-yield-nuke` were retired: each
+		// gated exactly one event-tier power, so with `powers.event` provided by no faction neither
+		// checkbox decided anything outside the sandbox. `nuclear-arsenal` is NOT in the same
+		// position and was kept -- it gates thirteen powers, ten of them in nuclear-arsenal.yaml,
+		// and they are reachable in an ordinary match.
+		static readonly string[] WeaponGates = { "nuclear-arsenal" };
 
 		[Test]
 		public void EscalationHidesTheSkirmishNuclearShop()
@@ -60,7 +65,9 @@ namespace OpenRA.Test
 		{
 			foreach (var id in WeaponGates)
 				Assert.That(LobbyOptionsLogic.OptionVisibleInMode(id, Escalation), Is.False,
-					$"{id} gates a powers.event weapon no faction provides; it is noise in Escalation.");
+					$"{id} decides what may be BOUGHT, and nothing nuclear is purchasable in " +
+					"Escalation at all (decision 02) -- the ladder decides what may fire there, so " +
+					"this row is noise.");
 		}
 
 		[Test]
@@ -74,7 +81,9 @@ namespace OpenRA.Test
 
 				foreach (var id in WeaponGates)
 					Assert.That(LobbyOptionsLogic.OptionVisibleInMode(id, mode), Is.True,
-						$"{id} is the sandbox's own switch and must stay reachable in {mode}.");
+						$"{id} gates thirteen powers that ARE reachable in an ordinary match, so it " +
+						$"must stay visible in {mode}. (Hidden at the TRAIT in world.yaml is a " +
+						"separate lever from hidden by MODE, which is what this checks.)");
 			}
 		}
 

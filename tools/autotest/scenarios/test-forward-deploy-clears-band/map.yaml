@@ -1,0 +1,102 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: a forward-deployed package never lands in the DEFCON 3 band
+
+Author: WW3MOD
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# THE TERRAIN IS arena-tank-duel's, BYTE FOR BYTE (map.bin copied from
+# mods/ww3mod/maps/arena-tank-duel), because the bug is a function of that map's SPACING and
+# nothing else. Flat open ground, two spawns facing each other down row 16 at x 6 and x 58:
+# 52 cells apart, which is the number the whole scenario turns on.
+#
+#   derived border   Forward Deployment advances 35% of the way to the enemy; the DEFCON wall is
+#                    the perpendicular BISECTOR of the two homes, i.e. 50%. The midpoint of 6 and
+#                    58 is column 32, and DefconWall's 1024 half-width reaches a whole cell either
+#                    side of a cell centre -- so the band is columns 31, 32 and 33.
+#
+#   USA's package    centre 6 + (52 * 35 / 100) = x 24, motorized annulus radius 7. Its OUTER RING
+#                    therefore reaches x 31 -- the band's first column. That single cell of overlap
+#                    is the bug: SpawnStartingUnits ran at IWorldLoaded, the wall writes its
+#                    CustomTerrain from the first Tick, so the band read as open grass and a unit
+#                    was placed standing in it.
+#
+# Fifteen percent of the separation, less the package radius, less the half-width, is negative
+# below about 53 cells -- so a bigger map hides this entirely and arena-tank-duel does not. The
+# arithmetic is pinned without a game in OpenRA.Test/ForwardDeploymentBandOverlapTest.
+#
+# WHY ONLY USA DEPLOYS. SpawnStartingUnits spawns for `p.Playable` only, and a Playable slot exists
+# at runtime only when a CLIENT occupies it (CreateMapPlayers.cs:108-121, which skips every empty
+# slot). An autotest launch has exactly one client -- Game.CreateLocalServer defaults isSkirmish to
+# FALSE, so the server is ServerType.Local and SkirmishLogic's auto-seated bot never fires either.
+# Exactly one side can therefore carry starting units. The geometry is symmetric and the USA side
+# is the one under test; Russia is an ordinary map player whose job is to own the far Supply Route,
+# which is what fixes the border's position.
+#
+# AND THAT IS WHY RUSSIA MUST NOT BE `Playable: True` HERE, which is the opposite of what it looks
+# like. A second Playable reference with no client to fill it produces NO Player object at all --
+# no Supply Route, no home for the border to be derived from, one alliance group, and the wall
+# never stands. As a map player Russia is a real Player with a real HomeLocation, which is what
+# DefconWall's CombatantSides test wants.
+#
+# THIS COST THE SCENARIO'S FIRST RUN (260920_010430). SpawnForwardDeployment's ENEMY filter read
+# `q.Playable`, so a map-player Russia was invisible to it: TryFindNearest found no enemy, the
+# method returned silently, and the census saw zero units on a map where the wall had just been
+# derived from both homes. The filter now asks CombatantSides, the same question DefconWall asks.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+		# AUTHORED RATHER THAN ASSIGNED, and rules.yaml strips MapStartingLocations to keep it that
+		# way. Player.HomeLocation takes an IAssignSpawnPoints answer when one exists and falls back
+		# to the PlayerReference otherwise (Player.cs:213), so with the assigner gone this is the
+		# home both DefconWall and SpawnStartingUnits read -- and the border stops depending on
+		# which of the two mpspawns a random assignment happened to pick.
+		HomeLocation: 6,16
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+		HomeLocation: 58,16
+
+Actors:
+	# Russia's Supply Route, placed by hand because Russia is not a client slot and therefore gets
+	# no starting units of its own. USA's is NOT here: StartingUnits@none carries
+	# `BaseActor: supplyroute`, so the trait under test places it at HomeLocation + (-1,-1) and
+	# authoring a second one would stack two buildings on the same cells.
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 57,15
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,16
+
+Rules: rules.yaml

@@ -49,17 +49,23 @@
 --
 -- VERDICTS, and every stage has a named one — a refusal anywhere is a PASS, because a refusal is the
 -- safe answer to this question:
---   PASS + note "REFUSED AT TARGETING"  — the second player was never offered the order.
---   PASS + note "REFUSED AT LOAD"       — he was offered it, walked over, and the hold rejected him.
---   PASS + note "CO-GARRISON REACHED, MEN RELEASABLE" — the oddity exists but nobody is trapped.
---   FAIL "MEN PERMANENTLY LOST"         — he got in and the sim will not give him back.
+--   PASS + note "REFUSED AT LOAD"      — THE EXPECTED RESULT since the boarding re-check landed. He
+--                                         was legally offered the order against a NEUTRAL house,
+--                                         walked over, and the hold refused him once it had become
+--                                         his enemy's. He is left standing outside, alive.
+--   PASS + note "REFUSED AT TARGETING"  — he was never offered the order at all. Also safe, but it
+--                                         would mean the neutral window has been closed too, which
+--                                         is a mechanic change and not this fix.
+--   FAIL "CO-GARRISON REACHED"          — he boarded a building owned by his enemy. This is what the
+--                                         scenario measured on 2026-09-15 before the fix, and it is
+--                                         now the regression signal.
 --   FAIL "THE ENTRY GATE IS NOT HOLDING AT ALL" — the control probe was admitted into a building
 --                                          already owned by his enemy, which is a bigger finding
 --                                          than the race and would make the race reading moot.
 --   SKIP                                — the scenario never built the world it describes.
 
 local SetupWithin = 25      -- s for the adjacent man to walk one cell and claim the house
-local RaceWithin = 30       -- s for the far man to finish his walk and resolve one way or the other
+local RaceWithin = 45       -- s for the far man to finish his walk and resolve one way or the other
 local EvacWithin = 20       -- s for an unload to put men back on the ground
 
 local function OwnerOf(actor)
@@ -80,8 +86,19 @@ end
 -- happens when a man boards, while UsMan still read loaded=false. A guaranteed false negative.
 --
 -- Test.IsLoadedInto reads Cargo's own passenger list and is true regardless of either flag.
+--
+-- THE PORT CASE HAS TO BE IN HERE TOO, and it is not hypothetical on this map. DeployToPort calls
+-- cargo.Unload(self, soldier) before adding him to the world (GarrisonManager.cs), so a man at a
+-- firing port is NOT a Cargo passenger and IsLoadedInto alone would call him "not inside". He is
+-- also in-world, so IsOutInTheOpen would then call him "out" — turning a man standing at a loophole
+-- into a false "MEN RELEASABLE" pass, which would close audit item #5 on evidence that never
+-- existed. RuProbe sits 9.2 cells from the house and e1 carries 5.56mm.DMR at Range: 11c0
+-- (weapons-ballistics.yaml:152), so the garrison really can acquire him and man a port.
+--
+-- "Inside" here therefore means inside in ANY capacity, which is also what the question is about:
+-- whether a hostile occupant can be got out, not which room he is standing in.
 local function IsLoaded(soldier)
-	return Test.IsLoadedInto(soldier, House)
+	return Test.IsLoadedInto(soldier, House) or Test.IsAtGarrisonPort(soldier, House)
 end
 
 -- IsInWorld is sound in THIS direction: a man in a hold is out of world, so in-world-and-not-loaded
@@ -90,11 +107,22 @@ local function IsOutInTheOpen(soldier)
 	return soldier.IsInWorld and not IsLoaded(soldier)
 end
 
+-- THE THIRD STATE, which the first two runs fell into and could not name. Out of world and in
+-- nobody's hold is the ONE combination in which IsDead means what it says: a passenger reads
+-- IsDead == false (DOCS/recipes/AUTOTEST.md:352 measured it), so with the hold and the ports both
+-- excluded there is nothing left for him to be but gone. Both runs reported RuMan here while the
+-- verdict text guessed "presumably still walking" -- which is why this is a state with a name now
+-- rather than a timeout.
+local function IsGone(soldier)
+	return not soldier.IsInWorld and not IsLoaded(soldier)
+end
+
 local function State()
 	return "House owner " .. OwnerOf(House) ..
 		"; UsMan loaded=" .. tostring(IsLoaded(UsMan)) ..
 		"; RuMan loaded=" .. tostring(IsLoaded(RuMan)) ..
 		" inWorld=" .. tostring(RuMan.IsInWorld) ..
+		" gone=" .. tostring(IsGone(RuMan)) ..
 		"; RuProbe inWorld=" .. tostring(RuProbe.IsInWorld)
 end
 
@@ -174,8 +202,39 @@ local function DidTheRaceComplete()
 	-- every unit on the map is HoldFire (rules.yaml) -- so loaded-or-still-walking are the only two
 	-- states, and the timeout arm below distinguishes them.
 	WaitUntil(RaceWithin,
-		function() return IsLoaded(RuMan) end,
+		function() return IsLoaded(RuMan) or IsGone(RuMan) end,
 		function()
+			if IsLoaded(RuMan) then
+				Test.Fail("CO-GARRISON REACHED. FILTER STATE AT THE END: " ..
+					Test.CargoLoadFilterReport(House, RuMan) .. " -- if filters=0 the trait is not " ..
+					"registered as an ICargoCanLoadFilter on this actor; if it answers True the " ..
+					"relationship it saw is in the line above. A Russian soldier boarded a building " ..
+					"owned by USA, so " ..
+					"the boarding re-check did not refuse him. The relationship gate runs once, at " ..
+					"targeting, and is asked of a NEUTRAL house (EnterAlliedActorTargeter.cs:49-54) — " ..
+					"the second look belongs at load time, in GarrisonManager's ICargoCanLoadFilter, " ..
+					"which Cargo.CanLoad consults (:527-530) and RideTransport.OnEnterComplete honours " ..
+					"by leaving the man outside (:81-82). Check that GarrisonManager still implements " ..
+					"that interface and that GarrisonBoardingMath.MayBoard still refuses Enemy. " ..
+					"Measured before the fix in run 260915_184131: the sim would then hand him back " ..
+					"only if the OWNER chose to unload, which is a hostile capture-by-squatting. " ..
+					State())
+				return
+			end
+
+			if IsGone(RuMan) then
+				Test.Skip("RuMan left the world without ever reaching the hold or a port, which leaves " ..
+					"only one reading: he was KILLED on the way in. Passengers read IsDead == false " ..
+					"(DOCS/recipes/AUTOTEST.md:352), so the hold and the ports being excluded excludes " ..
+					"everything else. The killer is the garrison itself — GarrisonManager takes the " ..
+					"deploy decision from the BUILDING's stance (GarrisonManager.cs:672, :796) and v09 " ..
+					"has no AutoTarget, so it is permanently FireAtWill whatever the riflemen are set " ..
+					"to. rules.yaml raises TargetConfirmTicks to stop any port being manned; if this " ..
+					"fires anyway, that override is not reaching V09 — check the actor name's CASE, " ..
+					"which merges case-sensitively. " .. State())
+				return
+			end
+
 			CanTheHostileOccupantBeReleased()
 		end,
 		function()
@@ -192,15 +251,31 @@ local function DidTheRaceComplete()
 				return
 			end
 
-			Test.Skip("RuMan neither loaded nor ended up standing outside within " .. RaceWithin ..
-				"s — he is presumably still walking, or stuck. The race was never resolved either " ..
-				"way. Raise RaceWithin, or check that he can path to the house. " .. State())
+			if IsOutInTheOpen(RuMan) then
+				Test.Pass("REFUSED AT LOAD. The hostile second player was legally OFFERED the order " ..
+					"against the neutral house — that window is the mechanic and is deliberately " ..
+					"untouched — walked over, and was refused at the moment of boarding once the house " ..
+					"had become his enemy's. He is alive and standing outside after " .. RaceWithin ..
+					"s, which is exactly the shape the 2026-09-15 ruling asked for: closed at the sim, " ..
+					"not at the UI, with no man deleted and no order silently swallowed. " .. State())
+				return
+			end
+
+			Test.Skip("RuMan is neither loaded, gone, nor standing outside after " .. RaceWithin ..
+				"s, which should not be reachable — the three states are exhaustive. Read the state " ..
+				"below before trusting any of them. " .. State())
 		end)
 end
 
 -- PHASE 2 — the control. An enemy-owned building must be refused outright, which is what makes the
 -- race specifically about the NEUTRAL window rather than about the gate being broken generally.
 local function ProbeTheGateAfterTheFlip()
+	-- The house is USA by now and RuMan is still walking, so this is the exact question the boarding
+	-- re-check exists to answer, asked BEFORE he arrives: is GarrisonManager's ICargoCanLoadFilter
+	-- registered on this actor at all, and what does it say about him? Round 3 refused nothing while
+	-- every static check said it should, so the next run names the reason instead of the symptom.
+	print("BOARDING-FILTER (RuMan still en route) | " .. Test.CargoLoadFilterReport(House, RuMan))
+
 	local issued = Test.ClickOrder(RuProbe, House)
 
 	if issued == "EnterTransport" then

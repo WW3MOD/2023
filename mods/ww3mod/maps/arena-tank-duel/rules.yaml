@@ -13,6 +13,40 @@ World:
 		DisableWorldSounds: true
 	LuaScript:
 		Scripts: arena.lua
+	# ---- THE DEFCON 3 BORDER ON ARENA: TANK DUEL -- THE MIDLINE, ON A MAP WITH NOTHING TO FOLLOW ----
+	#
+	# Positioning-phase only. DefconWall writes Map.CustomTerrain when the level reaches 3 and
+	# restores it cell by cell when the level leaves ActiveLevels, so nothing here survives DEFCON 2
+	# and no terrain is edited. Authoring either region field switches this map off the derived
+	# bisector entirely -- neither Start/End nor DeriveFromSpawns is consulted
+	# (DefconWallInfo.RegionTerrainTypes).
+	#
+	# THERE IS NO FEATURE ON THIS MAP AT ALL. Every one of its 2244 cells is Clear -- no water, no cliffs,
+	# no rock, not one tile of road -- so there is nothing for a border to follow and RegionTerrainTypes
+	# would name nothing. The cells below are the vertical midline at x31-33, three cells thick, running
+	# the full height of Bounds. The spawns are (6,16) and (58,16), so this is also exactly where the
+	# perpendicular bisector of the two sides already falls: this region reproduces the derived line
+	# rather than replacing it.
+	#
+	# AND IT IS PROBABLY INERT, WHICH IS WHY THAT IS WRITTEN DOWN HERE RATHER THAN LEFT OUT. This map is
+	# `Visibility: Shellmap` and NOT `Lobby` -- 6b162ca2 took it and shellmap-open-field out of the lobby
+	# list because both strip -SpawnStartingUnits and -ConquestVictoryConditions, so a player who picked
+	# either got a map with no Supply Route and no way to win. Every lobby map chooser filters on
+	# MapVisibility.Lobby, so nobody can select this map and set the DEFCON game mode; the mode therefore
+	# stays at its ModeDefault of Skirmish, DefconEscalationState pins the level at NoLevel, and
+	# DefconWall.Apply never raises a wall. The same argument retires shellmap-open-field entirely and
+	# that map is deliberately left unauthored. This one is authored anyway because it costs three lines
+	# and is correct the day the map goes back in the lobby.
+	#
+	# Verified statically, no launch: 96 band cells, all inside Bounds, engine load gate 2 components of
+	# 960 and 992, spawns separated and both exactly 25 cells from the band. This map has no capturable
+	# structures -- the six Capturable actors on it are the duelling tanks themselves.
+	DefconWall:
+		# THE 96 HAND-AUTHORED CELLS NOW LIVE IN map.yaml, as `Zones: DMZ` -- painted in
+		# the editor's Zones tool rather than pasted in here, because the editor cannot write
+		# rules.yaml. DefconWall reads that zone and UNIONS it with any RegionTerrainTypes above
+		# (DefconWall.BuildRegion); everything this file says about which cells they are and why
+		# still describes them exactly.
 
 ^Combatant:
 	AutoTarget:

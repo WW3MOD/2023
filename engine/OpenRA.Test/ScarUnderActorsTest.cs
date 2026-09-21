@@ -65,7 +65,9 @@ namespace OpenRA.Test
 		/// </summary>
 		static readonly (string File, int Expected)[] ScarWarheadCounts =
 		{
-			("weapons-nuclear-arsenal.yaml", 51),
+			// 56 SINCE 2026-09-20, up from 51: NukeW88 carries the standard five smudge bands
+			// (Core / Crater / Char / Burn / Rim) like every other weapon in the file.
+			("weapons-nuclear-arsenal.yaml", 56),
 			("weapons-superweapons.yaml", 10),
 		};
 

@@ -1,0 +1,21 @@
+# Battlefield News, served to the main menu over raw.githubusercontent.com.
+#
+# Format is fixed by MainMenuLogic.ParseNews (engine/OpenRA.Mods.Common/Widgets/Logic/MainMenuLogic.cs):
+#   - one top-level node per item, separated by a blank line
+#   - the node KEY is the timestamp, parsed by FieldLoader as "yyyy-MM-dd HH-mm-ss" and
+#     ASSUMED UTC (dashes in the time, not colons -- a colon would end the MiniYaml key)
+#   - Title, Author and Content are all required; a missing one throws and the panel shows
+#     "Failed to parse news", keeping whatever was last cached
+#   - \n inside Content becomes a line break; a literal # must be written \#
+#
+# Newest first: the panel renders in file order.
+
+2026-09-08 16-55-41:
+	Title: WW3MOD v0.1.2 is out
+	Author: WW3MOD Team
+	Content: The Multiplayer Create button now works on packaged installs -- on v0.1.1 and earlier it was disabled on every real install, so hosting a game was impossible outside a source build.\n\nUpdate from the releases page to host or join.
+
+2026-09-08 16-00-00:
+	Title: Where to get builds
+	Author: WW3MOD Team
+	Content: Every tagged build lives at https://github.com/WW3MOD/2023/releases -- Windows, Linux and macOS packages, with the changelog for each tag.\n\nWhen a newer tag than the one you are running is published, the main menu shows an update notice with a button that opens that page.

@@ -27,12 +27,25 @@
 # to check that scenario Lua only names real engine bindings (no build required), run:
 #   make lua-gate
 #
+# to check that every non-optional mod.yaml mount resolves inside a PACKAGED build
+# (no build required; add --zip/--tree to check a real artifact), run:
+#   make mount-gate
+# to check that every terrain type in use accepts a scar (no build required), run:
+#   make smudge-gate
+#
+# to check that no world trait reads .WorldActor while it is being constructed
+# (no build required; also runs as part of `make check`), run:
+#   make worldactor-gate
+#
+# to LAUNCH the game on each shipped map and prove a World still constructs, run:
+#   make smoke            # needs a built tree; exit 2 = a map broke, exit 3 = it never ran
+#
 # the following are internal sdk helpers that are not intended to be run directly:
 #   make check-variables
 #   make check-sdk-scripts
 #   make check-packaging-scripts
 
-.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard lua-gate
+.PHONY: check-sdk-scripts check-packaging-scripts check-variables check-dotnet-sdk engine all clean version check-scripts check test nav-guard lua-gate mount-gate smudge-gate worldactor-gate smoke
 .DEFAULT_GOAL := all
 
 PYTHON = $(shell command -v python3 2> /dev/null)
@@ -206,7 +219,11 @@ ifneq ("$(LUA_FILES)","")
 	@luac -p $(LUA_FILES)
 endif
 
-check: engine
+# worldactor-gate leads the prerequisite list so it runs BEFORE the Debug rebuild: it costs
+# seconds against a build that costs minutes, and it answers something the build cannot --
+# a world trait reading .WorldActor during construction compiles perfectly and throws at
+# runtime. (Non-parallel make honours prerequisite order; under -j treat it as unordered.)
+check: worldactor-gate engine
 ifneq ("$(MOD_SOLUTION_FILES)","")
 	@echo "Compiling in Debug mode..."
 # Enabling EnforceCodeStyleInBuild and GenerateDocumentationFile as a workaround for some code style rules (in particular IDE0005) being bugged and not reporting warnings/errors otherwise.
@@ -249,6 +266,43 @@ lua-gate:
 	@$(PYTHON) tools/lua-gate/lua_gate.py selftest
 	@$(PYTHON) tools/lua-gate/lua_gate.py check || [ $$? -eq 1 ]
 
-test: all nav-guard lua-gate
+# Static check that every non-optional mount in mod.yaml resolves inside a PACKAGED
+# output. v0.1.0 shipped a MapFolders entry pointing at tools/, which no installer ships,
+# and nothing caught it because every other gate resolves paths against the git checkout
+# -- where tools/ exists. With no --tree/--zip this models the packaged root from the
+# packaging scripts, so it needs no build; point it at a real artifact to settle an
+# argument. See tools/mount-gate/README.md.
+mount-gate:
+	@echo "Checking packaged mounts (mount-gate)..."
+	@$(PYTHON) tools/mount-gate/mount_gate.py selftest
+	@$(PYTHON) tools/mount-gate/mount_gate.py check
+
+# Static smudge-coverage guard. AcceptsSmudgeType is an opt-in allowlist defaulting to EMPTY,
+# so a terrain type that never names a smudge type rejects it with no error and nothing in any
+# log. make.ps1's Test-Command has run this since it was written; this side had neither the
+# target nor the dependency, so on Linux the gate did not exist at all.
+smudge-gate:
+	@echo "Checking smudge coverage (smudge-gate)..."
+	@$(PYTHON) tools/smudge-gate/smudge_gate.py selftest
+	@$(PYTHON) tools/smudge-gate/smudge_gate.py check
+
+# Static world-trait guard. A [TraitLocation(SystemActors.World)] trait must not dereference
+# .WorldActor in its constructor, in INotifyCreated.Created, or in its Info's Create():
+# World.cs:252 is `WorldActor = CreateActor(...)`, so the field is still null while its own
+# traits are built. A prerequisite of `check` rather than `test` -- it is a C# lint, and
+# `check` is the gate CLAUDE.md already makes mandatory before committing C#.
+worldactor-gate:
+	@echo "Checking world traits for construction-time WorldActor reads (worldactor-gate)..."
+	@$(PYTHON) tools/worldactor-gate/worldactor_gate.py selftest
+	@$(PYTHON) tools/worldactor-gate/worldactor_gate.py check
+
+# World-construction smoke gate -- THE ONLY TARGET HERE THAT STARTS THE GAME. Deliberately
+# not a prerequisite of anything: it needs an already-built tree and it takes minutes, so the
+# merge gate runs it explicitly. Exit 2 = a map started and never reached a verdict (the bug
+# class); exit 3 = LAUNCH FAILURE, meaning nothing ran and nothing was proven.
+smoke:
+	@./tools/autotest/run-smoke.sh
+
+test: all nav-guard lua-gate smudge-gate mount-gate
 	@echo "Testing $(MOD_ID) mod MiniYAML..."
 	@./utility.sh --check-yaml

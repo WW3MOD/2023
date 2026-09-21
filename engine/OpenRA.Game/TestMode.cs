@@ -71,6 +71,31 @@ namespace OpenRA
 		// slot is scarce enough that capturing one tooltip per run is not viable.
 		public static string HoverProductionIcon { get; set; }
 
+		// Map directory name / title / UID to open in the MAP EDITOR once the menu
+		// loads, so a screenshot driver can photograph editor UI without a human at
+		// the mouse. The sibling of OpenSkirmishLobby, and resolved by the same
+		// MainMenuLogic.ResolveLobbyMapId. Set via Test.OpenEditorMap=<map-id>.
+		public static string OpenEditorMap { get; private set; }
+
+		// Which entry of the editor's Tools dropdown to select once the editor chrome
+		// is up, e.g. "Zones". A DROPDOWN'S ITEMS DO NOT EXIST UNTIL IT IS OPENED --
+		// ScrollItemWidget.Setup runs inside ShowDropDown -- so the cmd file's `click`
+		// verb, which matches a VISIBLE widget by id, cannot reach them. MapToolsLogic
+		// therefore selects the tool from this setting directly, and the tool's own
+		// panel logic selects its first item. Set via Test.EditorTool=Zones.
+		public static string EditorTool { get; private set; }
+
+		// One pending editor zone stroke, as "paint <x>,<y>[,<size>]" or
+		// "erase <x>,<y>[,<size>]". EditorZoneBrush.Tick consumes it and replays it
+		// through its OWN PaintZoneEditorAction, so a scripted stroke is the same
+		// undoable operation a dragged one is and moves the same revision counter the
+		// split readout watches.
+		//
+		// Settable for the same reason HoverProductionIcon is: the "zone-paint" /
+		// "zone-erase" cmd-file verbs rewrite it mid-session, so one launch can
+		// photograph a band both intact and cut.
+		public static string ZoneStroke { get; set; }
+
 		// Path to a marker file LobbyLogic touches once MapIsPlayable. External
 		// drivers (tools/autotest/screenshot-lobby.sh) poll this to know when
 		// it's safe to fire a "screenshot" command — without this signal they
@@ -120,6 +145,35 @@ namespace OpenRA
 		// FASTER and MORE RELIABLE than Test.GameSpeed=fastest, which is capped
 		// at 2× and applied via a lobby setup order that races state-Ready.
 		public static int SpeedMultiplier { get; private set; } = 1;
+
+		// World-construction smoke gate. When > 0, SmokeTestExit writes a PASS verdict and exits
+		// once the world has loaded and this many sim ticks have run. Set via Test.SmokeTicks=<N>.
+		//
+		// It exists because a shipped map under mods/ww3mod/maps/ carries no Lua and therefore
+		// can never reach Test.Pass, so there was no way to run one to a verdict -- and running
+		// one to a verdict is the entire content of the question "does a World still construct?".
+		// DefconWall threw in INotifyCreated.Created on 2026-09-10 and broke every match while
+		// six gates stayed green, because not one of them constructs a World.
+		//
+		// 0 (the default, and the value when the arg is absent) leaves SmokeTestExit inert: no
+		// tick cost beyond one bool test, no file write, no exit. See
+		// engine/OpenRA.Mods.Common/Traits/World/SmokeTestExit.cs.
+		public static int SmokeTicks { get; private set; }
+
+		// PERF-RIG ARM SELECTOR. When true, MissileStrikePower flies a power's
+		// EscalationMissileActor -- the exchange variant of its warhead -- for EVERY launch,
+		// instead of only for a launch the final-exchange cascade has slotted. Set via
+		// Test.ForceEscalationVariant=true.
+		//
+		// It exists so tools/autotest/scenarios/demo-nuke-perf can measure the two payloads
+		// against ONE pinned schedule. The production selector needs a running exchange, and a
+		// running exchange reschedules every impact onto the cascade -- which would move the very
+		// impact ticks the rig's `salvo` and `exchange` arms have to share for their per-tick
+		// distributions to be comparable. So the rig forces the ACTOR CHOICE and nothing else;
+		// DoomsdayStrike.IsExchangeLaunch is untouched and still answers for the cascade.
+		//
+		// Inert outside test mode: Initialize returns before this is read unless Test.Mode=true.
+		public static bool ForceEscalationVariant { get; private set; }
 
 		// Arms sync reporting even with a single human client, and makes the GameSaved
 		// acknowledgement dump the recording side's sync state. Diagnostic scaffolding for
@@ -198,6 +252,13 @@ namespace OpenRA
 			if (!string.IsNullOrEmpty(multArg) && int.TryParse(multArg, out var mult) && mult >= 1 && mult <= 16)
 				SpeedMultiplier = mult;
 
+			// Clamped, not merely parsed. A negative or absurd value would either disarm the gate
+			// silently or hold the process open past the harness watchdog, and both of those read
+			// to the caller as "the world failed to construct" when nothing of the sort happened.
+			var smokeArg = args.GetValue("Test.SmokeTicks", null);
+			if (!string.IsNullOrEmpty(smokeArg) && int.TryParse(smokeArg, out var smoke) && smoke > 0)
+				SmokeTicks = Math.Min(smoke, 10000);
+
 			ScreenshotDir = args.GetValue("Test.ScreenshotDir", null);
 			ScreenshotCmdFile = args.GetValue("Test.ScreenshotCmdFile", null);
 			OpenSkirmishLobby = string.Equals(args.GetValue("Test.OpenSkirmishLobby", ""), "true", StringComparison.OrdinalIgnoreCase);
@@ -208,7 +269,10 @@ namespace OpenRA
 			SetLobbyOptions = args.GetValue("Test.SetLobbyOptions", null);
 			OpenIngameInfoPanel = args.GetValue("Test.OpenIngameInfoPanel", null);
 			HoverProductionIcon = args.GetValue("Test.HoverProductionIcon", null);
+			OpenEditorMap = args.GetValue("Test.OpenEditorMap", null);
+			EditorTool = args.GetValue("Test.EditorTool", null);
 			ForceSyncReports = string.Equals(args.GetValue("Test.ForceSyncReports", ""), "true", StringComparison.OrdinalIgnoreCase);
+			ForceEscalationVariant = string.Equals(args.GetValue("Test.ForceEscalationVariant", ""), "true", StringComparison.OrdinalIgnoreCase);
 
 			// UnitLifecycleLogger gate. "true"/"1" derives a sibling of the verdict
 			// file; anything else is an explicit output path. Left null (inert) when
@@ -262,6 +326,8 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] random seed override: {RandomSeedOverride.Value}");
 			if (SpeedMultiplier > 1)
 				Log.Write("debug", $"[TestMode] speed multiplier: {SpeedMultiplier}x");
+			if (SmokeTicks > 0)
+				Log.Write("debug", $"[TestMode] smoke gate: pass after {SmokeTicks} ticks");
 			if (!string.IsNullOrEmpty(UnitLifecycleLogPath))
 				Log.Write("debug", $"[TestMode] unit lifecycle log: {UnitLifecycleLogPath}");
 			if (!string.IsNullOrEmpty(MissileTraceLogPath))

@@ -22,6 +22,26 @@ Players:
 		OwnsWorld: True
 		NonCombatant: True
 		Faction: america
+	# ==== EXACTLY ONE `Playable: True` SEAT, AND RUSSIA IS NOT IT (fixed 2026-09-20) ====
+	# This block declared BOTH sides playable, and run 260920_154610 is what that costs:
+	# CreateMapPlayers builds a Player per non-playable map player and then one per LOBBY SLOT,
+	# skipping any slot with no client (CreateMapPlayers.cs:110-112). run-test.sh launches a
+	# single local client, so it seats ONE. Russia therefore had no Player object at all --
+	# Test.FinalExchangePackage(Russia) read `absent`, DoomsdayStrike enumerated one side, and the
+	# demo flew USA's two warheads and nothing else. Frames 03 to 05 promise the auto-fire split,
+	# Russia's package inbound and four craters; none of them could ever have shown it.
+	#
+	# A BARE MAP COMBATANT AND NOT A `Bot:` SEAT, deliberately. A bot slot would also be filled and
+	# would also give Russia a Player -- and NuclearBotModule places on the first tick of the
+	# window, which would destroy the one thing this demo exists to show. Russia must sit there and
+	# decline to aim.
+	#
+	# HomeLocation IS NOW PINNED ON BOTH, and that half is load-bearing too: rules.yaml strips
+	# MapStartingLocations, so Player.HomeLocation falls back to the PlayerReference value, and the
+	# field default is CPos.Zero. With neither pinned, DefconWall.DeriveFromSpawns would bisect two
+	# players standing on cell (0,0) and DoomsdayStrike.AnchorOf would find no anchor either --
+	# there is no `supplyroute` on this map for it to fall back to. The two values are the mpspawn
+	# cells below, which is where the sides actually are.
 	PlayerReference@USA:
 		Name: USA
 		Playable: True
@@ -30,14 +50,15 @@ Players:
 		Faction: america
 		Color: 4488FF
 		Enemies: Russia
+		HomeLocation: 26,18
 	PlayerReference@Russia:
 		Name: Russia
-		Playable: True
 		LockFaction: True
 		LockColor: True
 		Faction: russia
 		Color: FF4444
 		Enemies: USA
+		HomeLocation: 56,13
 
 Actors:
 	# ---- CITY WEST. Six civilian buildings inside the 8-cell link distance of each other, so the

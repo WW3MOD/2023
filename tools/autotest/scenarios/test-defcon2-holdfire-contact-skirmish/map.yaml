@@ -1,0 +1,92 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: DEFCON 2 hold-fire CONTROL -- Skirmish, contact at weapon range (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. At DEFCON 2 ("weapons free") either side may attack anything, but nothing fires
+# AUTONOMOUSLY: every shot has to be one somebody ordered. The predicate is
+# DefconFireDiscipline.Permits(level, source, forceAttack) and it is a function of PROVENANCE only.
+# Only the predicate has NUnit coverage; the six sites that consult it live in per-actor trait methods
+# and nothing in OpenRA.Test can construct a World, so they ship verified by reading. This scenario
+# covers three of the six with two units and one order:
+#
+#   READ SITE 1  AutoTarget.ChooseTarget          idle acquisition -- neither tank picks a target
+#   READ SITE 2  AutoTarget.INotifyDamage.Damaged return fire -- the tank that is SHOT does not shoot back
+#   READ SITE 4  AttackFollow persistent-opportunity fire
+#
+# GEOMETRY. Ten cells apart on a flat row, which is inside BOTH weapon envelopes and outside both
+# minimum ranges: TankRound.Abrams is Range 25c0 / MinRange 1c512 and TankRound.T90 is 24c0 / 1c512.
+# Fog is off and the map pre-explored, so "in range and visible" is structural rather than a thing the
+# run has to establish. Both tanks are put on FireAtWill in rules.yaml -- the DEFCON flag is meant to
+# be the only thing holding them, so the stance must not be.
+#
+#   Probe     22,16   USA abrams.  FireAtWill. Given exactly one order, at the end of the hold window.
+#   Contact   32,16   Russia t90.  FireAtWill. Given NO order at any point.
+#
+# The Supply Routes sit in opposite corners, far from both tanks: one per faction because the mod's
+# model is that every player has one and because faction elimination would otherwise end the match
+# before the poller writes a verdict. `supplyroute` carries Targetable.TargetTypes: NoAutoTarget, so
+# it is invisible to any autotarget scan and cannot be what either tank engages.
+#
+# THE DISCRIMINATING PAIR. This is the CONTROL arm of test-defcon2-holdfire-contact, with ONE quantity
+# changed -- DefconEscalation.ModeDefault, Escalation -> Skirmish -- and it is REQUIRED to fail. See
+# that scenario's README.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Probe: abrams
+		Owner: USA
+		Location: 22,16
+		Facing: 768
+	Contact: t90
+		Owner: Russia
+		Location: 32,16
+		Facing: 256
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,4
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 22,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 32,16
+
+Rules: rules.yaml
