@@ -43,13 +43,105 @@ GRID = [
 #   'cross' -> N/E/S/W (GTWR's four ports)
 #   'ew'    -> E/W (PBOX and HBOX have exactly two ports, front/back)
 GARRISON = {
-    'gtwr':     dict(men=6,  dirs='cross'),
-    'pbox':     dict(men=4,  dirs='ew'),
-    'hbox':     dict(men=4,  dirs='ew'),
-    'v01':      dict(men=10, dirs='ring'),
-    'v19':      dict(men=10, dirs='ring'),
-    'rushouse': dict(men=10, dirs='ring'),
+    'gtwr':     dict(dirs='cross'),
+    'pbox':     dict(dirs='ew'),
+    'hbox':     dict(dirs='ew'),
+    'v01':      dict(dirs='ring'),
+    'v19':      dict(dirs='ring'),
+    'rushouse': dict(dirs='ring'),
 }
+
+# HOW MANY MEN IS NOT WRITTEN HERE, AND THAT IS THE POINT.
+#
+# It used to be: `men=10` on three of the six, back when every civilian inherited
+# `MaxWeight: 10` from ^CivBuilding and the .lua header could truthfully say "squad size
+# equalled MaxWeight in all six cases". The per-building capacity table
+# (f9a4c583) split that one template scalar into 37 per-actor values and neither the
+# literal nor the sentence moved -- so V19 fell to 2 and the demo died on the third
+# LoadPassenger with a fatal Lua error (run 260921_150809), while RUSHOUSE rose to 12 and
+# the demo quietly filled ten twelfths of it under a header still claiming otherwise.
+# A literal that must equal a number in another file is a literal that will stop equalling
+# it, silently, on a commit that never mentions this directory.
+#
+# So the count is RESOLVED FROM THE RULES at generation time, and the .lua re-checks the
+# placed squad against Test.CargoCapacity at RUN time. Two independent reads of the same
+# YAML figure: the generator's is static and can be wrong about inheritance, the engine's
+# cannot, and a capture whose census line shows them disagreeing is a capture that says so
+# on its face rather than one that is merely wrong.
+
+RULES_DIR = 'mods/ww3mod/rules'
+
+
+def _rule_blocks():
+    """Every top-level actor/template block in the mod's rules, as {key: [lines]}.
+
+    Deliberately NOT a MiniYaml parser -- it only has to find one child of one child, and a
+    parser that understands `Inherits@` ordering and removals would be a second, worse copy
+    of the engine's. Case is preserved: MiniYaml merges top-level keys case-SENSITIVELY
+    (see CLAUDE.md), so `v19:` and `V19:` would be different blocks here exactly as they are
+    to the engine."""
+    blocks = {}
+    for root, _, files in os.walk(RULES_DIR):
+        for fn in sorted(files):
+            if not fn.endswith('.yaml'):
+                continue
+            key = None
+            for line in open(os.path.join(root, fn)):
+                if line.strip() and not line[0].isspace() and not line.startswith('#'):
+                    key = line.split(':', 1)[0].strip()
+                    blocks.setdefault(key, [])
+                elif key is not None:
+                    blocks[key].append(line.rstrip('\n'))
+    return blocks
+
+
+def _child(lines, parent, child):
+    """Value of `child` under top-level-child `parent`, or None."""
+    depth = None
+    for line in lines:
+        if not line.strip() or line.strip().startswith('#'):
+            continue
+        indent = len(line) - len(line.lstrip('\t'))
+        if depth is None:
+            if indent == 1 and line.strip().split(':', 1)[0] == parent:
+                depth = indent
+            continue
+        if indent <= depth:
+            depth = None
+            if indent == 1 and line.strip().split(':', 1)[0] == parent:
+                depth = indent
+            continue
+        k, _, v = line.strip().partition(':')
+        if k == child:
+            return v.strip()
+    return None
+
+
+def max_weight(actor, blocks, seen=None):
+    """Resolved `Cargo: MaxWeight` for `actor`, following Inherits when it does not declare
+    one itself. Raises rather than defaulting: a garrisoned building whose capacity cannot be
+    found is a generator that would otherwise emit a confidently wrong squad."""
+    seen = seen or set()
+    for key in (actor, actor.upper(), actor.capitalize()):
+        if key in blocks and key not in seen:
+            seen.add(key)
+            lines = blocks[key]
+            got = _child(lines, 'Cargo', 'MaxWeight')
+            if got is not None:
+                return int(got)
+            for line in lines:
+                k, _, v = line.strip().partition(':')
+                if k == 'Inherits' or k.startswith('Inherits@'):
+                    try:
+                        return max_weight(v.strip(), blocks, seen)
+                    except LookupError:
+                        continue
+    raise LookupError(f'no Cargo.MaxWeight resolvable for {actor!r}')
+
+
+BLOCKS = _rule_blocks()
+for _t, _g in GARRISON.items():
+    _g['men'] = max_weight(_t, BLOCKS)
 
 def gname(t):
     return 'B_' + t.replace('.', '').upper()
@@ -88,9 +180,15 @@ for r, row in enumerate(GRID):
         squad = []
         # Riflemen wait two cells west of the grid column, five per file, clear of
         # every target cell (targets sit at x-3 = 4 or further out).
+        # SIX per file, not five. RUSHOUSE resolves to 12 and a third file would land on
+        # x = 4, which is exactly where the `lo_x = x - 3` target marker for a column-0
+        # building sits -- the collision check at the bottom of this file catches it, but
+        # six-per-file means two files hold the widest squad in the mod and the riflemen
+        # stay clear of the ring without moving the ring. Vertical span is y-2..y+3, and the
+        # row step is 8, so no squad can reach the next row down.
         for i in range(g['men']):
-            sx = 2 + (i // 5)
-            sy = y - 2 + (i % 5)
+            sx = 2 + (i // 6)
+            sy = y - 2 + (i % 6)
             nm = f'S{r + 1}_{i + 1}'
             actors.append((nm, 'e1', 'USA', sx, sy))
             squad.append(nm)
@@ -182,6 +280,8 @@ with open('/tmp/lineup-grid.lua', 'w') as f:
     f.write(''.join(lua))
 
 print(f'actors written: {len(actors)}  (buildings {len(placed)})')
+print('squad sizes resolved from rules:',
+      '  '.join(f"{t.upper()}={g['men']}" for t, g in GARRISON.items()))
 print('cols', COLS, 'rows', ROWS)
 # cell-collision check
 seen = {}

@@ -853,6 +853,24 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return cargo != null && cargo.Passengers.Contains(passenger);
 		}
 
+		[Desc("How much cargo weight `actor` can hold in total -- Cargo.Info.MaxWeight, the RULES " +
+			"figure, not the space left right now. Exists because a scenario that wants to fill a " +
+			"transport has otherwise no way to ask how big it is, and the alternative is a literal " +
+			"copied out of the YAML: demo-garrison-lineup carried six such literals and two of them " +
+			"were wrong the day the per-building capacity table landed (V19 fell 10 -> 2 and the demo " +
+			"died on the third LoadPassenger; RUSHOUSE rose 10 -> 12 and the demo quietly under-filled " +
+			"it while its header claimed squad size equalled MaxWeight). Returns 0 for an actor with " +
+			"no Cargo, which is distinguishable from every real capacity in the mod. Test mode only.")]
+		public int CargoCapacity(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return 0;
+
+			var cargo = actor.Info.TraitInfoOrDefault<CargoInfo>();
+
+			return cargo?.MaxWeight ?? 0;
+		}
+
 		[Desc("Why `transport` will or will not accept `passenger` into its Cargo hold, filter by " +
 			"filter. Cargo.CanLoad consults every ICargoCanLoadFilter on the transport before it even " +
 			"looks at space, and RideTransport.OnEnterComplete honours the answer by leaving the man " +

@@ -86,7 +86,19 @@ the file being edited.
 **THE CRASH IS THE GOOD NEWS.** `TransportProperties.LoadPassenger` throws rather than returning
 silently, and deliberately (`:42-56`, added with the `CanLoad` guard so a Lua script cannot seat a
 passenger the sim would refuse). Without it the demo would have loaded 2 of 10 men into the pump and
-photographed a lineup quietly wrong in three of its six squads.
+photographed a lineup quietly wrong in three of its six squads — which is what it was ALREADY doing
+at the other end of the table: `RUSHOUSE` rose 10 -> **12**, no throw, no symptom, ten twelfths of a
+building filled under a header asserting the opposite. **The crash found one of the two; only
+computing the comparison finds both.**
+
+**FIXED 2026-09-21 by deleting the literal rather than correcting it.** `generate.py` now resolves
+`Cargo.MaxWeight` out of `mods/ww3mod/rules` (following `Inherits` when an actor declares none, and
+raising rather than defaulting) and places exactly that many riflemen; the demo's new `FitLine()`
+re-reads the same figure off the LIVE actor through a new `Test.CargoCapacity` binding and prints
+`fit ok:` or `FIT MISMATCH xN` into the overview and completion frames. Two independent reads of one
+YAML number, disagreeing visibly in the capture instead of inferably from a stack trace — the
+generator's static read is the one that can be wrong about inheritance, and the engine's is the one
+that decides.
 
 
 ## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535)

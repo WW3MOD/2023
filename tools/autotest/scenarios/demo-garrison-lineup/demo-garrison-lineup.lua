@@ -113,8 +113,8 @@ local Squads = {
 	{ building = B_PBOX, name = "PBOX", men = { S2_1, S2_2, S2_3, S2_4 } },
 	{ building = B_HBOX, name = "HBOX", men = { S3_1, S3_2, S3_3, S3_4 } },
 	{ building = B_V01, name = "V01", men = { S4_1, S4_2, S4_3, S4_4, S4_5, S4_6, S4_7, S4_8, S4_9, S4_10 } },
-	{ building = B_V19, name = "V19", men = { S5_1, S5_2, S5_3, S5_4, S5_5, S5_6, S5_7, S5_8, S5_9, S5_10 } },
-	{ building = B_RUSHOUSE, name = "RUSHOUSE", men = { S6_1, S6_2, S6_3, S6_4, S6_5, S6_6, S6_7, S6_8, S6_9, S6_10 } },
+	{ building = B_V19, name = "V19", men = { S5_1, S5_2 } },
+	{ building = B_RUSHOUSE, name = "RUSHOUSE", men = { S6_1, S6_2, S6_3, S6_4, S6_5, S6_6, S6_7, S6_8, S6_9, S6_10, S6_11, S6_12 } },
 }
 
 local function CellPos(x, y)
@@ -178,6 +178,34 @@ local function CensusLine()
 	return table.concat(parts, "  ")
 end
 
+-- PLACED SQUAD SIZE AGAINST THE BUILDING'S REAL CAPACITY, COMPUTED, never asserted.
+--
+-- This line exists because its predecessor was a SENTENCE. The .lua header used to state
+-- "squad size equalled MaxWeight in all six cases" and the map.yaml carried six matching
+-- literals, and when the per-building capacity table split ^CivBuilding's one MaxWeight into
+-- 37 per-actor values neither the sentence nor the literals moved: V19 fell 10 -> 2 and the
+-- demo died on the third LoadPassenger (run 260921_150809), RUSHOUSE rose 10 -> 12 and the
+-- demo under-filled it in silence while the header still claimed otherwise. generate.py now
+-- resolves the count from the rules, and Test.CargoCapacity reads Cargo.Info.MaxWeight off
+-- the live actor -- so this compares the generator's static read against the engine's, and
+-- any "!=" printed here is visible in the frame rather than inferable from a crash.
+local function FitLine()
+	local parts, bad = {}, 0
+	for _, sq in ipairs(Squads) do
+		local cap = Test.CargoCapacity(sq.building)
+		local n = #sq.men
+		if n ~= cap then
+			bad = bad + 1
+			parts[#parts + 1] = sq.name .. " " .. n .. "!=" .. cap
+		else
+			parts[#parts + 1] = sq.name .. " " .. n .. "/" .. cap
+		end
+	end
+
+	return (bad == 0 and "fit ok: " or "FIT MISMATCH x" .. bad .. ": ") ..
+		table.concat(parts, "  ")
+end
+
 -- One capture beat: move the camera at `tick`, sample at `tick + settle`. The sample is
 -- ONE FRAME LATE (Game.cs:926-930 reads the pixels at the end of the next RenderTick), so
 -- the settle gap is not politeness — a capture armed in the same beat as the camera move
@@ -217,16 +245,36 @@ WorldLoaded = function()
 	-- CIVILIAN squads never boarded at all -- capture 017 is a church with ten riflemen still
 	-- standing in their start files four cells away, while the three defence squads, whose
 	-- buildings are USA-owned rather than Neutral, went in normally. The cause was never
-	-- established: nothing on the activity path gates on relationship (EnterAlliedActorTargeter
-	-- explicitly permits neutral, and it is not on this path anyway), Cargo.LoadingBlocked is
-	-- set only by HeliEmergencyLanding, and GarrisonManager only observes entry through
-	-- INotifyPassengerEntered. Rather than guess, this sidesteps the whole approach phase:
-	-- LoadPassenger calls Cargo.Load directly, which still fires INotifyPassengerEntered and so
-	-- still runs the real ownership-transfer and shelter bookkeeping.
+	-- established. Rather than guess, this sidesteps the whole approach phase: LoadPassenger
+	-- calls Cargo.Load directly, which still fires INotifyPassengerEntered and so still runs the
+	-- real ownership-transfer and shelter bookkeeping.
+	--
+	-- ONE LINE OF THAT ELIMINATION HAS SINCE ROTTED, corrected here 2026-09-21 because this is
+	-- where the next reader will meet it. It used to say "GarrisonManager only observes entry
+	-- through INotifyPassengerEntered" and that it cannot refuse. Since 8ca4b926 GarrisonManager
+	-- IS an ICargoCanLoadFilter and Cargo.CanLoad consults it at the moment of boarding
+	-- (Cargo.cs:522-533) -- but it ADMITS a neutral building on purpose: it hands
+	-- `claimedOwner ?? self.Owner` to GarrisonBoardingMath.MayBoard (GarrisonManager.cs:341-352),
+	-- which is true for Ally AND Neutral and false only for Enemy (GarrisonBoardingMath.cs:44-47),
+	-- and a map's Neutral player relates to a playable one as Neutral (Player.cs:276-292 over
+	-- CreateMapPlayers.cs:140-199). GarrisonBoardingTest pins it. The rest of the elimination
+	-- stands: EnterAlliedActorTargeter explicitly permits neutral and is not on this path anyway,
+	-- and Cargo.LoadingBlocked is written only by HeliEmergencyLanding.
 	--
 	-- WHETHER NEUTRAL ENTRY IS BROKEN IS STILL OPEN, and it matters -- walking into a neutral
 	-- civilian building is how a player garrisons one. test-garrison-neutral-entry exists to
-	-- answer it on its own rather than as a side effect of this demo.
+	-- answer it on its own rather than as a side effect of this demo; it now runs a third lane
+	-- (a neutral house entered through the ORDER layer) because every neutral building ever
+	-- garrisoned successfully in this repo was ordered that way and every failure went through
+	-- the Lua call this demo's first run used.
+	--
+	-- EVERY MAN FITS BY CONSTRUCTION, so a throw from LoadPassenger here means something real.
+	-- generate.py places exactly Cargo.MaxWeight riflemen per building and FitLine re-checks that
+	-- against the live rules each run; e1 carries no Passenger.Weight override, so one man is one
+	-- unit of weight and a count can be compared to MaxWeight directly. The guard in
+	-- TransportProperties.LoadPassenger (:42-56) is deliberately NOT relaxed -- it is what turned
+	-- the V19 capacity regression into a stack trace instead of a lineup photographed with three
+	-- of its six squads quietly short.
 	Trigger.AfterDelay(10, function()
 		for _, sq in ipairs(Squads) do
 			for _, s in ipairs(sq.men) do
@@ -236,7 +284,7 @@ WorldLoaded = function()
 			end
 		end
 
-		Media.DisplayMessage("Loaded: " .. AboardLine(), "LINEUP")
+		Media.DisplayMessage("Loaded: " .. AboardLine() .. " | " .. FitLine(), "LINEUP")
 	end)
 
 	-- --- 0. orientation ------------------------------------------------------------
@@ -246,7 +294,8 @@ WorldLoaded = function()
 	Trigger.AfterDelay(400, function()
 		Camera.Position = CellPos(49, 29)
 		Camera.Zoom = Camera.MinZoom
-		Media.DisplayMessage("00 OVERVIEW — whole grid, 8 cols x 6 rows; " .. CensusLine(), "LINEUP")
+		Media.DisplayMessage("00 OVERVIEW — whole grid, 8 cols x 6 rows; " .. CensusLine() ..
+			" | " .. FitLine(), "LINEUP")
 	end)
 
 	Trigger.AfterDelay(410, function()
@@ -335,7 +384,7 @@ WorldLoaded = function()
 		Camera.Position = CellPos(49, 29)
 		Camera.Zoom = Camera.MinZoom
 		Media.DisplayMessage("Captures complete. " .. CensusLine() .. " | aboard: " ..
-			AboardLine(), "LINEUP")
+			AboardLine() .. " | " .. FitLine(), "LINEUP")
 	end)
 
 	-- No Test.Pass. This is a demo: it holds the window open until the viewer closes it.

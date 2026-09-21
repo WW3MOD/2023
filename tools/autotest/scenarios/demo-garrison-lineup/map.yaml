@@ -74,7 +74,7 @@ Actors:
 		Location: 2,8
 	S1_6: e1
 		Owner: USA
-		Location: 3,4
+		Location: 2,9
 	B_V02: v02
 		Owner: Neutral
 		Location: 16,6
@@ -212,19 +212,19 @@ Actors:
 		Location: 2,32
 	S4_6: e1
 		Owner: USA
-		Location: 3,28
+		Location: 2,33
 	S4_7: e1
 		Owner: USA
-		Location: 3,29
+		Location: 3,28
 	S4_8: e1
 		Owner: USA
-		Location: 3,30
+		Location: 3,29
 	S4_9: e1
 		Owner: USA
-		Location: 3,31
+		Location: 3,30
 	S4_10: e1
 		Owner: USA
-		Location: 3,32
+		Location: 3,31
 	B_V29: v29
 		Owner: Neutral
 		Location: 16,30
@@ -267,30 +267,6 @@ Actors:
 	S5_2: e1
 		Owner: USA
 		Location: 2,37
-	S5_3: e1
-		Owner: USA
-		Location: 2,38
-	S5_4: e1
-		Owner: USA
-		Location: 2,39
-	S5_5: e1
-		Owner: USA
-		Location: 2,40
-	S5_6: e1
-		Owner: USA
-		Location: 3,36
-	S5_7: e1
-		Owner: USA
-		Location: 3,37
-	S5_8: e1
-		Owner: USA
-		Location: 3,38
-	S5_9: e1
-		Owner: USA
-		Location: 3,39
-	S5_10: e1
-		Owner: USA
-		Location: 3,40
 	B_V36: v36
 		Owner: Neutral
 		Location: 16,38
@@ -344,19 +320,25 @@ Actors:
 		Location: 2,48
 	S6_6: e1
 		Owner: USA
-		Location: 3,44
+		Location: 2,49
 	S6_7: e1
 		Owner: USA
-		Location: 3,45
+		Location: 3,44
 	S6_8: e1
 		Owner: USA
-		Location: 3,46
+		Location: 3,45
 	S6_9: e1
 		Owner: USA
-		Location: 3,47
+		Location: 3,46
 	S6_10: e1
 		Owner: USA
+		Location: 3,47
+	S6_11: e1
+		Owner: USA
 		Location: 3,48
+	S6_12: e1
+		Owner: USA
+		Location: 3,49
 	# Off to the right, clear of the grid and out of every rifle's range.
 	OwnSR: supplyroute
 		Owner: USA
