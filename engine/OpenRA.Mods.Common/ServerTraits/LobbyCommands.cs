@@ -45,6 +45,9 @@ namespace OpenRA.Mods.Common.Server
 		[FluentReference]
 		const string InsufficientEnabledSpawnPoints = "notification-insufficient-enabled-spawn-points";
 
+		[FluentReference]
+		const string EscalationTwoSidesRequired = "notification-escalation-two-sides-required";
+
 		[FluentReference("command")]
 		const string MalformedCommand = "notification-malformed-command";
 
@@ -290,6 +293,20 @@ namespace OpenRA.Mods.Common.Server
 				if (LobbyUtils.InsufficientEnabledSpawnPoints(server.Map, server.LobbyInfo))
 					return;
 
+				// WW3MOD: THE SECOND DOOR TO StartGame, and it has to carry the same Escalation gate.
+				// Everybody readying up reaches server.StartGame() from here without the host ever
+				// clicking Start, so guarding only the explicit `startgame` command would leave the
+				// exact reported case -- a filled four-slot lobby -- walking straight past it.
+				//
+				// Silent like every other check in this method (they all just `return`), but logged:
+				// a lobby that declines to auto-start with nothing said anywhere is a mystery, and
+				// the host still gets the player-readable line the moment they click Start.
+				if (EscalationLobbyRule.RefusesToStart(server.LobbyInfo))
+				{
+					Log.Write("server", "Auto-start declined: DEFCON Escalation requires exactly two sides.");
+					return;
+				}
+
 				server.StartGame();
 			}
 		}
@@ -346,6 +363,21 @@ namespace OpenRA.Mods.Common.Server
 				if (LobbyUtils.InsufficientEnabledSpawnPoints(server.Map, server.LobbyInfo))
 				{
 					server.SendFluentMessageTo(conn, InsufficientEnabledSpawnPoints);
+					return true;
+				}
+
+				// WW3MOD: DEFCON Escalation is a two-sided mode and nothing used to enforce it. Three
+				// or more sides derive NO border (DefconWall.cs:397-402) while DEFCON 3 still holds
+				// every weapon, so the match opens as a cease-fire with nothing separating anybody and
+				// no way to end it. Refused here rather than degraded at runtime -- see
+				// EscalationLobbyRule's header for why, and for why this counts SEATS and not the
+				// map's authored combatants.
+				//
+				// LAST OF THE START CHECKS ON PURPOSE. It is the only one that is mod-feature-specific,
+				// so a lobby that is broken in an ordinary way still reports the ordinary reason first.
+				if (EscalationLobbyRule.RefusesToStart(server.LobbyInfo))
+				{
+					server.SendFluentMessageTo(conn, EscalationTwoSidesRequired);
 					return true;
 				}
 

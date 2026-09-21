@@ -14,6 +14,11 @@ notification-admin-start-game = Only the host can start the game.
 notification-no-start-until-required-slots-full = Unable to start the game until required slots are full.
 notification-no-start-without-players = Game cannot start without players.
 notification-insufficient-enabled-spawn-points = Unable to start the game until more spawn points are enabled.
+# WW3MOD: DEFCON Escalation is a two-sided mode (decision 15). With three or more sides no
+# border derives and DEFCON 3's hold-fire has nothing to separate, so the match opens as a
+# cease-fire nobody can end. Names the fix rather than the mechanism: teams are what the host
+# can change from here.
+notification-escalation-two-sides-required = DEFCON Escalation needs exactly two sides. Put every player into one of two teams, or pick Skirmish.
 notification-malformed-command = Malformed { $command } command.
 notification-state-unchanged-ready = Cannot change state when marked as ready.
 notification-invalid-faction-selected = Invalid faction selected: { $faction }.
