@@ -16,9 +16,28 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# WHAT THIS IS FOR: looking at. It is a DEMO -- no AssertWithin, no Test.Pass, no result.json. USA
-# fires all six weapons of the nuclear arsenal at the SAME cell, smallest first, and the viewer
-# watches each one reach further than the last.
+# WHAT THIS IS FOR: looking at. It is a DEMO -- no AssertWithin, no Test.Pass, no Test.Fail. It
+# ends on Test.Skip so a `run-test.sh` capture gets a verdict file and exits instead of sitting on
+# the watchdog; Skip is neither a pass nor a fail. All six weapons of the nuclear arsenal are fired
+# at the SAME cell, smallest first, and the viewer watches each one reach further than the last.
+#
+# TWO SEATS FIRE, NOT ONE (2026-09-21). The header of this file used to say "USA fires all six"
+# and that had been untrue since the powers were faction-tiered: @Sarmat and @TsarBomba carry
+# `Prerequisites: powers.event, player.russia` (rules/player.yaml:238-239, :262-263), and NOTHING
+# in the sandbox block grants `player.russia` -- ProvidesPrerequisite@Russia is `Factions: russia`
+# (player.yaml:1168-1170). An America seat was short one prerequisite on exactly those two and the
+# demo silently skipped a third of its arsenal. Each warhead is now fired by the nation that owns
+# it. The full chain, including why the failure produced no error anywhere, is in the header of
+# demo-nuke-arsenal.lua.
+#
+#   shots 1, 2, 3, 5   USA      B61-12 low / B61-12 max / W76-1 / B83-1
+#   shots 4 and 6      RUSSIA   RS-28 Sarmat / Tsar Bomba
+#
+# RUSSIA IS ALREADY SEATED BELOW AS A BARE MAP COMBATANT and nothing in the Players block needed to
+# change. That is the shape demo-doomsday-deadhand had to be fixed INTO on 2026-09-20:
+# CreateMapPlayers builds a Player per non-playable map player unconditionally, and one per lobby
+# SLOT only where a client sits (CreateMapPlayers.cs:95-122). run-test.sh launches ONE client, so a
+# second `Playable: True` seat would get no Player at all. DO NOT mark Russia playable.
 #
 # WHY ONE AIM POINT RATHER THAN SIX. Spreading the shots across the map sounds tidier and is much
 # worse, because the arsenal spans 4.5 to 246 cells of blast radius: from the fourth weapon onward a
@@ -28,14 +47,26 @@ Categories: Test
 # as a fresh band of destruction with intact targets beyond it. Nothing needs respawning; the
 # survivors of shot N are the targets of shot N+1.
 #
-#   shot 1  B61-12 (0.3 kt)     4.5 cells    kills ring 3 only
-#   shot 2  B61-12 (50 kt)     24.6 cells    kills rings 7 through 23 -- the same bomb, dialled up
-#   shot 3  W76-1             31.0 cells    kills ring 28
-#   shot 4  RS-28 Sarmat      60.7 cells x SIX warheads scattered over 21 cells -- rings 33 to 57,
-#                                           and unlike every other shot it does NOT arrive as one
-#                                           circle: watch for six separate fireballs
-#   shot 5  B83-1             71.0 cells    kills ring 65
-#   shot 6  Tsar Bomba       246.1 cells    everything, twice over, with a 25-second fireball
+#   shot 1  B61-12 (0.3 kt)     4.5 cells    USA      ring 3 only
+#   shot 2  B61-12 (50 kt)     24.6 cells    USA      rings 7 through 23 -- same bomb, dialled up
+#   shot 3  W76-1             31.0 cells    USA      ring 28
+#   shot 4  RS-28 Sarmat      60.7 cells    RUSSIA   SIX independently-placed RVs, not one circle
+#   shot 5  B83-1             71.0 cells    USA      SIX bombs since 2026-09-20 -- see below
+#   shot 6  Tsar Bomba       246.1 cells    RUSSIA   one bomb, 25-second fireball
+#
+# THE RING ATTRIBUTION IN THAT TABLE IS NO LONGER SOUND FOR SHOTS 4 AND 5, and it is flagged rather
+# than quietly re-staged because confirming it needs a launch. AimPoints is now deliberately ABSENT
+# from @Sarmat and @B83; MissileStrikePower.AimPointsFor overrides it for anything
+# NuclearGameEnders.Is() accepts and returns DoomsdayStrike.PackageSize =
+# round(playableCells / CellsPerImpact) clamped to [2,6]. Bounds 1,1,126,126 = 15876 cells,
+# CellsPerImpact 2400, (15876 + 1200) / 2400 = 7 -> clamped to 6. THE PACKAGE ON THIS MAP IS SIX,
+# and the B83 at 1.2 Mt is in the game-ender band just as the Sarmat at 750 kt is. Six 71-cell
+# bursts on the B83's own 35c0 fallback ring reach ~106 cells from ground zero -- past ring 82, and
+# therefore past everything the Tsar Bomba was staged to be the first to reach. The Tsar itself is
+# ABOVE NuclearReleaseLadder.SandboxOnlyAboveTons (50 Mt against a 10 Mt ceiling), so it is NOT a
+# game-ender and still flies its YAML AimPoints: the default 1.
+# The script prints the OBSERVED warhead count with every detonation, so a viewer reads the real
+# number rather than this comment's.
 #
 # THE TERRAIN is twin-rivers-ww3's, copied unchanged; only the actor list is new. It was picked over
 # the other nine shipped maps by decoding all of them: of the four largest it is the one that is
@@ -49,30 +80,35 @@ Categories: Test
 # resolve to zero mod-wide. They are here for scale and for the look of the thing. Do not read "the
 # trees are still standing" as a weapon underperforming; read the structures and the infantry.
 #
-# GEOMETRY OF THE STRIKES, all six identical because they all come from the same Supply Route:
-#   CORRECTED 2026-09-07 -- engine b69681d2 REPLACED THIS RULE and every tick below it moves.
-#   Map.ChooseClosestEdgeCell is gone; the spawn is now
+# GEOMETRY OF THE STRIKES. THEY ARE NO LONGER ALL IDENTICAL -- the two seats have different homes,
+# and the entry point is derived from the FIRER's home through the aim point:
 #     entry    = aimPoint - unit(home -> salvoCentroid) * standoff
 #     standoff = mapDiagonal + ApproachMargin = 185363 + 16384 = 201747 wdist = 197.0 cells
-#   USA home 64,118 -> aim 64,64 is due NORTH, so the entry is cell 64,261: off-map SOUTH, 143
-#   cells beyond USA's own base rather than 9 cells short of it on the map's south edge. The
-#   bearing is unchanged (still straight up the centreline) because home and aim share x=64; what
-#   changed is that the missile is born far off-map and the flight is ~3.1x longer.
-#   THE OLD DERIVATION, recorded once so nobody rebuilds it:
+#   USA home 64,118 -> aim 64,64 is due NORTH, so shots 1/2/3/5 are born at cell 64,261: off-map
+#   SOUTH, 143 cells beyond USA's own base, and fly straight up the centreline.
+#   RUSSIA home 10,10 -> aim 64,64 is south-east, so shots 4 and 6 are born off-map to the
+#   NORTH-WEST and come in over Russia's own shoulder.
+#   FLIGHT TIME IS UNAFFECTED BY EITHER BEARING: the standoff is a fixed distance -- the map
+#   diagonal plus ApproachMargin -- not a distance to the firer. Both seats fly 201747 wdist.
+#
+#   CORRECTED 2026-09-07 -- engine b69681d2 REPLACED the old rule. Map.ChooseClosestEdgeCell is
+#   gone. THE OLD DERIVATION, recorded once so nobody rebuilds it:
 #     du = |127-64| = 63, dv = |127-118| = 9, dv < du -> edge = (64, 127), 63 cells = 64512 wdist,
 #     giving B61 (900) 71t | W76 (1400) 46t | Sarmat (1600) 40t | B83 (700) 92t | Tsar (400) 161t.
-#   NOW flight time is exactly 201747 / Speed, because no arsenal missile sets TerminalAcceleration:
+#   NOW flight is EstimateArcTicks(201747) = 201747 / Speed, exactly, because every arsenal missile
+#   carries `Acceleration: 0` -- that is the branch that returns hDist/speed rather than simulating
+#   a velocity profile (BallisticMissileFly.cs:84-85):
 #     B61 bodies (900) 224t | W76 (1400) 144t | Sarmat (1600) 126t | B83 (700) 288t | Tsar (400) 504t
-#   Every tick in the timeline below shifts accordingly and has NOT been re-measured. Nothing here
-#   is asserted, so this is a stale caption rather than a failing run.
 #
-#   THE SARMAT IS THE ONE TO WATCH AFTER THIS CHANGE: it is the only shipped power with AimPoints
-#   above one (6), and b69681d2 is what stopped its six warheads fanning outward from a single
-#   point. They now fly one shared bearing, parallel, spaced exactly as the player clicked.
+#   THE SCRIPT NO LONGER DEPENDS ON ANY OF THOSE NUMBERS. It used to carry an absolute tick table
+#   that went stale twice -- once on b69681d2's standoff and once on a MissileDelay that sandbox
+#   drops -- so the schedule is now event-driven and each detonation is OBSERVED, by watching the
+#   strike's missile actors leave the world. The numbers above are documentation, not a dependency.
 #
 # WHY MapStartingLocations IS REMOVED IN rules.yaml: USA is the playable client player, so
-# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the edge
-# derivation above would depend on which mpspawn it picked.
+# Player.HomeLocation would otherwise come from a spawn assigner (Player.cs:182) and the entry
+# derivation above would depend on which mpspawn it picked. Both HomeLocations are pinned below,
+# and BOTH now matter rather than just USA's -- Russia's 10,10 is what aims shots 4 and 6.
 
 Players:
 	PlayerReference@Neutral:
