@@ -873,14 +873,25 @@ namespace OpenRA.Mods.Common.Traits
 		/// class that exists.</para>
 		///
 		/// <para>AS OF 2026-08-11 THAT IS NO WARHEAD AT ALL, and the near-miss is the reason to keep reading.
-		/// `IskanderTargeter`/`HIMARSTargeter` (weapons-missiles.yaml:284-306) are force-fire spotter weapons
+		/// `IskanderTargeter`/`HIMARSTargeter` (weapons-missiles.yaml:380-415 as of 2026-09-21; this reference has
+		/// rotted once already, so grep the name rather than trusting it) are force-fire spotter weapons
 		/// that look harmless — `Damage: 50` with every listed class at 0 — and were reported as phantom
 		/// contributors to the field. They are not. Their table zeroes `None, Wood, Concrete, Light, Medium,
 		/// Heavy, Brick`, of which `Brick` is not an armor class in this ruleset at all, while `Kevlar` (the 14
 		/// combat-infantry types inheriting `^Soldier`), `Unarmored` and `Indestructable` are and go UNLISTED —
-		/// so by the omission rule above those targeters deal their full 50 to those infantry.
+		/// so by the omission rule above those targeters dealt their full 50 to those infantry.
 		/// `--danger-reference` prints the per-warhead verdict with the unlisted classes named, which is how
-		/// that was settled instead of assumed.</para></summary>
+		/// that was settled instead of assumed.</para>
+		///
+		/// <para>FIXED 2026-09-21 (mod data, not here): that warhead now carries <c>Damage: 0</c>
+		/// (`weapons-missiles.yaml`), because it is a dummy trigger whose real payload is the spawned
+		/// <c>IskanderMissile</c> actor. The table was left deliberately incomplete — naming `Kevlar` even at 0
+		/// would flip every infantry tooltip in the game via <c>ArmorInfo.ProvideTooltipDescription</c>'s
+		/// global key-set existence check. <b>So this method still returns false for those two targeters and
+		/// that is now a fail-open FALSE POSITIVE:</b> they are harmless by damage, not by table, and
+		/// <c>WarheadIsHarmless</c> only inspects <c>Versus</c>. Do not "correct" it by reading
+		/// <c>Damage</c>/<c>DamagePercent</c> here without treating it as a danger-field behaviour change —
+		/// it would move bot belief and break replay byte-identity against any earlier baseline.</para></summary>
 		public static bool WarheadIsHarmless(DamageWarhead warhead, HashSet<string> rulesetArmorTypes,
 			bool anyUnprovableArmor)
 		{
