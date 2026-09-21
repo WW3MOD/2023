@@ -24,6 +24,7 @@ WorldLoaded = function()
 
 	Trigger.AfterDelay(SpinUpTicks, function()
 		local samplesRemaining = SampleSeconds * 25
+		local maxAf = 0
 		local check
 		check = function()
 			if Paladin.IsDead then
@@ -34,6 +35,7 @@ WorldLoaded = function()
 			local lf = Paladin.TurretFacing("primary")
 			if lf > 512 then lf = lf - 1024 end
 			local af = math.abs(lf)
+			if af > maxAf then maxAf = af end
 
 			if af > LockedTolerance then
 				Test.Fail("turret rotated to " .. af .. " WAngle while body was turning (max " .. LockedTolerance .. ")")
@@ -42,7 +44,9 @@ WorldLoaded = function()
 
 			samplesRemaining = samplesRemaining - 1
 			if samplesRemaining <= 0 then
-				Test.Pass()
+				Test.Pass("turret stayed locked through the 180-degree body pivot: peak deflection " ..
+					maxAf .. " WAngle from InitialFacing over " .. (SampleSeconds * 25) ..
+					" samples (tolerance " .. LockedTolerance .. ")")
 				return
 			end
 

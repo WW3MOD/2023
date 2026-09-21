@@ -99,6 +99,12 @@ WorldLoaded = function()
 	-- T+32s: pretty much everything should be a smoking crater. Exit cleanly.
 	Trigger.AfterDelay(sec(32), function()
 		Media.DisplayMessage("=== Demo complete ===", "BURN DEMO")
-		Test.Pass()
+		-- NOTHING TO ASSERT, AND THAT IS DELIBERATE. This is a demo wearing a `test-` prefix (same
+		-- family as test-burn-arena and test-burn-compare): it stages a burn timeline to be WATCHED
+		-- and judges nothing, so there is no measurement for a note to carry. The verdict exists
+		-- only to end the run cleanly at T+32s. A literal note rather than an expected-status
+		-- declaration, so the run still says out loud that it measured nothing.
+		Test.Pass("DEMO, not a test: the burn timeline ran to T+32s and nothing was asserted. " ..
+			"The evidence is the frames and the BURN DEMO messages, never this status")
 	end)
 end

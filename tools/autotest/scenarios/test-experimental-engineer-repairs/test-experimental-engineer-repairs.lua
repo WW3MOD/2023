@@ -147,7 +147,7 @@ WorldLoaded = function()
 		print("[eng-op] RESULT " .. summary)
 
 		if hp > startHealth then
-			Test.Pass()
+			Test.Pass(summary)
 			return
 		end
 

@@ -55,7 +55,7 @@ WorldLoaded = function()
 		if #fails > 0 then
 			Test.Fail(table.concat(fails, "; ") .. " | " .. summary)
 		else
-			Test.Pass()
+			Test.Pass(summary)
 		end
 	end)
 end
