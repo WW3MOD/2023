@@ -9,6 +9,20 @@ World:
 	# The other three are `powers.america`, which USA does provide. Without this block the demo
 	# would fire half its arsenal and silently skip the interesting half.
 	#
+	# THE EVENT TIER IS NOT THE WHOLE GATE, AND THIS NOTE USED TO IMPLY IT WAS (corrected
+	# 2026-09-21). @Sarmat and @TsarBomba each carry a SECOND prerequisite -- `player.russia`
+	# (player.yaml:238-239, :262-263) -- and NOTHING here grants it: ProvidesPrerequisite@Russia is
+	# `Factions: russia` (player.yaml:1168-1170) and the sandbox block below it has no `player.*`
+	# member at all. So this switch alone left USA two warheads short, and the demo skipped them in
+	# silence. THE FIX IS A SEAT, NOT A WIDER SWITCH: demo-nuke-arsenal.lua now fires those two
+	# from the Russia map combatant. Do not "fix" it by granting player.russia here -- that would
+	# make an America seat able to launch a Sarmat, which is the exact asymmetry the faction tiering
+	# exists to state.
+	#
+	# @B83 keeps working from the USA seat because `player.america` was REMOVED from it on
+	# 2026-09-20 (player.yaml:260-261): it is event-tier and names NO owner, so under this switch
+	# either seat can fire it.
+	#
 	# THE `nuclear-arsenal` CHECKBOX IS STILL NOT OVERRIDDEN, which is the property the note here
 	# used to protect. It ships defaulting ON (PowersLobbyOptions.cs), so all six powers are still
 	# exercised in their shipped configuration; only the FACTION lock is suspended. If that default
@@ -36,10 +50,20 @@ Player:
 	# fired nothing since the powers became purchasable. DO NOT PUT THOSE LINES BACK; the shots are
 	# bought instead, see the six proxy overrides at the bottom of this file.
 	#
-	# MissileDelay 60 (3.6 s) against shipped values of 200 to 600 (12 to 36 s) IS still live and is
-	# still an override. The public countdown is a real mechanic and is deliberately NOT what this
-	# demo is about -- six shipped waits back to back would add two and a half minutes of watching
-	# beacons. Delete the line from any entry to see its real approach.
+	# THE SIX MissileDelay OVERRIDES BELOW ARE INERT UNDER THIS SCENARIO'S OWN SANDBOX SWITCH, and
+	# saying so is the whole of this note (2026-09-21). MissileStrikePower reads
+	#     baseMissileDelay = sandbox != null && sandbox.SandboxRemovesLaunchDelay ? 0 : info.MissileDelay
+	# (MissileStrikePower.cs:624-626), and SandboxRemovesLaunchDelay DEFAULTS TRUE
+	# (PowersLobbyOptions.cs:168). PowersSandboxCheckboxEnabled is locked on above, so every one of
+	# these six resolves to 0, not 60. The old note here claimed the value was "still live and
+	# still an override"; it is neither, and the demo's old tick table was 60 ticks early on every
+	# shot as a result.
+	#
+	# THEY ARE KEPT RATHER THAN DELETED, deliberately: SandboxRemovesLaunchDelay is a default that a
+	# future change could flip, and at that point 60 is the number this demo wants -- the public
+	# countdown is a real mechanic and is deliberately NOT what this demo is about, and six shipped
+	# waits of 200 to 600 ticks back to back would add two and a half minutes of watching beacons.
+	# Delete a line from any entry to see its real approach, once the delay is applied at all.
 	MissileStrikePower@B61Low:
 		MissileDelay: 60
 	MissileStrikePower@B61Max:
@@ -83,7 +107,12 @@ Player:
 		FogCheckboxLocked: true
 	# 250000 against an arsenal that costs 175000 to buy outright (6000 + 15000 + 32000 + 30000 +
 	# 32000 + 60000), leaving 75000 for the viewer to re-buy whichever warhead they want to see
-	# again. This USED to read `DefaultCash: 0` with the note "no cash, so nothing can be produced",
+	# again.
+	#
+	# THIS BLOCK IS ON `Player:`, SO IT FUNDS EVERY PLAYER, AND THAT IS NOW LOAD-BEARING RATHER
+	# THAN INCIDENTAL: since 2026-09-21 the Russia map combatant buys and fires the Sarmat (30000)
+	# and the Tsar Bomba (60000) from its own Supply Route at 10,10. Russia spends 90000 of its own
+	# 250000; USA spends 85000 of its own. Neither seat can be shorted by the other. This USED to read `DefaultCash: 0` with the note "no cash, so nothing can be produced",
 	# which was true and is precisely what killed the demo: with the powers BOUGHT rather than
 	# charged, no cash means no shots, silently. Nothing else on this map can spend it -- no bot, no
 	# starting units (-SpawnStartingUnits), and nothing issues a build order but the demo script.
@@ -101,11 +130,18 @@ Player:
 # THE SHIPPED LOADS ARE 500 TO 4500 TICKS -- the Tsar Bomba alone is 4.5 minutes, longer than this
 # whole demo. Those numbers are a PRICE, and the price is not what anyone is here to look at.
 #
-# 5 TICKS IS CHOSEN SO THAT NOT ONE TICK OF THE ORDER SCHEDULE MOVED. The script buys warhead N
-# five ticks after shot N-1 goes out, and a purchase completes about `BuildDuration + 2` ticks
-# later, so every magazine is loaded with between 18 and 678 ticks to spare before its own order.
-# The capture ticks documented in demo-nuke-arsenal.lua (t=360, t=1100, t=2450, t=3000) are
-# therefore exactly as they were. If you retune this, re-check that margin first.
+# THESE SIX ARE ALSO INERT UNDER THE SANDBOX SWITCH, for the same reason the MissileDelays are:
+# SupportPowerProductionQueue.GetBuildTime returns 0 outright when SandboxRemovesPurchaseDelay is
+# set (SupportPowerProductionQueue.cs:157-163), which it is by default, so a purchase completes on
+# the next queue tick whatever this says. Kept for the same reason -- if that default is ever
+# flipped, 5 is the number this demo wants.
+#
+# THE ORDER SCHEDULE NO LONGER EXISTS TO BE PRESERVED. This note used to justify 5 by saying "not
+# one tick of the order schedule moved" against a table of absolute capture ticks
+# (t=360, t=1100, t=2450, t=3000). That table is gone: demo-nuke-arsenal.lua is event-driven now --
+# it buys warhead N, fires it, WATCHES for the detonation, and only then starts the settle before
+# warhead N+1 -- so there is no absolute schedule for a build time to shift. A larger value here
+# costs the demo wall-clock and nothing else.
 power.b61low:
 	Buildable:
 		BuildDuration: 5

@@ -3,6 +3,103 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`MissileStrikePower.Activate` does not read `info.MissileDelay` when the sandbox lobby option is on:
+
+```csharp
+// MissileStrikePower.cs:624-626
+var baseMissileDelay = sandbox != null && sandbox.SandboxRemovesLaunchDelay
+    ? 0
+    : info.MissileDelay;
+```
+
+and **`SandboxRemovesLaunchDelay` defaults TRUE** (`PowersLobbyOptions.cs:168`). Any scenario that
+locks `PowersSandboxCheckboxEnabled` on -- which every event-tier scenario must, because
+`powers.event` comes from no faction -- therefore gets **zero** launch delay regardless of what its
+`rules.yaml` says. `demo-nuke-arsenal` overrode `MissileDelay: 60` on all six arsenal powers and
+then built a tick table that added 60 to every impact; every row was 60 ticks early.
+
+**The same shape twice, in the same scenario.** `SupportPowerProductionQueue.GetBuildTime` returns 0
+outright under `SandboxRemovesPurchaseDelay` (`SupportPowerProductionQueue.cs:157-163`, also default
+true), so that file's six `BuildDuration: 5` proxy overrides are inert too -- and the comment above
+them justified the value 5 by the schedule margin it bought. **Both sets are kept rather than
+deleted, because the defaults are flippable and 60/5 are the values the demo wants if they ever
+are**; what changed is that they are now labelled as inert.
+
+**The generalisation:** `PowersLobbyOptions` has a family of `Sandbox*` fields that each REPLACE a
+per-power value rather than scaling it. Before deriving any timing from a power's YAML in a sandbox
+scenario, read that file -- the third one, `SandboxStandoffPercent`, defaults to the identity 100
+and is the only one that leaves its value alone.
+
+## 2026-09-21 - A support power gated to the other faction fails SILENTLY through four layers, and `EnsurePower` reports `buying` forever rather than `refused` (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`demo-nuke-arsenal` could not fire the Sarmat or the Tsar Bomba from its America seat -- both carry
+`Prerequisites: powers.event, player.russia` and the sandbox block grants only the first. What makes
+this worth an entry is not the prerequisite; it is that **nothing anywhere said so**:
+
+1. `SupportPowerProductionQueue` filters BOTH `AllItems` and `BuildableItems` on
+   `SupportPowerInstance.Purchasable` (`:102-117`), so the cameo is **absent** from the shop rather
+   than greyed out -- there is nothing to hover for a reason.
+2. `ProductionQueue.ResolveOrder` drops a `StartProduction` for anything outside `BuildableItems`
+   and plainly `return`s (`:509-510`). No exception, no log line, no refund (no money was taken).
+3. Lua's `Player.Build` does not learn any of that: it calls `queue.ResolveOrder` **directly** and
+   returns `true` unconditionally (`ProductionProperties.cs:290-292`).
+4. So `TestHarness.EnsurePower` takes the `player.Build(...) -> true` branch and returns
+   `false, "buying"` -- **forever**. Its `refused` token, the one documented to mean "the tier
+   prerequisite is unmet", is returned only when `Build` returns false, which this path never does.
+
+Net effect: a scenario firing a faction-locked power from the wrong seat prints `magazine buying`
+and `not-ready:0` until its patience runs out, which is indistinguishable from a slow queue. **When
+a power will not fire, read the prerequisite before trusting the status token.** The one reading
+that does disambiguate is `Test.GetSupportPowerBin(player)`: a power the seat cannot hold is not in
+it at all.
+
+## 2026-09-21 - A script CAN order a non-playable map combatant about, and the reason is that its ClientIndex is the host's (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+The fix above needed Russia to buy and fire from a seat that is a bare map player (`Playable:`
+absent), not a lobby slot. Both halves work, by different routes, and only one of them is obvious:
+
+* **Buying bypasses the order path entirely.** `Player.Build` calls `queue.ResolveOrder` directly
+  (`ProductionProperties.cs:290-292`); there is no `Order`, so there is nothing to validate.
+* **Firing goes through `World.IssueOrder` and IS validated** -- `ValidateOrder.OrderValidation`
+  drops any order whose subject's owner is a different client. It passes because a map player's
+  `ClientIndex` is **the admin's**: `world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index
+  ?? 0` (`Player.cs:222`, carrying its own `TODO: fix this`), and in a single-client autotest run
+  the one client IS the admin (`Server.cs:589` gives `IsAdmin` to the first client with none set).
+  So `subjectClientId == clientId` and the order resolves. The player actor carries no
+  `RejectsOrders`, so `AcceptsOrder` is true as well.
+
+`demo-defcon-readout` has fired a Russian support power from exactly this seat shape since
+2026-09-15; this entry is the mechanism behind it, so the next scenario does not have to guess.
+**The load-bearing constraint is the other way round**: the seat must NOT be `Playable: True`, or
+`CreateMapPlayers` gives it no `Player` at all in a one-client run (`:95-122`) -- the bug
+`demo-doomsday-deadhand` was fixed out of on 2026-09-20.
+
+**Caveat this does not cover:** a real two-client game. There `ClientIndex` resolves to a specific
+remote admin and the validator would drop a locally-issued order for that seat. This is an autotest
+and demo technique only.
+
+## 2026-09-21 - The B83 became a SIX-warhead weapon on 2026-09-20, and its footprint now exceeds the Tsar Bomba's staging band (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`AimPoints` is deliberately absent from `MissileStrikePower@B83` as well as `@Sarmat`;
+`MissileStrikePower.AimPointsFor` overrides it for anything `NuclearGameEnders.Is()` accepts and
+returns `DoomsdayStrike.PackageSize` = `round(playableCells / CellsPerImpact)` clamped to `[2,6]`.
+At 1.2 Mt the B83 is squarely in the game-ender band, so **it is now a package weapon, not one
+bomb** -- which the YAML comment says, and which nothing downstream had been re-read against.
+
+On `demo-nuke-arsenal` (Bounds `1,1,126,126` = 15876 cells, `CellsPerImpact: 2400`, so
+`(15876 + 1200) / 2400 = 7` -> clamped to **6**) the consequence is geometric: six 71-cell bursts
+placed on the B83's own `AimPointRadius: 35c0` fallback ring reach **~106 cells** from the aim
+point. That is past the demo's outermost target ring (82 cells), so **shot 5 now clears ground the
+shot 6 Tsar Bomba was staged to be the first to reach.** The Tsar itself is unaffected and is still
+one bomb: at 50 Mt it is above `NuclearReleaseLadder.SandboxOnlyAboveTons` (10 Mt), so
+`NuclearGameEnders.Is` rejects it and its YAML `AimPoints` -- the default 1 -- stands.
+
+**NOT MEASURED, derived by reading.** No launch was spent on it. The demo now prints the observed
+warhead count with every detonation, so the next capture settles it from `lua.log` without anyone
+re-deriving this. Any other scenario that assumes a single B83 circle is in the same position.
+
 ## 2026-09-21 - A build stamp cannot be a clock: the `BuildRevision` attribute is a Compile input, which is why the menu's build date reads a file timestamp instead (`wt/identity-panel`, base `main @ 1160a531`)
 
 The main menu's `v` panel showed `"Built: " + DateTime.Now` — the **player's** current date, labelled
