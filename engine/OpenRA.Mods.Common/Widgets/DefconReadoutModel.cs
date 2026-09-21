@@ -139,6 +139,71 @@ namespace OpenRA.Mods.Common.Widgets
 			}
 		}
 
+		/// <summary>
+		/// Do two transitions land close enough together that they must be drawn as ONE banner?
+		/// <paramref name="previousShownAtTick"/> is when the banner now on screen was raised.
+		/// </summary>
+		// ==== THE SIGNATURE MOMENT, AND WHY IT USED TO BE HALF A BANNER ====
+		// DEFCON 2 is the phase the whole mode is built to dramatise and it ends on the first casualty,
+		// so in a real match it is SHORT: measured at 98 ticks -- 5.9 s -- in run 260920_010605_p1901,
+		// against a banner held for 66. Run 260915_012829 went 3 -> 2 at tick 5000 and 2 -> 1 at tick
+		// 5001, one tick apart. The widget kept ONE shownLevel and overwrote it, so what reached the
+		// player was `OPEN WAR` alone: the mode's signature phase was invisible in the common case and
+		// the two alerts clipped each other on consecutive ticks.
+		//
+		// NEITHER QUEUEING NOR HOLDING LONGER IS THE ANSWER, and the 2026-09-19 review rules both out
+		// in its own words. Queueing would draw "the border is open" for four seconds while the war is
+		// already on -- announcing a state the match has left. Holding the first banner longer has the
+		// same defect from the other end. What is left is to say the true thing: both edges happened,
+		// this is how far apart they were, and here is where you are now. See §B6.
+		//
+		// STRICTLY INSIDE, so a second edge landing on the exact tick the first banner expires gets its
+		// own banner rather than a combined one for a phase the player has already finished reading.
+		public static bool CombinesWithPrevious(int previousShownAtTick, int nowTick, int holdTicks)
+		{
+			if (holdTicks <= 0)
+				return false;
+
+			var elapsed = nowTick - previousShownAtTick;
+
+			// A NEGATIVE ELAPSED IS NOT A COMBINE. Nothing in the shipped game produces one -- world
+			// ticks only ascend -- but a banner raised "in the future" must not be treated as a live
+			// one, because the arithmetic below would read it as a very small gap.
+			return elapsed >= 0 && elapsed < holdTicks;
+		}
+
+		/// <summary>Whole seconds between two world ticks, rounded down. Never negative.</summary>
+		// Rounded DOWN and not to nearest: "5 seconds later" under-claiming by a fraction is honest,
+		// over-claiming is not, and the number is going on screen next to an event the player watched.
+		public static int SecondsBetween(int fromTick, int toTick, int timestepMilliseconds)
+		{
+			if (timestepMilliseconds <= 0 || toTick <= fromTick)
+				return 0;
+
+			return (toTick - fromTick) * timestepMilliseconds / 1000;
+		}
+
+		/// <summary>
+		/// The ONE banner's second line when two edges land inside a single hold window: both causes
+		/// and the length of the phase between them. Null for any pair that is not 3 -> 2 -> 1.
+		/// </summary>
+		// SAME REGISTER AS TransitionCause ABOVE -- cause first, then what it released, and no trait
+		// named anywhere. The duration is in it because a phase whose whole problem was that nobody
+		// could see it happen should say how long it lasted; "in the same moment" is the honest reading
+		// of a sub-second gap rather than a rounded-down "0 seconds later".
+		public static string CombinedTransitionCause(int firstLevel, int secondLevel, int secondsBetween)
+		{
+			if (firstLevel != DefconFireDiscipline.HoldFireLevel || secondLevel != DefconEscalationState.Floor)
+				return null;
+
+			if (secondsBetween <= 0)
+				return "The holding period ran out and a life was taken in the same moment. Autonomous fire is released.";
+
+			var seconds = secondsBetween == 1 ? "one second" : secondsBetween + " seconds";
+
+			return $"The holding period ran out; {seconds} later, a life was taken. Autonomous fire is released.";
+		}
+
 		/// <summary>Is a DEFCON readout drawn at all?</summary>
 		// SKIRMISH IS A STRICT NO-OP and this is where that is honoured on screen: the mode leaves the
 		// level at NoLevel, so asking the level rather than asking the mode is enough. That is

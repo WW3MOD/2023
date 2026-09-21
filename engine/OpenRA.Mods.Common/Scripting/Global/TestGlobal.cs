@@ -2105,6 +2105,100 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World?.WorldActor.TraitOrDefault<DefconEscalation>()?.LevelReachedTick(level) ?? -1;
 		}
 
+		[Desc("The DEFCON transition banner widget, as `raised=<n>|combined=<bool>|level=<n>|from=<n>`, " +
+			"or \"absent\" when the widget is not in the UI tree.",
+			"",
+			"DIAGNOSTIC ONLY — DO NOT ASSERT ON `raised`, AND THE REASON IS MEASURED. Widget.Tick DOES " +
+			"run under `--hidden` (Game.cs:786-790 puts Ui.Tick in the LOGIC tick, not the render " +
+			"path), but it runs on `Ui.Timestep` = 40 ms of WALL CLOCK (Widget.cs:30) — a different " +
+			"clock from the world's (OrderManager.cs:187). A --hidden autotest sets " +
+			"Graphics.CapFramerate=false and the sim free-runs, so the world advances many ticks " +
+			"between two UI ticks: run 260921_165856 read `raised=0` on the very tick DEFCON reached " +
+			"2, because the widget had simply not ticked yet. A whole phase can pass between two UI " +
+			"ticks, and then the widget never shows that rung's band at all and `raised` is one lower " +
+			"than a player at 1x would have seen.",
+			"",
+			"ASSERT ON " + nameof(DefconEdgesCombine) + " INSTEAD. It is computed from " +
+			nameof(DefconEscalation) + ".LevelReachedTick, which is written in synced code on the tick " +
+			"each level is first reached and cannot be missed by sampling. This binding is kept for the " +
+			"census of a failed run, where knowing what the client actually drew is worth having.",
+			"",
+			"Read-only and test mode only.")]
+		public string DefconBannerState()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			// GetOrNull rather than Get: an observer HUD, a minimal chrome override or a scenario that
+			// strips the ingame player root must give this scenario a clean "absent" to fail on rather
+			// than an exception inside a Lua call.
+			var banner = Ui.Root?.GetOrNull<DefconTransitionBannerWidget>("DEFCON_BANNER");
+			if (banner == null)
+				return "absent";
+
+			// FOUR FIELDS, AND THE LAST TWO ARE FOR THE READER OF A FAILED RUN RATHER THAN FOR AN
+			// ASSERTION: `level` is the band now on screen (NoLevel when nothing is) and `from` is the
+			// earlier edge a combined band also covers (NoLevel when it covers one edge). A verdict
+			// that says raised=2 is much easier to act on next to level=1|from=0.
+			return $"raised={banner.BannersRaised}|combined={banner.ShowingCombinedBanner}"
+				+ $"|level={banner.ShownLevel}|from={banner.ShownFromLevel}";
+		}
+
+		[Desc("Whether the 3 -> 2 and 2 -> 1 edges landed close enough together to be ONE banner: " +
+			"\"yes\", \"no\", or \"pending\" when the match has not reached DEFCON 1 yet. " +
+			"\"absent\" on a world with no " + nameof(DefconEscalation) + ".",
+			"",
+			"THE MODEL, NOT THE WIDGET, and that is the whole reason this binding exists. Both edge " +
+			"ticks come from " + nameof(DefconEscalation) + ".LevelReachedTick, which is written in " +
+			"synced code on the tick the level is first reached — so this answer is a fact about the " +
+			"MATCH and is identical on every client at any frame rate, whereas " +
+			nameof(DefconBannerState) + " is a fact about one client's sampling. See that binding for " +
+			"the run that made the difference matter.",
+			"",
+			"The hold is DefconReadoutModel.BannerHoldTicks(GameSpeed.Timestep) — GameSpeed, not " +
+			"world.Timestep, because the latter is mutated by the debug speed button and by test-mode " +
+			"speed multipliers, and the banner is held for four SECONDS rather than for a tick count.",
+			"",
+			"Read-only and test mode only.")]
+		public string DefconEdgesCombine()
+		{
+			if (!TestMode.IsActive)
+				return "absent";
+
+			var world = Context.World;
+			var escalation = world?.WorldActor.TraitOrDefault<DefconEscalation>();
+			if (escalation == null)
+				return "absent";
+
+			var upper = escalation.LevelReachedTick(DefconFireDiscipline.HoldFireLevel);
+			var lower = escalation.LevelReachedTick(DefconEscalationState.Floor);
+			if (upper < 0 || lower < 0)
+				return "pending";
+
+			var hold = DefconReadoutModel.BannerHoldTicks(world.GameSpeed.Timestep);
+
+			return DefconReadoutModel.CombinesWithPrevious(upper, lower, hold) ? "yes" : "no";
+		}
+
+		[Desc("Who took the first life — the kill that ended DEFCON 2 — as " +
+			"`attacker=<owner>|weapon=<actor>|victim=<actor>|owner=<owner>`, or \"none\" if it has " +
+			"not happened. Names are INTERNAL names, as " + nameof(DefconEscalation) + " captured " +
+			"them on the tick the kill landed. Read-only and test mode only.")]
+		public string DefconFirstCasualty()
+		{
+			if (!TestMode.IsActive)
+				return "none";
+
+			var escalation = Context.World?.WorldActor.TraitOrDefault<DefconEscalation>();
+			if (escalation?.FirstCasualtyType == null)
+				return "none";
+
+			return $"attacker={escalation.FirstCasualtyAttackerOwner ?? "?"}"
+				+ $"|weapon={escalation.FirstCasualtyAttackerType ?? "?"}"
+				+ $"|victim={escalation.FirstCasualtyType}"
+				+ $"|owner={escalation.FirstCasualtyOwner ?? "?"}";
+		}
+
 		[Desc("The ending's state, as `phase=<n>|open=<bool>|placements=<n>|salvo=<bool>|closes=<tick>`, " +
 			"or \"absent\" on a world with no " + nameof(DoomsdayStrike) + ".",
 			"",

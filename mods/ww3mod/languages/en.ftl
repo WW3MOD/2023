@@ -778,6 +778,17 @@ notification-defcon-two = DEFCON 2. The holding period has run out and the borde
 ## Shown when enemy action destroys anything and autonomous fire is released.
 notification-defcon-one = DEFCON 1. A life has been taken; your units will now engage on sight.
 
+## WHO CHOSE (§B6, 2026-09-21). DEFCON 2 ends on somebody's decision and until now the match record
+## never said whose: the banner named the rule and the transients named the rule again. This is the
+## other half -- it is raised alongside notification-defcon-one on the 2 -> 1 edge, and it is the line
+## that survives in the chat history after both banners are gone.
+##
+## Named in the order the player cares about: who fired, with what, at whom. The two "types" are actor
+## internal names (abrams, t90) rather than tooltip names, which is a known roughness -- resolving a
+## tooltip name needs the ruleset and a second fluent lookup, and a wrong name here would be worse
+## than a terse one.
+notification-defcon-first-casualty = First blood: { $attacker }'s { $weapon } destroyed { $owner }'s { $victim }.
+
 ## Shown when the nuclear release gate opens. SIMULTANEOUS AND SYMMETRIC, and it says "both sides"
 ## out loud: a line reading "1 kt available" alone would read as a private advantage on the tick the
 ## match stops being conventional.

@@ -468,6 +468,22 @@ namespace OpenRA.Mods.Common.Traits
 				levelReachedTick[state.Level] = tick;
 		}
 
+		/// <summary>Actor type of the casualty that ended DEFCON 2, or null if it has not happened.</summary>
+		// FOUR PLAIN STRINGS AND NOT AN Actor PAIR -- see ReportCasualty for why. Written exactly once,
+		// on the one tick the level moves, by the one caller the state machine admits; read only by the
+		// UI and by Test bindings. Not [Sync]: they are derived from a synced event rather than an
+		// input to one, and nothing in the simulation reads them back.
+		public string FirstCasualtyType { get; private set; }
+
+		/// <summary>Owner of the casualty that ended DEFCON 2.</summary>
+		public string FirstCasualtyOwner { get; private set; }
+
+		/// <summary>Actor type that fired the shot that ended DEFCON 2.</summary>
+		public string FirstCasualtyAttackerType { get; private set; }
+
+		/// <summary>Owner of the actor that fired the shot that ended DEFCON 2 -- "who chose".</summary>
+		public string FirstCasualtyAttackerOwner { get; private set; }
+
 		/// <summary>
 		/// Whether the nuclear release gate has opened. POLLED BY <see cref="NuclearExchange"/>, which
 		/// turns it into every side's permanent 1 kt band; see <see cref="NuclearReleaseGate"/>.
@@ -564,12 +580,29 @@ namespace OpenRA.Mods.Common.Traits
 		// Called by DefconCasualtyObserver on each player actor once a death has passed the casualty
 		// rule. Only DEFCON 2 listens, so a second casualty on the same tick, or any casualty at 3 or
 		// 1, does nothing.
-		public void ReportCasualty(Actor victim)
+		public void ReportCasualty(Actor victim, string attackerType, string attackerOwner)
 		{
 			if (!state.ReportCasualty())
 				return;
 
-			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}).");
+			// WHO CHOSE, CAPTURED AS STRINGS ON THE TICK IT HAPPENED (§B6). The UI needs to name the
+			// first casualty AFTER the fact -- the banner is raised on the next frame and the event-log
+			// line outlives both actors -- and by then either actor may be disposed. Holding Actor
+			// references here would keep a dead actor alive for the rest of the match and read
+			// `.Owner` off a disposed one; four strings cost nothing and cannot go stale.
+			//
+			// InternalName rather than PlayerName: this is also what the debug line below has always
+			// printed, and it is the name a scenario's map players actually have.
+			// STRINGS IN, RATHER THAN AN Actor: on the burnout path the killer is no longer derivable
+			// from the AttackInfo at all -- the finishing blow names the victim itself, and the unit
+			// that actually shot it is only known to DefconCasualtyObserver's damage record.
+			FirstCasualtyType = victim.Info.Name;
+			FirstCasualtyOwner = victim.Owner.InternalName;
+			FirstCasualtyAttackerType = attackerType;
+			FirstCasualtyAttackerOwner = attackerOwner;
+
+			Log.Write("debug", $"DEFCON {Level} (enemy action destroyed {victim.Info.Name}, owner {victim.Owner.InternalName}" +
+				$"; killed by {FirstCasualtyAttackerType ?? "?"} of {FirstCasualtyAttackerOwner ?? "?"}).");
 			RecordLevel(victim.World.WorldTick);
 		}
 

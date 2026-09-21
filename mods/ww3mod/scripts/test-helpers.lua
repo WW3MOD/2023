@@ -92,6 +92,20 @@ function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
 			Test.Pass()
 			return
 		end
+		-- A GREEN MAY CARRY ITS CENSUS. `return true` passes with an EMPTY note, and an empty note
+		-- in result.json is indistinguishable from a harness fault -- the manager's standing rule is
+		-- "a green whose verdict text is empty is a failed test", which a real pass then trips.
+		-- Returning a string prefixed `pass:` passes and puts the whole string in the note, so the
+		-- numbers behind a green survive into result.json instead of living only in lua.log.
+		--
+		-- ADDITIVE AND PREFIX-GATED: every existing predicate returns either `true`, `false` or a
+		-- `fail: ...` string, and none returns one beginning `pass:` (checked across
+		-- mods/ww3mod/scripts and tools/autotest/scenarios at 76247149). `return true` is unchanged
+		-- and stays correct everywhere it is used.
+		if type(result) == "string" and result:sub(1, 5) == "pass:" then
+			Test.Pass(result)
+			return
+		end
 		if type(result) == "string" then
 			Test.Fail(result)
 			return

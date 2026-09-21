@@ -223,6 +223,211 @@ change of zero. **Only the resolved sheet rectangle decides whether two buttons 
 future recount has to walk the `Inherits:` chain to get one. The genuine improvement in those
 commits is real but is in the `-highlighted` twins: 8 amber recolours give some buttons distinct
 *active* art. The duplication above is of the resting art.
+## 2026-09-21 - CLOSED: every vehicle in this mod bleeds to death SELF-INFLICTED, so a tank shot below half and left to burn out never ended DEFCON 2 (`wt/escalation-guards`, runs `260921_181057` / `260921_181456`)
+
+The instrumented `DEFCON casualty` line (added the same day, entry below) answered it on the first
+run. Cause, by reading:
+
+- `^EffectsWhenDamagedVehicles` carries `ChangesHealth@CriticalDamage` with `PercentageStep: -1`,
+  `Delay: 5`, `StartIfBelow: 50` (`mods/ww3mod/rules/ingame/vehicles.yaml:183-188`). **Every vehicle
+  in the mod inherits it.**
+- `ChangesHealth.cs:86` is literally `self.InflictDamage(self, new Damage(...))` — **the burn names
+  the victim as its own attacker.**
+- `DefconCasualtyObserver.IsQualifyingCasualty` rejects `attacker == victim` outright, so the death
+  was thrown away.
+
+**The measured pair is what makes it undeniable**, and it is two runs of one scenario differing only
+in the target's hit points:
+
+| run | `t90 Health.HP` | debug line |
+|---|---|---|
+| `260921_181057` | 8000 | `killed by abrams(USA) -- qualifies` |
+| `260921_181456` | 40000 | `killed by t90(Russia) -- REJECTED: self-inflicted` |
+
+One `TankRound.Abrams` (~23000) overkills 8000 from full health and the burn never starts; 40000
+survives the first hit, drops below 50%, ignites and bleeds out. **Whether a deliberate kill ended
+DEFCON 2 depended on whether the victim happened to survive the opening round.** The second debug
+line in that run —
+`crew.commander.russia(Russia) killed by t90(Russia) -- REJECTED: not enemy action, relationship is Ally`
+— is the separate `Explodes@CrewCookoff` (`vehicles.yaml:318-321`, `Explodes.cs:124` defaults the
+source to self) killing an ejected crewman, and is correctly rejected.
+
+**This is a player-facing defect, not a test artefact, which is why the fix went in the observer and
+not in the scenario's hit points.** DEFCON 2's entire premise is "the first casualty is always
+somebody's decision"; a player who shoots an enemy tank below half and lets it burn out has taken a
+life by any reading, and the phase did not end. Lowering the scenario's HP would have hidden it.
+
+**The fix, and why it is narrow.** `QualifiesByPriorEnemyDamage` fires **only** when the finishing
+blow is self-inflicted and an enemy had previously damaged the victim; the observer now also
+implements `INotifyDamage` (which `Health.cs:122,275-276` already dispatches to the owner's player
+actor, so no new plumbing) and remembers the last enemy damager as two **strings** keyed on
+`ActorID`, cleared on death. Friendly fire is deliberately still excluded however much enemy damage
+came first — that is clause 2 of the direct rule and the user ruled on it explicitly. There is **no
+time window**, because a burn only ever starts from damage and every value of such a window would be
+a guess nobody has judged in play.
+
+**What a reader should take from this beyond DEFCON.** `attacker == victim` is not a synonym for "an
+accident". In this mod it is also the ordinary end of any damaged vehicle, and any rule that filters
+on it is silently filtering out a large share of real kills. `Explodes` with the default
+`DamageSource` behaves the same way.
+
+## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`)
+
+**The message bug first, because it is the transferable part.** `test-escalation-banner-separate`
+timed out and reported:
+
+> *"the t90 never died. 600 ticks after an accepted Attack order it is on 0 hp"*
+
+The t90 **was dead**. The sentence is `Contact.IsDead and "0" or tostring(Contact.Health)` under a
+heading that says "never died", so a dead actor renders as a live one sitting on zero hit points.
+Two separate diagnoses were then built on it -- a missing `Health.HP` override, a damage floor
+keeping it alive at 1 -- and both were wrong. The run's own census said `t90 hp (dead)/(dead)` four
+fields later and settled it.
+
+**The rule: a failure message must not be able to describe two different worlds with the same
+words.** If a formatter has an `IsDead` branch, the *heading* must branch with it. The two outcomes
+here ("it never died" and "it died and nothing noticed") point at opposite halves of the engine, and
+merging them sent both rounds of reading into the wrong half.
+
+**What the run actually established**, from `result.json` and `debug.log`:
+
+- The `Health.HP: 40000` override **applied** -- `t90 hp 40000/40000` at settle. The scenario's
+  `t90:` key matches the defining `t90:` in `vehicles-russia.yaml:289`; no case-merge problem.
+- **An ORDERED shot IS permitted at DEFCON 2, confirmed twice over.** By reading:
+  `DefconFireDiscipline.Permits` (`:126-158`) returns true for `forceAttack` and for any source that
+  is not `AutoTarget.IsAutoAcquiredSource`, and an ordered attack arrives as `AttackSource.Default`.
+  By observation: the abrams killed a 40000-hp t90 at DEFCON 2 and then went `(idle)`. The hold is
+  on autonomous fire only, exactly as designed -- a scenario that needs a casualty inside DEFCON 2
+  does NOT need `FiresDuringCeaseFire` or a scripted kill.
+- `DEFCON wall: no line derived from 2 combatant home(s) in 2 alliance group(s); the wall stays down.`
+- `NUCLEAR EXCHANGE sides: Russia(-2), USA(-3)` -- both negative, so both teamless, two sides.
+- At DEFCON 3 the abrams held an `AttackActivity` with **no order given**, which means autotarget
+  acquired the t90 -- so `USA -> Russia` is `Enemy` at that moment.
+
+**THE OPEN DEFECT: the kill did not end the phase.** `at1=-1`, `defcon=2`, `casualty none`, and no
+`DEFCON 1 (...)` line in `debug.log`. Every input checks out on paper:
+
+| candidate | ruled out by |
+|---|---|
+| observer absent | `player.yaml:1533` declares `DefconCasualtyObserver:` unconditionally; the scenario strips nothing |
+| `escalation` null in the observer | `Created` dereferences `self.World.WorldActor` directly -- a null would have thrown, and the match ran |
+| dispatch never reaches the player actor | `Health.cs:128` caches `self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>()`, `:294-295` calls them on `HP == 0` |
+| not a `Health` death | t90 carries `SpawnActorOnDeath` and no `Explodes`; a husk settled (`Husk.cs:127`), i.e. an ordinary death |
+| `VehicleCrew` killed it | its `Killed` handler only cleans up slot bookkeeping (`VehicleCrew.cs:341-357`); it does not kill |
+| relationship not `Enemy` | autotarget engaged at DEFCON 3, which requires `USA -> Russia == Enemy` |
+
+**The one structural difference from every scenario where a casualty DOES move the level**
+(`test-bot-defcon2-breaks-peace`, `test-escalation-full-match`) is that here the KILLER is the
+**client-occupied `Playable: True` slot** and the victim is a map player. `Player.cs` has two
+constructor branches and the client branch is already documented (see `CombatantSides`' header) to
+drop `PlayerReference` fields the map-player branch copies. Whether it also affects the relationship
+that `IsQualifyingCasualty` reads is **NOT established** -- and the autotarget evidence argues
+against it, which is why it is recorded as a suspect and not a finding.
+
+**Instrumented rather than guessed.** `DefconCasualtyObserver.Killed` now writes one
+`DEFCON casualty at level 2: <victim>(<owner>) killed by <attacker>(<owner>) -- <verdict>` line per
+death, gated on the hold-fire rung so a real match gets a handful at most, naming which of the four
+`IsQualifyingCasualty` clauses rejected. Every input to that predicate is reconstructible only from
+inside the method; from outside, all four rejections look identical ("the level is still 2"). One
+line closes what hours of reading could not.
+
+## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`)
+
+`test-escalation-banner-combined` asserted `DefconTransitionBannerWidget.BannersRaised == 1` on the tick
+`Test.DefconLevel()` first read 2. It failed reading `raised=0`, with the widget **present** (the
+binding returned a real string, not its `absent` sentinel). The obvious diagnosis -- "the widget tree
+is not built under `--hidden`" -- is **wrong**, and so is the milder one, "it notices on the next
+frame". The real shape is worse than either:
+
+| | clock | source |
+|---|---|---|
+| `Ui.Tick` | `Ui.Timestep` = **40 ms of wall clock**, fixed | `Widget.cs:30`, `Game.cs:786-790` |
+| world tick | `orderManager.SuggestedTimestep` | `OrderManager.cs:187`, `Game.cs:793` |
+
+`Ui.Tick` IS in the logic tick rather than the render path, so widgets do tick in a hidden run --
+that part of the earlier reading was right. But the two clocks are independent, and
+`tools/autotest/run-test.sh:784-789` sets `Graphics.CapFramerate=false` for `--hidden` precisely so
+the sim free-runs. **The world therefore advances an unbounded number of ticks between two UI ticks.**
+A DEFCON 2 measured at 98 ticks (run `260920_010605_p1901`) or at ONE tick (run `260915_012829`) can
+pass entirely between them.
+
+**The generalisation.** Any observable computed by a widget *watching* simulation state is a fact
+about one client's sampling rate, not about the match, and no tolerance fixes it -- the widget can
+miss an entire phase, not merely lag it. Assert on something written in synced code on the tick it
+happens. Here that is `DefconEscalation.LevelReachedTick`, whose own `[Desc]` on
+`Test.DefconLevelReachedTick` already states the sibling rule for Lua pollers ("there is no sampling
+interval that is safe against an edge"). The same warning now applies one layer up, to widgets.
+
+**It was a real player-facing defect too, not only a test problem.** `DefconTransitionBannerWidget`
+decided whether to combine two DEFCON banners by asking "is the band for the rung above still on my
+screen". A client that hitched, fast-forwarded, or simply dropped frames across both edges would see
+3 -> 1 with no 2 in it, raise one `OPEN WAR` band and reproduce **§B6's exact defect from a second
+cause nobody had noticed**. Fixed in the same commit by deriving the decision from the transition
+record instead. Pinned by `DefconReadoutTest.TheCombineDecisionTakesRECORDEDEdgeTicksAndNothingElse`,
+which exists to stop a `now`-dependent term being reintroduced.
+
+**One symptom in that run that was NOT a second defect**, recorded because it reads like one: the
+census showed `abrams act AttackActivity(cancelling)` with the t90 at full HP, which looks like an
+ordered shot that failed to land. No order had been issued -- the banner assertion returned before
+`Test.ClickOrder`. The activity is the abrams' **DEFCON 3 auto-acquisition being torn down** by
+`CeaseAutonomousFireEverywhere` on the transition tick: `DefconHoldsFire` is false at level 3, so
+autotarget acquires freely there and only `Armament.CanFire` is gated -- which is also why the t90
+was untouched. The ordered-kill timing in that scenario remains **unmeasured**; it has never run.
+
+## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`)
+
+`260921-release-readiness.md` §2.7 claim 6 says hold-fire's six fire-path guards have no test and that
+*"Three scenarios are named as owed"*. It is relaying `escalation-gameplay-review-260919.md`, which was
+written on 2026-09-19 and was accurate when written. **The three scenarios landed at 17:15-17:16 that
+same day** -- `c1c31675` (contact), `96cf46a5` (garrison), `4a462171` (ambush) -- and all six
+directories, each treatment with its `-skirmish` control arm and an `expected-status: fail`
+declaration, are present at the audit's own ref `61d0c1f8`:
+
+| read site | mechanism | scenario |
+|---|---|---|
+| 1 | `AutoTarget.ChooseTarget` idle acquisition | `test-defcon2-holdfire-contact` |
+| 2 | `AutoTarget.INotifyDamage.Damaged` return fire | `test-defcon2-holdfire-contact` |
+| 3 | the `IOverrideAutoTarget` branch (`AutoTarget.cs:1228`) | **none** |
+| 4 | `AttackFollow` persistent-opportunity fire | `test-defcon2-holdfire-contact` |
+| 5 | `GarrisonManager.ScanForTarget` | `test-defcon2-holdfire-garrison` |
+| 6 | `AutoTarget.TriggerNearbyAmbushAllies` | `test-defcon2-holdfire-ambush` |
+
+**The generalisation is CLAUDE.md's own pipeline rule, hit again**: two documents agreeing on a claim
+is not evidence, and the second document's agreement was *inherited* rather than re-derived -- the
+audit says so in its own preamble ("Where I am relaying a figure from another document rather than
+re-deriving it, the sentence says so"). One `ls tools/autotest/scenarios/ | grep holdfire` settles it.
+
+**READ SITE 3 IS THE ONLY REAL GAP, AND WRITING A SCENARIO FOR IT IS NOT STRAIGHTFORWARD.** Established
+by reading, at this ref, and recorded so the next person does not re-walk it:
+
+- `DefconHoldsFire` is `DefconFireDiscipline.HoldsFire`, true **only at level 2** (`:85-88`). So at
+  DEFCON 3 autotarget acquires targets completely normally -- it is `Armament.CanFire` that is gated
+  there (`PermitsWeapon`), not acquisition. Units DO hold incumbent auto-acquired targets at DEFCON 3.
+- On the 3 -> 2 edge `DefconEscalation.CeaseAutonomousFireEverywhere` (`:553-562`) walks
+  `ActorsWithTrait<AutoTarget>()` and **skips every actor that is dead or `!IsInWorld`**.
+- Site 3's gated branch needs `canYield == true`, i.e. an **auto-acquired** incumbent, **at DEFCON 2**.
+  Every ordinary route to one is closed: sites 1, 2, 4 and 6 gate acquisition at 2, and the wipe clears
+  everything that was holding one at 3.
+- What is left is an actor that was **out of the world across the edge** and re-enters during DEFCON 2
+  still holding its DEFCON 3 incumbent -- a transport passenger (`RideTransport.cs:85` calls
+  `w.Remove(self)`, which `Cargo.cs:432` documents) or a garrison occupant. **Whether AttackFollow's
+  `RequestedTarget` survives boarding was NOT established** -- `Turreted.cs:358` calls
+  `attack.OnStopOrder(self)`, which clears it, and whether that fires on the way into a transport was
+  not traced.
+
+So site 3 reads as a **belt-and-braces guard whose ordinary reachability is unproven**, which is the
+honest reason it has no scenario rather than an oversight. A scenario built on the transport chain
+without first settling the boarding question would very likely report `fail: SETUP` forever, and "a
+bug that cannot fire is indistinguishable from a bug that does not exist" (the ambush scenario's own
+README).
+
+**One thing worth a second look while someone is in there**, found in passing and NOT fixed here
+because nothing measured it: the preemption branch immediately above site 3 (`AutoTarget.cs:1224-1226`)
+returns a *new* target on `canYield && PreemptionDue(self) && TryFindHigherBandTarget(...)` **before**
+site 3's `canYield && DefconHoldsFire` test runs. If a yieldable incumbent can exist at DEFCON 2 at
+all -- which is exactly the question above -- then preemption reaches past the guard. Swapping the two
+`if`s would close it, but it is an unmeasured behavioural change to a fire path and should ride with
+the scenario that can see it, not ahead of it.
 
 ## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
 

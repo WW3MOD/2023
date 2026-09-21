@@ -1,0 +1,88 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Escalation signature moment, ONE combined banner (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# WHAT THIS MEASURES. Section B6 of the 2026-09-19 escalation review: when the border opens and the
+# first casualty lands inside the banner's hold window, the player must get ONE banner naming both
+# edges -- not a banner and a half. The whole mechanism and the argument for the pair is in
+# mods/ww3mod/scripts/defcon-banner-combine-lib.lua, which both arms share verbatim.
+#
+#   Probe     22,16   USA abrams.  Given exactly one order, on the tick the border opens.
+#   Contact   26,16   Russia t90.  Given NO order, ever. Dies to the FIRST round, inside the 66-tick hold.
+#
+# FOUR CELLS APART, not the ten the hold-fire pair uses. TankRound.Abrams is Range 25c0 /
+# MinRange 1c512, so four cells is inside the envelope and outside the minimum; the short
+# separation keeps the round's flight time small, which matters because the COMBINED arm has to
+# land its kill inside a 66-tick window that starts at the 3 -> 2 edge.
+#
+# THE MATCH OPENS AT DEFCON 3, WHICH IS THE POINT. Both edges are needed -- the clock running out
+# and the life being taken -- and a scenario opening at 2 has only the second. The no-rush clock is
+# overridden to 150 ticks so the run is short; nothing else about the phase is changed.
+#
+# The Supply Routes sit in opposite corners, one per faction, so neither faction is eliminated
+# before the poller writes a verdict. `supplyroute` carries Targetable.TargetTypes: NoAutoTarget and
+# cannot be what the abrams engages.
+#
+# THE DISCRIMINATING PAIR. test-escalation-banner-separate is this directory with ONE quantity changed
+# -- the t90's Health.HP -- and it asserts the OTHER branch of the same rule. Both arms PASS.
+# See README.md.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	Probe: abrams
+		Owner: USA
+		Location: 22,16
+		Facing: 768
+	Contact: t90
+		Owner: Russia
+		Location: 26,16
+		Facing: 256
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,30
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,4
+
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 22,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 26,16
+
+Rules: rules.yaml
