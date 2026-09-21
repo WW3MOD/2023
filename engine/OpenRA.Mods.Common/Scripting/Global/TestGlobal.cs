@@ -2394,5 +2394,92 @@ namespace OpenRA.Mods.Common.Scripting.Global
 
 			return Sighting()?.ThreatDirection(player, cell).Angle ?? 0;
 		}
+
+		// ── PIPELINE item 86: the army-share reserve, made measurable from Lua ──
+		//
+		// WHY THESE EXIST. The reserve's whole behaviour is "the ambush lane did NOT recruit", and a scenario
+		// cannot see that: no bot module logs which ACTOR it sent where, an un-recruited unit is indistinguishable
+		// from an idle one by position, and the [exp-ambush] reserve line is in debug.log where no verdict can
+		// read it. Run 260922_012732 proved the fix works and its own scenario still printed FAIL for an
+		// unrelated reason (the tank belongs to the offensive axis), so the item had no verdict of its own.
+		// These three accessors are that verdict's inputs. Read-only, test mode only, no orders, no side effects.
+
+		PoiGoalGuard Guard(Player player)
+		{
+			return player?.PlayerActor?.TraitsImplementing<PoiGoalGuard>()
+				.FirstOrDefault(g => !g.IsTraitDisabled);
+		}
+
+		PoiOffensiveBotModule Offense(Player player)
+		{
+			return player?.PlayerActor?.TraitsImplementing<PoiOffensiveBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+		}
+
+		[Desc("Number of `player`'s units currently held in the shared PoiGoalGuard ledger under an objective " +
+			"whose OWNER PREFIX (the part before the colon) is `ownerPrefix` — one of offense, ambush, " +
+			"garrison, capture, transport, bombard, defend-line. These are the same commitments debug.log " +
+			"tallies as `by=<owner>:<n>`, but read straight from the ledger rather than through " +
+			"PoiOffensiveBotModule's free-pool pass, so unlike that line it does NOT inherit the pass's " +
+			"axis-claim exclusion and may count a unit the census skips. 0 outside test mode, for a player " +
+			"with no ledger, or for a prefix nobody holds.")]
+		public int GetBotLedgerHeld(Player player, string ownerPrefix)
+		{
+			if (!TestMode.IsActive || player == null || string.IsNullOrEmpty(ownerPrefix))
+				return 0;
+
+			var guard = Guard(player);
+			if (guard == null)
+				return 0;
+
+			var tick = Context.World.WorldTick;
+			var prefix = ownerPrefix + ":";
+			var held = 0;
+
+			foreach (var a in Context.World.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (!guard.Ledger.IsCommitted(a, tick))
+					continue;
+
+				if (guard.Ledger.TryGetObjective(a, out var objective)
+					&& objective != null
+					&& objective.StartsWith(prefix, StringComparison.Ordinal))
+					held++;
+			}
+
+			return held;
+		}
+
+		[Desc("PoiOffensiveBotModule's published free-pool count for `player`: the uncommitted, un-axis'd units " +
+			"it saw at the START of its most recent eval, identical to the `free=` in that tick's [exp-ledger] " +
+			"line. This is the exact number the item-86 ambush reserve decides against, so a scenario asserting " +
+			"on the reserve reads the same value the reserve did. -1 when the player runs no enabled offensive " +
+			"module, or it has not evaluated yet — which is information, not zero, and must not be papered over.")]
+		public int GetBotOffenseFreePool(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			var offense = Offense(player);
+			if (offense == null)
+				return -1;
+
+			return offense.TryGetFreePoolSnapshot(out var free, out _, out _) ? free : -1;
+		}
+
+		[Desc("PoiOffensiveBotModule's forward-staging floor for `player` AS IT APPLIES IT: " +
+			"FreePoolMinAdvanceUnits, or 0 when ForwardStagingEnabled is false and the field is never read. " +
+			"-1 when the player runs no enabled offensive module.")]
+		public int GetBotOffenseAdvanceFloor(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			var offense = Offense(player);
+			return offense == null ? -1 : offense.EffectiveFreePoolMinAdvanceUnits;
+		}
 	}
 }

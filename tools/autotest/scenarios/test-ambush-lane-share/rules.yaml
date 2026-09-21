@@ -1,0 +1,44 @@
+# Shape copied verbatim from test-combined-arms-rendezvous, which is the known-good
+# Lua-verdict scaffold for driving the @experimental bot from a spectator slot.
+# DefaultCash is deliberately NOT forced to 0: an earlier revision of that scenario
+# did so and never produced a verdict at all.
+
+Player:
+	PlayerResources:
+		DefaultCash: 7500
+	# ── THE CONSTRUCTED OPENING (PIPELINE item 86) ──
+	#
+	# WHY THIS OVERRIDE EXISTS, and it is the whole reason this scenario can judge the
+	# reserve when test-combined-arms-rendezvous could not. Measured there twice
+	# (260922_012732 reserve ON, 260922_012930 reserve OFF): offense forms an axis out
+	# of its ENTIRE free pool at t~120, so by the lane's t200 eval every unit is already
+	# ledger-committed `offense:` and the lane posts nothing IN EITHER ARM. Same verdict,
+	# same outcome, nothing discriminated.
+	#
+	# Raising the axis floor above any unit count this opening can reach means
+	# PoiOffenseMath.DesiredAxisCount returns 0 (`totalUnits < minAxisSize`), so NO axis
+	# ever forms, offense keeps its units in the free pool, and it sits permanently under
+	# its own advance floor — which is exactly the state ruling (a) governs and the state
+	# the lane used to raid. BOTH size fields are set because EarlyGameSpread swaps
+	# EarlyMinAxisSize in for the first 4500 ticks and the window under test is inside it.
+	#
+	# 40 is chosen against a MEASURED trajectory, not a guess: the same map and cash grew
+	# USA to 5 combat units by t200 and 9 by t500, so the pool cannot climb out of the
+	# constructed state inside the observation window.
+	#
+	# THE OVERRIDE IS VERIFIED AT RUNTIME, NOT ASSUMED. If this block ever stops merging
+	# — a renamed trait, a changed @suffix, the MiniYaml case trap — the floor silently
+	# reverts to 2 and the scenario would go green having measured the shipped default.
+	# The Lua reads the floor back through Test.GetBotOffenseAdvanceFloor and SKIPS
+	# (no verdict) unless it is this number. Never delete that check.
+	PoiOffensiveBotModule@experimental:
+		FreePoolMinAdvanceUnits: 40
+		MinAxisSize: 40
+		EarlyMinAxisSize: 40
+
+World:
+	-StartGameNotification:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, test-ambush-lane-share.lua

@@ -3,6 +3,53 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - A scenario whose two arms produce the same outcome is not a control: construct the state under test, do not hope the opening supplies it (`test-ambush-lane-share`)
+
+Four runs of `test-combined-arms-rendezvous` were spent trying to judge PIPELINE item 86 with it. It cannot,
+and the reason generalises to any bot-behaviour scenario.
+
+**THE SYMPTOM.** Reserve ON (`260922_012732`) and reserve OFF (`260922_012930`) produced the **same verdict,
+the same failure text and the same outcome**. Not because the fix does not work — the ON arm shows
+`[exp-ambush] reserve allow=0 … waived=none lanes=0` at every eval and the ledger never shows `by=ambush` —
+but because in the OFF arm the lane *also* posted nothing: offense had already absorbed the whole free pool
+into an axis before the lane's first eval (`[exp-ledger] free=4` at t189 → axis, so `free=0` at t200).
+**The opening never contained the state the feature governs, so neither arm could exercise it.**
+
+**THE RULE: a RED arm must be able to fail DIFFERENTLY, and on a bot map that usually means CONSTRUCTING the
+state rather than waiting for it.** The failing assumption here was that a small opening army would naturally
+leave units uncommitted at the lane's eval. It does not, and *which* module gets them first turns on a
+`world.LocalRandom` eval stagger. The new scenario's `rules.yaml` lifts the offensive module's axis floor
+above any unit count the opening can reach, so `DesiredAxisCount` returns 0, no axis forms, and offense
+provably holds its units under its own advance floor for the whole window. The state under test is then a
+property of the scenario, not of a race.
+
+**CONSTRUCTING IT CREATES A NEW FAILURE MODE, AND THE SCAFFOLD MUST CHECK ITSELF.** A `rules.yaml` override
+that stops merging — a renamed trait, a changed `@suffix`, MiniYaml's case-sensitive top-level merge — is
+**silent**, and the scenario then measures the shipped default and goes GREEN having proved nothing. The fix
+is to read the overridden value back at runtime and **SKIP rather than PASS** unless it is what was asked for
+(`Test.GetBotOffenseAdvanceFloor` must equal 40). Any scenario that constructs its state through a rules
+override needs this; without it the override is exactly the "the override isn't taking effect" trap with a
+green tick on top.
+
+**AND A SECOND GUARD: a PASS must prove the feature was ASKED the question.** "Nothing happened" passes
+trivially when the module is disabled, when no lane is viable, or when the units died early. The scenario
+requires having observed offense holding a pool `>= MinUnitsPerAmbush` **and** `<= its floor`, and SKIPs
+otherwise. **`-1` from a binding is information, not zero** — "offense has not evaluated yet" must not read
+as "offense has no floor".
+
+**MEASURING "A MODULE DID NOT ACT" NEEDS A LEDGER READ, NOT A POSITION READ.** No bot module logs which
+ACTOR it sent where (`LayeredDefenceBotModule.cs:545` says so outright), and an un-recruited unit at the
+Supply Route is indistinguishable by position from an idle one, a garrisoned one, or one a held axis is
+sitting on. Three runs were lost to inferring it from a tank's survival — and the tank turned out to belong
+to a different module. The three new test-mode bindings (`Test.GetBotLedgerHeld` / `GetBotOffenseFreePool` /
+`GetBotOffenseAdvanceFloor`) return the *same numbers the feature itself decides on*, so the verdict cannot
+drift away from the mechanism.
+
+**`make lua-gate` CAN RED-TEST A SCENARIO YOU CANNOT LAUNCH.** It resolves every `Test.*` call against the
+C# bindings. Sabotaging one call (`Test.GetBotLedgerHeldXYZ`) made it name the exact file and line and exit
+2; restoring made it clean. On a machine where launches are serialised and expensive, that is a real
+RED-before-green on the scaffold, available in seconds and with no slot.
+
 ## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229)
 
 The item-86 reserve below shipped with an axis waiver and it did not bind on its first measured run. The

@@ -160,3 +160,79 @@ two-unit early-spread axis ordered 53 cells to the enemy Supply Route. The discr
 `supplyroute@58,4`; it reinforced to 3 at t218 and 5 at t318 while its lead element was already at 17,16 and
 22,16, and the tank died at t539. This is the same family as item 64's missing lead-hold, on the axis side
 rather than the staging side. It is what actually kills the tank in this scenario, in **both** arms.
+
+---
+
+#### Status log — 2026-09-22 (second pass): the reserve WORKS; item 86 gets its own scenario
+
+**The reserve binds exactly as designed.** Run `260922_012732_p56822` at `616a2e0c`, USA-bot:
+
+```
+t100  [exp-ambush] reserve allow=0 free=1 … waived=none lanes=0
+t200  [exp-ambush] reserve allow=0 free=2 offense-free=2 min=2 axes=0 waived=none lanes=0
+      … lanes=0 / taken=0 at every eval through t500; the ledger NEVER shows by=ambush
+```
+
+**The lane is exonerated.** The verdict was still `FAIL` (tank dead t542 at `21,16`) for a reason that has
+nothing to do with this item — see the handoff below.
+
+**The old scenario cannot judge item 86 IN EITHER DIRECTION on this opening.** The RED arm
+(`260922_012930_p58667`, flag off) reads `allow=inf … waived=off lanes=0` and **`free=0`**: offense had
+already absorbed the whole pool into its axis (`[exp-ledger] free=4` at t189 → axis), so the lane posted
+nothing *with the reserve switched off too*. Same verdict, same outcome, both arms. **A control that cannot
+fail differently from its test is not a control.**
+
+#### NEW SCENARIO: `tools/autotest/scenarios/test-ambush-lane-share`
+
+Asserts the item directly and reads the same numbers the reserve decides on, through three new test-mode
+bindings (`TestGlobal.cs`): `Test.GetBotLedgerHeld(p, "ambush")`, `Test.GetBotOffenseFreePool(p)`,
+`Test.GetBotOffenseAdvanceFloor(p)`. **Verdict: units held under an `ambush:` commitment must stay at ZERO
+while offense's free pool is at or under its advance floor**, sampled every tick to t500.
+
+**The opening is CONSTRUCTED, not hoped for** — that is the lesson of the two runs above. `rules.yaml`
+overrides `PoiOffensiveBotModule@experimental` with `MinAxisSize: 40` / `EarlyMinAxisSize: 40` /
+`FreePoolMinAdvanceUnits: 40`, so `PoiOffenseMath.DesiredAxisCount` returns 0 (`totalUnits < minAxisSize`),
+**no axis ever forms**, and offense sits permanently under its own floor holding its units in the free pool —
+precisely the state ruling (a) governs and the state the lane used to raid. 40 is set against the *measured*
+trajectory on this map and cash (5 combat units by t200, 9 by t500), not guessed.
+
+Two `abrams` at `8,16` and `8,18`. Eligibility is **derived, not assumed**: `abrams` inherits
+`^AutoTargetMBT` → `^AutoTarget` (`vehicles-america.yaml:469`, `defaults.yaml:457-458`), which carries both
+`AmbushTacticsCondition` (`:430`) and the `ExternalCondition@ambushtactics` seam (`:454-455`), so
+`CanHostAmbush` is true and the OBS-1 `^AutoTargetGround` exclusion does not apply; its role is `MainBattle`
+(`UnitRoleResolver.cs:380-382`), which `UseUnitRoles` admits. Two, because `MinUnitsPerAmbush` is 2 — one
+would be refused by minimum manning and the RED would post nothing for the wrong reason. Both cells are
+**proven vehicle-passable** (they held the abrams and the bradley in every rendezvous run on this map.bin).
+
+**Three ways it refuses to produce a false green**, all returning SKIP rather than PASS:
+1. the floor is read back and must equal 40 — if the `rules.yaml` block ever stops merging (renamed trait,
+   changed `@suffix`, the MiniYaml case trap) the override is silently inert and a green would be measuring
+   the shipped default;
+2. offense must at some point hold a pool `>= MinUnitsPerAmbush` **and** `<= floor`, or the reserve was never
+   asked the question;
+3. offense must have published a free pool at all (`-1` is information, not zero).
+
+**Verified without launching:** `make lua-gate` resolves all three new bindings against `TestGlobal`, and a
+deliberate sabotage (`Test.GetBotLedgerHeldXYZ`) makes the gate name this file and line with exit 2, restored
+clean — so the gate demonstrably parses this scenario rather than skipping it.
+
+#### HANDOFF TO ITEM 64 — the residual lone tank is the OFFENSE AXIS, not the lane
+
+`test-combined-arms-rendezvous` still fails, and this is what it is measuring. From `260922_012732`:
+
+```
+t120  [exp-offense] axis-new target=supplyroute#7 cell=58,4 action=Pressure
+      [exp-offense] order … action=Pressure units=2 cohesion=Spread distToTarget=53
+      [exp-offense] reeval pool=2 free=0 axes=1
+t220  [exp-offense] hold units=2 · reinforce-held joined=3 units=5
+t320  [exp-offense] reinforce-held joined=2 units=7
+lua   tank 8,16 → 11,16 → 17,16 → 21,16 (t100–t400), dead t542
+      carrier with all four riflemen sat at 8,18 for the whole run
+```
+
+**Offense forms a two-unit axis out of its entire pool while sitting at its own floor, and orders it 53 cells
+to the enemy Supply Route while the ferry never departs.** `EarlyMinAxisSize: 2` is what lets the axis form;
+the axis then reinforces to 5 and 7 *behind* a lead element already 13 and 17 cells out. That is item 64's
+missing **lead-hold**, on the axis side rather than the staging side — `FreePoolMinAdvanceUnits` gates the
+free pool's departure and nothing gates the axis's. **Item 64 owns it. Not fixed here, and not to be fixed on
+this branch.**
