@@ -3,6 +3,38 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - `Cargo.Load` is half of a pair and the Lua binding only ever did its half, so a scripted load put a man in the hold AND on the map — and the crash arrived ninety seconds later in another file (`wt/neutral-entry`, run 260921_162312)
+
+**THE MECHANISM.** `Cargo.Load` adds to the passenger list and does NOT call `World.Remove`; the
+removal is the CALLER's half, and every caller in the engine does it —
+`RideTransport.OnEnterComplete` runs `enterCargo.Load(...)` and `w.Remove(self)` inside one
+frame-end task (`:80-81`). `TransportProperties.LoadPassenger` was the one caller that skipped it.
+Hand it an **in-world** actor and he is in the hold and standing on his cell at the same time.
+Nothing notices: `PassengerCount` is right, the man is right there, and the sim is consistent until
+something unloads him. Then `UnloadCargo` or `GarrisonManager.DeployToPort` (`:450`) reaches
+`World.Add`, which is an unguarded `actors.Add(a.ActorID, a)` (`World.cs:395-397`), and the match
+dies on `An item with the same key has already been added. Key: [10, e1 10]` — **from a frame-end
+task, so the trace contains not one frame of the Lua that caused it.** **[V]**
+
+**THE DISTANCE IS THE POINT.** demo-garrison-lineup loaded its riflemen at tick 10 and died at
+**95 seconds**, in `GarrisonManager`, on a man `LoadPassenger` had mishandled ninety seconds
+earlier. The stack names the victim and never the culprit. A cause/symptom gap like that is what
+makes a "half a pair" bug expensive: the fix is one `if` in the file nobody was looking at.
+
+**IT WAS ALREADY KNOWN, TWICE, AND THAT IS THE REAL FINDING.**
+`test-field-heli-unload` and `test-unload-queued-after-waypoints` each carry a PITFALL comment
+quoting this exact exception string and work around it by passing `false` to `Actor.Create`.
+**A hazard that two scenarios have to remember is a hazard the binding should not have** — the
+workaround was written down twice instead of being spent once on the cause, and the third caller
+(this demo) had no reason to go looking for either comment. `demo-defcon-readout` is the fourth:
+it creates its rider with `Actor.Create("E1.america", true, ...)` and loads it, so it has been
+carrying a double-present passenger in its captures all along without a crash, because nothing ever
+unloads him. **When a workaround comment has to be written a second time, that is the signal to fix
+the thing it is working around.** Fixed at the binding 2026-09-21; `LoadPassengerWorldStateTest`
+pins the pairing structurally, because no autotest can — a scenario proves the binding works on the
+actors it passes, and the defect is about the actors it does not.
+
+
 ## 2026-09-21 - The garrison boarding filter does NOT refuse a neutral building, and a stale one-line elimination kept three instruments pointed at it (`wt/neutral-entry @ 4d1b7bfc`)
 
 **THE CORRECTION.** The 2026-09-15 entry below eliminates the load filter with the line *"Cargo's

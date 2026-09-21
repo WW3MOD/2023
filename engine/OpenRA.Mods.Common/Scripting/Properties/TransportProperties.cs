@@ -55,6 +55,38 @@ namespace OpenRA.Mods.Common.Scripting
 					"refused it (no space, loading blocked, or a cargo filter said no).");
 
 			cargo.Load(Self, a);
+
+			// AND TAKE HIM OUT OF THE WORLD, because Cargo.Load does not and never has.
+			//
+			// Load only adds to the passenger list; the removal is the CALLER's half of the pair, and
+			// every other caller does it -- RideTransport.OnEnterComplete runs `enterCargo.Load(...)`
+			// and `w.Remove(self)` in the same frame-end task (:80-81). This binding was the one that
+			// did half the job, so a script handing it an IN-WORLD actor got a man who was in the hold
+			// AND standing on the map, and the failure surfaced arbitrarily later at the UNLOAD: both
+			// UnloadCargo and GarrisonManager.DeployToPort (:450) end in World.Add, which is an
+			// unguarded `actors.Add(a.ActorID, a)` (World.cs:395-397) and throws
+			// `An item with the same key has already been added` out of a frame-end task, with no
+			// frame of the Lua that caused it anywhere in the trace.
+			//
+			// MEASURED: run 260921_162312 killed demo-garrison-lineup 95 s in, out of DeployToPort,
+			// on a rifleman the demo had LoadPassenger'd off the map ninety seconds earlier. The trap
+			// was already known -- test-field-heli-unload and test-unload-queued-after-waypoints each
+			// carry a PITFALL comment naming this exact exception string and work around it by passing
+			// `false` to Actor.Create. A hazard that two scenarios have to remember is a hazard the
+			// binding should not have.
+			//
+			// Deferred rather than immediate: Lua runs inside the world tick and World.Remove mutates
+			// the actor dictionary being iterated. A frame-end task is what RideTransport uses, and
+			// FIFO drain order means a DeployToPort enqueued later in the same tick still adds AFTER
+			// this removes. The `false` idiom keeps working untouched -- an actor created out of world
+			// is not IsInWorld, so this is a no-op for it.
+			// Pinned by LoadPassengerWorldStateTest.
+			if (a.IsInWorld)
+				Self.World.AddFrameEndTask(w =>
+				{
+					if (a.IsInWorld)
+						w.Remove(a);
+				});
 		}
 
 		[Desc("Remove an existing actor (or first actor if none specified) from the transport.  This actor is not added to the world.")]

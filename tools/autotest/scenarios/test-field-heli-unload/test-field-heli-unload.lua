@@ -25,11 +25,18 @@ WorldLoaded = function()
 	-- Build the passengers OUT OF WORLD and load them straight in, so their starting
 	-- cell plays no part in the verdict.
 	--
-	-- PITFALL: the second argument must be false. Cargo.Load (Cargo.cs:529) adds the
-	-- passenger to the cargo list but never calls World.Remove — the removal normally
-	-- happens on the EnterTransport path, not here. Loading an actor that IS in the
-	-- world leaves it in both places, and the eventual unload re-adds it, throwing
-	-- "An item with the same key has already been added" out of World.Add.
+	-- The second argument is false: create the passenger OUT of the world, then load him.
+	--
+	-- CLOSED AT THE BINDING 2026-09-21, and this note is kept rather than deleted because the
+	-- `false` is still the honest thing to write here — a man who is never in the world does not
+	-- have to be taken out of it. What changed is that passing `true` is no longer a trap:
+	-- Cargo.Load (Cargo.cs:529) adds to the passenger list and never calls World.Remove, the
+	-- removal being the caller's half of the pair, and TransportProperties.LoadPassenger was the
+	-- one caller that skipped it. An in-world actor therefore sat in the hold AND on the map, and
+	-- the eventual unload re-added it, throwing "An item with the same key has already been added"
+	-- out of World.Add — which is exactly what killed demo-garrison-lineup in run 260921_162312,
+	-- ninety seconds after the load, from a frame-end task naming none of the Lua responsible.
+	-- LoadPassenger now removes an in-world passenger itself; LoadPassengerWorldStateTest pins it.
 	local function board()
 		local a = Actor.Create("e3", false,
 			{ Owner = Tran.Owner, Location = Tran.Location, Facing = Angle.New(768) })

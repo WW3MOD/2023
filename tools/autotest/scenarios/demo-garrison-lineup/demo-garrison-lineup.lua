@@ -240,8 +240,17 @@ WorldLoaded = function()
 		end
 	end)
 
-	-- LoadPassenger TELEPORTS the man into Cargo (TransportProperties.cs:42-48) instead of
-	-- ordering him to walk in. The first run of this demo used EnterTransport and the three
+	-- LoadPassenger TELEPORTS the man into Cargo (TransportProperties.cs:42-58) instead of
+	-- ordering him to walk in.
+	--
+	-- THESE MEN ARE MAP-PLACED, i.e. IN THE WORLD when this runs, and that used to be fatal ninety
+	-- seconds later. Cargo.Load adds to the hold and does not call World.Remove; the binding
+	-- skipped its half of the pair, so each rifleman was in the hold AND standing on his start
+	-- cell, and the first GarrisonManager.DeployToPort to pull one out ended in World.Add on an
+	-- actor already in the dictionary -- `An item with the same key has already been added`,
+	-- run 260921_162312, no captures taken. Fixed at the binding rather than worked around here,
+	-- because two other scenarios were already carrying a PITFALL comment about it and a hazard
+	-- that scenarios have to remember is one the binding should not have. The first run of this demo used EnterTransport and the three
 	-- CIVILIAN squads never boarded at all -- capture 017 is a church with ten riflemen still
 	-- standing in their start files four cells away, while the three defence squads, whose
 	-- buildings are USA-owned rather than Neutral, went in normally. The cause was never
