@@ -6,34 +6,44 @@ TestHarness = {}
 
 -- Second→tick conversion for AssertWithin and friends.
 --
--- THIS IS NOT THE GAME'S TICK RATE, and the name has misled readers. Single-test runs play at the
--- mod's "default" GameSpeed — Game.LoadMap hardcodes "default" and run-test.sh never passes
--- Test.GameSpeed — whose Timestep is 60 ms (mod.yaml). The engine's own Lua converter derives
--- 1000 / 60 = 16 ticks/second by INTEGER division (DateTimeGlobal.cs:31). So one "second" handed to
--- AssertWithin is 25 ticks where DateTime.Seconds(1) is 16: harness deadlines are ~1.56x longer
--- than they read, always in the lenient direction.
+-- THIS NOW MATCHES THE ENGINE. Single-test runs play at the mod's "default" GameSpeed — Game.LoadMap
+-- hardcodes "default" and run-test.sh never passes Test.GameSpeed — whose Timestep is 60 ms
+-- (mod.yaml:431). The engine's own Lua converter is DateTime.Seconds → TickTime.TicksForSeconds,
+-- which computes `seconds * 1000 / timestepMilliseconds`, multiplying BEFORE dividing: Seconds(4) is
+-- 66 ticks and Seconds(60) is exactly 1000. The harness derives its rate from the SAME timestep
+-- instead of carrying a hardcoded one, so AssertWithin(n) and DateTime.Seconds(n) are now the same
+-- number of ticks for every integer n. Mixing the two bases in one scenario is no longer a trap.
 --
--- IT IS DELIBERATELY LEFT AT 25. 91 deadlines across 137 scenarios were authored and accepted
--- against this value, several knowingly (test-tunguska-missile-standoff:25 "Left alone
--- deliberately"; test-depot-vacate-phantom:32 "Generous on purpose"), and correcting it shortens
--- all of them by a third in one edit that cannot be validated without running the whole suite.
--- The two scenarios that used to be casualties of moving it (test-critical-no-panic,
--- test-autotarget-preempt-air) were re-authored on 2026-09-02 and are now immune; the fixture
--- engine/OpenRA.Mods.Common/AutotestTickRateTest.cs proves that at BOTH rates and still fails at
--- `dotnet test` if this number moves, because the REST of the suite has not been audited.
+-- CHANGED 2026-09-21, AND EVERY WINDOW SHRANK BY A THIRD. This was 25 ticks/second, a figure
+-- belonging to no tick base in this mod — RA's 40 ms timestep gives 25; ours gives 16.667 — so every
+-- AssertWithin(n) was silently worth 1.5 n engine seconds. Deadlines authored against that value are
+-- now a third shorter in real time. Nothing was re-authored to compensate: the full-suite run that
+-- follows this change is what finds the casualties.
 --
--- Note what that audit has to look for. Only one of those two actually went red at 16. The other
--- kept passing while an INNER deadline it contains became unreachable — a scenario that silently
--- stopped enforcing its own budget. Shortening every deadline by a third produces some red runs and
--- some greens that have quietly stopped measuring, and the second kind is the one to hunt.
+-- Note the shape of the casualty to hunt, because it is not only red runs. A scenario can keep
+-- PASSING while an inner budget it contains becomes unreachable and silently stops being enforced —
+-- that is exactly what test-autotarget-preempt-air did when this was evaluated at 16, and it is the
+-- worse of the two failures. A green is not evidence that a scenario still measures anything.
 --
--- WRITING A NEW SCENARIO: budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`,
--- as the medic scenarios do. That is immune to whatever this value is — but it does NOT always
--- round-trip exactly, contrary to what this comment claimed until 2026-09-02: AssertWithin recovers
--- the budget with math.floor, and 1145 of the first 20000 integers come back one tick short at 25,
--- 16 or both (402 -> 401; also 29, 57, 113-116, 201, 203, 205). Multiples of 25 are always safe.
--- Do not spend that tick twice by trimming a deadline to its measured margin as well.
-TestHarness.TicksPerSecond = 25
+-- WRITING A NEW SCENARIO: budget in TICKS and convert with `ticks / TestHarness.TicksPerSecond`, as
+-- the medic scenarios do. That round-trips EXACTLY for every integer tick budget now — see the
+-- epsilon note on TicksForSeconds below — which was NOT true before: 1145 of the first 20000
+-- integers used to come back one tick short at 25.
+TestHarness.TimestepMs = 60          -- mirrors mod.yaml:431 (GameSpeeds: DefaultSpeed: default)
+TestHarness.TicksPerSecond = 1000 / TestHarness.TimestepMs   -- 16.667; 98 scenarios read this name
+
+-- Seconds → ticks, by the arithmetic the ENGINE performs (TickTime.TicksForSeconds: multiply before
+-- divide, then truncate). Every integer second lands byte-identical on DateTime.Seconds(n).
+--
+-- The epsilon is not slack for the truncation — it cancels one specific rounding artefact. Scenarios
+-- budget in ticks and hand back `ticks / TestHarness.TicksPerSecond`; 1000/60 has no exact double, so
+-- 225 ticks returns as 13.499999999999998 s and would truncate to 224, shaving a tick off 9405 of the
+-- first 20000 budgets. 1e-9 is orders of magnitude above that dust and below any real deadline
+-- granularity, so integer tick budgets round-trip exactly while genuinely fractional seconds still
+-- truncate the engine's way (2.5 s → 41 ticks, not 42).
+function TestHarness.TicksForSeconds(seconds)
+	return math.floor(seconds * 1000 / TestHarness.TimestepMs + 1e-9)
+end
 
 -- Center the camera on the geometric midpoint of the given actors.
 -- Usage: TestHarness.FocusBetween(Paladin, Target)
@@ -83,7 +93,7 @@ end
 --     already produced one published wrong answer (WORKSPACE/bugs/discovered.md 2026-09-01).
 --     Every pre-existing caller passes a string and is unaffected.
 function TestHarness.AssertWithin(seconds, predicate, timeoutReason)
-	local timeoutTicks = math.floor(seconds * TestHarness.TicksPerSecond)
+	local timeoutTicks = TestHarness.TicksForSeconds(seconds)
 	local elapsed = 0
 	local check
 	check = function()
@@ -146,7 +156,7 @@ end
 --     TestHarness.AssertAfter(3, function() return Tank.IsDead end,
 --         "Tank still alive 3s in")
 function TestHarness.AssertAfter(seconds, predicate, failReason)
-	local ticks = math.floor(seconds * TestHarness.TicksPerSecond)
+	local ticks = TestHarness.TicksForSeconds(seconds)
 	Trigger.AfterDelay(ticks, function()
 		if predicate() then
 			Test.Pass()
@@ -250,7 +260,7 @@ end
 -- mid-test ("3 seconds after Paladin starts moving, screenshot to see where it
 -- got to") without manually composing Trigger.AfterDelay.
 function TestHarness.ScreenshotAfter(seconds, label, note)
-	local ticks = math.floor(seconds * TestHarness.TicksPerSecond)
+	local ticks = TestHarness.TicksForSeconds(seconds)
 	Trigger.AfterDelay(ticks, function()
 		Test.Screenshot(label, note or "")
 	end)

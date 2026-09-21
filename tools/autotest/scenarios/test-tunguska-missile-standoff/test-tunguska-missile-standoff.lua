@@ -22,9 +22,10 @@
 -- The heli is held on HoldFire so it cannot damage the Tunguska; return fire would
 -- trigger repositioning and confound a test whose entire signal is "did it move east".
 
--- NOTE: TestHarness.TicksPerSecond is 25 in mods/ww3mod/scripts/test-helpers.lua, but the
--- mod runs at Timestep 60 = 16.67 tps, so this deadline is really ~30 s of wall time. Left
--- alone deliberately — correcting the helper would move every other scenario's deadline.
+-- NOTE: this deadline was authored when TestHarness.TicksPerSecond was a hardcoded 25 and was
+-- therefore ~30 s of wall time (500 ticks). The harness was corrected to the engine's 16.667 on
+-- 2026-09-21, so 20 here now means 20 s = 333 ticks. The number was NOT re-authored with the
+-- flip; if this scenario starts timing out, that is the reason and the budget needs re-deriving.
 local DeadlineSeconds = 20
 
 local TunguskaCol = 10

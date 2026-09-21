@@ -63,12 +63,14 @@
 -- the LC already grants `unit.docked` within 2c0). Each is one line and each changes every vehicle
 -- in the game, which is why none of them is done here.
 
-local DeadlineSeconds = 75 -- 1875 ticks. TestHarness.TicksPerSecond is 25 while the mod runs
-local SettleTicks = 30     -- Timestep 60 (16.67 tps), so this is ~112s of wall clock.
-                           -- A full rearm from empty is the long pole: 40 rounds / ReloadCount 5 =
-                           -- 8 batches at AmmoPool.ReloadDelay 50 = 400 ticks EACH, and the two
-                           -- tanks are serialised by the single dock cell. 75s is ~2x the ~950
-                           -- ticks that needs; multiples of 25 are exact under AssertWithin's floor.
+local DeadlineSeconds = 75 -- 1250 ticks. Was 1875 (~112 s) until the harness was corrected from
+local SettleTicks = 30     -- a hardcoded 25 to the engine's 16.667 tps on 2026-09-21; 75 s now
+                           -- really is 75 s. NOT re-authored with the flip, so the headroom fell
+                           -- from ~2x to ~1.3x: a full rearm from empty is the long pole (40
+                           -- rounds / ReloadCount 5 = 8 batches at AmmoPool.ReloadDelay 50 = 400
+                           -- ticks EACH, and the two tanks are serialised by the single dock
+                           -- cell), which needs ~950 ticks against the 1250 now budgeted. If this
+                           -- starts timing out, re-derive it rather than widening it blindly.
 local DamagedPercent = 70  -- see the burn-vs-repair note above; must stay > 50
 
 -- LOGISTICSCENTER placed at 32,16 is Dimensions 2,2 and covers 32..33 x 16..17. Its dock is the
