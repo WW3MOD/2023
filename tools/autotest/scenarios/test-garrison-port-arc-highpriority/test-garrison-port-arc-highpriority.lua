@@ -14,20 +14,41 @@
 --
 -- THE RED, AND HOW TO STAGE IT. Delete the two `RequiresCondition: !garrisoned-at-port` lines
 -- from Targetable@HighPriority on ^MT and ^AT (infantry.yaml:1625-1626, :1767-1768) and run
--- again. PHASE 2 fails with the message beginning "THE BEHIND SHOT CONNECTED" -- BehindShooter,
--- due south of a north-east-facing port, lands damage on the Gunner. Nothing else in the run
--- changes: both controls stay green, which is what makes the failure attributable.
+-- again. PHASE 2 fails with the message beginning "THE BEHIND SHOT IS ALLOWED" -- BehindShooter,
+-- on the bearing directly opposite the port the Gunner holds, is a valid target for him.
 --
--- WHY THE MEASUREMENT IS DAMAGE AND NOT A CURSOR OR AN ORDER STRING. Test.GetTargetOrder and
--- Test.ClickOrder walk the IOrderTargeter pipeline, and that pipeline NEVER consults
--- IsTargetableBy: AttackOrderTargeter.CanTargetActor asks ChooseArmamentsForTarget
--- (AttackBase.cs:849), which ends at WeaponInfo.IsValidAgainst -> victim.GetEnabledTargetTypes()
--- (WeaponInfo.cs:256-264) -- a UNION of target types, with no per-attacker question in it. Both
--- before and after the fix the garrisoned MT still has Ground and Infantry enabled, so every
--- order-layer instrument returns "Attack" either way and would be a RED that cannot fail. The
--- arc gate lives one layer down, in the attack ACTIVITY (Attack.cs:209, AttackBase.cs:288,
--- both `target.IsValidFor(self)` -> Actor.IsTargetableBy). Damage landing or not landing is the
--- only observable that sits below that line.
+-- WHY THE MEASUREMENT IS CanTarget AND NOT DAMAGE, AND NOT A CURSOR OR AN ORDER STRING.
+-- Half of this file's original argument stands and half of it was disproved by the runs it
+-- predicted, so both halves are written out here.
+--
+-- WHAT STANDS: the ORDER layer cannot see this defect. Test.GetTargetOrder and Test.ClickOrder
+-- walk the IOrderTargeter pipeline, and that pipeline NEVER consults IsTargetableBy --
+-- AttackOrderTargeter.CanTargetActor asks ChooseArmamentsForTarget (AttackBase.cs:849), which
+-- ends at WeaponInfo.IsValidAgainst -> victim.GetEnabledTargetTypes() (WeaponInfo.cs:256-264),
+-- a UNION of target types with no per-attacker question in it. Both before and after the fix the
+-- garrisoned MT still has Ground and Infantry enabled, so every order-layer instrument returns
+-- "Attack" either way and would be a RED that cannot fail. The arc gate lives one layer down, in
+-- the attack ACTIVITY (Attack.cs:209, AttackBase.cs:288, both `target.IsValidFor(self)` ->
+-- Actor.IsTargetableBy).
+--
+-- WHAT WAS WRONG: the conclusion drawn from that -- "damage landing or not landing is the only
+-- observable that sits below that line". It is not, and the damage limb it justified COULD NOT
+-- FAIL. Staged for real on 2026-09-15 the sabotage produced two PASSES: GREEN run 260915_220342
+-- logged `BEHIND-SHOT ... canTarget=false`, RED run 260915_220801 logged `canTarget=TRUE` with
+-- the fourth targetable reading `Targetable[enabled=True answers=True]` -- the gate was provably
+-- open -- and the Gunner still finished the 30 s window on full health. So the health delta is
+-- downstream of at least one further thing that did not move, and a limb whose negative can be
+-- satisfied by a shooter that simply never connects is not evidence about an arc.
+--
+-- CanTarget IS AT THE RIGHT LAYER. Actor.CanTarget is `Target.FromActor(t).IsValidFor(Self)`
+-- (CombatProperties.cs:111-115) -- literally Actor.IsTargetableBy, the SAME call the attack
+-- activity re-runs every tick at Attack.cs:209 and AttackBase.cs:288. It is not an order-layer
+-- instrument and the paragraph above does not apply to it. This file was already printing it on
+-- every shot; it just was not asserting on it. Now it does.
+--
+-- THE DAMAGE WINDOW IS KEPT ANYWAY, as a second limb rather than the first. Damage arriving from
+-- outside the arc is a finding whatever the gate says, it costs nothing on a green run, and
+-- keeping it is what makes this change additive to the passing behaviour instead of a swap.
 --
 -- WHY THE GUNNER IS PINNED TO A NORTH-EAST PORT RATHER THAN TRUSTED TO LAND THERE. ^CivBuilding
 -- declares 8 ports on the four diagonals with Cone: 140 (civilian.yaml:79-119). WAngle is
@@ -435,8 +456,11 @@ local function RiflemanControl()
 	}, ControlShot)
 end
 
--- PHASE 2 — THE ASSERTION. Due south of a north-east-facing port, at 384 WAngle units off a
--- cone of 140, this shooter must land nothing at all.
+-- PHASE 2 — THE ASSERTION, in two limbs. On the bearing directly opposite the port the Gunner
+-- holds, at 384 WAngle units off a cone of 140, this shooter must (a) not be ALLOWED to target
+-- him -- the gate reading, which is what actually fails when the arc is broken -- and (b) land
+-- nothing at all across the quiet window. (a) is first because it is the one that moves: see the
+-- header for the staged RED in which (b) alone passed with the gate provably open.
 local function BehindShot()
 	if not AtCell(BehindShooter, BehindCellX, BehindCellY) then
 		Test.Skip("the behind shooter is at " .. BehindShooter.Location.X .. "," ..
@@ -450,6 +474,51 @@ local function BehindShot()
 	end
 
 	ReportGeometry("BEHIND-SHOT", BehindShooter, HouseMT, Gunner)
+
+	-- THE TWO GUARDS THAT MUST PRECEDE THE GATE READING, because CanTarget answers "yes" for an
+	-- ordinary man standing in the open and that is not this defect. A Gunner who has been
+	-- recalled to the shelter has GarrisonPortOccupant DISABLED and the regular Targetable
+	-- (RequiresCondition: !garrisoned-at-port) ENABLED, so he reads targetable from every bearing
+	-- -- correctly, and it would be a false FAIL here. Same for a man who swapped ports: the
+	-- shooter's bearing was derived from HeldYaw and means nothing against a port he no longer
+	-- holds. Both are SKIPs: nothing under test was staged.
+	if not AtPort(Gunner) then
+		Test.Skip("the Gunner was not at a firing port when the behind-shot reading was taken, so " ..
+			"his targetability proves nothing - off a port GarrisonPortOccupant is disabled and the " ..
+			"regular Targetable is enabled, which makes him targetable from everywhere by design. " ..
+			"The usual cause is Bait dying to the garrison's own mortar, which leaves the north-east " ..
+			"port with no target and recalls the man. Nothing was measured. " .. State())
+		return
+	end
+
+	if PortYawOf(Gunner, HouseMT) ~= HeldYaw then
+		Test.Skip("the Gunner changed ports before the behind-shot reading (was yaw " ..
+			tostring(HeldYaw) .. ", now " .. Test.GarrisonPortOf(Gunner, HouseMT) .. "), so the " ..
+			"shooter is on a bearing derived from a port he no longer holds and the reading means " ..
+			"nothing. " .. State())
+		return
+	end
+
+	-- THE ASSERTION. Taken on the gate itself rather than on a downstream effect of it -- see the
+	-- header: the damage-only version of this limb passed a staged RED that had the gate provably
+	-- open. CanTarget is Target.IsValidFor -> Actor.IsTargetableBy, the same test the attack
+	-- activity makes every tick, so a `true` here IS the defect whether or not a bullet follows.
+	if BehindShooter.CanTarget(Gunner) then
+		Test.Fail("THE BEHIND SHOT IS ALLOWED. A rifleman at " .. BehindShooter.Location.X .. "," ..
+			BehindShooter.Location.Y .. ", on the bearing directly OPPOSITE the port the Gunner is " ..
+			"manning (" .. Test.GarrisonPortOf(Gunner, HouseMT) .. ", Cone 140 = 49.2 degrees " ..
+			"either side), is a VALID TARGET for him: Target.IsValidFor -> Actor.IsTargetableBy " ..
+			"returned true, and that is the same call the attack activity re-runs every tick " ..
+			"(Attack.cs:209, AttackBase.cs:288). GarrisonPortOccupant.TargetableBy " ..
+			"(GarrisonPortOccupant.cs:105-121) should have refused him. IsTargetableBy ORs across " ..
+			"every enabled ITargetable and returns on the first yes (Actor.cs:671-678), so the " ..
+			"report names the trait that overrode the arc: " .. Test.TargetableReport(Gunner, BehindShooter) ..
+			" -- an enabled second targetable answering true is the known cause. Check that " ..
+			"Targetable@HighPriority on ^MT still carries RequiresCondition: !garrisoned-at-port " ..
+			"(infantry.yaml:1625-1626). " .. State())
+		return
+	end
+
 	local baseline = HealthOf(Gunner)
 	BehindShooter.Attack(Gunner)
 
