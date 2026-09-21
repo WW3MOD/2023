@@ -3,6 +3,65 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
+
+Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
+(`weapons-missiles.yaml`), which zeroed six armour classes, named one the ruleset does not define
+(`Brick`) and omitted three it does (`Kevlar`, `Unarmored`, `Indestructable`).
+
+**The omitted-key rule itself is already curated** — `conventions.md` §"`Versus`: an OMITTED armor
+class is FULL damage" has it with the citation (`Warheads/DamageWarhead.cs:105`, the
+`Versus.ContainsKey` filter). Nothing new there, and no promotion is owed for it. What is new is that
+**the obvious repair is booby-trapped, and the trap is documented one section further down where an
+auditor fixing the table is not looking.**
+
+- The live effect was real and sizeable: `Kevlar` is `^Soldier`'s armour, **67 concrete actors inherit
+  `^Soldier` transitively**, infantry set no `Armor.Thickness` so `ApplyPenetration` is skipped
+  entirely, and `^Infantry` is `HP: 200` — so the "harmless" spotter dealt **50, a flat 25% of a
+  soldier's health, per shot**, to the entire combat-infantry roster, while genuinely doing 0 to the
+  civilians whose armour the table *does* list. Selective in exactly the direction that survives
+  eyeballing.
+- **But completing the table is not available as a fix.** `ArmorInfo.ProvideTooltipDescription`
+  (`Traits/Armor.cs:73`) gates a unit's Armour tooltip row on whether **any** `DamageWarhead` in the
+  whole ruleset names the type. Naming `Kevlar` here *at any value, including 0* flips **every
+  infantry tooltip in the game** from "None" to "Kevlar" — contradicting the 28 shipped unit
+  descriptions that read "- No armor" and which `conventions.md:400` already ruled are the
+  mechanically correct half. So the damage bug and the UI are coupled through the key set, and the
+  repair that reads as obviously right is a game-wide visible regression.
+- **`Damage: 0` decouples them.** It is also the honest statement of what the warhead is: a dummy
+  trigger so the launcher has something to fire, real payload the spawned `IskanderMissile` actor
+  (`vehicles-russia.yaml:1068-1071`), damage done by `IskanderExplosion`. Zero damage is harmless
+  against all nine classes without naming any new one.
+
+**Generalisable rule: when a `Versus` table is wrong, ask whether the defect is in the table's VALUES
+or in its KEY SET before editing it. A value is local; a key is global.** `Damage: 0`,
+`DamagePercent: 0`, or dropping the warhead are the levers that do not touch the key set.
+
+**Two residues, both disclosed rather than fixed:**
+
+1. `DangerFieldLayer.WarheadIsHarmless` inspects only `Versus`, never `Damage`, so it still returns
+   false for both targeters — which *was* a correct verdict and is now a **fail-open false positive**.
+   Correcting it means reading `Damage`/`DamagePercent` in the danger kernel, which moves bot belief
+   and breaks replay byte-identity against every earlier baseline (influence-stack invariant). Not
+   desk work. Noted inline at the method.
+2. **No lint anywhere validates a `Versus` key.** `CheckUnknownWeaponFields` descends exactly one
+   level into a warhead — it checks the warhead's own child node names against the warhead type's
+   fields (`Lint/CheckUnknownWeaponFields.cs:100-105`) — so `Versus` passes as a real field and its
+   children are never examined, and no other file under `Lint/` mentions `Versus`. An invented or
+   misspelt armour class is accepted by `make test`, `--check-yaml` and the Windows merge gate alike;
+   the only symptom is a weapon quietly doing full damage. Promoted into `conventions.md` §402 with
+   the citation.
+
+**Census re-run at `eacc1cff` (needs no build):** 42 `Versus:` tables under
+`mods/ww3mod/rules/weapons/`. This was the **only** table naming an undefined class and the **only**
+all-zero table — so both defects were singletons, not a pattern. The other **41** tables are non-zero
+balance tables that omit `None/Wood/Kevlar/Unarmored/Indestructable` as a consistent group (nuke
+thermal/blast and shockwave warheads listing only `Concrete/Light/Medium/Heavy`); those omissions are
+live full-damage-to-infantry by the same rule, but they are plausibly intended and are item 32
+sign-off territory. `Brick` has now left the union entirely; `Kevlar`, `Unarmored` and
+`Indestructable` remain in zero tables, so `conventions.md`'s standing claim that no warhead
+discriminates infantry damage by armour class still holds.
+
 ## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
 
 Found while re-deriving item 78's edge-choice rule from source for
