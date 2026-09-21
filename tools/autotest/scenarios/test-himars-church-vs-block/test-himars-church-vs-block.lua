@@ -31,6 +31,30 @@
 -- not 44100 -- church floored to 1, block at 81500. Both thresholds below are set wide enough
 -- that it does not matter which side of the shockwave the latch lands on.
 
+-- THE TWO HONEST REDs. Each half of the bar has its own sabotage, and neither is a timing knob.
+--
+--   TIMING HALF -- "the order must not be issued before the world's first frame-end drain":
+--   move the two LauncherB/LauncherA.Attack calls out of the tick poller and back into
+--   WorldLoaded, their original call site. Expect FAIL "no impact within 1000 ticks -- church
+--   38000/38000, block 120000/120000 ... probe: t1 B[(idle) ammo=2] A[(idle) ammo=2]".
+--   `OrderAtTick = 1` is NOT a RED for this: run 260921_175314 passed with it. See the note at the
+--   order site.
+--
+--   DAMAGE HALF -- "one HIMARS rubbles the church and leaves the block over half": add to this
+--   scenario's rules.yaml, separated by a blank line, with the key UPPERCASE to match
+--   civilian.yaml:302 (top-level MiniYaml merges case-SENSITIVELY, so `v01:` would silently
+--   override nothing and the run would come back green):
+--       V01:
+--           Health:
+--               HP: 120000
+--   Expect FAIL "one HIMARS did NOT rubble the church: church 81500/120000, block 81500/120000 --
+--   expected the 1 HP Indestructible floor ...".
+--
+-- A RED THAT DOES NOT WORK, recorded so nobody spends a run on it: raising the church's Armor
+-- changes nothing. HIMARSExplosion's Warhead@Target carries no Versus table, so 36000 of the 38500
+-- that lands on the impact tick is armour-blind -- which is the whole reason this retune had to be
+-- carried in HP, and the whole reason this scenario exists.
+
 local ChurchStart, BlockStart
 local ChurchSeen, BlockSeen = nil, nil
 local Reported = false
@@ -153,6 +177,13 @@ local function Snapshot(label)
 		" A->Block=" .. (ok3 and tostring(canA) or "?"))
 end
 
+-- LIVE health, for the watchdog. Distinct from the LATCHED reading Verdict asserts on: if nothing
+-- ever hit, there is no latch to report and the live numbers are the whole story.
+local function Census()
+	return "church " .. (Church.IsDead and "DEAD" or tostring(Church.Health)) .. "/" .. tostring(ChurchStart) ..
+		", block " .. (Block.IsDead and "DEAD" or tostring(Block.Health)) .. "/" .. tostring(BlockStart)
+end
+
 local function TraceText()
 	if #Trace == 0 then
 		return "probe recorded nothing"
@@ -183,19 +214,23 @@ WorldLoaded = function()
 	-- test-sam-intercepts-iskander orders from a tick poller at `FireAtTick = 20`, commented "let the
 	-- world settle before ordering" (:48), and never from WorldLoaded. This file is copying that.
 	--
-	-- WHAT IS INFERRED AND NOT YET PROVEN -- read the probe, do not trust this paragraph. The
-	-- suspected mechanism is target VIEWABILITY. AttackActivity's constructor records
-	-- `lastVisibleTarget` only when `target.Actor.CanBeViewedByPlayer(self.Owner)` (AttackFollow.cs
-	-- :414-417); the first Tick then sets `useLastVisibleTarget` from `targetIsHiddenActor` (:487),
-	-- and TWO independent exits follow from it -- `:508` (hidden with no fallback position) and
-	-- `:521` (in range but hidden) -- either of which returns true and ends the activity on tick one,
-	-- silently. That is consistent with every observation, but I could NOT establish that the church
-	-- is actually unviewable at tick 0: ^StandardVision grades out past 22c0 (defaults.yaml:115-145)
-	-- and detection also depends on the building's Detectable tier, so a 24-cell target may well be
-	-- seen. Two readings-by-code have already been wrong on this scenario, so the probe now samples
-	-- `Test.IsDetectedBy(Church, LauncherB.Owner)` every tick: if it reads false early and true
-	-- later, the mechanism above is confirmed; if it was true all along, the "settling" is something
-	-- else and this comment is the thing to fix.
+	-- WHAT IS NOW OBSERVED, not inferred. Run 260921_174914 (GREEN) logged
+	-- `t1 ... churchVisible=false` then `t2 ... churchVisible=true`: the deferral is exactly ONE
+	-- TICK wide, and Test.IsDetectedBy goes straight through Actor.CanBeViewedByPlayer
+	-- (TestGlobal.cs:1771-1776). So the church genuinely is unviewable while WorldLoaded runs, which
+	-- is what makes AttackActivity's constructor skip recording `lastVisibleTarget`
+	-- (AttackFollow.cs:414-417) and the first Tick end the activity at `:508` -- "target is hidden
+	-- or dead, and we don't have a fallback position to move towards" -- on tick one, silently. An
+	-- earlier version of this comment flagged that chain as suspected-but-unproven; it is proven now.
+	--
+	-- THE DISCRIMINATOR IS THE CALL SITE, NOT THE LENGTH OF THE DELAY, and this matters because the
+	-- obvious RED is wrong. Run 260921_175314 set `OrderAtTick = 1` and PASSED: at t1 the trace
+	-- reads `B[AttackActivity]` WITH `churchVisible=false`, and the activity survived anyway. An
+	-- order issued from OnTick at tick N has its first activity tick in tick N+1, by which time the
+	-- frame-end queue has drained -- so ANY tick >= 1 is safe, and only WorldLoaded, which lands
+	-- before tick 1's activity pass, is not. `OrderAtTick = 20` is kept purely as harmless margin,
+	-- copied from test-sam-intercepts-iskander.lua:48; 1 would do. Do NOT use a smaller OrderAtTick
+	-- as a RED for this -- see THE TWO HONEST REDs at the top of this file.
 	--
 	-- WHY NO LOG EVER SAID SO. `CombatProperties.Attack` does warn about an unviewable target, but
 	-- that branch is gated on `!HasTraitInfo<FrozenUnderFogInfo>()` (CombatProperties.cs:97) and
@@ -212,6 +247,30 @@ WorldLoaded = function()
 	-- vision bubble, which is live from world setup. A 24-cell indirect-fire shot does not.
 	local OrderAtTick = 20
 	local ordered = false
+
+	-- NO AssertWithin HERE, AND THAT IS THE POINT. This scenario used
+	-- `TestHarness.AssertWithin(40, function() return Reported end, ...)` until 2026-09-21, and it
+	-- made both of that day's GREEN runs worthless: AssertWithin calls `Test.Pass()` ITSELF the
+	-- moment its predicate returns true (test-helpers.lua:91-93), with NO note, and that is a
+	-- TERMINAL verdict that exits the game. `Reported` is set in the latch above, 2 + 25 = 27 ticks
+	-- before Verdict's assertions would run -- so AssertWithin won the race every time, Verdict
+	-- NEVER EXECUTED, and the runs passed without ever evaluating either half of the bar. The
+	-- evidence is in the run dirs of 260921_174914 and 260921_175315: `"notes":""`, no
+	-- `screenshots` key, and no PNG on disk. A test that cannot fail is not a passing test.
+	--
+	-- THE RULE: a predicate handed to AssertWithin must NEVER become true in a scenario that has
+	-- its own assertions. AssertWithin is safe only as a pure watchdog whose predicate is always
+	-- false, or in a scenario whose ONLY question is "did X happen in time". Here the deadline is
+	-- open-coded instead, so Verdict is the single verdict authority.
+	--
+	-- THE BUDGET, IN TICKS, because that is the unit the engine uses. 1000 ticks is 60 s at
+	-- Timestep 60 (16.67 ticks/s) -- deliberately the same number AssertWithin(40) resolved to via
+	-- TestHarness.TicksPerSecond = 25, so the deadline did not silently move with this change.
+	-- Against it: order at t20, then SetupTicks 100 + up to ~52 ticks of turret travel at TurnSpeed
+	-- 10 + AimingDelay 40, then ~120 ticks of flight. Measured in run 260921_174914: ammo left the
+	-- tube at t177 and the last missile left the world at t281, so impact is ~t280 and there is
+	-- roughly 3.5x headroom. Do not trim this to the measured margin.
+	local DeadlineTicks = 1000
 
 	-- allowMove FALSE: a launcher that repositions changes the impact geometry between the two
 	-- lanes, so the map's spawn separation is part of the assertion. Both are ~24 cells out,
@@ -250,40 +309,54 @@ WorldLoaded = function()
 		if ChurchSeen ~= nil and BlockSeen ~= nil then
 			Reported = true
 			Trigger.AfterDelay(2, Verdict)
+			return
+		end
+
+		-- The watchdog, and the ONLY other terminal verdict in this file. Carries the census, both
+		-- separations and the probe trace, because "both targets at exactly full HP" is the shared
+		-- signature of at least four unrelated causes and it took three runs to learn that health
+		-- alone cannot tell them apart.
+		if ticks >= DeadlineTicks then
+			Reported = true
+			local census = Census()
+			print("HIMARSCENSUS timeout " .. census)
+			Test.Fail("no impact within " .. DeadlineTicks .. " ticks — " .. census ..
+				" — ranges: LauncherB->Church " .. CellsBetween(LauncherB, Church) ..
+				"c, LauncherA->Block " .. CellsBetween(LauncherA, Block) ..
+				"c (HIMARSTargeter needs >16c and <50c; allowMove is false so these cannot change)" ..
+				" — probe: " .. TraceText())
 		end
 	end)
 
-	-- THE BUDGET. AssertWithin's argument is multiplied by TestHarness.TicksPerSecond = 25, so 40
-	-- here is 1000 ticks -- 60 s of wall clock at Timestep 60, not 40 (test-helpers.lua:7-36
-	-- explains why that conversion is deliberately left wrong-but-lenient). Against that: order at
-	-- t20, then AttackTurreted's SetupTicks 100 plus up to ~52 ticks of turret travel at TurnSpeed
-	-- 10 plus Armament AimingDelay 40, then ~120 ticks of flight for 24 cells. Impact lands near
-	-- t330, so there is about 3x headroom. Do not trim this to the measured margin.
-	--
-	-- THE CENSUS NAMES THE RANGE AND THE PROBE. Run 1 reported only "church 38000/38000, block
-	-- 120000/120000", which is the signature of a launcher that never fired -- and is equally the
-	-- signature of three different causes. It took three runs to separate them because the verdict
-	-- carried no state but health. It now carries the separations and the probe trace.
-	TestHarness.AssertWithin(40, function() return Reported end, function()
-		return "no impact within 40s — church " ..
-			(Church.IsDead and "DEAD" or tostring(Church.Health)) .. "/" .. ChurchStart ..
-			", block " .. (Block.IsDead and "DEAD" or tostring(Block.Health)) .. "/" .. BlockStart ..
-			" — ranges: LauncherB->Church " .. CellsBetween(LauncherB, Church) ..
-			"c, LauncherA->Block " .. CellsBetween(LauncherA, Block) ..
-			"c (HIMARSTargeter needs >16c and <50c; allowMove is false so these cannot change)" ..
-			" — probe: " .. TraceText()
-	end)
 end
 
 function Verdict()
-	local detail = "church " .. tostring(ChurchSeen) .. "/" .. ChurchStart ..
-		", block " .. tostring(BlockSeen) .. "/" .. BlockStart
+	-- THE LATCHED reading, taken on the first tick each target took any damage (see the header for
+	-- why it is latched and why it reads 38500 of damage rather than 44100).
+	local detail = "church " .. tostring(ChurchSeen) .. "/" .. tostring(ChurchStart) ..
+		", block " .. tostring(BlockSeen) .. "/" .. tostring(BlockStart)
+
+	-- TO lua.log FIRST, BEFORE ANY VERDICT CAN EXIT THE GAME. The two HP readings ARE the bar, and
+	-- for two runs on 2026-09-21 they existed only inside a Lua local that nothing ever printed:
+	-- result.json carried `"notes":""` and lua.log carried no census at all, so a PASS said nothing
+	-- about what it had measured. Recording it here means the numbers survive regardless of which
+	-- branch below fires, and regardless of whether a future edit reintroduces a competing verdict.
+	print("HIMARSCENSUS " .. detail)
 
 	TestHarness.Screenshot("01-after-one-salvo",
 		"expects: the church at its rubble state (heavy damage overlay, burning), the apartment " ..
 		"block visibly damaged but standing")
 
 	Trigger.AfterDelay(25, function()
+		-- Defensive: Verdict is only scheduled once both latches are set, so this cannot fire
+		-- today. It is here because the failure this file just had was a verdict path that was
+		-- never reached, and a nil arriving at the comparison below would raise a Lua error whose
+		-- only symptom is a watchdog timeout with a misleading message.
+		if ChurchSeen == nil or BlockSeen == nil then
+			Test.Fail("verdict reached with an incomplete census: " .. detail)
+			return
+		end
+
 		if ChurchSeen > 1000 then
 			Test.Fail("one HIMARS did NOT rubble the church: " .. detail ..
 				" — expected the 1 HP Indestructible floor: 38000 HP Light against 38500 on the impact" ..
