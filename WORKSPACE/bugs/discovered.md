@@ -5,6 +5,27 @@
 
 ---
 
+- [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,
+  and `tools/autotest/selftest.sh` has two red cases saying so.** Running the selftest on
+  `main @ 70e63582` (stub launcher, no game) gives `crash (fresh exception log)` → wanted
+  `CRASH` exit 3, got `NO-RESULT` exit 3, plus its companion `crash report does not name the
+  exception log`. **Pre-existing, not from `wt/assertwithin-audit`** — verified by running the
+  same selftest against `main`'s own `run-test.sh`, where both still fail. The mechanism:
+  crash detection finds the exception log by taking `dirname` of whatever `find_debug_log`
+  returns (`run-test.sh:1121-1127`), and `find_engine_log` returns **empty** when no
+  `debug.log` is present (`ls -t "${_dir}/debug.log" … | head -1`). Empty `_dbg` skips the
+  whole block, `CRASH_LOG` stays unset, and the run is graded `NO-RESULT`.
+  **Two readings, and a person should pick one.** (a) The fixture is under-specified: a real
+  engine crash writes `debug.log` before it throws, so the stub writing only
+  `exception-selftest.log` is a shape the engine never produces — fix the stub. (b) The runner
+  is genuinely fragile: an engine that dies *before* creating `debug.log` leaves an exception
+  log that this code can never find, and reports `NO-RESULT` (exit 3, "hung or closed by hand")
+  for a crash. **Not fixed here** — (a) is a one-line fixture change that would also hide (b),
+  and choosing between them is a judgement about what the gate is for. Note the selftest is
+  therefore red on a clean tree, which costs it the thing it exists for: nobody re-reads a
+  suite that is already failing. (found while: adding the PASS-EMPTY tripwire cases to that
+  same selftest, branch `wt/assertwithin-audit`)
+
 - [2026-09-20] [MEDIUM] **`demo-nuke-arsenal` cannot fire two of its six warheads, and has not been
   able to since the powers were faction-tiered.** The demo fires all six shots from USA
   (`demo-nuke-arsenal.lua` `SHOTS`, all `Test.ActivateSupportPower(USA, ...)`), but
@@ -74,7 +95,8 @@
   scenario currently asserts on either banner.
   (found while working on: the whole-match Escalation gameplay review)
 
-- [2026-09-19] [MEDIUM] **An Escalation lobby with three or more sides gets no border AND a total
+- [2026-09-19] [MEDIUM — FIXED 2026-09-21, `wt/escalation-guards`] **An Escalation lobby with three
+  or more sides gets no border AND a total
   cease-fire, so the correct play is to park in an enemy base and wait for the clock.** Decision 15
   rules that Escalation requires exactly two sides and says it is to be enforced in the lobby;
   **nothing enforces it.** `NuclearExchange.cs:28-31` and `:764-768` state the gap in their own words
@@ -89,6 +111,17 @@
   `WORKSPACE/audit/escalation-gameplay-review-260919.md` — a lobby-side refusal (right) or making
   `CeasesFire` require a standing border (cheap, weaker). Not reachable by accident today only because
   Escalation is not the default game mode.
+  **FIXED with the lobby-side refusal (the right one).** `EscalationLobbyRule` counts the sides a
+  lobby's SEATED clients resolve into — each distinct positive team once, each teamless seat as its
+  own side — and both doors to `Server.StartGame` refuse above two: the explicit `startgame` command
+  with a player-readable line (`notification-escalation-two-sides-required`), and `CheckAutoStart`
+  silently plus a server log line, because everybody readying up reaches `StartGame` without the host
+  ever clicking. **It counts SEATS and not map-authored combatants, deliberately** —
+  `test-nuclear-side-cooldown` and `test-bot-damages-garrisoned-building` each author three combatant
+  map players behind one playable slot, and counting map players would have refused to start both. A
+  map that authors three combatants of its own is therefore still unaffected and still reaches
+  `NuclearExchange`'s warning; that residue is knowingly left open and is not what the report was
+  about. 16 NUnit cases in `EscalationLobbyRuleTest`.
   (found while working on: the whole-match Escalation gameplay review)
 - [2026-09-19] [LOW — not fixed] **The Windows installer ignores a `/D=` install path on the command
   line.** `packaging/windows/buildpackage.nsi:41` opens `.onInit` with an unconditional
@@ -5871,3 +5904,22 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   verified clean first (`smudge-gate: 5 scar types, 2 tilesets in use, 1,315,657 cells scanned` →
   `clean`), so this cannot newly redden anyone's `make test`.
   (found while working on: pipeline item [16], adding `worldactor-gate` to the Makefile)
+
+- [2026-09-21] [LOW] **The Deploy key and the DEPLOY button do nothing on a garrison building whose
+  shelter is empty but whose firing ports are still manned — the deploy CURSOR on the same building
+  works.** `CommandBarLogic.PerformDeployOrderOnSelection` (`:607-619`) issues only through
+  `IIssueDeployOrder`; the sole implementor on a civilian garrison building is `Cargo`, gated
+  `!IsEmpty()` (`Cargo.cs:427`), and `GarrisonManager` does not implement that interface at all. The
+  mouse path is separately wired for exactly this state — `GarrisonManager.Orders` yields
+  `DeployOrderTargeter("Unload")` **when** `cargo.IsEmpty() && HasAnyOccupants`
+  (`GarrisonManager.cs:1464-1476`) — so `bc35eb98` ("allow Unload when only port soldiers remain
+  (rubble evac)", 2026-05-04) closed the cursor half of the gap and left the keyboard half open.
+  Both halves have been out of step on `main` since that commit; **not a regression from the
+  09-16..09-20 garrison work.** Severity LOW because the player is not trapped: `GarrisonPanelLogic`
+  ejects port soldiers individually (`:316`), and the deploy cursor does the bulk recall. What is
+  missing is the bulk *shortcut*, and the button is silently greyed rather than explaining itself.
+  **Not fixed here** — the fix is ~4 lines (`GarrisonManager` implements `IIssueDeployOrder` mirroring
+  its own `Orders` gate) but it re-enables a command-bar button for every garrison building, which is
+  a visible behavioural change deserving its own NUnit arm and an in-game look.
+  (found while working on: getting `test-garrison-unload-keeps-manned-owner` to a verdict; its
+  phase 4 pressed Deploy and waited 30s for ports that were never ordered to clear)

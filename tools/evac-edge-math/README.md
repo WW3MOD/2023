@@ -3,7 +3,8 @@
 Static arithmetic over the ten shipped maps: **when a ground unit evacuates, which map
 edge does it leave through, and how far does it drive to get there?**
 
-Written to settle the unverified premise in `WORKSPACE/pipeline/items/78-evacuation-edge-choice.md`,
+Written to settle the unverified premise in item 78, whose dossier was archived on 2026-09-21 into
+`WORKSPACE/pipeline/archive/closed-items.md` (it was `WORKSPACE/pipeline/items/78-evacuation-edge-choice.md`),
 and kept afterwards to measure the fix that premise justified. No game, no simulation, no
 build — it reads `map.yaml` + `map.bin` through nav-guard's decoder and replicates the
 engine's edge choice in cell coordinates.

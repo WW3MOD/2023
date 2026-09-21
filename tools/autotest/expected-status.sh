@@ -69,19 +69,21 @@
 #   The negative arm is by merit: the drone genuinely does not prefer the lost-track
 #   contact yet. Remove this file when the preference lands and the run goes green.
 #
-# First non-comment line is the status (`fail` or `skip`). Everything after it is the
+# First non-comment line is the status (`fail`, `skip` or `pass-empty`). Everything after it is the
 # reason and is REQUIRED — an entry with no reason is a configuration error and fails
 # the batch, on the same argument as lint-baseline's "[accepted] needs a comment above
 # it saying why". `pass` is rejected: that is the default and declaring it says nothing.
 # Lines starting with `#` are comments.
 #
 # USAGE
-#   expected_status_read  <scenario-dir>          -> echoes "" | "fail" | "skip" | "ERROR:msg"
-#   expected_status_grade <declared> <outcome>    -> GREEN|RED|STOPPED|NOTRUN|CONFIG
+#   expected_status_read  <scenario-dir>          -> echoes "" | "fail" | "skip" | "pass-empty" | "ERROR:msg"
+#   expected_status_grade <declared> <outcome>    -> GREEN|RED|STOPPED|NOTRUN|EMPTY|CONFIG
 #   ./expected-status.sh --selftest               -> proves the decision table, no launch
 #
-# <outcome> is run-test.sh's OUTCOME NAME -- PASS, FAIL, SKIP, TIMEOUT-FAIL, CRASH,
-# NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR -- NOT an exit-code bucket.
+# <outcome> is run-test.sh's OUTCOME NAME -- PASS, PASS-EMPTY, FAIL, SKIP, TIMEOUT-FAIL,
+# CRASH, NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR -- NOT an exit-code bucket.
+# PASS-EMPTY shares exit code 0 with PASS, which is the same trap one rung along: grading on
+# the code would make an empty-note green indistinguishable from a real one.
 # Passing a bucket is the bug described above: it erases TIMEOUT-FAIL into FAIL.
 
 # Echo the declared status for a scenario dir, or nothing if undeclared.
@@ -110,11 +112,18 @@ expected_status_read() {
 		fi
 	done < "${_esr_file}"
 
+	# `pass-empty` is the third declarable status, added 2026-09-21. It declares "this
+	# scenario legitimately passes with an empty `notes` field", and it exists for the same
+	# reason the other two do: without it, the empty-note tripwire would have to choose
+	# between silence and a permanently red batch, and the scenarios it fires on are exactly
+	# the ones nobody would then re-examine. Declaring it keeps the run, keeps the grade, and
+	# forces a written reason -- and it goes STALE the moment somebody gives the scenario a
+	# note, which is the direction this mechanism is allowed to move.
 	case "${_esr_status}" in
-		fail|skip) : ;;
+		fail|skip|pass-empty) : ;;
 		pass) echo "ERROR:'pass' is the default and declares nothing; delete the file"; return 0 ;;
 		"")   echo "ERROR:expected-status file is empty"; return 0 ;;
-		*)    echo "ERROR:unknown status '${_esr_status}' (expected 'fail' or 'skip')"; return 0 ;;
+		*)    echo "ERROR:unknown status '${_esr_status}' (expected 'fail', 'skip' or 'pass-empty')"; return 0 ;;
 	esac
 
 	if [ -z "${_esr_reason}" ]; then
@@ -129,6 +138,7 @@ expected_status_read() {
 #   GREEN   counts as a pass for the batch's exit code
 #   STOPPED the declared outcome no longer occurs -- the declaration is stale (RED)
 #   NOTRUN  the scenario never reached a verdict under its own power (RED)
+#   EMPTY   the scenario passed with an empty `notes` field and did not declare it (RED)
 #   RED     an outcome nobody declared
 #   CONFIG  the declaration itself is malformed (RED)
 expected_status_grade() {
@@ -138,6 +148,19 @@ expected_status_grade() {
 	case "${_esg_declared}" in
 		ERROR:*) echo "CONFIG"; return 0 ;;
 	esac
+
+	# PASS-EMPTY IS DECIDED BEFORE THE ALLOWLIST, and deliberately so. The scenario DID reach a
+	# verdict under its own power, so grading it NOTRUN -- "hung, crashed or was killed" -- would
+	# file it under a banner that is simply false about it and would send the reader to a
+	# debug.log that has nothing to say. It gets its own grade instead, EMPTY, which run-batch
+	# reports in its own block and counts toward the batch's non-green tally.
+	#
+	# An undeclared PASS-EMPTY can never be green: that is the "an empty green is a failed test"
+	# rule, and it is the whole point of the outcome existing.
+	if [ "${_esg_actual}" = "PASS-EMPTY" ]; then
+		[ "${_esg_declared}" = "pass-empty" ] && echo "GREEN" || echo "EMPTY"
+		return 0
+	fi
 
 	# THE ALLOWLIST, and the only copy of it. These three outcomes -- and no others --
 	# mean the scenario ran and answered. Every other name run-test.sh can report is
@@ -156,10 +179,15 @@ expected_status_grade() {
 	fi
 
 	# Uppercase the declaration for comparison without relying on `tr` locale behaviour.
+	# `pass-empty` reaching here means the actual outcome was PASS, FAIL or SKIP -- i.e. NOT the
+	# declared PASS-EMPTY, which returned above. A plain PASS is the STOPPED case: somebody gave
+	# the scenario a verdict note and the declaration has outlived its reason, so the file must
+	# go. Anything else is an ordinary RED.
 	case "${_esg_declared}" in
-		fail) _esg_want="FAIL" ;;
-		skip) _esg_want="SKIP" ;;
-		*)    echo "CONFIG"; return 0 ;;
+		fail)       _esg_want="FAIL" ;;
+		skip)       _esg_want="SKIP" ;;
+		pass-empty) _esg_want="PASS-EMPTY" ;;
+		*)          echo "CONFIG"; return 0 ;;
 	esac
 
 	if [ "${_esg_actual}" = "${_esg_want}" ]; then
@@ -214,6 +242,18 @@ _expected_status_selftest() {
 	_check "declared fail, plumb mismatch" "fail"  OUTCOME-MISMATCH NOTRUN
 	_check "declared fail, empty outcome"  "fail"  ""               NOTRUN
 	_check "undeclared, empty outcome"     ""      ""               NOTRUN
+	# THE EMPTY-NOTE GREEN. A pass with no verdict text is a failed test by standing rule, and
+	# the first row is the one that matters: undeclared, it can never be green, whatever the
+	# exit code says. It is NOT filed under NOTRUN -- the scenario did answer, it just did not
+	# say anything -- so it gets its own grade and its own block in the batch summary.
+	_check "undeclared, passes EMPTY"      ""           PASS-EMPTY EMPTY
+	_check "declared fail, passes EMPTY"   "fail"       PASS-EMPTY EMPTY
+	_check "declared skip, passes EMPTY"   "skip"       PASS-EMPTY EMPTY
+	_check "declared pass-empty, so"       "pass-empty" PASS-EMPTY GREEN
+	_check "declared pass-empty, got note" "pass-empty" PASS       STOPPED
+	_check "declared pass-empty, fails"    "pass-empty" FAIL       RED
+	_check "declared pass-empty, skips"    "pass-empty" SKIP       RED
+	_check "declared pass-empty, HANGS"    "pass-empty" TIMEOUT-FAIL NOTRUN
 	# Malformed declarations are never silently ignored -- and outrank NOTRUN, because
 	# the file has to be fixed either way.
 	_check "malformed declaration"         "ERROR:bad" FAIL CONFIG
@@ -227,6 +267,8 @@ _expected_status_selftest() {
 	printf 'fail\nby-merit negative, see CONTROL-ARM.md\n'   > "${_tmp}/good/expected-status"
 	printf '# a comment\n\nfail\n'                            > "${_tmp}/noreason/expected-status"
 	printf 'flaky\nbecause reasons\n'                         > "${_tmp}/bogus/expected-status"
+	mkdir -p "${_tmp}/empt"
+	printf 'pass-empty\nliveness-only gate; the frames are the evidence\n' > "${_tmp}/empt/expected-status"
 	printf '\n'                                               > "${_tmp}/empty/expected-status"
 	printf 'pass\nwhy not\n'                                  > "${_tmp}/pass/expected-status"
 
@@ -240,6 +282,7 @@ _expected_status_selftest() {
 	}
 	_checkfile "no file"                  "${_tmp}/none"     ""
 	_checkfile "status + reason"          "${_tmp}/good"     "fail"
+	_checkfile "declares pass-empty"      "${_tmp}/empt"     "pass-empty"
 	_checkfile "status, no reason"        "${_tmp}/noreason" "ERROR:*"
 	_checkfile "unknown status"           "${_tmp}/bogus"    "ERROR:*"
 	_checkfile "empty file"               "${_tmp}/empty"    "ERROR:*"

@@ -516,11 +516,6 @@ One root, four consequences: pausing an armament zeroes the autotarget scan radi
 **Perceived:** you right-click the enemy SR with your whole armoured force. The cursor says *move*. Your army drives across the map, parks on it, and stands there being shot at, firing at nothing.
 **The originating audit's "nothing ever told you it cannot be damaged" is FALSE** — the How To Play panel says it verbatim (`ingame-info-howtoplay.yaml:88-95`). The surviving defect is narrower: the panel says one thing and the cursor promises the opposite at the moment of the click. **The valuable half is the same shape as the sin `Passenger.cs:116-121` was reverted for** — silently reinterpreting one order as another. → [`items/77-enemy-sr-order-honesty.md`](pipeline/items/77-enemy-sr-order-honesty.md)
 
-### 78. Evacuation goes to the nearest wall, not home
-`[SWING — one-token diff, a balance change wearing a bugfix's clothes. ⚠️ The proposal's author flagged this as the entry they were LEAST confident about.]`
-**Perceived:** a wrecked tank deep in enemy territory banks its refund through *their* back edge, uninterceptable — so a deep raid is a free option.
-The mechanism is verified (aircraft use `self.Owner.HomeLocation`, ground uses `self.Location`; nine of ten maps have no `spawnarea`). **The PREMISE is not: nobody checked whether a unit in the enemy half is actually closer to the enemy edge, often enough to matter.** A free static settlement exists — spawn-and-bounds arithmetic over the ten maps, no launch. **Do that first; if it says the nearest edge is usually the owner's own, DROP this item.** → [`items/78-evacuation-edge-choice.md`](pipeline/items/78-evacuation-edge-choice.md)
-
 ### 79. Contestation should push the beachhead back
 `[SWING — new gameplay on the mod's central mechanic; small blast radius, real balance question]`
 **Perceived:** enemy units grinding your SR make your reinforcements arrive *in the wrong place*, not just more slowly — the drop point slides along the map edge and every unit has a longer, more exposed walk.

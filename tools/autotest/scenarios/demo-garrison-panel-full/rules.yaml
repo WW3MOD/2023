@@ -1,0 +1,29 @@
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off this machine's unit-defaults.yaml
+	# (AutoTarget.cs:355-388). Strip it so the riflemen behave identically on every machine.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-garrison-panel-full.lua
+
+# Nobody shoots. This demo is about what the PANEL says, and a firefight changes the occupant counts
+# the frames are being captured to show.
+#
+# PITFALL: BOTH stance fields, and InitialStanceAI is the one that fires for the scenario opponent.
+# AutoTarget.cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`, so
+# InitialStance alone is silently never read for a non-Playable slot.
+E1:
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

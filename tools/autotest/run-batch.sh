@@ -201,6 +201,12 @@ fi
 
 PASS=0; FAIL=0; SKIP=0; ERR=0
 BAD=0; STALE=""; MISCONFIGURED=""; NOTRUN=""
+# PASS-EMPTY: a scenario that passed with an empty `notes` field. Counted and listed on its
+# own because it shares run-test.sh's exit code 0 with a real pass -- so the exit-code tally
+# above cannot see it, and without this it would sit in `Pass:` looking like a result. That
+# is exactly the shape of the bug this was added for (2026-09-21): two greens that had never
+# run their own assertions, read as passes by everyone who saw them.
+EMPTY=0; EMPTYLIST=""
 LINES=""
 
 # Where run-test.sh hands its precise OUTCOME name back. One path, rewritten per test,
@@ -291,6 +297,20 @@ for t in ${TESTS}; do
 			BAD=$((BAD + 1))
 			NOTRUN="${NOTRUN} ${t}(${outcome})"
 			;;
+		EMPTY)
+			# Moved OUT of the Pass tally, not merely added alongside it: rc was 0, so the
+			# exit-code case above has already counted this as a pass, and leaving it there
+			# would report the same run twice and still show a clean `Pass:` line.
+			#
+			# Guarded rather than unconditional. PASS-EMPTY can only reach here with rc=0 --
+			# run-test.sh always exits 0 for it, and a disagreement between the two would have
+			# become OUTCOME-MISMATCH -> NOTRUN before this case. The guard costs nothing and
+			# means a future change to that exit code cannot silently produce a negative Pass.
+			[ "${rc}" = "0" ] && PASS=$((PASS - 1))
+			EMPTY=$((EMPTY + 1))
+			BAD=$((BAD + 1))
+			EMPTYLIST="${EMPTYLIST} ${t}"
+			;;
 		CONFIG)
 			verdict="CONFIG"
 			BAD=$((BAD + 1))
@@ -308,7 +328,7 @@ for t in ${TESTS}; do
 "
 done
 
-TOTAL=$((PASS + FAIL + SKIP + ERR))
+TOTAL=$((PASS + FAIL + SKIP + ERR + EMPTY))
 
 echo
 echo "============================================================"
@@ -316,7 +336,8 @@ echo "  Summary (${TOTAL} tests)"
 echo "============================================================"
 printf '%s' "${LINES}" | awk -F'|' '{ printf "  %-10s %s\n", $1, $2 }'
 echo "  ────────────────────────────────────────────"
-printf "  Pass: %d  Fail: %d  Skip: %d  Error: %d\n" "${PASS}" "${FAIL}" "${SKIP}" "${ERR}"
+printf "  Pass: %d  Fail: %d  Skip: %d  Error: %d  Pass-empty: %d\n" \
+	"${PASS}" "${FAIL}" "${SKIP}" "${ERR}" "${EMPTY}"
 
 # A stale declaration is reported louder than an ordinary failure, because it is the one
 # result nobody is looking for: the scenario started doing better than its note says, so
@@ -344,6 +365,24 @@ if [ -n "${NOTRUN}" ]; then
 	for _n in ${NOTRUN}; do
 		echo "       ${_n}"
 	done
+fi
+
+# A green that says nothing. Listed by name rather than folded into Pass, because the whole
+# failure mode is that it LOOKS like a pass: status=pass, exit 0, and a `notes` field the
+# reader never thinks to open. See WORKSPACE/audit/260921-assertwithin-false-green.md.
+if [ -n "${EMPTYLIST}" ]; then
+	echo
+	echo "  !! PASSED WITH NO VERDICT TEXT — these scenarios wrote \"status\":\"pass\" with an"
+	echo "     empty \"notes\" field, so the run says nothing about what it measured. The usual"
+	echo "     cause is a terminal verdict reached before the scenario's own assertions ran"
+	echo "     (see the AssertWithin rule in mods/ww3mod/scripts/test-helpers.lua). Give the"
+	echo "     scenario a verdict note, or declare it:"
+	for _e in ${EMPTYLIST}; do
+		echo "       ${_e}"
+	done
+	echo "     Declaring: put \`pass-empty\` plus a reason in"
+	echo "     tools/autotest/scenarios/<name>/expected-status — it goes STALE (red) the moment"
+	echo "     somebody gives the scenario a note, so it cannot rot silently."
 fi
 
 if [ -n "${MISCONFIGURED}" ]; then

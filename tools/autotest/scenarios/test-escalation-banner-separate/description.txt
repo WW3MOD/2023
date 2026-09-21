@@ -1,0 +1,1 @@
+Auto: the same match with a 40000-hp t90, which survives the first round and dies to a later one at BurstWait 130, so the recorded edge ticks are at least 130 apart. Test.DefconEdgesCombine must say no: combining edges that far apart would put a sentence about a finished phase on screen while the war is already on. This is the arm that stops the B6 fix from over-reaching.

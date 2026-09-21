@@ -3,6 +3,559 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
+
+Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
+(`weapons-missiles.yaml`), which zeroed six armour classes, named one the ruleset does not define
+(`Brick`) and omitted three it does (`Kevlar`, `Unarmored`, `Indestructable`).
+
+**The omitted-key rule itself is already curated** — `conventions.md` §"`Versus`: an OMITTED armor
+class is FULL damage" has it with the citation (`Warheads/DamageWarhead.cs:105`, the
+`Versus.ContainsKey` filter). Nothing new there, and no promotion is owed for it. What is new is that
+**the obvious repair is booby-trapped, and the trap is documented one section further down where an
+auditor fixing the table is not looking.**
+
+- The live effect was real and sizeable: `Kevlar` is `^Soldier`'s armour, **67 concrete actors inherit
+  `^Soldier` transitively**, infantry set no `Armor.Thickness` so `ApplyPenetration` is skipped
+  entirely, and `^Infantry` is `HP: 200` — so the "harmless" spotter dealt **50, a flat 25% of a
+  soldier's health, per shot**, to the entire combat-infantry roster, while genuinely doing 0 to the
+  civilians whose armour the table *does* list. Selective in exactly the direction that survives
+  eyeballing.
+- **But completing the table is not available as a fix.** `ArmorInfo.ProvideTooltipDescription`
+  (`Traits/Armor.cs:73`) gates a unit's Armour tooltip row on whether **any** `DamageWarhead` in the
+  whole ruleset names the type. Naming `Kevlar` here *at any value, including 0* flips **every
+  infantry tooltip in the game** from "None" to "Kevlar" — contradicting the 28 shipped unit
+  descriptions that read "- No armor" and which `conventions.md:400` already ruled are the
+  mechanically correct half. So the damage bug and the UI are coupled through the key set, and the
+  repair that reads as obviously right is a game-wide visible regression.
+- **`Damage: 0` decouples them.** It is also the honest statement of what the warhead is: a dummy
+  trigger so the launcher has something to fire, real payload the spawned `IskanderMissile` actor
+  (`vehicles-russia.yaml:1068-1071`), damage done by `IskanderExplosion`. Zero damage is harmless
+  against all nine classes without naming any new one.
+
+**Generalisable rule: when a `Versus` table is wrong, ask whether the defect is in the table's VALUES
+or in its KEY SET before editing it. A value is local; a key is global.** `Damage: 0`,
+`DamagePercent: 0`, or dropping the warhead are the levers that do not touch the key set.
+
+**Two residues, both disclosed rather than fixed:**
+
+1. `DangerFieldLayer.WarheadIsHarmless` inspects only `Versus`, never `Damage`, so it still returns
+   false for both targeters — which *was* a correct verdict and is now a **fail-open false positive**.
+   Correcting it means reading `Damage`/`DamagePercent` in the danger kernel, which moves bot belief
+   and breaks replay byte-identity against every earlier baseline (influence-stack invariant). Not
+   desk work. Noted inline at the method.
+2. **No lint anywhere validates a `Versus` key.** `CheckUnknownWeaponFields` descends exactly one
+   level into a warhead — it checks the warhead's own child node names against the warhead type's
+   fields (`Lint/CheckUnknownWeaponFields.cs:100-105`) — so `Versus` passes as a real field and its
+   children are never examined, and no other file under `Lint/` mentions `Versus`. An invented or
+   misspelt armour class is accepted by `make test`, `--check-yaml` and the Windows merge gate alike;
+   the only symptom is a weapon quietly doing full damage. Promoted into `conventions.md` §402 with
+   the citation.
+
+**Census re-run at `eacc1cff` (needs no build):** 42 `Versus:` tables under
+`mods/ww3mod/rules/weapons/`. This was the **only** table naming an undefined class and the **only**
+all-zero table — so both defects were singletons, not a pattern. The other **41** tables are non-zero
+balance tables that omit `None/Wood/Kevlar/Unarmored/Indestructable` as a consistent group (nuke
+thermal/blast and shockwave warheads listing only `Concrete/Light/Medium/Heavy`); those omissions are
+live full-damage-to-infantry by the same rule, but they are plausibly intended and are item 32
+sign-off territory. `Brick` has now left the union entirely; `Kevlar`, `Unarmored` and
+`Indestructable` remain in zero tables, so `conventions.md`'s standing claim that no warhead
+discriminates infantry damage by armour class still holds.
+
+## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
+
+Found while re-deriving item 78's edge-choice rule from source for
+[`WORKSPACE/audit/260921-item78-edge-arithmetic.md`](audit/260921-item78-edge-arithmetic.md).
+`DOCS/reference/game-model.md` §"Map-edge spawning" carried one sentence that was wrong twice over.
+**Fixed in place on sight** per CLAUDE.md's knowledge-bank rule; recorded here because the *shape* of
+the error is the reusable part.
+
+**The superseded text:** *"…at which point the caller falls back to `self.Location` — the unit's own
+cell (`:163-168`) … So on almost every map both reinforcement entry and evacuation resolve from
+wherever the actor happens to be standing, **not** from the SR."*
+
+**Error 1 — the evacuation half went stale and nobody swept for it.** `ac16f2b6` (item 78,
+2026-09-05) replaced that `?? self.Location` with `?? FriendlyEvacuationOrigin(self)`
+(`RotateToEdge.cs:209`). The commit updated the dossier and `DISCOVERIES`, and the 09-05 curation
+note at `DISCOVERIES.md:3928` even says the map split is *"SUPERSEDED by item 78 and is promoted as
+history, not as current behaviour"* — but `game-model.md`, which describes the same `??` from the
+other side, was never touched. **A correction that names its own supersession is not self-executing:
+`grep` for the CODE EXPRESSION you changed (`?? self.Location`) across `DOCS/`, not for the item
+number.**
+
+**Error 2 — the reinforcement half was wrong from the start, and is the more useful finding.**
+Entry and evacuation are **two different traits with two different `FindClosestSpawnArea`
+functions**, and the doc read them as one:
+
+- Evacuation: `RotateToEdge.FindClosestSpawnAreaForOwner` (`RotateToEdge.cs:101`), `self` = **the
+  evacuating unit**, and the null arm is now owner-side.
+- Entry: `ProductionFromMapEdge.FindClosestSpawnArea` (`ProductionFromMapEdge.cs:57`), a separate
+  static, `self` = **the producing building** — and that building is `SUPPLYROUTE`
+  (`ProductionFromMapEdge:` at `structures.yaml:472`, inside the actor opening at `:295`).
+
+So entry's `?? self.Location` (`ProductionFromMapEdge.cs:101`, `:119`) resolves to **the Supply
+Route's own cell**. "Resolves from wherever the actor happens to be standing, *not* from the SR" is
+exactly backwards there: the actor standing there **is** the SR. The 09-02 correction was reacting to
+a claim about the `spawnarea` *hint* and over-generalised from "the hint is absent" to "the anchor is
+unit-side". **Those are different claims, and `?? self.Location` means something different on a unit
+trait than on a building trait.** The `spawnarea` count itself (only `river-zeta-ww3`, 6 actors) is
+re-confirmed at this ref and stands.
+
+**Not changed, and deliberately:** `economy.md` §"The evacuation anchor is the `spawnarea` actor" is
+still accurate. It describes `FindClosestSpawnAreaForOwner` and the `AmmoPool` rearm-vs-evacuate
+comparison (`AmmoPool.cs:907`, the `beatsExit` short-circuit at `:776`), which item 78 deliberately
+did not touch — the fix moved only the *other* arm of the `??`. Two adjacent sections describing two
+arms of one expression, one of which moved: checking the wrong one would have produced a confident
+false correction.
+
+**Also re-confirmed while here** (so nobody re-spends it): the 2026-09-05 measurement reproduces
+exactly at `70e63582`. Weighting the nine unit-anchored maps' raid rows by sample size (n = 7170)
+gives own/opponent/flank = **14.36 / 70.37 / 15.27**, against the recorded 14.4 / 70.4 / 15.3.
+Medians do **not** recombine that way and were bounded, not re-derived.
+## 2026-09-21 - `TestHarness.AssertWithin` passed with NO note and TERMINALLY, so any scenario that latched a flag and deferred its verdict reported a green it never earned (`wt/assertwithin-audit`, base `main @ 70e63582`)
+
+`AssertWithin`'s poller called `Test.Pass()` -- **no argument** -- the instant its predicate returned
+`true` (`mods/ww3mod/scripts/test-helpers.lua`, the `check` closure). `Test.Pass` is terminal:
+`TestGlobal.ExitWhenCapturesFlushed` writes `result.json` and exits the game
+(`TestGlobal.cs:73-86` -> `TestMode.WriteResult`, `TestMode.cs:339`).
+
+So a scenario of the shape
+
+```lua
+if <thing happened> then Reported = true; Trigger.AfterDelay(2, Verdict) end
+...
+TestHarness.AssertWithin(40, function() return Reported end, ...)
+```
+
+**never runs `Verdict`.** AssertWithin polls every tick and wins the race by however many ticks the
+handoff deferred -- 27 in the observed case. `result.json` reads `"status":"pass","notes":""`, has
+no `screenshots` key, no PNG reaches disk, and not one assertion has executed. A test that cannot
+fail, reported as a test that passed.
+
+**Observed twice in one day**, both in `test-himars-church-vs-block`: runs `260921_174913` and
+`260921_175314`. Both were read as green and one was nearly banked as evidence for a tuning claim.
+
+### THE RULE
+
+> A predicate handed to `AssertWithin` must **never become true** in a scenario that has its own
+> deferred verdict.
+
+`AssertWithin` is safe in exactly two shapes: a **pure watchdog** whose predicate is always false
+(used only for its timeout), or the **sole verdict authority**, where nothing is scheduled to run
+after the predicate goes true. A scenario that must judge *after* a latch open-codes its deadline in
+a `Trigger.OnTick` poller (`test-himars-church-vs-block` @ `4e9f7b24`), or calls `Test.Pass(note)`
+from **inside** the predicate and then `return false`.
+
+### THE COUNT, and why the obvious grep overstates it
+
+127 scenario scripts call the helper; 45 of those also carry their own payload verdict (at
+`61d0c1f8`; 128/46 at `70e63582`). **That 45 is a loose upper bound** -- the grep cannot see whether
+a predicate ever returns a truthy value, so it matches every safe watchdog too. Reading all 46:
+**1 YES, 4 watchdog-only, 41 NO**. The single YES is the scenario that produced the two false
+GREENs. Full table: `WORKSPACE/audit/260921-assertwithin-false-green.md`.
+
+Note the grep that reproduces those figures uses `TestHarness.AssertWithin(` **with the paren** --
+it selects calls. A bare `grep -l AssertWithin` matches 164 files, 36 of which only mention it in
+prose.
+
+### THE DETECTOR IS NOT THE FIX, and cannot be
+
+`AssertWithin` now passes a note, and `run-test.sh` reports a new outcome **`PASS-EMPTY`** when a
+`pass` verdict carries `"notes":""` (graded `EMPTY` by `expected-status.sh`, counted and listed
+separately by `run-batch.sh`, declarable as `pass-empty` with a required reason). That makes an
+empty-note green visible.
+
+**But it cannot catch this bug class.** Once the helper writes a note, a himars-shaped false GREEN
+passes *with* a non-empty note and the tripwire never fires. The race is a static property of the
+script, invisible to a runner that only reads the verdict. What the tripwire catches is the adjacent
+and also-real problem -- a green that states nothing -- which turns out to be the shipped behaviour
+of 33 further scenarios that call a bare `Test.Pass()`.
+
+### THE GENERALISATION
+
+**Any helper that can write a terminal verdict is a second verdict authority, and two verdict
+authorities in one scenario is a race the quiet side always wins.** The same shape is already on
+record one level down: `Test.Pass` is not idempotent, last-call-wins, which
+`test-autotarget-preempt-air` hit on 2026-08-12 when a returned `true` erased a note the predicate
+had just written (its PITFALL block at :123-128 is the first diagnosis of this in the tree). The
+countermeasure is structural, not documentary: **one verdict authority per scenario**, and if a
+helper might reach `Test.Pass`, the scenario must not also schedule one.
+
+## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`MissileStrikePower.Activate` does not read `info.MissileDelay` when the sandbox lobby option is on:
+
+```csharp
+// MissileStrikePower.cs:624-626
+var baseMissileDelay = sandbox != null && sandbox.SandboxRemovesLaunchDelay
+    ? 0
+    : info.MissileDelay;
+```
+
+and **`SandboxRemovesLaunchDelay` defaults TRUE** (`PowersLobbyOptions.cs:168`). Any scenario that
+locks `PowersSandboxCheckboxEnabled` on -- which every event-tier scenario must, because
+`powers.event` comes from no faction -- therefore gets **zero** launch delay regardless of what its
+`rules.yaml` says. `demo-nuke-arsenal` overrode `MissileDelay: 60` on all six arsenal powers and
+then built a tick table that added 60 to every impact; every row was 60 ticks early.
+
+**The same shape twice, in the same scenario.** `SupportPowerProductionQueue.GetBuildTime` returns 0
+outright under `SandboxRemovesPurchaseDelay` (`SupportPowerProductionQueue.cs:157-163`, also default
+true), so that file's six `BuildDuration: 5` proxy overrides are inert too -- and the comment above
+them justified the value 5 by the schedule margin it bought. **Both sets are kept rather than
+deleted, because the defaults are flippable and 60/5 are the values the demo wants if they ever
+are**; what changed is that they are now labelled as inert.
+
+**The generalisation:** `PowersLobbyOptions` has a family of `Sandbox*` fields that each REPLACE a
+per-power value rather than scaling it. Before deriving any timing from a power's YAML in a sandbox
+scenario, read that file -- the third one, `SandboxStandoffPercent`, defaults to the identity 100
+and is the only one that leaves its value alone.
+
+## 2026-09-21 - A support power gated to the other faction fails SILENTLY through four layers, and `EnsurePower` reports `buying` forever rather than `refused` (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`demo-nuke-arsenal` could not fire the Sarmat or the Tsar Bomba from its America seat -- both carry
+`Prerequisites: powers.event, player.russia` and the sandbox block grants only the first. What makes
+this worth an entry is not the prerequisite; it is that **nothing anywhere said so**:
+
+1. `SupportPowerProductionQueue` filters BOTH `AllItems` and `BuildableItems` on
+   `SupportPowerInstance.Purchasable` (`:102-117`), so the cameo is **absent** from the shop rather
+   than greyed out -- there is nothing to hover for a reason.
+2. `ProductionQueue.ResolveOrder` drops a `StartProduction` for anything outside `BuildableItems`
+   and plainly `return`s (`:509-510`). No exception, no log line, no refund (no money was taken).
+3. Lua's `Player.Build` does not learn any of that: it calls `queue.ResolveOrder` **directly** and
+   returns `true` unconditionally (`ProductionProperties.cs:290-292`).
+4. So `TestHarness.EnsurePower` takes the `player.Build(...) -> true` branch and returns
+   `false, "buying"` -- **forever**. Its `refused` token, the one documented to mean "the tier
+   prerequisite is unmet", is returned only when `Build` returns false, which this path never does.
+
+Net effect: a scenario firing a faction-locked power from the wrong seat prints `magazine buying`
+and `not-ready:0` until its patience runs out, which is indistinguishable from a slow queue. **When
+a power will not fire, read the prerequisite before trusting the status token.** The one reading
+that does disambiguate is `Test.GetSupportPowerBin(player)`: a power the seat cannot hold is not in
+it at all.
+
+## 2026-09-21 - A script CAN order a non-playable map combatant about, and the reason is that its ClientIndex is the host's (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+The fix above needed Russia to buy and fire from a seat that is a bare map player (`Playable:`
+absent), not a lobby slot. Both halves work, by different routes, and only one of them is obvious:
+
+* **Buying bypasses the order path entirely.** `Player.Build` calls `queue.ResolveOrder` directly
+  (`ProductionProperties.cs:290-292`); there is no `Order`, so there is nothing to validate.
+* **Firing goes through `World.IssueOrder` and IS validated** -- `ValidateOrder.OrderValidation`
+  drops any order whose subject's owner is a different client. It passes because a map player's
+  `ClientIndex` is **the admin's**: `world.LobbyInfo.Clients.FirstOrDefault(c => c.IsAdmin)?.Index
+  ?? 0` (`Player.cs:222`, carrying its own `TODO: fix this`), and in a single-client autotest run
+  the one client IS the admin (`Server.cs:589` gives `IsAdmin` to the first client with none set).
+  So `subjectClientId == clientId` and the order resolves. The player actor carries no
+  `RejectsOrders`, so `AcceptsOrder` is true as well.
+
+`demo-defcon-readout` has fired a Russian support power from exactly this seat shape since
+2026-09-15; this entry is the mechanism behind it, so the next scenario does not have to guess.
+**The load-bearing constraint is the other way round**: the seat must NOT be `Playable: True`, or
+`CreateMapPlayers` gives it no `Player` at all in a one-client run (`:95-122`) -- the bug
+`demo-doomsday-deadhand` was fixed out of on 2026-09-20.
+
+**Caveat this does not cover:** a real two-client game. There `ClientIndex` resolves to a specific
+remote admin and the validator would drop a locally-issued order for that seat. This is an autotest
+and demo technique only.
+
+## 2026-09-21 - The B83 became a SIX-warhead weapon on 2026-09-20, and its footprint now exceeds the Tsar Bomba's staging band (`wt/nuke-demo`, base `main @ c5f4acb7`)
+
+`AimPoints` is deliberately absent from `MissileStrikePower@B83` as well as `@Sarmat`;
+`MissileStrikePower.AimPointsFor` overrides it for anything `NuclearGameEnders.Is()` accepts and
+returns `DoomsdayStrike.PackageSize` = `round(playableCells / CellsPerImpact)` clamped to `[2,6]`.
+At 1.2 Mt the B83 is squarely in the game-ender band, so **it is now a package weapon, not one
+bomb** -- which the YAML comment says, and which nothing downstream had been re-read against.
+
+On `demo-nuke-arsenal` (Bounds `1,1,126,126` = 15876 cells, `CellsPerImpact: 2400`, so
+`(15876 + 1200) / 2400 = 7` -> clamped to **6**) the consequence is geometric: six 71-cell bursts
+placed on the B83's own `AimPointRadius: 35c0` fallback ring reach **~106 cells** from the aim
+point. That is past the demo's outermost target ring (82 cells), so **shot 5 now clears ground the
+shot 6 Tsar Bomba was staged to be the first to reach.** The Tsar itself is unaffected and is still
+one bomb: at 50 Mt it is above `NuclearReleaseLadder.SandboxOnlyAboveTons` (10 Mt), so
+`NuclearGameEnders.Is` rejects it and its YAML `AimPoints` -- the default 1 -- stands.
+
+**NOT MEASURED, derived by reading.** No launch was spent on it. The demo now prints the observed
+warhead count with every detonation, so the next capture settles it from `lua.log` without anyone
+re-deriving this. Any other scenario that assumes a single B83 circle is in the same position.
+
+## 2026-09-21 - A build stamp cannot be a clock: the `BuildRevision` attribute is a Compile input, which is why the menu's build date reads a file timestamp instead (`wt/identity-panel`, base `main @ 1160a531`)
+
+The main menu's `v` panel showed `"Built: " + DateTime.Now` — the **player's** current date, labelled
+as the build date, on every install forever. The obvious repair is an assembly attribute stamped at
+build time, and the repo already has the machinery: `engine/Directory.Build.targets:135
+StampBuildRevision` emits `[AssemblyMetadata("BuildRevision", ...)]` on OpenRA.Game, read back at
+runtime by `BuildFingerprint.EngineRevision` (`BuildFingerprint.cs:82-88`).
+
+**Putting a timestamp there would be wrong, and the target's own comment says why** (`:123-129`):
+the attribute is a **Compile input**, so a value that moves every build recompiles OpenRA.Game every
+build. That comment records the cost measured when a *stray untracked file under `mods/`* had this
+effect — **6.3 s vs 3.1 s** — and the second-order consequence that matters more: per CLAUDE.md the
+build fails fast on Windows while the game holds the DLLs, so an unconditional engine recompile
+breaks the edit-yaml-while-playing loop. The revision is deliberately **an identity, not a clock**;
+the same paragraph records that a bare `rev-parse HEAD` was rejected for being a clock.
+
+**What shipped instead:** `ReleaseIdentity.ResolveBuildTime` reads `File.GetLastWriteTime` on
+OpenRA.Game's own assembly. Zero build-system change, zero recompile pressure, and it cannot perturb
+the handshake — `ReadRevision` filters `AssemblyMetadataAttribute` on `Key == "BuildRevision"`, so a
+differently-named attribute would have been fingerprint-safe, but the *rebuild* cost is the blocker,
+not the fingerprint. Honest in both trees: a build rewrites the assembly (on macOS/Linux
+`Directory.Build.targets:70 UnlinkProjectOutputForMmapSafety` unlinks it first), and packaging
+publishes a fresh one. **Known weakness, stated:** a tree copied with a tool that does not preserve
+mtimes reports the copy time. That is wrong by the age of a file copy; `DateTime.Now` was wrong by
+the entire age of the release.
+
+**The generalisation worth carrying:** before adding anything to `StampBuildRevision`, ask whether
+the value changes on every build. If it does, it does not belong in an assembly attribute in this
+repo, however natural the slot looks.
+
+## 2026-09-21 - `mod.yaml` `Version:` means two different things in a source tree and an install, and a standing decision doc reasoned from the source-tree meaning (`wt/identity-panel`, base `main @ 1160a531`)
+
+`mods/ww3mod/mod.yaml:3 Version: release-20230225` is the OpenRA release this forked from — **in a
+source tree only**. `mod.config:104 PACKAGING_OVERWRITE_MOD_VERSION="True"` routes packaging through
+`packaging/windows/buildpackage.sh:106-108` -> `engine/packaging/functions.sh:153-161 set_mod_version`,
+which **rewrites that line with the git tag**. So on every packaged release the field holds `v0.1.2`
+while the checked-in file says `release-20230225`, and anything that renders it as a fork marker is
+correct on a developer's machine and false on every install.
+
+`AWAITING-USER.md` §1(b) reasoned from the source-tree meaning in as many words — *"deliberately
+presented as the OpenRA release this forked from, **which is true**"* — and concluded the line was
+fine. Corrected in place this pass. The engine version is separately available and is the honest
+source: `Game.EngineVersion` (`Game.cs:333`) reads `engine/VERSION`, which packaging sets from
+`mod.config ENGINE_VERSION` to the **same** `release-20230225`, so it reads identically in both trees.
+
+**The reusable half:** `ModVersion.TryParse` (`engine/OpenRA.Mods.Common/ModVersion.cs`) is a ready
+discriminator between the two states and needs no new code — a stamped tag parses, `release-20230225`
+does not. Its own comments already assign that reading to "an unstamped development build", so the
+two uses cannot drift apart. **Any check of the form "is this a packaged build?" should go through
+it rather than string-comparing against `engine/VERSION`.**
+
+## 2026-09-21 - U4's duplicate-map table was never missing, and the new icon collections look like de-duplication without being it (`wt/identity-panel`, base `main @ 1160a531`)
+
+`audit/260921-release-readiness.md` §1.4 and `## Watch` record that U4's deliverable — "19 of 25
+buttons share art across 11 sprites; 14 new icons needed" — **could not be found** and might never
+have been written, and say not to dispatch against it until that is settled. **It exists:**
+`audit/260816-command-bar-research.md:208`, verbatim. The audit grepped
+`260816-content-completeness.md`, which is the file PIPELINE.md's wording points at.
+
+**Its counts have drifted, though, and the reason is the interesting part.** Re-derived mechanically
+at `1160a531` (`audit/260921-command-bar-icon-map.md`): **24 buttons, 11 rectangles, 20 sharing, 13
+icons needed** — against 25 / 11 / 19 / 14. Two edits moved it: `@TAKE_COVER` was deleted, and the
+resupply bar was rehoused into a new `resupply-icons` collection (`chrome.yaml:319`).
+
+**The trap:** `resupply-icons` and `command-mode-icons` (`:298`) are `Inherits:` aliases whose regions
+point at **coordinates that already existed**. Counting collections, or counting distinct
+`ImageName:` values, says the bar has more distinct art than it does — the rehousing moved three
+buttons off the `stance-icons` rectangles and straight onto three `command-icons` ones, for a net
+change of zero. **Only the resolved sheet rectangle decides whether two buttons look alike**, and any
+future recount has to walk the `Inherits:` chain to get one. The genuine improvement in those
+commits is real but is in the `-highlighted` twins: 8 amber recolours give some buttons distinct
+*active* art. The duplication above is of the resting art.
+## 2026-09-21 - CLOSED: every vehicle in this mod bleeds to death SELF-INFLICTED, so a tank shot below half and left to burn out never ended DEFCON 2 (`wt/escalation-guards`, runs `260921_181057` / `260921_181456`)
+
+The instrumented `DEFCON casualty` line (added the same day, entry below) answered it on the first
+run. Cause, by reading:
+
+- `^EffectsWhenDamagedVehicles` carries `ChangesHealth@CriticalDamage` with `PercentageStep: -1`,
+  `Delay: 5`, `StartIfBelow: 50` (`mods/ww3mod/rules/ingame/vehicles.yaml:183-188`). **Every vehicle
+  in the mod inherits it.**
+- `ChangesHealth.cs:86` is literally `self.InflictDamage(self, new Damage(...))` — **the burn names
+  the victim as its own attacker.**
+- `DefconCasualtyObserver.IsQualifyingCasualty` rejects `attacker == victim` outright, so the death
+  was thrown away.
+
+**The measured pair is what makes it undeniable**, and it is two runs of one scenario differing only
+in the target's hit points:
+
+| run | `t90 Health.HP` | debug line |
+|---|---|---|
+| `260921_181057` | 8000 | `killed by abrams(USA) -- qualifies` |
+| `260921_181456` | 40000 | `killed by t90(Russia) -- REJECTED: self-inflicted` |
+
+One `TankRound.Abrams` (~23000) overkills 8000 from full health and the burn never starts; 40000
+survives the first hit, drops below 50%, ignites and bleeds out. **Whether a deliberate kill ended
+DEFCON 2 depended on whether the victim happened to survive the opening round.** The second debug
+line in that run —
+`crew.commander.russia(Russia) killed by t90(Russia) -- REJECTED: not enemy action, relationship is Ally`
+— is the separate `Explodes@CrewCookoff` (`vehicles.yaml:318-321`, `Explodes.cs:124` defaults the
+source to self) killing an ejected crewman, and is correctly rejected.
+
+**This is a player-facing defect, not a test artefact, which is why the fix went in the observer and
+not in the scenario's hit points.** DEFCON 2's entire premise is "the first casualty is always
+somebody's decision"; a player who shoots an enemy tank below half and lets it burn out has taken a
+life by any reading, and the phase did not end. Lowering the scenario's HP would have hidden it.
+
+**The fix, and why it is narrow.** `QualifiesByPriorEnemyDamage` fires **only** when the finishing
+blow is self-inflicted and an enemy had previously damaged the victim; the observer now also
+implements `INotifyDamage` (which `Health.cs:122,275-276` already dispatches to the owner's player
+actor, so no new plumbing) and remembers the last enemy damager as two **strings** keyed on
+`ActorID`, cleared on death. Friendly fire is deliberately still excluded however much enemy damage
+came first — that is clause 2 of the direct rule and the user ruled on it explicitly. There is **no
+time window**, because a burn only ever starts from damage and every value of such a window would be
+a guess nobody has judged in play.
+
+**What a reader should take from this beyond DEFCON.** `attacker == victim` is not a synonym for "an
+accident". In this mod it is also the ordinary end of any damaged vehicle, and any rule that filters
+on it is silently filtering out a large share of real kills. `Explodes` with the default
+`DamageSource` behaves the same way.
+
+## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`)
+
+**The message bug first, because it is the transferable part.** `test-escalation-banner-separate`
+timed out and reported:
+
+> *"the t90 never died. 600 ticks after an accepted Attack order it is on 0 hp"*
+
+The t90 **was dead**. The sentence is `Contact.IsDead and "0" or tostring(Contact.Health)` under a
+heading that says "never died", so a dead actor renders as a live one sitting on zero hit points.
+Two separate diagnoses were then built on it -- a missing `Health.HP` override, a damage floor
+keeping it alive at 1 -- and both were wrong. The run's own census said `t90 hp (dead)/(dead)` four
+fields later and settled it.
+
+**The rule: a failure message must not be able to describe two different worlds with the same
+words.** If a formatter has an `IsDead` branch, the *heading* must branch with it. The two outcomes
+here ("it never died" and "it died and nothing noticed") point at opposite halves of the engine, and
+merging them sent both rounds of reading into the wrong half.
+
+**What the run actually established**, from `result.json` and `debug.log`:
+
+- The `Health.HP: 40000` override **applied** -- `t90 hp 40000/40000` at settle. The scenario's
+  `t90:` key matches the defining `t90:` in `vehicles-russia.yaml:289`; no case-merge problem.
+- **An ORDERED shot IS permitted at DEFCON 2, confirmed twice over.** By reading:
+  `DefconFireDiscipline.Permits` (`:126-158`) returns true for `forceAttack` and for any source that
+  is not `AutoTarget.IsAutoAcquiredSource`, and an ordered attack arrives as `AttackSource.Default`.
+  By observation: the abrams killed a 40000-hp t90 at DEFCON 2 and then went `(idle)`. The hold is
+  on autonomous fire only, exactly as designed -- a scenario that needs a casualty inside DEFCON 2
+  does NOT need `FiresDuringCeaseFire` or a scripted kill.
+- `DEFCON wall: no line derived from 2 combatant home(s) in 2 alliance group(s); the wall stays down.`
+- `NUCLEAR EXCHANGE sides: Russia(-2), USA(-3)` -- both negative, so both teamless, two sides.
+- At DEFCON 3 the abrams held an `AttackActivity` with **no order given**, which means autotarget
+  acquired the t90 -- so `USA -> Russia` is `Enemy` at that moment.
+
+**THE OPEN DEFECT: the kill did not end the phase.** `at1=-1`, `defcon=2`, `casualty none`, and no
+`DEFCON 1 (...)` line in `debug.log`. Every input checks out on paper:
+
+| candidate | ruled out by |
+|---|---|
+| observer absent | `player.yaml:1533` declares `DefconCasualtyObserver:` unconditionally; the scenario strips nothing |
+| `escalation` null in the observer | `Created` dereferences `self.World.WorldActor` directly -- a null would have thrown, and the match ran |
+| dispatch never reaches the player actor | `Health.cs:128` caches `self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>()`, `:294-295` calls them on `HP == 0` |
+| not a `Health` death | t90 carries `SpawnActorOnDeath` and no `Explodes`; a husk settled (`Husk.cs:127`), i.e. an ordinary death |
+| `VehicleCrew` killed it | its `Killed` handler only cleans up slot bookkeeping (`VehicleCrew.cs:341-357`); it does not kill |
+| relationship not `Enemy` | autotarget engaged at DEFCON 3, which requires `USA -> Russia == Enemy` |
+
+**The one structural difference from every scenario where a casualty DOES move the level**
+(`test-bot-defcon2-breaks-peace`, `test-escalation-full-match`) is that here the KILLER is the
+**client-occupied `Playable: True` slot** and the victim is a map player. `Player.cs` has two
+constructor branches and the client branch is already documented (see `CombatantSides`' header) to
+drop `PlayerReference` fields the map-player branch copies. Whether it also affects the relationship
+that `IsQualifyingCasualty` reads is **NOT established** -- and the autotarget evidence argues
+against it, which is why it is recorded as a suspect and not a finding.
+
+**Instrumented rather than guessed.** `DefconCasualtyObserver.Killed` now writes one
+`DEFCON casualty at level 2: <victim>(<owner>) killed by <attacker>(<owner>) -- <verdict>` line per
+death, gated on the hold-fire rung so a real match gets a handful at most, naming which of the four
+`IsQualifyingCasualty` clauses rejected. Every input to that predicate is reconstructible only from
+inside the method; from outside, all four rejections look identical ("the level is still 2"). One
+line closes what hours of reading could not.
+
+## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`)
+
+`test-escalation-banner-combined` asserted `DefconTransitionBannerWidget.BannersRaised == 1` on the tick
+`Test.DefconLevel()` first read 2. It failed reading `raised=0`, with the widget **present** (the
+binding returned a real string, not its `absent` sentinel). The obvious diagnosis -- "the widget tree
+is not built under `--hidden`" -- is **wrong**, and so is the milder one, "it notices on the next
+frame". The real shape is worse than either:
+
+| | clock | source |
+|---|---|---|
+| `Ui.Tick` | `Ui.Timestep` = **40 ms of wall clock**, fixed | `Widget.cs:30`, `Game.cs:786-790` |
+| world tick | `orderManager.SuggestedTimestep` | `OrderManager.cs:187`, `Game.cs:793` |
+
+`Ui.Tick` IS in the logic tick rather than the render path, so widgets do tick in a hidden run --
+that part of the earlier reading was right. But the two clocks are independent, and
+`tools/autotest/run-test.sh:784-789` sets `Graphics.CapFramerate=false` for `--hidden` precisely so
+the sim free-runs. **The world therefore advances an unbounded number of ticks between two UI ticks.**
+A DEFCON 2 measured at 98 ticks (run `260920_010605_p1901`) or at ONE tick (run `260915_012829`) can
+pass entirely between them.
+
+**The generalisation.** Any observable computed by a widget *watching* simulation state is a fact
+about one client's sampling rate, not about the match, and no tolerance fixes it -- the widget can
+miss an entire phase, not merely lag it. Assert on something written in synced code on the tick it
+happens. Here that is `DefconEscalation.LevelReachedTick`, whose own `[Desc]` on
+`Test.DefconLevelReachedTick` already states the sibling rule for Lua pollers ("there is no sampling
+interval that is safe against an edge"). The same warning now applies one layer up, to widgets.
+
+**It was a real player-facing defect too, not only a test problem.** `DefconTransitionBannerWidget`
+decided whether to combine two DEFCON banners by asking "is the band for the rung above still on my
+screen". A client that hitched, fast-forwarded, or simply dropped frames across both edges would see
+3 -> 1 with no 2 in it, raise one `OPEN WAR` band and reproduce **§B6's exact defect from a second
+cause nobody had noticed**. Fixed in the same commit by deriving the decision from the transition
+record instead. Pinned by `DefconReadoutTest.TheCombineDecisionTakesRECORDEDEdgeTicksAndNothingElse`,
+which exists to stop a `now`-dependent term being reintroduced.
+
+**One symptom in that run that was NOT a second defect**, recorded because it reads like one: the
+census showed `abrams act AttackActivity(cancelling)` with the t90 at full HP, which looks like an
+ordered shot that failed to land. No order had been issued -- the banner assertion returned before
+`Test.ClickOrder`. The activity is the abrams' **DEFCON 3 auto-acquisition being torn down** by
+`CeaseAutonomousFireEverywhere` on the transition tick: `DefconHoldsFire` is false at level 3, so
+autotarget acquires freely there and only `Armament.CanFire` is gated -- which is also why the t90
+was untouched. The ordered-kill timing in that scenario remains **unmeasured**; it has never run.
+
+## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`)
+
+`260921-release-readiness.md` §2.7 claim 6 says hold-fire's six fire-path guards have no test and that
+*"Three scenarios are named as owed"*. It is relaying `escalation-gameplay-review-260919.md`, which was
+written on 2026-09-19 and was accurate when written. **The three scenarios landed at 17:15-17:16 that
+same day** -- `c1c31675` (contact), `96cf46a5` (garrison), `4a462171` (ambush) -- and all six
+directories, each treatment with its `-skirmish` control arm and an `expected-status: fail`
+declaration, are present at the audit's own ref `61d0c1f8`:
+
+| read site | mechanism | scenario |
+|---|---|---|
+| 1 | `AutoTarget.ChooseTarget` idle acquisition | `test-defcon2-holdfire-contact` |
+| 2 | `AutoTarget.INotifyDamage.Damaged` return fire | `test-defcon2-holdfire-contact` |
+| 3 | the `IOverrideAutoTarget` branch (`AutoTarget.cs:1228`) | **none** |
+| 4 | `AttackFollow` persistent-opportunity fire | `test-defcon2-holdfire-contact` |
+| 5 | `GarrisonManager.ScanForTarget` | `test-defcon2-holdfire-garrison` |
+| 6 | `AutoTarget.TriggerNearbyAmbushAllies` | `test-defcon2-holdfire-ambush` |
+
+**The generalisation is CLAUDE.md's own pipeline rule, hit again**: two documents agreeing on a claim
+is not evidence, and the second document's agreement was *inherited* rather than re-derived -- the
+audit says so in its own preamble ("Where I am relaying a figure from another document rather than
+re-deriving it, the sentence says so"). One `ls tools/autotest/scenarios/ | grep holdfire` settles it.
+
+**READ SITE 3 IS THE ONLY REAL GAP, AND WRITING A SCENARIO FOR IT IS NOT STRAIGHTFORWARD.** Established
+by reading, at this ref, and recorded so the next person does not re-walk it:
+
+- `DefconHoldsFire` is `DefconFireDiscipline.HoldsFire`, true **only at level 2** (`:85-88`). So at
+  DEFCON 3 autotarget acquires targets completely normally -- it is `Armament.CanFire` that is gated
+  there (`PermitsWeapon`), not acquisition. Units DO hold incumbent auto-acquired targets at DEFCON 3.
+- On the 3 -> 2 edge `DefconEscalation.CeaseAutonomousFireEverywhere` (`:553-562`) walks
+  `ActorsWithTrait<AutoTarget>()` and **skips every actor that is dead or `!IsInWorld`**.
+- Site 3's gated branch needs `canYield == true`, i.e. an **auto-acquired** incumbent, **at DEFCON 2**.
+  Every ordinary route to one is closed: sites 1, 2, 4 and 6 gate acquisition at 2, and the wipe clears
+  everything that was holding one at 3.
+- What is left is an actor that was **out of the world across the edge** and re-enters during DEFCON 2
+  still holding its DEFCON 3 incumbent -- a transport passenger (`RideTransport.cs:85` calls
+  `w.Remove(self)`, which `Cargo.cs:432` documents) or a garrison occupant. **Whether AttackFollow's
+  `RequestedTarget` survives boarding was NOT established** -- `Turreted.cs:358` calls
+  `attack.OnStopOrder(self)`, which clears it, and whether that fires on the way into a transport was
+  not traced.
+
+So site 3 reads as a **belt-and-braces guard whose ordinary reachability is unproven**, which is the
+honest reason it has no scenario rather than an oversight. A scenario built on the transport chain
+without first settling the boarding question would very likely report `fail: SETUP` forever, and "a
+bug that cannot fire is indistinguishable from a bug that does not exist" (the ambush scenario's own
+README).
+
+**One thing worth a second look while someone is in there**, found in passing and NOT fixed here
+because nothing measured it: the preemption branch immediately above site 3 (`AutoTarget.cs:1224-1226`)
+returns a *new* target on `canYield && PreemptionDue(self) && TryFindHigherBandTarget(...)` **before**
+site 3's `canYield && DefconHoldsFire` test runs. If a yieldable incumbent can exist at DEFCON 2 at
+all -- which is exactly the question above -- then preemption reaches past the guard. Swapping the two
+`if`s would close it, but it is an unmeasured behavioural change to a fire path and should ride with
+the scenario that can see it, not ahead of it.
+
 ## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
 
 `test-garrison-port-arc-highpriority` asserted "a shooter outside a garrison port's arc lands nothing"
@@ -55,6 +608,310 @@ not be separated without another run: either he never fired, or every round was 
 `TargetDamage SKIP outsideSpread ...` when enabled. No `TargetDamage` line for the behind shooter
 means he never fired; a `SKIP outsideSpread` line means he did and it was thrown away.
 
+## 2026-09-15 - The "Unload All" bug was NOT reachable through Unload All: two IResolveOrder implementors on one actor, one synchronous and one queued (`wt/garrison-unload`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When two traits on the same actor both implement `IResolveOrder` for the same order string, `Actor.ResolveOrder` runs both — and **one doing its work SYNCHRONOUSLY while the other only QUEUES an activity is an ordering guarantee, not a race.** The synchronous one always wins the tick. That can silently make a real defect unreachable through the gesture it obviously belongs to, and reachable only through a different gesture nobody was looking at.
+
+Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests `cargo.PassengerCount == 0`, which counts the **Cargo hold only** — `GarrisonManager.DeployToPort` calls `cargo.Unload` on a man who mans a firing port, so a port occupant is not a passenger. The audit filed this as "Unload All on a house whose ports are manned makes it neutral". **It does not**, and cannot: `GarrisonManager.ResolveOrder` clears every port synchronously (`GarrisonManager.cs:1561-1592`) while `Cargo.ResolveOrder` only queues the activity (`Cargo.cs:459`), so the ports are already empty by the time the flip is evaluated and its answer is right by accident.
+
+**The path that DOES reach it** is the class-grouped unload menu: `CargoUnloadMenuLogic` issues `UnloadCargoPassenger` per man (`:241`), `Cargo.ResolveOrder` turns each into its own `UnloadCargo` (`:467`), and nothing in that chain touches a port. Its candidate filter (`:90-107`) asks only for a non-empty `Cargo` owned by the local player — **it does not exclude garrison buildings**, and it is bound in this mod (`chrome/ingame-player.yaml:6`, hotkey `J`). So the bug is real and player-reachable; only the gesture named in the item was wrong.
+
+**WHY THE FIX IS A VETO AND NOT A SECOND CHECK.** `Cargo.Unload` notifies `INotifyPassengerExited` **synchronously** (`Cargo.cs:671-672`), which reaches `GarrisonManager.CheckOwnershipAfterExit` — the port-aware implementation — while `UnloadCargo`'s flip is a frame-end task queued *after* it. The correct answer was already on record and the Cargo flip overwrote it. There was nothing to re-derive, and re-deriving it would have recreated the disagreement. `IOverridesCargoNeutralRevert` (new) is answered true by `GarrisonManager` under **exactly the guard `CheckOwnershipAfterExit` early-returns on**, so the two cannot disagree about which is in charge.
+
+**AND THE CHEAP LESSON:** before writing a scenario for "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. Two implementors is the normal case on a garrison building, not an exotic one.
+
+## 2026-09-15 - A rifle cannot target ANY building in this mod, so a building makes a useless garrison bait (`wt/garrison-unload`)
+
+`^5.56mm` declares `ValidTargets: Infantry, Vehicle, AirLight` (`weapons-ballistics.yaml:105`) and every civilian building's target types are `Ground, C4, DetonateAttack, Structure, Defense` (`civilian.yaml:17-19`) — **disjoint sets**. `GarrisonManager` skips any soldier whose armament is not `IsValidAgainst` the candidate before scoring it, so **an enemy building placed to make a garrison man its ports mans nothing**, and the scenario runs green having measured its own absence. The bait must be infantry or a vehicle. Armour class is a red herring here: validity is decided on target TYPES, and the armour tables never enter it.
+
+**Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
+
+## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`)
+## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455)
+
+**OBSERVED, three lanes differing in one variable each.** Two riflemen told from Lua to enter a
+NEUTRAL civilian building **moved zero cells**. The identical Lua call into a USA-owned copy of the
+same building loaded two. The same neutral building loaded two when the men were ordered in through
+the ORDER LAYER. The load filter was asked and answered: `transportOwner=Neutral passengerOwner=USA
+relationship=Neutral filters=1 GarrisonManager[answers=True] canLoad=True`. **[V]**
+
+**ZERO CELLS IS THE WHOLE FINDING, AND IT IS WHY A WEEK WENT INTO THE WRONG FILE.** "Did not board"
+and "did not start" are the same sentence in a census and different bugs in different files. Every
+investigation since 09-15 — three of them — searched the BOARDING path for an owner-dependent
+refusal, because the symptom was written down as a refusal. There was never a refusal. `Enter`
+seeds `lastVisibleTarget` only while the target is not hidden (`Enter.cs:105-106`), and its
+Approaching case returns **before queueing any move** when it has none (`:130-132`); an `Enter`
+whose first tick lands before the world has finished computing visibility therefore ends
+immediately with the unit on its start cell.
+
+**THE TWO IMMUNITIES ARE WHAT MAKE IT LOOK LIKE A RULE ABOUT OWNERSHIP.** `FrozenUnderFog` returns
+visible unconditionally for an **Ally**-owned actor (`:24`, `:130-133`), so an owned transport can
+never show this — which is exactly the control lane everyone reached for. And an order resolves a
+tick or more after it is issued (`Passenger.ResolveOrder`'s own comment says so), so the order layer
+misses the window. Hold owner still and the entry path is the variable; hold the entry path still
+and the owner is. **A two-lane experiment cannot see a two-immunity bug** — the third lane is what
+made this decidable, and it cost one run.
+
+**THE CLASS.** A scripting binding that queues an activity is not a player action moved into Lua; it
+is a player action that happens **one tick earlier, inside the world tick, before frame-end work has
+drained**. Anything the engine defers by a frame is therefore invisible to it. That is the same
+shape as the `LoadPassenger` entry above — binding does half of what the equivalent player path
+does — and it is worth asking of every `[ScriptActorPropertyActivity]`: *what does the order layer
+get for free by being late?* Fixed by handing `Enter` a fallback position, opt-in from the binding
+only, which is the remedy `MoveAdjacentTo` already applies one layer down for this exact situation
+(`:36-43`). Pinned by `ScriptedEnterTransportTest` structurally — the behaviour needs a World, a
+shroud and two players, so NUnit can only stop the plumbing being deleted; lane A of
+`test-garrison-neutral-entry` is what asserts it.
+
+
+## 2026-09-21 - `Cargo.Load` is half of a pair and the Lua binding only ever did its half, so a scripted load put a man in the hold AND on the map — and the crash arrived ninety seconds later in another file (`wt/neutral-entry`, run 260921_162312)
+
+**THE MECHANISM.** `Cargo.Load` adds to the passenger list and does NOT call `World.Remove`; the
+removal is the CALLER's half, and every caller in the engine does it —
+`RideTransport.OnEnterComplete` runs `enterCargo.Load(...)` and `w.Remove(self)` inside one
+frame-end task (`:80-81`). `TransportProperties.LoadPassenger` was the one caller that skipped it.
+Hand it an **in-world** actor and he is in the hold and standing on his cell at the same time.
+Nothing notices: `PassengerCount` is right, the man is right there, and the sim is consistent until
+something unloads him. Then `UnloadCargo` or `GarrisonManager.DeployToPort` (`:450`) reaches
+`World.Add`, which is an unguarded `actors.Add(a.ActorID, a)` (`World.cs:395-397`), and the match
+dies on `An item with the same key has already been added. Key: [10, e1 10]` — **from a frame-end
+task, so the trace contains not one frame of the Lua that caused it.** **[V]**
+
+**THE DISTANCE IS THE POINT.** demo-garrison-lineup loaded its riflemen at tick 10 and died at
+**95 seconds**, in `GarrisonManager`, on a man `LoadPassenger` had mishandled ninety seconds
+earlier. The stack names the victim and never the culprit. A cause/symptom gap like that is what
+makes a "half a pair" bug expensive: the fix is one `if` in the file nobody was looking at.
+
+**IT WAS ALREADY KNOWN, TWICE, AND THAT IS THE REAL FINDING.**
+`test-field-heli-unload` and `test-unload-queued-after-waypoints` each carry a PITFALL comment
+quoting this exact exception string and work around it by passing `false` to `Actor.Create`.
+**A hazard that two scenarios have to remember is a hazard the binding should not have** — the
+workaround was written down twice instead of being spent once on the cause, and the third caller
+(this demo) had no reason to go looking for either comment. `demo-defcon-readout` is the fourth:
+it creates its rider with `Actor.Create("E1.america", true, ...)` and loads it, so it has been
+carrying a double-present passenger in its captures all along without a crash, because nothing ever
+unloads him. **When a workaround comment has to be written a second time, that is the signal to fix
+the thing it is working around.** Fixed at the binding 2026-09-21; `LoadPassengerWorldStateTest`
+pins the pairing structurally, because no autotest can — a scenario proves the binding works on the
+actors it passes, and the defect is about the actors it does not.
+
+
+## 2026-09-21 - The garrison boarding filter does NOT refuse a neutral building, and a stale one-line elimination kept three instruments pointed at it (`wt/neutral-entry @ 4d1b7bfc`)
+
+**THE CORRECTION.** The 2026-09-15 entry below eliminates the load filter with the line *"Cargo's
+only `ICargoCanLoadFilter` is `SupplyProvider`, which no civilian building has."* **That is stale** —
+`8ca4b926` made `GarrisonManager` one, and every garrisonable building therefore has a filter now.
+The entry's CONCLUSION survives anyway, and this is the proof it was missing: the filter reads
+`claimedOwner ?? self.Owner` and hands it to `GarrisonBoardingMath.MayBoard`
+(`GarrisonManager.cs:341-352`), which returns true for `Ally` **and `Neutral`** and false only for
+`Enemy` (`GarrisonBoardingMath.cs:44-47`). A map's `Neutral` player lists no `Allies` and no
+`Enemies` and is not `Playable`, so every branch of `CreateMapPlayers.SetupPlayerMasks` (`:140-199`)
+falls through and `Player.RelationshipWith` returns `Neutral` (`Player.cs:276-292`).
+`GarrisonBoardingTest.AnEnemyIsRefusedAndNobodyElseIs` has pinned exactly this since 09-15 and is
+green. **[V]**
+
+**THE SHAPE.** Both halves of that line were true when written and one of them rotted, because it
+names a CENSUS ("the only implementor is X") rather than an INVARIANT. A census of implementors is
+invalidated by any commit that adds one, silently, from a file the entry does not mention — and a
+stale elimination is worse than no elimination, because it survives into the next brief as a premise
+and costs the next reader a four-file re-derivation. Where an elimination has to be written down,
+write the invariant that makes the class safe — here *"the filter admits Neutral, and a test says
+so"* — because that sentence stays true when a second implementor appears.
+
+## 2026-09-21 - `Cargo.HasSpace` asks every load filter about a NULL passenger, and a filter that answers "no" makes a building silently, permanently full (`wt/neutral-entry @ 4d1b7bfc`)
+
+**THE CONTRACT NOBODY DECLARED.** `ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)`
+reads as a question about a man. `Cargo.HasSpace` calls it with `passenger: null` before it does any
+arithmetic (`Cargo.cs:617-625`), because the filter it was written for answers a question with no
+passenger in it — `SupplyProvider` returns `currentSupply > 0`, i.e. "is this truck empty"
+(`SupplyProvider.cs:1245-1248`). Nothing on the interface says so (`TraitsInterfaces.cs:272`), and
+`Cargo.CanLoad`/`ReserveSpace` both pass a real actor, so a filter author sees two truthful call
+sites and one undocumented one. **[V]**
+
+**WHY THE FAILURE WOULD BE INVISIBLE RATHER THAN LOUD.** `HasSpace` is CAPACITY, and capacity is
+consulted everywhere the player's intent is formed: the enter cursor and `Passenger.CanEnter`
+(`Passenger.cs:160-164`), `Passenger.ResolveOrder`, which drops the order outright (`:236-237`), and
+`RideTransport.TickInner`, which re-asks it EVERY TICK of the approach and `Cancel`s the walk
+(`RideTransport.cs:33-46`). So a filter that refuses null produces no refusal anywhere a player or a
+log can see — every building of that family reports itself full forever and the men stop without
+reaching the door. `GarrisonManager` gets it right in one line (`GarrisonManager.cs:343-344`) and
+nothing tested that line; `GarrisonBoardingTest.ACapacityProbeIsNotABoardingRefusal` now does,
+RED-verified both ways (answer `false` -> the capacity assert fires; guard deleted -> the invocation
+throws).
+
+## 2026-09-21 - `Cargo.PassengerCount` is not "did he garrison": a man at a firing port is out of the hold and back in the world, and reads exactly like a man who never boarded (`wt/neutral-entry @ 4d1b7bfc`, run 260921_145733)
+
+**THE TRAP.** `GarrisonManager.DeployToPort` takes a shelter occupant OUT of `Cargo` and puts him
+back in the world at the port offset (`:413-476`). So the three quantities a garrison scenario can
+cheaply measure — `house.PassengerCount`, `man.IsInWorld`, `man.IsDead` — report a correctly
+garrisoned man who then manned a port as **"0 aboard, 1 still outside, 0 dead"**, which is
+character-for-character the shape of a man who never boarded at all. `test-garrison-neutral-entry`
+failed with exactly that text and the verdict could not be acted on, because the instrument could
+not tell the two apart. `test-garrison-suppression-readout` counts ports and shelter separately and
+is the model (`"2 at ports, 4 in shelter, 0 still outside"`); `Test.GarrisonPortOf` exists for it.
+**[V]**
+
+**THE SECOND MISSING BIT IS CHEAPER AND WORTH MORE: DID HE MOVE.** A man still on his start cell was
+refused BEFORE the approach — `Enter` gives up on its first tick when the target is hidden and there
+is no last-visible fallback (`Enter.cs:103-130`). A man standing at the door was refused AT boarding
+— `RideTransport.OnEnterComplete` returns on `!CanLoad` and leaves him outside (`:69-87`). Those are
+different bugs in different files, and one integer (`TestHarness.CellDrift` against a start cell
+recorded in `WorldLoaded`) separates them. A garrison scenario reporting neither is a bug report
+with the diagnosis removed.
+
+## 2026-09-21 - Splitting a template scalar into 37 per-actor values breaks every consumer that memorised the old one, and none of them names the key (`wt/garrison-tuning @ 4d1b7bfc`, run 260921_150809_demo-garrison-lineup)
+
+**THE INSTANCE.** `demo-garrison-lineup` died at `Trigger.AfterDelay` with `LoadPassenger: e1 80
+cannot be loaded into v19 73 — the transport refused it (no space, loading blocked, or a cargo
+filter said no)`. `V19` is the oil pump and the tuning table gave it `Cargo: MaxWeight: 2` —
+"machinery, not a room; two men can shelter behind the pad" — while the demo still loads a
+hard-coded **ten**-man squad into it (`demo-garrison-lineup.lua:116`). Before the table every
+civilian inherited `MaxWeight: 10` from `^CivBuilding`, and the demo's own header recorded "squad
+size equalled `MaxWeight` in all six cases" as a checked fact. It was, once. **[V]**
+
+**THE SHAPE.** Nothing in the demo mentions `MaxWeight`; it encodes the old uniform value as the
+LENGTH OF SIX LUA LISTS, where no grep for the changed key can find it. The companion entry below
+("a shared template value is indistinguishable from a decision") is about reading such a value IN;
+this is the exit wound. When splitting a template scalar into per-actor values, the question is not
+only "is each new value right" but **"who had memorised the old one"** — and that answer is never in
+the file being edited.
+
+**THE CRASH IS THE GOOD NEWS.** `TransportProperties.LoadPassenger` throws rather than returning
+silently, and deliberately (`:42-56`, added with the `CanLoad` guard so a Lua script cannot seat a
+passenger the sim would refuse). Without it the demo would have loaded 2 of 10 men into the pump and
+photographed a lineup quietly wrong in three of its six squads — which is what it was ALREADY doing
+at the other end of the table: `RUSHOUSE` rose 10 -> **12**, no throw, no symptom, ten twelfths of a
+building filled under a header asserting the opposite. **The crash found one of the two; only
+computing the comparison finds both.**
+
+**FIXED 2026-09-21 by deleting the literal rather than correcting it.** `generate.py` now resolves
+`Cargo.MaxWeight` out of `mods/ww3mod/rules` (following `Inherits` when an actor declares none, and
+raising rather than defaulting) and places exactly that many riflemen; the demo's new `FitLine()`
+re-reads the same figure off the LIVE actor through a new `Test.CargoCapacity` binding and prints
+`fit ok:` or `FIT MISMATCH xN` into the overview and completion frames. Two independent reads of one
+YAML number, disagreeing visibly in the capture instead of inferably from a stack trace — the
+generator's static read is the one that can be wrong about inheritance, and the engine's is the one
+that decides.
+
+
+## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535)
+
+**THE INSTANCE.** Tuning 38 garrisonable civilian buildings from their sprites turned up that
+**twenty-one of them declared neither `Health` nor `Armor`** — V12, V13, V19 and every desert
+building V20-V37 — and therefore took `HP 60000` / `Armor: Concrete` from `^TechBuilding`
+(`structures.yaml:160`). Reading the actor blocks makes them look tuned; reading the *resolved*
+rules shows one value repeated. Among the twenty-one: two haystacks, a well head with a wall stub,
+a ruin with market awnings, and a row of single-room mud huts — all concrete, all at the hit points
+of a reinforced bunker, all holding ten men behind eight firing ports. **[V]**
+
+**THE SHAPE, WHICH IS NOT SPECIFIC TO BUILDINGS.** An inherited default and a deliberate choice are
+the same text — namely, no text. `git log` cannot show you a number nobody wrote, grep cannot find
+it, and a reviewer reading `V29:` sees four tidy lines and no reason to suspect anything. The only
+way to see it is to **resolve the inheritance and look at the distribution**: 22 actors sharing one
+HP value is a fact about the YAML that no single actor's YAML contains. A fifteen-line MiniYaml
+resolver over `mods/ww3mod/rules` settles it in a second and needs no build, and the same query
+immediately flags the reverse case — a value stated identically on 37 actors is also usually a
+template that should have been per-actor.
+
+**THE COROLLARY THAT COST THE MOST HERE.** `^CivBuilding` declared one eight-port firing ring for
+every inheritor. Ports are a `WVec` offset from the building centre, so the *same* ring means
+something different on every footprint: 560 world units in X is 55% of a 1x1's width, 27% of a
+2x2's and 11% of V37's 5x2. The bigger the building, the further inside its own sprite the whole
+garrison stands. **A shared absolute offset under a varying extent is a uniform value that silently
+is not uniform**, and it is worth looking for wherever a template hands out positions rather than
+scalars.
+
+**WHY THE FIRST FIX REPRODUCED THE BUG.** Replacing the ring with a per-actor radius chosen per axis
+put the 60-degree diagonals of a six-port ring at (+/-966, +/-645) on a 2x2 of half-extent 1024 —
+back inside the building, for the same reason at a smaller scale. The ring has to CIRCUMSCRIBE the
+footprint along each port's own bearing. `CivBuildingPortCoverageTest` now asserts the invariant
+directly (`|X| >= halfX or |Y| >= halfY`) rather than the formula, which is why it catches both the
+original defect and the near-miss that was written to fix it.
+
+## 2026-09-15 - `EnterTransport` moved nobody into a NEUTRAL civilian building while the same order into an owned one worked, and no gate on the path explains it (`wt/garrison-tuning`, run 260915_210535_p58516_demo-garrison-lineup)
+
+**THE OBSERVATION, WHICH IS NOT YET A DIAGNOSIS.** Six squads were ordered into six garrisonable
+buildings in one scenario at one tick. The three whose buildings were **USA-owned** (GTWR, PBOX,
+HBOX) boarded and manned ports. The three whose buildings were **Neutral** (V01, V19, RUSHOUSE)
+**did not move at all** — capture 006 shows all ten riflemen still standing in the two start files
+they were placed in, four cells away. `debug.log` is clean, no Lua error, all 19 captures taken.
+Squad size equalled `MaxWeight` in all six cases, so it is not a capacity refusal. **[V]**
+
+**EVERY OBVIOUS GATE WAS CHECKED AND NONE OF THEM IS IT.** `EnterAlliedActorTargeter.CanTargetActor`
+explicitly permits neutral targets (`:49-54`) — and is not on this path anyway, since
+`MobileProperties.EnterTransport` queues a `RideTransport` activity directly rather than issuing an
+order. `RideTransport` and its `Enter` base carry no relationship test. `Cargo.LoadingBlocked` is
+written only by `HeliEmergencyLanding`. `Cargo`'s only `ICargoCanLoadFilter` is `SupplyProvider`,
+which no civilian building has. `GarrisonManager` observes entry through `INotifyPassengerEntered`
+and cannot refuse it. **[V]**
+
+**WHY IT MATTERS MORE THAN A BROKEN DEMO.** Walking into a neutral civilian building is *how a
+player garrisons one*. If this reproduces outside the scenario, the civilian half of the garrison
+feature is unreachable in ordinary play and only the three built emplacements work — which would
+also mean the sibling `test-garrison-suppression-readout` has been loading nothing into its house
+squad since it was written, unnoticed, because its verdict only ever covered the tower.
+
+**THE DEMO WAS ROUTED AROUND IT, NOT FIXED.** `LoadPassenger`
+(`TransportProperties.cs:42-48`) teleports the man into `Cargo` and still fires
+`INotifyPassengerEntered`, so the real bookkeeping runs and the captures can proceed.
+`test-garrison-neutral-entry` isolates the one variable — same actor type, same squad, one copy
+Neutral and one owned, side by side, with the owned lane as a control so that "both lanes failed"
+cannot be misread as "neutral entry is broken". Unrun as of this entry.
+
+## 2026-09-15 - A garrison port's `Offset` Z is discarded for the SOLDIER and kept for his MUZZLE FLASH, so every shipped port's Z raises the gun-flash off the man who is firing it (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+
+**THE SPLIT.** `GarrisonPort.Offset` is a `WVec` and every shipped port sets a non-zero Z — 200 on the
+eight `^CivBuilding` ports and on HBOX's two, 384 on GTWR's four, 256 on PBOX's two
+(`civilian.yaml`, `structures-defenses.yaml`). Three separate sites throw that Z away for the man:
+`GarrisonManager.DeployToPort` clamps it at deploy (`GarrisonManager.cs:384-387`),
+`GarrisonManager.Tick` re-clamps it every tick (`:728-733`), and `AttackGarrisoned`'s
+GarrisonManager branch clamps it a third time while firing (`AttackGarrisoned.cs:279-284`), whose own
+comment says the Z "must match GarrisonManager.Tick's per-tick position update" or the soldier blinks
+between the two heights as the target dips in and out of arc. All three write
+`new WPos(x, y, terrainZ)`. **[V]**
+
+**The muzzle flash is the one thing that still reads it.** Fourteen lines below that clamp, the flash
+animation is offset by `() => portOffset` — the raw `GetPortWorldOffset`, Z included
+(`AttackGarrisoned.cs:314`). The projectile does not: `CheckFire` runs on the SOLDIER's armament, so
+the round leaves from his clamped, ground-level centre. **So a firing port draws its flash 200-384
+world units above the man and the bullet, and nothing else in the feature is at that height.** **[V]**
+
+**WHY THIS MATTERS FOR TUNING PORTS.** "Put the port on the roofline" cannot be expressed in Z — it
+has to be spent in X/Y, which on this projection means a more negative Y. Any port table that reads
+as a 3-D position on the sprite is describing something the renderer will flatten. The Z field is not
+inert (it moves the flash), so deleting it is a visible change, not a cleanup.
+
+**The legacy path is the exception and is dead here.** `AttackGarrisoned`'s non-GarrisonManager
+branch (`:364`, `:376`) keeps Z for both position and flash — but it is the fallback for actors with
+no `GarrisonManager` (`:33-40`, `:53-60`), and all four garrison families have one, so no garrisonable
+actor in the mod reaches it.
+
+## 2026-09-15 - PBOX gives vision while empty and GTWR/HBOX do not, and the whole difference is one missing `Inherits@` line — the gating is done by key-collision, not by a removal (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+
+**THE MECHANISM.** `^StandardVisionWhenLoaded` does not remove anything and does not add a band. It
+`Inherits: ^StandardVision` and then re-states the same ten keys `Vision@1`..`Vision@10` carrying
+nothing but `RequiresCondition: loaded` (`defaults.yaml:156-177`). MiniYaml merges those onto the
+identically-named nodes the base template already brought, so the ranges survive and the gate lands
+on top. **The result is that a template whose entire body is ten `RequiresCondition` lines silently
+converts an inherited, ungated vision ladder into a gated one — provided it is inherited AFTER the
+thing that supplies the ladder.** **[V]**
+
+**THE DIVERGENCE.** All three defences reach `^StandardVision` the same way, through
+`^Defense` → `Inherits@Vision: ^StandardVision` (`structures-defenses.yaml:5`). GTWR (`:79`) and HBOX
+(`:329`) then declare `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded` after it; **PBOX
+declares no such line at all** (`:204-206` carries only `^Defense` and `^AutoTargetGroundAntiInfDefense`).
+There is no `-Vision@N` anywhere on any of the three — grep returns nothing — so PBOX keeps ten
+ungated bands and is the only garrison emplacement that sees for free while unmanned. `^CivBuilding`
+carries the inherit too (`civilian.yaml:5`), so the civilian family is gated like GTWR and HBOX.
+**[V]**
+
+**WHY IT IS EASY TO MISREAD.** Looking for what makes PBOX different, the instinct is to hunt for an
+extra `RevealsShroud` on PBOX. There is none — PBOX is the actor with something MISSING, and what is
+missing is a line whose name (`DetectionWhenLoaded`) does not contain the word it gates on. The fix
+is a one-line addition, not a removal, and it is invisible to any check that looks for divergent
+trait VALUES: all three actors' Vision traits carry identical ranges and strengths.
+
+## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
 ## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
@@ -24894,3 +25751,226 @@ Observed at main @ b0aa900c: `VaporizeScopeTest.TheSupplyRouteOptsOutOfVaporisat
 ## 2026-09-21 — `run-test.sh` reported LAUNCH-FAIL from a six-day-old client.log
 
 `check_launch_failure` (`tools/autotest/run-test.sh:517`, added `6651d5f4`) grepped `server.log` / `client.log` for the refused-join signatures **without checking the log was newer than `LAUNCH_STAMP`** — only the `lua.log` world-seen branch had the `-nt` gate. Killing the game at teardown leaves `Connection to 127.0.0.1:… failed` as `client.log`'s last line, so the FIRST run after any session fired the watch one second after launch, killed the game before it wrote a byte, and reported `launch-fail: server refused the client at join` quoting the previous session's line (run `260921_145344`, log dated 2026-09-15 22:11). Symptom that gives it away: **no file under the OpenRA support dir is newer than `result.launchstamp`.** Fixed by gating both greps on `-nt "${LAUNCH_STAMP}"`. The Windows box never saw it because its last run of each session apparently did not leave that line — unverified.
+
+## 2026-09-21 — `Test.PressHotkey` returns TRUE for a DISABLED button, so its return value is evidence of CONSUMPTION and never of ACTION (`wt/unload-scenario`, base `wt/garrison-unload @ 55ac6bee`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** `ButtonWidget.HandleKeyPress`
+(`engine/OpenRA.Mods.Common/Widgets/ButtonWidget.cs:155-170`) returns `true` **unconditionally**
+once the key matches — line `:169`, below both branches. `IsDisabled()` at `:160` gates only
+whether `OnKeyPress(e)` fires; a disabled button falls through to `ClickDisabledSound` at `:166-167`
+and still reports the press consumed. `Test.PressHotkey` returns exactly what `Ui.HandleKeyPress`
+returns (`TestGlobal.cs:420`). **So `if not Test.PressHotkey(X) then Skip(...)` is green precisely
+when the button was greyed out and did nothing** — the guard is blind to the one failure it exists
+to catch, and the scenario proceeds to wait on a state transition that was never ordered.
+
+Blast radius at this ref: **15 scenarios call `Test.PressHotkey`, 8 of them branch on its return
+value**, and `CommandBarLogic` defines **12** buttons with an `IsDisabled` predicate. Any of those 8
+that targets a command-bar button can time out with a misleading cause. **The countermeasure is not
+a better guard on the return value — there isn't one. Assert the EFFECT** (the order landed, the
+state moved), or use a binding that reports routing, such as `Test.ClickOrder`, which returns the
+`OrderString` that actually won.
+
+**THE CONCRETE CASE, and it is a second finding in its own right: the Deploy KEY and the deploy
+CURSOR are two different dispatch mechanisms, and they disagree on garrison buildings.**
+`CommandBarLogic.PerformDeployOrderOnSelection` (`:607-619`) does not walk `IIssueOrder` at all — it
+collects `TraitsImplementing<IIssueDeployOrder>` and issues only where `CanIssueDeployOrder` is
+true. On a civilian garrison building the **only** `IIssueDeployOrder` is `Cargo`, gated
+`!IsEmpty()` (`Cargo.cs:427`); `GarrisonManager` implements that interface **nowhere**. The mouse
+path is the other mechanism: `GarrisonManager` yields its own `DeployOrderTargeter("Unload")`
+exactly **when** the cargo IS empty and occupants remain (`GarrisonManager.cs:1464-1476`, added by
+`bc35eb98` "allow Unload when only port soldiers remain (rubble evac)"), complementing `Cargo.Orders`
+which yields only while NOT empty (`Cargo.cs:390-411`).
+
+So `bc35eb98` closed the mouse half of the gap and left the keyboard half open, and the two halves
+have been out of step on `main` since **2026-05-04**. In the state "shelter empty, ports manned" the
+deploy cursor issues `Unload` and the Deploy key/button is greyed. **This is NOT a regression from
+the 09-16..09-20 garrison work** — `66c3b5e5` touches only `ScanForTarget` and `TriggerAmbush`
+(acquisition), and `96cf46a5` ("a garrison mans no port until it is told to") touches **no engine
+file at all**, being two autotest scenarios and a Lua lib. Filed as a bug rather than fixed here;
+the player is not trapped, because `GarrisonPanelLogic` ejects port soldiers individually
+(`:316`, `EjectGarrisonPassenger`).
+
+**`Test.IssueDeploy` is no escape.** It re-applies the same `CanIssueDeployOrder` gate
+(`TestGlobal.cs:1242-1245`), so a scenario that "fixed" the hotkey by reaching for the
+purpose-built binding would have failed identically and more confusingly — `IssueDeploy` returns
+`void`, so it cannot even report that it issued nothing.
+
+**The cheap lesson, which is the 2026-09-15 entry's rule pointed the other way.** That entry said:
+before writing "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. This one
+adds the **issue** side: before writing "gesture X *reaches* order Y", check which dispatch
+mechanism the gesture uses — `IIssueOrder` targeters (mouse) and `IIssueDeployOrder` (key/button)
+are separate surfaces with separate gates, and a trait may be on one and not the other.
+
+## 2026-09-21 — A RED that PASSED: the Cargo hold has TWO exits and only one of them arms the frame-end revert (`wt/unload-scenario`, base `wt/garrison-unload @ dc368f16`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When a defect lives in a task armed as a SIDE
+EFFECT of one particular code path, a scenario that merely reproduces the defect's *state* proves
+nothing — the state has to be reached **through that path**. Reaching it by any other route leaves
+the task un-armed, and the run is then green under sabotage, with text identical to the real pass.
+That is what happened here: `test-garrison-unload-keeps-manned-owner` PASSED both as GREEN
+(`260921_151920`) and with `MayRevertHoldToNeutral`'s veto argument forced to `false`
+(`260921_152208`) — same notes string, byte for byte, down to `House owner Neutral; shelter=0;
+ports=0`.
+
+**THE TWO EXITS.** `UnloadCargo` unloads a man and then enqueues a frame-end task that re-reads
+`cargo.PassengerCount` and reverts the building if the hold is empty (`UnloadCargo.cs:235-252`).
+`GarrisonManager.DeployToPort` ALSO empties a hold slot — it calls `cargo.Unload(self, soldier)`
+directly (`GarrisonManager.cs:441`) from its own `ITick`, with no activity in the chain and
+therefore **no such task**. So the hold reaching zero is not sufficient for the defect; it must
+reach zero *on an `UnloadCargo` unload*.
+
+**WHY THE SCENARIO TOOK THE WRONG EXIT.** Its phase 1b waited for `CountPorts() > 0` — the FIRST
+port manned — and then drained the shelter through the unload menu. Seven ports were still free at
+that moment, so `GarrisonManager` was concurrently deploying the very men the menu was ordering out,
+and the last one to leave the hold left through a port. Fixed by waiting for **all eight**
+(`^CivBuilding` declares exactly eight, `civilian.yaml:133-183`): with every port occupied there is
+nowhere left to deploy, so the remaining men can only leave through `UnloadCargo`. Ten men and eight
+ports is why the map places ten.
+
+**All eight are reachable from four baits, and that is not obvious.** The eight ports share four
+yaws two apiece, and a second port on the same diagonal takes the same bait under a score PENALTY
+(`-400` per port already targeting, `GarrisonManager.cs:1227-1228`) rather than an exclusion —
+`ScanForTarget` seeds `bestScore = int.MinValue` and keeps any `score > bestScore` (`:1102`,
+`:1131`), so there is no positive threshold a penalised candidate can fail.
+
+**A SECOND-ORDER TRAP IN THE SAME RUN, and the reason the false pass was so convincing.** Phase 4's
+success condition is "ports clear AND the house is Neutral" — which the sabotage *itself* produces.
+So the broken RED did not merely fail to fail; the damage it did was indistinguishable from the
+repair it was meant to disprove. **When a verdict's PASS clause names the same end state the
+regression produces, the scenario cannot tell them apart from the end state alone** — it has to
+catch the transition, which is why phase 3 now WATCHES ownership for a beat instead of sampling it
+once.
+
+**On the sampling: `Trigger.AfterDelay` is itself a frame-end task.** It schedules a `DelayedAction`
+effect (`TriggerGlobal.cs:77`) whose tick re-queues the body to the frame end
+(`DelayedAction.cs:32`), so a Lua callback and an activity's frame-end task land in the same drain
+loop (`World.cs:520-521`). The activity's is enqueued from the ACTOR tick (`:505`) and the Lua one
+from the EFFECT tick (`:510`), so the FIFO queue orders flip-then-callback and a single sample does
+see the flip. That is derived from reading, not observed — hence the watch.
+
+**AND THE CHEAP LESSON:** a RED that passes is not a weaker result than a RED that fails to compile;
+it is the most dangerous outcome available, because it certifies the fix. Before banking any RED,
+ask **which line arms the defect** and whether the scenario's own setup can reach the measured state
+without ever executing it.
+
+## 2026-09-21 — The unload menu acts on a SNAPSHOT, so a setup gate that does not wait for the population to settle silently under-orders (`wt/unload-scenario`)
+
+Addendum to the entry above, found on the next run of the same scenario
+(`260921_155532`, skip: `shelter=1; ports=8`). Nine men of ten accounted for — **one was still
+walking in when the menu was clicked.**
+
+`CargoUnloadMenuLogic` re-reads `cargo.Passengers` on every click and issues one
+`UnloadCargoPassenger` per man *then aboard* (`:232-247`). Nothing revisits that list, so **a man who
+boards one tick after the click is never ordered anywhere.** He sits in the hold, the drain's
+`CountShelter() == 0` never comes true, and the timeout blames whatever the timeout message happens
+to name — here, exit cells, which were never the problem.
+
+**The generalisable rule: a setup gate must require the population to be SETTLED, not merely
+non-empty.** The gate had been `CountPorts() >= 8 and CountShelter() > 0` — two clauses that look
+like they pin the arrangement and do not, because neither says "and nobody else is in transit". The
+fix is `CountShelter() + CountPorts() >= #Men`: with ten men and eight ports the only arrangement
+satisfying both is ports 8, shelter 2.
+
+**It also retires a suspect, which is the more useful half.** The `shelter=2; ports=8` reading 30 s
+after the drain in run `260921_150014` was being read as evidence that ejected men walk back in. It
+is not: with the old gate the click landed while seven ports and two men were still in flight, and
+those men boarded afterwards and stayed. **Nothing re-boards** — `UnloadCargo` cancels the man's
+activity on the way out (`UnloadCargo.cs:260`), and no trait auto-loads infantry into a garrison. A
+straggler and a returner produce the same count, and only one of them exists.
+
+**Two mechanisms checked and cleared while chasing this, worth recording so nobody re-checks them.**
+(1) *Port occupants do not block exits.* `DeployToPort` positions a port soldier on the BUILDING's
+own cell — `positionable.SetPosition(soldier, self.Location)` with the port offset applied as visual
+position only (`GarrisonManager.cs:458-469`) — while `ChooseExitSubCell` searches
+`Cargo.CurrentAdjacentCells`, which is `Util.AdjacentCells` minus the building's cell
+(`Cargo.cs:307-310`). The two sets are disjoint by construction, so a fully-ported garrison can still
+unload its shelter. **There is no "port men seal their own exits" bug.** (2) *The ALL chip does issue
+one order per man* — first unqueued, the rest queued off a `hasDropped` latch precisely so the second
+does not `CancelActivity` the first (`CargoUnloadMenuLogic.cs:58-61`, `:239-247`).
+## 2026-09-21 — `allowMove=false` into a weapon's MinRange is a SILENT no-op: every target at exactly full HP, nothing in `debug.log`, no Lua error (`wt/himars-scenario`, run `260921_145835`)
+
+**THE INSTANCE.** `test-himars-church-vs-block` failed its first ever run with `no impact within 40s — church 38000/38000, block 120000/120000`: two HIMARS, both ordered `Attack(target, false, true)`, neither of which put a single rocket in the air in ~60 s of wall clock. Each launcher stood **10 cells** from the target it was told to hit, against `HIMARSTargeter`'s `MinRange: 16c0` (`mods/ww3mod/rules/weapons/weapons-missiles.yaml:383`, inherited from `IskanderTargeter`). The map's own comment asserted 20 cells: the four actors sat on one column at y = 14/24/34/44, so the *span* from a launcher to the FAR building is 20 and to its own is 10, and the Lua paired each launcher with the adjacent one.
+
+**THE MECHANISM, WHICH LEAVES NO EVIDENCE — AND WHICH ACTIVITY IT IS IN.** `allowMove=false` means `move == null`, and an attack activity with no `IMove` and a target outside its weapon's band gives up rather than waiting. **Cite the right activity, because there are two and they are siblings.** `AttackFrontal : AttackBase` runs `Activities/Attack.cs`; `AttackTurreted : AttackFollow` runs `AttackFollow.AttackActivity`. A HIMARS is `AttackTurreted` and therefore **never executes `Activities/Attack.cs` at all** — the first version of this entry cited that file's `:75`/`:276`/`:282`/`:299-300` for a turreted launcher, which was wrong, and the wrong citation reached a commit message and two scenario comments before it was caught the same day. The turreted gate is `AttackFollow.cs:517` (in `MaxRange` **and** out of `MinRange` **and** clear LOS); failing it falls to `:528`, `if (move == null || maxRange == WDist.Zero || maxRange < minRange) return true`, where `move == null` comes from `:404`. Either way the activity ends **on its first tick** — before the unit aims, before `AttackBase`'s `SetupTicks` countdown is entered (`AttackBase.cs:244-287`), and before `Armament.CheckFire` runs at all. So even the `WW3_GUNTRACE=1` block-mask trace at `Armament.cs:500-526`, which exists precisely to name a blocked armament and carries a dedicated `insideMinRange` bit (`:522`), prints nothing: it lives inside `CheckFire`, one rung below where the refusal happened. The order is *accepted*, not refused — no warning, no exception, no log line anywhere.
+
+**THE LESSON THAT OUTLIVES THE BUG: `AttackBase` HAS TWO ACTIVITY FAMILIES AND THE TRAIT NAME IS THE ONLY TELL.** Reading "the attack activity" as a single thing is what produced the wrong citation, and it is an easy mistake because both files contain a `tooClose`-shaped min-range test, a `move == null` give-up and a `useLastVisibleTarget` path — the code reads as if it were the same logic, and the line numbers differ. Before citing either, resolve the actor's attack trait: `grep -n "^\tAttack" ` its rules block. `AttackFrontal`, `AttackOmni` and `AttackFollow` each override `GetAttackActivity` (`AttackFrontal.cs:42`, `AttackOmni.cs:30`, `AttackFollow.cs:270`), and `AttackTurreted` inherits `AttackFollow`'s. **The two launchers in this mod are on opposite sides of that split** — `iskander` is `AttackFrontal` (`vehicles-russia.yaml:1081`), `HIMARS` is `AttackTurreted` (`vehicles-america.yaml:1169`) — so the Iskander is NOT a valid precedent for HIMARS firing behaviour however identical their weapons, ammo pools and `MissileSpawnerMaster` blocks look.
+
+**THE SIGNATURE TO RECOGNISE.** Targets at **exactly** their starting HP, not a shortfall. A damage-arithmetic defect leaves a partial number; a launcher that never fired leaves the census byte-identical to `WorldLoaded`. In a timeout message those two read alike unless the message distinguishes them, which is why this scenario's `AssertWithin` reason now prints each lane's separation and the legal band alongside the HP census.
+
+**WHY IT IS EASY TO WRITE AND HARD TO SEE.** `allowMove=false` is the *right* choice for a geometry fixture — a launcher that repositions changes the impact geometry being measured — but it silently converts the map's spawn cells from a convenience into a hard precondition that the engine will neither repair nor report. The same bad layout with `allowMove=true` self-heals: the unit backs off via `MoveWithinRange(target, minRange, maxRange, …)` (`:306`) and the test goes green **while measuring a range the author never wrote**, which is the worse outcome of the two. The in-tree passing precedent, `test-sam-intercepts-iskander`, fires this same weapon family from **40 cells** with `allowMove=true`, so it never exposed either half.
+
+**THE RULE.** *When a scenario orders a shot with `allowMove=false`, the spawn separation is part of the assertion and must be checked against BOTH ends of the weapon's band, not just the maximum.* Mod artillery has a real minimum — `IskanderTargeter` / `HIMARSTargeter` are `Range: 50c0` with `MinRange: 16c0` — and `MinRange` is the end nobody checks. Grep the weapon for `MinRange` before choosing cells, and write the computed separation into the map comment so the next reader can falsify it rather than re-derive it.
+
+**TWO ADJACENT FACTS CONFIRMED WHILE RULING OUT OTHER CAUSES.** Neither was the defect; both were plausible enough to cost a read, and both are worth not re-deriving:
+- `TargetDamageWarhead` is **position-based despite its name**: `DoImpact` sweeps `firedBy.World.FindActorsOnCircle(pos, Spread)` (`engine/OpenRA.Mods.Common/Warheads/TargetDamageWarhead.cs:55`). A `MissileSpawnerMaster` rocket detonates on `Target.FromPos(target.CenterPosition)` (`MissileSpawnerMaster.cs:112`) — a bare position with no actor attached — and `Warhead@Target`'s damage still lands. No actor-target is needed for it to bite.
+- A first-damage-tick latch does **not** see a `ShockwaveDamage` warhead. `HIMARSExplosion`'s `Warhead@Shockwave` carries `StartDelay: 2` (`mods/ww3mod/rules/weapons/weapons-explosions.yaml:603`), so one HIMARS puts `36000 + 2500 = 38500` on the impact tick and its remaining `7000 * Versus` a few ticks after. A test that latches "the first tick health dropped" is pinning **38500, not the 44100** the garrison-tuning table quotes. Both numbers are right; they answer different questions, and a threshold set from the tuning table must be wide enough to hold for either.
+
+**A PHRASING TRAP IN THE LAUNCHER RULES, NOT A DEFECT.** Neither `himars` (`vehicles-america.yaml:1136-1142`) nor `iskander` (`vehicles-russia.yaml:1055-1056`) carries `RequiresForceFire` on its armament, and none is inherited (no `Armament@1` exists in `defaults.yaml`). The iskander's comment says so explicitly — "Until the armament's `RequiresForceFire` **was dropped** below…" — but the HIMARS comment at `vehicles-america.yaml:1121-1123` reads in the present tense ("**Dropping** the armament's `RequiresForceFire` below would otherwise hand bots auto-launch"), which invites a reader to believe the line is still there. What actually holds bots off both launchers is `AutoTarget: InitialStanceAI: HoldFire` alone. Anyone auditing why bots never auto-launch strategic missiles should not go looking for a `RequiresForceFire` that was removed.
+
+
+## 2026-09-21 (later the same day) — the range fix was necessary and NOT sufficient: a turreted launcher has ~11 independent gates between `Attack()` and a rocket, and the HP census cannot see any of them
+
+Second run of `test-himars-church-vs-block` at `wt/himars-scenario @ ca2e18ba`, launchers now 24 cells out and inside the band: **identical failure**, `church 38000/38000, block 120000/120000`. So min-range was real (it must be cleared) but was not the only blocker, and the run produced the same total absence of evidence as the first.
+
+**THE CENSUS CANNOT DISTINGUISH TWO OPPOSITE FAULTS, AND THAT IS THE ACTIONABLE PART.** Targets at exactly full HP is consistent BOTH with "no shot was ever taken" AND with "the armament fired, spent ammo, played its `Report`, and `MissileSpawnerMaster.INotifyAttack.Attacking` found no launchable slave (`MissileSpawnerMaster.cs:98-100`) so no rocket entered the world". Those demand opposite fixes. Health is the wrong instrument for a launcher: **the ammo count is the discriminator** (`actor.AmmoCount("primary-ammo")`, matched on `pool.Info.Name` and *throwing* on a wrong name — `AmmoPoolProperties.cs:36-38`), and `Test.ActivityChain(actor)` (`TestGlobal.cs:1202`) is the discriminator for activity-level vs firing-level refusal. That binding's own `[Desc]` says it exists because inferring this by reading code "has already produced one confident wrong answer" — which is now two.
+
+**WHAT `WW3_GUNTRACE=1` DOES AND DOES NOT COVER.** It writes `[GUNTRACE]` lines through `Log.Write("debug", …)` (`GunTrace.cs:29`) — i.e. into `debug.log`, which `run-test.sh` copies into the run directory — and is edge-triggered on a change of block-mask, so a permanently blocked armament emits one line rather than one per tick. **But every call site is inside `Armament.CheckFire`.** `CheckFire` is only reached from `DoAttack`, which `AttackFollow.Tick:216-217` calls only when `IsAiming` is already true — and `IsAiming` is the conjunction of `CanAimAtTarget`, `ReadyToEngage` and `DefconFireDiscipline.Permits` (`:213-215`). So a refusal in any of those three, or in the activity above them, leaves the trace **completely silent**, and a silent GUNTRACE is therefore not evidence that the armament was willing to fire. Turn it on, but read a quiet log as "the block is above CheckFire", not as "no block".
+
+**THE GATE LIST FOR A TURRETED LAUNCHER,** which is longer than the frontal one and is the thing worth not re-deriving. Activity side (`AttackFollow.AttackActivity.Tick`): `AmmoPool.CannotFight` (`:442`), `RequestedTarget` invalidated (`:447`), `attack.IsTraitPaused` (`:450`), target hidden with no usable last-seen position (`:508`), the in-band + LOS test (`:517`), and the `move == null || maxRange == 0 || maxRange < minRange` give-up (`:528`). Firing side: `CanAimAtTarget` (`:112-128` — visibility with **no `forceAttack` exemption**, `ChooseArmamentsForTarget` non-empty, the band again, `TargetInFiringArc`), `ReadyToEngage` → `AttackTurreted.CanAttack` (`AttackTurreted.cs:36-48` — `turretReady` from `Turreted.FaceTarget`, then `AttackBase.CanAttack`'s `HasAnyValidWeapons(reloadingIsInvalid: true)`, `HoldFireWhileMoving` and the `SetupTicks` deploy gate at `:351`), `DefconFireDiscipline.Permits`, then `Armament.CanFire`'s own seven conditions, and finally the `MissileSpawnerMaster` slave. **Eleven places that all present as "nothing happened".**
+
+**FOUR GATES ELIMINATED BY READING, WITH THE FACTS THAT DO IT** — recorded because each is a plausible-looking suspect that costs an hour:
+- **LOS is unconditionally clear for anything carrying `IndirectFire`.** `FiringLOS.HasClearLOS` returns `true` at `FiringLOS.cs:48-51` before it touches the ShadowLayer. This kills LOS at *both* call sites (`AttackFollow.cs:519` and, less obviously, inside `AttackBase.TargetInFiringArc:312-315` — a LOS test hiding in a method whose name promises only a facing check).
+- **Body facing cannot block a shot at default settings.** `AttackBaseInfo.FacingTolerance` defaults to `WAngle(512)` = 180° (`AttackBase.cs:46`), so `Util.FacingWithinTolerance` is always true. Relevant because a turreted unit ordered with `allowMove=false` never turns its body at all.
+- **Ammo is full at spawn and the pool config is not the differentiator.** `AmmoPoolInfo.InitialAmmo` defaults to `-1`, and `:425` resolves that to `Info.Ammo`, so `CannotFight` (`= AllPoolsEmpty && !Aircraft`, `:751-753`) is false from tick 0. The iskander's `AmmoPool@1` is byte-identical to the HIMARS's, `Essential: true` included — so despite `AmmoPool.cs:487` asserting "nothing is authored Essential yet" (it is, on both launchers), the essential/dry distinction cannot explain a difference between them.
+- **The turret-realign standoff is already fixed.** The circular-looking dependency — `Turreted.Tick` only tracks while `attack.IsAiming`, but `IsAiming` needs the turret already aligned — is closed at `Turreted.cs:238-241`, which suppresses the realign countdown while `desiredDirection` is non-zero, with a comment naming the exact symptom ("rotates one tiny step then stops"). `MoveTurret` (`:290-294`) clears `desiredDirection` on alignment, so `HasAchievedDesiredFacing` latches true rather than oscillating.
+
+**ONE NEGATIVE THAT IS WEAKER THAN IT LOOKS.** A zero-byte `lua.log` does *not* prove the target was visible and valid. `CombatProperties.Attack` logs "is an invalid target" / "is not revealed for player" to the Lua log (`CombatProperties.cs:93-99`), so an empty log is tempting to read as both checks passing — but the visibility warning is gated on `!targetActor.Info.HasTraitInfo<FrozenUnderFogInfo>()`, and civilian buildings carry `FrozenUnderFog`, so for exactly the targets in this scenario the warning is skipped whether or not they can be seen. The fog question had to be settled elsewhere (`MapLayers.cs:197`: `FogCheckboxEnabled` is the lobby *default value*, not the checkbox's availability, so `FogCheckboxEnabled: false` does turn fog off; and the harness sets only the `scenario` lobby option, `Game.cs:650-651`).
+## 2026-09-21 (run 3) — an attack order issued from Lua `WorldLoaded` can die on tick one, silently: the pre-explored map is a FRAME-END TASK, so the world is not settled when `WorldLoaded` runs
+
+Third run of `test-himars-church-vs-block`, now instrumented. The probe was decisive and its whole output was one line:
+
+```
+HIMARSPROBE t1 B[(idle) ammo=2] A[(idle) ammo=2] missiles=0
+```
+
+Both launchers **already idle at the first Lua tick**, ammo untouched at 2, no missile in the world, and **zero `[GUNTRACE]` lines** with `WW3_GUNTRACE=1` set. So the attack activity died before tick 1 and no armament was ever consulted — and geometry cannot be the cause, because run 1 (10 cells, inside `MinRange`) and run 2 (24 cells, inside the band) failed *identically*.
+
+**THE ESTABLISHED FACT, AND IT IS THE REUSABLE ONE.** `MapLayers` does not apply the pre-explored map inline — it defers it: `if (ExploreMapEnabled) self.World.AddFrameEndTask(w => ExploreAll());` (`MapLayers.cs:200-201`). Lua's `WorldLoaded` runs **before** that queue drains. So any scenario whose `rules.yaml` sets `ExploredMapCheckboxEnabled: true` and then issues a targeting order from `WorldLoaded` is ordering into a world whose shroud has not been lifted yet. The scenario that has been passing all along already knew this and says so: `test-sam-intercepts-iskander.lua:48`, `local FireAtTick = 20 -- let the world settle before ordering`, with the order issued from its tick poller and never from `WorldLoaded`. **That is the only scenario-side difference in the two files' order paths** — and it is not, as an earlier version of this investigation concluded, that one launcher is `AttackFrontal` and the other `AttackTurreted` (true, and worth knowing for citations, but not what was killing the order).
+
+**THE SCALE OF THE LATENT TRAP.** 58 of 317 scenario scripts issue an order inside `WorldLoaded`; 30 of those use `.Attack(`. Most evidently get away with it, and the likely reason is range: an actor's own vision bubble is live from world setup, so a target a few cells away is viewable at tick 0 without any help from `ExploreAll`. **A long-range indirect-fire shot is the case that is not** — which is why this surfaced on an artillery scenario and not on the twenty-nine others. Treat "orders from `WorldLoaded`" as safe only when the target sits inside the attacker's own sight.
+
+**THE SUSPECTED MECHANISM, EXPLICITLY NOT PROVEN.** Viewability. `AttackFollow.AttackActivity`'s constructor records `lastVisibleTarget` only when `target.Actor.CanBeViewedByPlayer(self.Owner)` (`:414-417`); the first `Tick` derives `useLastVisibleTarget` from `targetIsHiddenActor` (`:487`), and **two independent exits** hang off it — `:508` ("target is hidden or dead, and we don't have a fallback position to move towards") and `:521` (in range but hidden) — either of which returns `true` and ends the activity on tick one with no warning. Consistent with every observation. What I could *not* establish is that the church is actually unviewable at tick 0: `^StandardVision` grades out past `22c0` (`defaults.yaml:115-145`) and detection also turns on the target's `Detectable` tier, so a 24-cell building may well be seen. **Two confident readings-by-code have already been wrong on this one scenario**, so the probe now samples `Test.IsDetectedBy(Church, LauncherB.Owner)` (`TestGlobal.cs:1771-1776`, straight through `Actor.CanBeViewedByPlayer`) every tick: false-then-true confirms it, true-throughout refutes it and means the "settling" is something else.
+
+**WHY NO LOG EVER SAID ANYTHING — the same suppression, hit twice.** `CombatProperties.Attack` *does* warn when the target cannot be viewed, but the branch is gated on `!targetActor.Info.HasTraitInfo<FrozenUnderFogInfo>()` (`CombatProperties.cs:97`), and these buildings carry `FrozenUnderFog` (`structures.yaml:80`, via `^BasicBuilding`). So for exactly the targets in this scenario the warning is skipped, `lua.log` stayed empty, and an empty `lua.log` was twice tempting to read as "visibility is fine". It only ever proved the *other* branch — `Target.IsValidFor`, which is the `Targetable` check (`:94`).
+
+**NOT A RULES REGRESSION.** The church is HIMARS-able in play. A player cannot issue an order before the first frame-end task drains; only a script can. The tuning branch's targetables are sound: `^CivBuilding` carries `Ground` and no `RequiresForceFire` (`civilian.yaml:17-19`, with the note at `:45-72` explaining why that flag was deliberately deleted — it had made garrisons unkillable by the AI). The `RequiresForceFire: true` at `civilian.yaml:287` belongs to **`^Bridge`**, not to any civilian building.
+
+**THE PROCESS LESSON, WHICH COST THREE RUNS.** The verdict carried only health, and "both targets at exactly full HP" is the shared signature of at least four unrelated causes — out of min-range, activity dead on tick one, fired-but-no-missile, and warheads that did nothing. Each needs a different fix. One `Test.ActivityChain` + ammo reading separated them in a single run after two runs of reading code had produced two wrong mechanisms. **For any scenario asserting that something FIRED, print the activity chain and the ammo count in the failure message from the start** — health is a downstream proxy that cannot distinguish the interesting cases. `TestGlobal.cs:1195-1200` already says this about `ActivityChain`; that count of "one confident wrong answer" is now three.
+
+## 2026-09-21 (runs 4 and 5) — a scenario passed twice WITHOUT EVER RUNNING ITS ASSERTIONS: `AssertWithin`'s predicate returning true is itself a terminal `Test.Pass()`
+
+`test-himars-church-vs-block` finally fired — and both GREEN runs were worthless. `result.json` carried `"notes":""`, no `screenshots` key, and no PNG on disk in either run directory (`260921_174914`, `260921_175315`). The verdict function never executed, so **neither half of the bar was ever evaluated**: the run passed because both targets took *some* damage, and one hit point would have done it.
+
+**THE MECHANISM, AND IT IS IN THE SHARED HELPER.** `TestHarness.AssertWithin(seconds, predicate, timeoutReason)` polls every tick and does this (`mods/ww3mod/scripts/test-helpers.lua:89-98`):
+
+```lua
+local result = predicate()
+if result == true then
+    Test.Pass()        -- terminal, and NO note
+    return
+end
+```
+
+So the predicate going true is not "stop waiting" — it is **the verdict**. This scenario passed `function() return Reported end`, and `Reported` is set by the damage latch, which then schedules the real verdict `Trigger.AfterDelay(2, Verdict)` with `Verdict` deferring a further 25 ticks before asserting. `AssertWithin`'s next poll fires **one tick** after `Reported`, roughly 27 ticks ahead of the assertions, calls `Test.Pass()` with an empty note, and exits the game. Two verdict authorities, and the wrong one wins by design.
+
+**THE RULE.** *A predicate handed to `AssertWithin` must never become true in a scenario that has assertions of its own.* `AssertWithin` is safe in exactly two shapes: as the **whole** verdict (predicate true genuinely means pass), or as a **pure watchdog** whose predicate is always false and whose only exit is the timeout. Mixing it with a delayed verdict of your own silently converts the scenario into "did anything at all happen", which is the one question it was not written to ask. Fixed here by open-coding the deadline in the tick loop so the verdict function is the single authority.
+
+**HOW WIDE THIS MIGHT GO, stated as a scope and not as a count.** 127 of the scenario scripts use `AssertWithin`; **45 of those also contain their own `Test.Pass(`/`Test.Fail(` with a payload**, which is the shape at risk. That 45 is an UPPER BOUND on suspects, not a count of confirmed breakages — the safe watchdog pattern (predicate always false) also matches it, and only one scenario is confirmed broken so far, this one. The per-file question is narrow and mechanical: *can this `AssertWithin` predicate ever return true?* If yes, and the file has its own deferred verdict, its greens have not been measuring what they claim. Worth a pass over those 45, one grep each.
+
+**WHY IT SURVIVED SO LONG HERE.** The scenario had never once reached its verdict — three earlier runs died before any damage landed, so `Reported` never went true and the timeout branch (which *does* carry a reason) was the only path anyone had seen. The race only becomes reachable on the first run that actually works, which is precisely the run nobody scrutinises because it is green. `lua-gate` cannot see it either: its check is that a `test-` scenario reaches *a* terminal verdict, and this one reached two.
+
+**THE OTHER CORRECTION FROM THESE RUNS: the RED I proposed was not a RED.** Run `260921_175314` set `OrderAtTick = 1` and **passed**, with the trace reading `t1 B[AttackActivity] ... churchVisible=false` — the activity survived despite the target being unviewable at the moment of the order. An order issued from `OnTick` at tick N has its first activity tick in tick N+1, by which time the frame-end queue has drained. **The discriminator is the CALL SITE — `WorldLoaded`, which lands before tick 1's activity pass — not the length of any delay.** Any tick >= 1 is safe; `OrderAtTick = 20` is harmless margin only. The honest RED for the timing claim is restoring the `WorldLoaded` call site.
+
+**AND THE MECHANISM IS NOW OBSERVED RATHER THAN INFERRED.** The GREEN trace logged `t1 ... churchVisible=false` then `t2 ... churchVisible=true` — the pre-explored map's deferral (`MapLayers.cs:200-201`) is exactly **one tick** wide, measured through `Test.IsDetectedBy`, i.e. straight through `Actor.CanBeViewedByPlayer`. That confirms the chain the previous entry flagged as suspected: ctor skips `lastVisibleTarget` (`AttackFollow.cs:414-417`), first Tick ends the activity at `:508`. The probe also settled the damage arithmetic — `ammo 2->1` at t177 with `missiles=2`, both rockets in the world at once, last one gone by t281.
+
+**THE PROCESS POINT, now four runs deep.** Every one of this scenario's four failures was a *different* silent refusal, and in every case the verdict text was the only evidence that existed. Health alone could not distinguish them; the activity chain and ammo count could, in one run. The last one could not be distinguished by any in-game reading at all — only by noticing that `result.json` had an empty `notes` and no screenshot, i.e. by auditing the shape of the PASS rather than its status. **A green whose verdict text is empty should be read as a failed test, not a passing one.**

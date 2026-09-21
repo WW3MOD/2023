@@ -132,7 +132,10 @@ WorldLoaded = function()
 			hp(C.victim), C.start, hp(C.shooter)))
 
 		if #failures == 0 then
-			Test.Pass()
+			Test.Pass(string.format(
+				"lane A littlebird dealt damage (%d/%d) and the lane B Apache control did too (%d/%d), " ..
+				"so the control is live and lane A's result stands. Lane C is observational: victim=%d/%d",
+				hp(A.victim), A.start, hp(B.victim), B.start, hp(C.victim), C.start))
 		else
 			Test.Fail(table.concat(failures, " | "))
 		end

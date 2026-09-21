@@ -45,7 +45,8 @@ Standard-library Python only. No build, no engine, no game launch.
 
 - **exit 2 (fail)** — a reference that cannot resolve: an unknown member on a known engine
   table, or a member that does not exist on the CLR type the value provably has. **Also any
-  wiring fault that makes a scenario inert** — see the second failure class below. Those are
+  wiring fault that makes a scenario inert** — see the second failure class below — **and an
+  `AssertWithin` predicate that can beat the scenario's own verdict**, see the third. Those are
   errors rather than warnings because there is exactly one correct outcome: a scenario the
   engine loads and never runs is never what anyone wanted.
 - **exit 1 (warn)** — a base name that resolves to nothing; a trait-gated property read off
@@ -408,6 +409,119 @@ The list at the top of this README still applies in full. In addition:
    That is the deliberate root rule above, and it is where a determined orphan could hide.
 8. **Whether the driver does anything once started.** Same limit as (1) in this list: a
    loop that ticks and asserts nothing passes mode 8 exactly like one that works.
+
+## The third failure class: A PREDICATE THAT BEATS ITS OWN VERDICT
+
+*(Added 2026-09-21, `wt/assertwithin-audit`.)*
+
+The two classes above are about a scenario that never ran its content. This one is about a
+scenario that ran, reached a verdict, exited cleanly and reported **green** — having
+evaluated none of its own assertions.
+
+`TestHarness.AssertWithin` calls `Test.Pass` **itself** the moment its predicate returns
+true, and `Test.Pass` is TERMINAL: it writes `result.json` and exits the game
+(`TestGlobal.cs:73-86` → `TestMode.WriteResult`). So a scenario that latches a flag and then
+schedules its real verdict a few ticks later never runs that verdict. The latch wins the
+race every time, because the predicate is polled every tick and the verdict is not.
+
+`test-himars-church-vs-block` did exactly this on 2026-09-21:
+
+```lua
+Reported = true
+Trigger.AfterDelay(2, Verdict)          -- the real assertions, 2 ticks away
+...
+TestHarness.AssertWithin(40, function() return Reported end, ...)   -- fires first
+```
+
+Both runs (`260921_174913`, `260921_175314`) reported `"status":"pass"` with `"notes":""`,
+no `screenshots` key and no PNG on disk. Neither half of the bar was ever evaluated, and one
+was very nearly banked as evidence for a tuning claim. **A test that cannot fail is not a
+passing test.**
+
+### The rule, and why both halves are needed
+
+A finding requires BOTH:
+
+* **(a)** some `return` inside the predicate can yield a **truthy** value — `return true`, a
+  bare identifier holding one, or any expression that is not a literal `false`/`nil`/string;
+  **AND**
+* **(b)** a `Test.Pass`/`Fail`/`Skip` call exists **outside** the predicate, at a source
+  position **after** the `AssertWithin` call, in a **different function body** than the one
+  the call sits in.
+
+(a) alone is useless: **129 of the 129** `AssertWithin` call sites in the tree have a
+truthy-capable predicate, because that is what the helper is for. (b) is the whole
+discriminator, and it is a **positional heuristic** — stated as one so nobody reads the
+green run as stronger than it is. What it encodes is that the 41 scenarios which are simply
+their own verdict authority guard their **setup** with `Test.Fail`, written before the
+`AssertWithin` is armed and run before it can fire; a deferred verdict is written after it,
+in a function of its own.
+
+The four **watchdog-only** scenarios — `Test.Pass(note)` called from INSIDE the predicate
+followed by `return false` — are excluded by the "outside" half of (b). That is an accepted
+fix shape, not the bug, and it must never fire.
+
+Measured over the corpus at `main @ 70e63582`: **129 call sites, 129 truthy-capable
+predicates, exactly ONE** satisfying (b) — the scenario that actually had the bug. Full
+audit of all 46 candidates: `WORKSPACE/audit/260921-assertwithin-false-green.md`.
+
+### Acceptance test
+
+Both revisions of the scenario that had it, reduced to their mechanism, plus the three
+shapes that must stay silent. The green arms are what earn the check its keep: a guard that
+says "this predicate can beat your verdict" has to be trusted on the 45 scenarios that
+legitimately return true or legitimately call `Test.Pass` from inside a predicate, or the
+first person it lies to switches it off for everybody.
+
+```
+$ ./tools/lua-gate/lua_gate.py selftest
+  …
+  ok    the main-tree himars shape (latch + deferred Verdict) is reported
+  ok    ...and the finding names the latch it returns
+  ok    ...and points at the AssertWithin line, not the verdict
+  ok    the 4e9f7b24 fix (open-coded deadline) is not reported
+  ok    a watchdog-only predicate (Pass inside, return false) is not reported
+  ok    a sole-verdict-authority `return true` with setup guards is not reported
+  ok    a predicate returning only strings is not reported
+  ok    returned_expression(…) -> …          # 8 cases pinning the expression reader
+```
+
+The green arm is the **4e9f7b24** revision, not a scenario that never had the shape: it
+keeps the latch and the deferred `Verdict` and moves the deadline into the tick poller, so
+it discriminates between the two revisions rather than merely between "has AssertWithin" and
+"does not".
+
+`returned_expression` gets eight cases of its own because every distinction the check rests
+on lives in it, and every one of them was wrong in the first draft — including the one that
+matters most: **a returned string reads as empty**, because `strip_lua` has already blanked
+it. That is correct rather than a limitation. A string is truthy in Lua, but `AssertWithin`
+treats a returned string as **FAIL**, never as Pass, so it cannot race anything.
+
+### What this check does NOT catch
+
+1. **A latch hidden behind a function call is caught; a latch hidden behind a *named
+   predicate* is not.** `return ready()` still satisfies (a) — the expression is not a
+   literal `false`/`nil`, so the check does not care what `ready` does. But
+   `AssertWithin(40, IsReady, …)`, passing the predicate **by name** instead of as a literal,
+   has no predicate body at the call site at all. The check **goes silent** on that rather
+   than analysing whatever function happens to come next in the file: the nearest span must
+   lie inside the call's own parentheses and be its second argument, or nothing is reported.
+   All 129 call sites in the tree are literals today, so this costs nothing yet.
+2. **The positional half of (b).** A scenario that writes a genuine setup guard *after* its
+   `AssertWithin`, in another function, would be reported and would be a false positive; one
+   that defines its deferred verdict *before* the call would be missed. Neither shape exists
+   in the tree, and both are stylistically odd, but the rule is positional and cannot tell
+   intent from layout.
+3. **Whether the race is actually LOST.** The check reports that the predicate *can* win, not
+   that it does. A latch set in the same tick the verdict runs is a coin-toss the check calls
+   a defect — correctly, since a verdict that depends on scheduling order is a defect
+   regardless of which way it lands, but the wording is "can", not "will".
+4. **`TestHarness.AssertAfter`.** It carries the same terminal `Test.Pass`, but it fires once
+   at a fixed tick rather than polling, so it cannot beat anything scheduled before that
+   tick. All five of its callers were audited by hand and none is affected. It is not modelled
+   here, so a future caller that schedules a verdict *past* its deadline would be missed.
+5. Everything on the two lists above still applies in full.
+
 
 ## Findings on the clean tree
 

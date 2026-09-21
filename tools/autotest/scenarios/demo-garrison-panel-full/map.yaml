@@ -1,0 +1,115 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Garrison panel with a full shelter and a narrow garrison
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# FRAME 1 — THE OVERFLOW ROW. v09 is ^CivBuilding: MaxWeight 10, 8 firing ports
+	# (civilian.yaml:61, :79-119). Ten men board and NOTHING deploys to a port, because there is no
+	# enemy anywhere near this house for the garrison to acquire — GarrisonManager only mans a port
+	# against a confirmed, in-arc, in-range target. So all ten sit in the shelter at once, which is
+	# the state the four declared RESERVE_LABEL rows cannot show.
+	House: v09
+		Owner: Neutral
+		Location: 20,12
+	Man0: e1
+		Owner: USA
+		Location: 19,11
+	Man1: e1
+		Owner: USA
+		Location: 20,11
+	Man2: e1
+		Owner: USA
+		Location: 21,11
+	Man3: e1
+		Owner: USA
+		Location: 19,12
+	Man4: e1
+		Owner: USA
+		Location: 21,12
+	Man5: e1
+		Owner: USA
+		Location: 19,13
+	Man6: e1
+		Owner: USA
+		Location: 20,13
+	Man7: e1
+		Owner: USA
+		Location: 21,13
+	Man8: e1
+		Owner: USA
+		Location: 18,12
+	Man9: e1
+		Owner: USA
+		Location: 22,12
+	# FRAME 2 — THE CLOSED GAP. PBOX declares TWO firing ports and MaxWeight 4
+	# (structures-defenses.yaml:242-245, :261-266), against the eight PORT_LABEL rows the chrome
+	# declares for the widest garrison. Six of those rows are hidden on this actor, and the shelter
+	# rows used to keep their 8-port Y regardless — so this panel drew two port rows, six rows of
+	# nothing, and then the shelter. Four men fill it exactly: every one gets his own named row, so
+	# this frame shows the re-seating WITHOUT the overflow row, and the two frames are independent.
+	# Far enough from the house that neither garrison can see the other's men.
+	Box: pbox
+		Owner: USA
+		Location: 45,24
+	BoxMan0: e1
+		Owner: USA
+		Location: 44,24
+	BoxMan1: e1
+		Owner: USA
+		Location: 46,24
+	BoxMan2: e1
+		Owner: USA
+		Location: 45,23
+	BoxMan3: e1
+		Owner: USA
+		Location: 45,25
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 20,13
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 60,28
+
+Rules: rules.yaml

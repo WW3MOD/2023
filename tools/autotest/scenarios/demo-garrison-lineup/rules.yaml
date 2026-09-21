@@ -1,0 +1,43 @@
+Player:
+	# A demo must not end itself. Russia owns nothing but HoldFire markers, so without this
+	# the run would declare "Mission accomplished" before the first capture beat.
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# Human-owned units read per-type stance defaults off the local machine's
+	# unit-defaults.yaml (AutoTarget.cs:355-388). Strip it so the garrison squads behave the
+	# same on whichever machine the frames are captured on.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-garrison-lineup.lua
+
+E3:
+	# The ring markers exist only to give each port a target inside its arc so the men
+	# deploy. BOTH stance fields, and InitialStanceAI is the one that fires here: AutoTarget
+	# .cs:497 picks `Owner.IsBot || !Owner.Playable ? InitialStanceAI : InitialStance`, and
+	# Russia is declared without `Playable: True`, so InitialStance alone would never be
+	# read and the markers would shoot the garrison squads on their way in.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire
+	# Absurd HP so a manned port cannot kill its own target and stand down (IdleRecallTicks)
+	# before the port frames are taken 15 seconds later.
+	Health:
+		HP: 2000000
+
+E1:
+	# The garrison squads are USA-owned and USA IS Playable, so this one reads InitialStance.
+	# Held silent so nobody stops to fight on the way in. Port deployment does not depend on
+	# the soldier's stance — GarrisonManager scans for targets itself.
+	AutoTarget:
+		InitialStance: HoldFire
+		InitialStanceAI: HoldFire

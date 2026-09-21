@@ -271,6 +271,23 @@ namespace OpenRA.Mods.Common.Traits
 	[RequireExplicitImplementation]
 	public interface ICargoCanLoadFilter { bool CanLoadPassenger(Actor self, Actor passenger); }
 
+	/// <summary>
+	/// Implemented by a trait that owns this actor's revert-to-neutral decision, which makes
+	/// CargoInfo.Neutral's own flip in UnloadCargo WRONG rather than merely redundant.
+	/// <para>The flip UnloadCargo performs is gated on Cargo.PassengerCount == 0, and that counts the
+	/// Cargo hold ONLY. A garrison building's soldiers leave the hold the moment they deploy to a
+	/// firing port, so "the hold is empty" and "the building is empty" are different statements on
+	/// every garrisonable actor — and unloading the shelter of a house whose ports are still manned
+	/// handed it to Neutral underneath the men shooting from it.</para>
+	/// <para>GarrisonManager.CheckOwnershipAfterExit already makes the port-aware decision, and makes
+	/// it SYNCHRONOUSLY inside the same Cargo.Unload call (via INotifyPassengerExited) that
+	/// UnloadCargo's frame-end task then ran after. So this is a veto, not a second opinion: when it
+	/// answers true the correct decision has already been taken and UnloadCargo must not overwrite
+	/// it.</para>
+	/// </summary>
+	[RequireExplicitImplementation]
+	public interface IOverridesCargoNeutralRevert { bool OverridesCargoNeutralRevert { get; } }
+
 	[RequireExplicitImplementation]
 	public interface INotifyEnteredCargo { void OnEnteredCargo(Actor self, Actor cargo); }
 

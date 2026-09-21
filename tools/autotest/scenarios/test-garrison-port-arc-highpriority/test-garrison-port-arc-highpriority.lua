@@ -368,7 +368,10 @@ local function OpenMtControl()
 
 	WaitUntil(HitWithin,
 		function() return OpenMT.IsDead or HealthOf(OpenMT) < baseline end,
-		function() Test.Pass() end,
+		function()
+			Test.Pass("control limb: an MT in the OPEN took damage within " .. HitWithin ..
+				"s, so Targetable@HighPriority is still on away from a port. " .. State())
+		end,
 		function()
 			Test.Fail("an MT standing in the OPEN took no damage in " .. HitWithin ..
 				"s from a rifleman 4 cells away. Nothing about a garrison is involved here: this " ..

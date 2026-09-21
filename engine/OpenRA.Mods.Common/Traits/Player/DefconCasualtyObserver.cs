@@ -26,6 +26,7 @@
  * makes `e.Attacker == self` the self-inflicted test rather than a comparison against the player.
  */
 
+using System.Collections.Generic;
 using OpenRA.Traits;
 
 namespace OpenRA.Mods.Common.Traits
@@ -38,9 +39,38 @@ namespace OpenRA.Mods.Common.Traits
 		public override object Create(ActorInitializer init) { return new DefconCasualtyObserver(); }
 	}
 
-	public class DefconCasualtyObserver : INotifyCreated, INotifyKilled
+	public class DefconCasualtyObserver : INotifyCreated, INotifyKilled, INotifyDamage
 	{
 		DefconEscalation escalation;
+
+		// ==== WHO LAST SHOT THIS UNIT, FOR THE BURNOUT CASE ======================================
+		// EVERY VEHICLE IN THIS MOD BLEEDS TO DEATH ON ITS OWN, AND THE BLEED IS SELF-INFLICTED.
+		// `^EffectsWhenDamagedVehicles` carries `ChangesHealth@CriticalDamage` with
+		// `PercentageStep: -1, Delay: 5, StartIfBelow: 50` (vehicles.yaml:183-188), and
+		// ChangesHealth.cs:86 is literally `self.InflictDamage(self, ...)`. So any vehicle taken
+		// below half health loses 1% of its maximum every 5 ticks until it dies -- and if no further
+		// enemy round lands first, the FINISHING BLOW is attributed to the victim itself.
+		//
+		// MEASURED, run 260921_181456: an abrams shot a 40000-hp t90 down and the debug line read
+		//     DEFCON casualty at level 2: t90(Russia) killed by t90(Russia) -- REJECTED: self-inflicted
+		// while the SAME scenario with an 8000-hp t90 (run 260921_181057) read `-- qualifies`, because
+		// one round from full health overkills it and the burn never starts. The rule was therefore
+		// keyed on whether the victim happened to survive the first hit.
+		//
+		// IN PLAY THAT IS THE COMMON CASE, NOT AN EDGE: a player who shoots an enemy tank below half
+		// and lets it burn out has taken a life by anybody's reading, and DEFCON 2 -- the phase whose
+		// whole premise is "the first casualty is always somebody's decision" -- did not end.
+		//
+		// STRINGS, NOT Actor REFERENCES, and keyed on ActorID. Holding the attacker would keep a dead
+		// actor alive for the rest of the match and read `.Owner` off a disposed one; the two strings
+		// are all ReportCasualty ever wanted. Entries are added on enemy damage and removed on death.
+		// A unit damaged and never killed leaves one behind -- bounded by the units this player has
+		// had damaged in one match, two short strings each, and never iterated.
+		//
+		// DETERMINISTIC: lookups and inserts only, never an enumeration, so no client can order this
+		// differently from another. Not [Sync] -- it is derived from synced events rather than an
+		// input to one.
+		readonly Dictionary<uint, (string Type, string Owner)> lastEnemyDamager = new();
 
 		// THE CASUALTY RULE. This is the single place it lives; nothing else in the branch decides
 		// what counts. Settled by the user: anything destroyed by enemy action ends DEFCON 2 --
@@ -95,6 +125,48 @@ namespace OpenRA.Mods.Common.Traits
 			return attacker.Owner.RelationshipWith(victim.Owner) == PlayerRelationship.Enemy;
 		}
 
+		/// <summary>
+		/// Does a death the DIRECT rule rejects still count, because enemy action is what put the
+		/// victim in the state that finished it?
+		/// </summary>
+		// NARROW ON PURPOSE, AND THE NARROWNESS IS THE WHOLE ARGUMENT. This fires ONLY when the
+		// finishing blow is SELF-INFLICTED -- the burnout and the death cook-off -- and never when it
+		// is friendly fire or a neutral. Clause 2 of the direct rule ("enemy action only") is
+		// therefore untouched: a unit an ally finishes off still does not count, however much enemy
+		// damage it took first, because that is a different question the user has already ruled on.
+		//
+		// NO TIME WINDOW, deliberately. A burn only ever starts from damage, so a vehicle that bleeds
+		// out was necessarily driven there; adding "within N seconds of the last enemy hit" would add
+		// a tunable nobody has judged in play, and every value of it would be a guess. If a match
+		// ever produces a burnout minutes after its last enemy contact, that is the thing to revisit.
+		public static bool QualifiesByPriorEnemyDamage(bool directlyQualifies, bool selfInflicted, bool hadPriorEnemyDamage)
+		{
+			return !directlyQualifies && selfInflicted && hadPriorEnemyDamage;
+		}
+
+		void INotifyDamage.Damaged(Actor self, AttackInfo e)
+		{
+			// `self` is the VICTIM -- Health dispatches this list exactly as it dispatches Killed
+			// (Health.cs:122,275-276), so this trait sees every point of damage taken by every actor
+			// its player owns, which is precisely the set it may later be asked about.
+			if (escalation == null)
+				return;
+
+			var attacker = e?.Attacker;
+
+			// HEALS AND SELF-HARM ARE NOT A DAMAGER. A negative Damage.Value is a medic or an
+			// engineer, and the self-inflicted burn is the very thing this record exists to look
+			// PAST -- recording it would make every burning vehicle its own last enemy damager.
+			if (attacker == null || attacker == self || e.Damage.Value <= 0)
+				return;
+
+			if (self.Owner == null || attacker.Owner == null
+				|| attacker.Owner.RelationshipWith(self.Owner) != PlayerRelationship.Enemy)
+				return;
+
+			lastEnemyDamager[self.ActorID] = (attacker.Info.Name, attacker.Owner.InternalName);
+		}
+
 		void INotifyCreated.Created(Actor self)
 		{
 			// Resolved once here rather than per death. TraitOrDefault, not Trait: a map or scenario
@@ -105,10 +177,63 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			// `self` is the VICTIM, not the player actor -- see the file header.
-			if (escalation == null || !IsQualifyingCasualty(self, e))
+			if (escalation == null)
 				return;
 
-			escalation.ReportCasualty(self);
+			var direct = IsQualifyingCasualty(self, e);
+			var attackerActor = e?.Attacker;
+			var selfInflicted = attackerActor != null && attackerActor == self;
+
+			// The record is consumed here whatever the verdict, so a death always clears its entry.
+			var hadPrior = lastEnemyDamager.TryGetValue(self.ActorID, out var prior);
+			lastEnemyDamager.Remove(self.ActorID);
+
+			var byPrior = QualifiesByPriorEnemyDamage(direct, selfInflicted, hadPrior);
+			var qualifies = direct || byPrior;
+
+			// ---- WHY A DEATH DID OR DID NOT END DEFCON 2 --------------------------------------
+			// ADDED 2026-09-21 after run 260921_171955, where a t90 was killed by an enemy abrams at
+			// DEFCON 2 and the level did not move -- and NOTHING anywhere said why. Every input to
+			// IsQualifyingCasualty is reconstructible only from inside this method: the attacker is
+			// gone from the log by the time anyone looks, and the four rejection clauses are
+			// indistinguishable from outside ("the level is still 2" is all any observer can see).
+			// Four hours of reading the dispatch, the relationship setup and the death path could not
+			// discriminate between them; one line here does.
+			//
+			// GATED ON THE HOLD-FIRE RUNG, so this is at most a handful of lines in a real match --
+			// deaths at DEFCON 3 cannot happen (nothing fires) and deaths at 1 are not listened for.
+			// It is the only rung where the answer is interesting, because it is the only rung where
+			// a death is supposed to DO something.
+			if (DefconFireDiscipline.HoldsFire(escalation.Mode, escalation.Level))
+			{
+				var attacker = attackerActor;
+				var reason = direct ? "qualifies"
+					: byPrior ? $"qualifies BY PRIOR ENEMY DAMAGE ({prior.Type} of {prior.Owner}); "
+						+ "the finishing blow was the victim's own burnout"
+					: attacker == null ? "REJECTED: no attacker named"
+					: attacker == self ? "REJECTED: self-inflicted (attacker == victim), and no enemy "
+						+ "had damaged it"
+					: self.Owner == null || attacker.Owner == null ? "REJECTED: an owner is null"
+					: "REJECTED: not enemy action, relationship is "
+						+ attacker.Owner.RelationshipWith(self.Owner);
+
+				Log.Write("debug",
+					$"DEFCON casualty at level {escalation.Level}: {self.Info.Name}" +
+					$"({self.Owner?.InternalName ?? "<null>"}) killed by " +
+					$"{attacker?.Info.Name ?? "<none>"}({attacker?.Owner?.InternalName ?? "<none>"}) -- {reason}.");
+			}
+
+			if (!qualifies)
+				return;
+
+			// The ATTACKER goes through too (§B6): the event-log line that goes with the combined
+			// banner names who fired, and this handler is the only place in the branch that knows.
+			// On the burnout path that is the unit that SHOT it, not the unit itself -- naming the
+			// victim as its own killer in the match record would be worse than naming nobody.
+			if (direct)
+				escalation.ReportCasualty(self, attackerActor.Info.Name, attackerActor.Owner.InternalName);
+			else
+				escalation.ReportCasualty(self, prior.Type, prior.Owner);
 		}
 	}
 }
