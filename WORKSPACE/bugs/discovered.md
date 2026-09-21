@@ -5,6 +5,27 @@
 
 ---
 
+- [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,
+  and `tools/autotest/selftest.sh` has two red cases saying so.** Running the selftest on
+  `main @ 70e63582` (stub launcher, no game) gives `crash (fresh exception log)` → wanted
+  `CRASH` exit 3, got `NO-RESULT` exit 3, plus its companion `crash report does not name the
+  exception log`. **Pre-existing, not from `wt/assertwithin-audit`** — verified by running the
+  same selftest against `main`'s own `run-test.sh`, where both still fail. The mechanism:
+  crash detection finds the exception log by taking `dirname` of whatever `find_debug_log`
+  returns (`run-test.sh:1121-1127`), and `find_engine_log` returns **empty** when no
+  `debug.log` is present (`ls -t "${_dir}/debug.log" … | head -1`). Empty `_dbg` skips the
+  whole block, `CRASH_LOG` stays unset, and the run is graded `NO-RESULT`.
+  **Two readings, and a person should pick one.** (a) The fixture is under-specified: a real
+  engine crash writes `debug.log` before it throws, so the stub writing only
+  `exception-selftest.log` is a shape the engine never produces — fix the stub. (b) The runner
+  is genuinely fragile: an engine that dies *before* creating `debug.log` leaves an exception
+  log that this code can never find, and reports `NO-RESULT` (exit 3, "hung or closed by hand")
+  for a crash. **Not fixed here** — (a) is a one-line fixture change that would also hide (b),
+  and choosing between them is a judgement about what the gate is for. Note the selftest is
+  therefore red on a clean tree, which costs it the thing it exists for: nobody re-reads a
+  suite that is already failing. (found while: adding the PASS-EMPTY tripwire cases to that
+  same selftest, branch `wt/assertwithin-audit`)
+
 - [2026-09-20] [MEDIUM] **`demo-nuke-arsenal` cannot fire two of its six warheads, and has not been
   able to since the powers were faction-tiered.** The demo fires all six shots from USA
   (`demo-nuke-arsenal.lua` `SHOTS`, all `Test.ActivateSupportPower(USA, ...)`), but

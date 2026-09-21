@@ -74,7 +74,9 @@ WorldLoaded = function()
 				Test.Fail("rifleman never reached 40,16 — the squeeze rule has widened to subcell movers, " ..
 					"which is a deliberate exemption and should not have changed")
 			else
-				Test.Pass()
+				Test.Pass("the diagonal gap held for " .. elapsed .. " ticks: the vehicle never reached " ..
+					"20,16 between the traps at 20,15 and 21,16, while the orthogonal control reached " ..
+					"30,16 and the rifleman reached 40,16 (subcell movers stay exempt)")
 			end
 
 			return

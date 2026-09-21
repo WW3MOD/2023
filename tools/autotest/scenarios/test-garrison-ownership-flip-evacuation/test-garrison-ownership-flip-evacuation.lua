@@ -126,7 +126,9 @@ local function EntryGuard()
 		return
 	end
 
-	Test.Pass()
+	Test.Pass("entry gate held: ordering a USA rifleman into the Russia-owned building resolved '" ..
+		tostring(issued) .. "', not EnterTransport, so the ownership-flip defection stays unreachable. " ..
+		State())
 end
 
 -- PHASE 3 — force the flip that cannot happen naturally, and read what became of the man.

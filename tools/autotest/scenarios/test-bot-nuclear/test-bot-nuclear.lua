@@ -318,7 +318,9 @@ WorldLoaded = function()
 		if #faults > 0 then
 			Test.Fail(table.concat(faults, " ;; ") .. " ;; READINGS: " .. summary)
 		else
-			Test.Pass()
+			-- The same readings on the GREEN path. They were built either way and then thrown
+			-- away here, so a pass said nothing about what it had measured.
+			Test.Pass(summary)
 		end
 	end
 

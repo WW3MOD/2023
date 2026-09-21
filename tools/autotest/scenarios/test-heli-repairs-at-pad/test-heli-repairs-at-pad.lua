@@ -249,6 +249,9 @@ WorldLoaded = function()
 			return
 		end
 
-		Test.Pass()
+		Test.Pass(string.format(
+			"the Patient reached full HP at the pad and the bill was exactly the modelled %d credits " ..
+			"(spent %d). The Control was given no order and did not move. %s",
+			expected, spent, now))
 	end)
 end

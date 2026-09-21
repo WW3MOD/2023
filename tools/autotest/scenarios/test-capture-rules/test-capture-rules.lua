@@ -88,5 +88,7 @@ WorldLoaded = function()
 		return
 	end
 
-	Test.Pass()
+	Test.Pass("all 8 capture-rule assertions held: a technician captures an enemy and a neutralised " ..
+		"structure (incl. a cleared airfield), an engineer captures nothing, and a soldier clears an " ..
+		"enemy oil derrick and airfield but cannot touch a neutral one")
 end

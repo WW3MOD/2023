@@ -53,6 +53,74 @@ false correction.
 exactly at `70e63582`. Weighting the nine unit-anchored maps' raid rows by sample size (n = 7170)
 gives own/opponent/flank = **14.36 / 70.37 / 15.27**, against the recorded 14.4 / 70.4 / 15.3.
 Medians do **not** recombine that way and were bounded, not re-derived.
+## 2026-09-21 - `TestHarness.AssertWithin` passed with NO note and TERMINALLY, so any scenario that latched a flag and deferred its verdict reported a green it never earned (`wt/assertwithin-audit`, base `main @ 70e63582`)
+
+`AssertWithin`'s poller called `Test.Pass()` -- **no argument** -- the instant its predicate returned
+`true` (`mods/ww3mod/scripts/test-helpers.lua`, the `check` closure). `Test.Pass` is terminal:
+`TestGlobal.ExitWhenCapturesFlushed` writes `result.json` and exits the game
+(`TestGlobal.cs:73-86` -> `TestMode.WriteResult`, `TestMode.cs:339`).
+
+So a scenario of the shape
+
+```lua
+if <thing happened> then Reported = true; Trigger.AfterDelay(2, Verdict) end
+...
+TestHarness.AssertWithin(40, function() return Reported end, ...)
+```
+
+**never runs `Verdict`.** AssertWithin polls every tick and wins the race by however many ticks the
+handoff deferred -- 27 in the observed case. `result.json` reads `"status":"pass","notes":""`, has
+no `screenshots` key, no PNG reaches disk, and not one assertion has executed. A test that cannot
+fail, reported as a test that passed.
+
+**Observed twice in one day**, both in `test-himars-church-vs-block`: runs `260921_174913` and
+`260921_175314`. Both were read as green and one was nearly banked as evidence for a tuning claim.
+
+### THE RULE
+
+> A predicate handed to `AssertWithin` must **never become true** in a scenario that has its own
+> deferred verdict.
+
+`AssertWithin` is safe in exactly two shapes: a **pure watchdog** whose predicate is always false
+(used only for its timeout), or the **sole verdict authority**, where nothing is scheduled to run
+after the predicate goes true. A scenario that must judge *after* a latch open-codes its deadline in
+a `Trigger.OnTick` poller (`test-himars-church-vs-block` @ `4e9f7b24`), or calls `Test.Pass(note)`
+from **inside** the predicate and then `return false`.
+
+### THE COUNT, and why the obvious grep overstates it
+
+127 scenario scripts call the helper; 45 of those also carry their own payload verdict (at
+`61d0c1f8`; 128/46 at `70e63582`). **That 45 is a loose upper bound** -- the grep cannot see whether
+a predicate ever returns a truthy value, so it matches every safe watchdog too. Reading all 46:
+**1 YES, 4 watchdog-only, 41 NO**. The single YES is the scenario that produced the two false
+GREENs. Full table: `WORKSPACE/audit/260921-assertwithin-false-green.md`.
+
+Note the grep that reproduces those figures uses `TestHarness.AssertWithin(` **with the paren** --
+it selects calls. A bare `grep -l AssertWithin` matches 164 files, 36 of which only mention it in
+prose.
+
+### THE DETECTOR IS NOT THE FIX, and cannot be
+
+`AssertWithin` now passes a note, and `run-test.sh` reports a new outcome **`PASS-EMPTY`** when a
+`pass` verdict carries `"notes":""` (graded `EMPTY` by `expected-status.sh`, counted and listed
+separately by `run-batch.sh`, declarable as `pass-empty` with a required reason). That makes an
+empty-note green visible.
+
+**But it cannot catch this bug class.** Once the helper writes a note, a himars-shaped false GREEN
+passes *with* a non-empty note and the tripwire never fires. The race is a static property of the
+script, invisible to a runner that only reads the verdict. What the tripwire catches is the adjacent
+and also-real problem -- a green that states nothing -- which turns out to be the shipped behaviour
+of 33 further scenarios that call a bare `Test.Pass()`.
+
+### THE GENERALISATION
+
+**Any helper that can write a terminal verdict is a second verdict authority, and two verdict
+authorities in one scenario is a race the quiet side always wins.** The same shape is already on
+record one level down: `Test.Pass` is not idempotent, last-call-wins, which
+`test-autotarget-preempt-air` hit on 2026-08-12 when a returned `true` erased a note the predicate
+had just written (its PITFALL block at :123-128 is the first diagnosis of this in the tree). The
+countermeasure is structural, not documentary: **one verdict authority per scenario**, and if a
+helper might reach `Test.Pass`, the scenario must not also schedule one.
 
 ## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
 

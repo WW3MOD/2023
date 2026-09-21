@@ -185,7 +185,7 @@ WorldLoaded = function()
 		-- The charged world, both halves. The rifleman must gain NOTHING at a depot holding nothing
 		-- (the free trickle is gone), and the himars must take what it can pay for and then DEPART.
 		if riflemanStayedDry and himarsLeft and himarsAmmo == paidRounds then
-			Test.Pass()
+			Test.Pass(summary)
 			return
 		end
 

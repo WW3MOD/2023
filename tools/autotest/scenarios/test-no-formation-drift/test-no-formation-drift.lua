@@ -164,7 +164,9 @@ WorldLoaded = function()
 			end
 
 			if elapsed >= WATCH_UNTIL then
-				Test.Pass()
+				Test.Pass("the parked human-owned AR held " .. park.X .. "," .. park.Y .. " for " ..
+					WATCH_UNTIL .. " ticks and never walked back to its formation slot " .. slot.X ..
+					"," .. slot.Y .. " (still inside ForgetAfterTicks " .. FORGET_AFTER .. ")")
 				return
 			end
 		end
