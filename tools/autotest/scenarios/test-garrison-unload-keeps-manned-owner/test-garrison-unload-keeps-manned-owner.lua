@@ -39,13 +39,35 @@
 --   FAIL "HANDED TO NEUTRAL UNDER ITS OWN GARRISON" — the regression signal. This is what the code
 --           did before the veto.
 --   FAIL "NEVER REVERTED"  — the veto is too wide: the building kept an owner with nobody inside.
---   SKIP  — the scenario never built the state it describes (nobody garrisoned, no port ever
---           manned, the menu never opened). Named individually so a skip says which.
+--   SKIP  — the scenario never built the state it describes (nobody garrisoned, the ports never
+--           filled, the menu never opened). Named individually so a skip says which.
+--
+-- THE PRECONDITION THAT MAKES ANY OF IT MEASURABLE, learned the expensive way in run 260921_152208,
+-- where the deliberate sabotage of the fix PASSED with text identical to the real thing: ALL EIGHT
+-- PORTS MUST BE MANNED BEFORE THE SHELTER IS DRAINED. The hold has two exits and only one of them
+-- arms the defect — UnloadCargo enqueues the frame-end revert (UnloadCargo.cs:235-252), while
+-- GarrisonManager.DeployToPort calls cargo.Unload straight from its own tick with no activity and no
+-- task (GarrisonManager.cs:441). While one port is still free the hold drains into it, reaches zero
+-- having armed nothing, and the run reports "shelter 0, ports 8" having measured its own absence.
+-- Full reasoning over WaitForEveryPortToBeManned.
 
 local GarrisonWithin = 40   -- s for ten riflemen to walk one cell and board
-local PortsWithin = 40      -- s for the house to confirm a bait and deploy somebody to a port
+-- 60, not 40: this now waits for ALL EIGHT ports rather than the first one, which is eight target
+-- confirmations and eight deploys instead of one. All eight are reachable — the four baits sit one
+-- per diagonal and the eight ports share those four yaws two apiece (civilian.yaml:133-183), a
+-- second port on the same diagonal takes the same bait under a score PENALTY rather than an
+-- exclusion (GarrisonManager.cs:1227-1228), and selection has no positive threshold to fail
+-- (:1102, :1131). The ceiling only costs time on a run that was going to skip anyway.
+local PortsWithin = 60      -- s for the house to confirm its baits and fill every port
 local DrainWithin = 30      -- s for the unload menu's orders to empty the hold
 local RevertWithin = 30     -- s for the building to hand itself back once genuinely empty
+local HoldWatch = 0.6       -- s to keep watching ownership after the hold hits zero
+
+-- EVERY port, not one. ^CivBuilding declares exactly eight (civilian.yaml:133-183, names
+-- northeast1/2, southeast1/2, southwest1/2, northwest1/2), and the drain MUST NOT START until all
+-- eight are occupied. See the note over WaitForEveryPortToBeManned: while a port is free, the hold
+-- empties into it rather than through UnloadCargo, and the defect is never armed.
+local AllPorts = 8
 
 local Men = nil
 
@@ -201,24 +223,65 @@ local function DoesItStillRevertWhenGenuinelyEmpty()
 		end)
 end
 
--- PHASE 3 — THE MEASUREMENT. The hold is empty, ports are manned. Who owns the house?
-local function DidItKeepItsOwner()
-	local ports = CountPorts()
+-- The verdict text for phase 3's failure, lifted out so the watch below reads as a loop.
+local function ReportHandedToNeutral(ports)
+	Test.Fail("HANDED TO NEUTRAL UNDER ITS OWN GARRISON. The shelter emptied and the house " ..
+		"became " .. OwnerOf(House) .. " while " .. ports .. " firing port(s) were still manned " ..
+		"— its men are shooting out of a building that no longer belongs to the player who put " ..
+		"them there. This is CargoInfo.Neutral's flip in UnloadCargo firing on " ..
+		"`cargo.PassengerCount == 0`, which counts the Cargo HOLD only: DeployToPort removes a " ..
+		"port soldier from the hold, so zero there is not evidence the building is empty. The " ..
+		"fix is the IOverridesCargoNeutralRevert veto — check GarrisonManager still implements " ..
+		"it, that UnloadCargo still calls GarrisonOwnershipMath.MayRevertHoldToNeutral, and that " ..
+		"the guard has not been narrowed. " .. State())
+end
 
-	if OwnerOf(House) ~= "USA" then
-		Test.Fail("HANDED TO NEUTRAL UNDER ITS OWN GARRISON. The shelter emptied and the house " ..
-			"became " .. OwnerOf(House) .. " while " .. ports .. " firing port(s) were still manned " ..
-			"— its men are shooting out of a building that no longer belongs to the player who put " ..
-			"them there. This is CargoInfo.Neutral's flip in UnloadCargo firing on " ..
-			"`cargo.PassengerCount == 0`, which counts the Cargo HOLD only: DeployToPort removes a " ..
-			"port soldier from the hold, so zero there is not evidence the building is empty. The " ..
-			"fix is the IOverridesCargoNeutralRevert veto — check GarrisonManager still implements " ..
-			"it, that UnloadCargo still calls GarrisonOwnershipMath.MayRevertHoldToNeutral, and that " ..
-			"the guard has not been narrowed. " .. State())
-		return
+-- PHASE 3 — THE MEASUREMENT. The hold is empty, ports are manned. Who owns the house?
+--
+-- WATCHED, NOT SAMPLED. The flip under test is a FRAME-END TASK, and this callback is one too:
+-- Trigger.AfterDelay schedules a DelayedAction effect (TriggerGlobal.cs:77) whose tick re-queues the
+-- body to the frame end (DelayedAction.cs:32). Both therefore land in the same drain loop
+-- (World.cs:520-521), and the flip is enqueued from the ACTOR tick (:505) while this is enqueued
+-- from the EFFECT tick (:510) — so the queue is FIFO-ordered flip-then-us and a single sample here
+-- does see it. That ordering is derived from reading, not observed, and it is the kind of thing a
+-- future engine change can invert silently. Watching for a beat costs nothing and does not depend on
+-- being right about it: any tick in the window where the house is not USA while a port is manned is
+-- the defect, whenever it lands.
+local function DidItKeepItsOwner()
+	local remaining = math.floor(HoldWatch * TestHarness.TicksPerSecond)
+	local watch
+
+	watch = function()
+		local ports = CountPorts()
+
+		if ports > 0 and OwnerOf(House) ~= "USA" then
+			ReportHandedToNeutral(ports)
+			return
+		end
+
+		remaining = remaining - 1
+		if remaining <= 0 then
+			-- Ports emptying during the watch is not the defect and not a pass: with nobody at a
+			-- loophole the revert is CORRECT, so there is no disagreement left to measure.
+			if ports == 0 then
+				Test.Skip("every firing port emptied during the " .. HoldWatch .. "s ownership " ..
+					"watch, so the hold-versus-building disagreement stopped existing before it " ..
+					"could be measured and the house's owner proves nothing either way. Most likely " ..
+					"the garrison recalled or un-manned its ports (bait killed, out of ammo, or " ..
+					"target lost). " .. State())
+				return
+			end
+
+			DoesItStillRevertWhenGenuinelyEmpty()
+			return
+		end
+
+		Trigger.AfterDelay(1, watch)
 	end
 
-	DoesItStillRevertWhenGenuinelyEmpty()
+	-- Sample immediately first: on the derived ordering the flip has already run, earlier in this
+	-- same frame-end drain.
+	watch()
 end
 
 -- PHASE 2 — drain the shelter through the real player gesture, leaving the ports alone.
@@ -273,11 +336,30 @@ local function EmptyTheShelterWithoutTouchingThePorts()
 		end)
 end
 
--- PHASE 1b — wait for at least one port to be manned. Without this the hold draining to zero also
--- empties the building, and the two revert paths agree.
-local function WaitForAPortToBeManned()
+-- PHASE 1b — WAIT FOR ALL EIGHT PORTS, not for one. This is the precondition the whole measurement
+-- rests on, and requiring only one is why run 260921_152208 could not tell the fix from its own
+-- sabotage: with the veto forced off it PASSED, with the identical text.
+--
+-- THE HOLD HAS TWO EXITS AND ONLY ONE OF THEM ARMS THE DEFECT. The defect lives in a frame-end task
+-- that UnloadCargo enqueues after it unloads somebody (UnloadCargo.cs:235-252); the task re-reads
+-- cargo.PassengerCount when it runs and reverts the building if the hold is empty. But a man also
+-- leaves the hold by being DEPLOYED TO A PORT: GarrisonManager.DeployToPort calls cargo.Unload
+-- directly (GarrisonManager.cs:441) from its own ITick, with no UnloadCargo activity anywhere in the
+-- chain and therefore NO SUCH TASK. So if the last man to leave the hold leaves through a port, the
+-- hold reaches zero and nothing was ever armed to notice.
+--
+-- That is exactly what "one port is enough" produced. The old predicate fired on the FIRST port
+-- manned, while seven were still empty and ten men were still converging, so phase 2 clicked the ALL
+-- chip into a hold that GarrisonManager was concurrently draining into those seven free ports. The
+-- run reached "shelter 0, ports 8" either way and measured nothing.
+--
+-- With all eight occupied there is nowhere left to deploy, so every remaining man can only leave
+-- through UnloadCargo, and the last one's frame-end task reads PassengerCount == 0 with eight ports
+-- still manned — which is the disagreement this scenario exists to measure. The map is sized for
+-- precisely this steady state: ten men, eight ports, two left over in the shelter.
+local function WaitForEveryPortToBeManned()
 	WaitUntil(PortsWithin,
-		function() return CountPorts() > 0 and CountShelter() > 0 end,
+		function() return CountPorts() >= AllPorts and CountShelter() > 0 end,
 		EmptyTheShelterWithoutTouchingThePorts,
 		function()
 			if CountPorts() == 0 then
@@ -291,9 +373,20 @@ local function WaitForAPortToBeManned()
 				return
 			end
 
-			Test.Skip("ports are manned (" .. CountPorts() .. ") but the shelter is empty, so there " ..
-				"was nothing left to unload and the measurement could not be staged. All ten men " ..
-				"deployed to ports at once. " .. State())
+			if CountShelter() == 0 then
+				Test.Skip("ports are manned (" .. CountPorts() .. ") but the shelter is empty, so " ..
+					"there was nothing left to unload and the measurement could not be staged. All " ..
+					"ten men deployed to ports at once. " .. State())
+				return
+			end
+
+			Test.Skip("only " .. CountPorts() .. " of " .. AllPorts .. " ports filled within " ..
+				PortsWithin .. "s (shelter " .. CountShelter() .. "), so a FREE PORT REMAINED and " ..
+				"the hold would have drained into it instead of through UnloadCargo — which arms " ..
+				"nothing, so the measurement would have been meaningless rather than wrong. This is " ..
+				"a deliberate skip, not a timeout to widen: raising PortsWithin only helps if the " ..
+				"ports are still filling. If one port never fills at all, the bait for that diagonal " ..
+				"is the thing to check (map.yaml BaitNE/SE/SW/NW), not this clock. " .. State())
 		end)
 end
 
@@ -304,7 +397,7 @@ local function WaitForTheGarrison()
 	-- the IsDead ambiguity a Cargo passenger carries.
 	WaitUntil(GarrisonWithin,
 		function() return OwnerOf(House) == "USA" and CountShelter() + CountPorts() >= 8 end,
-		WaitForAPortToBeManned,
+		WaitForEveryPortToBeManned,
 		function()
 			if OwnerOf(House) ~= "USA" then
 				Test.Skip("the house never became USA-owned within " .. GarrisonWithin .. "s, so " ..
@@ -316,7 +409,7 @@ local function WaitForTheGarrison()
 
 			-- Fewer than 8 inside is still workable as long as both compartments are occupied when
 			-- phase 1b checks; fall through rather than skipping on a headcount.
-			WaitForAPortToBeManned()
+			WaitForEveryPortToBeManned()
 		end)
 end
 

@@ -24910,3 +24910,55 @@ before writing "gesture X triggers bug Y", grep every `IResolveOrder` on the act
 adds the **issue** side: before writing "gesture X *reaches* order Y", check which dispatch
 mechanism the gesture uses — `IIssueOrder` targeters (mouse) and `IIssueDeployOrder` (key/button)
 are separate surfaces with separate gates, and a trait may be on one and not the other.
+
+## 2026-09-21 — A RED that PASSED: the Cargo hold has TWO exits and only one of them arms the frame-end revert (`wt/unload-scenario`, base `wt/garrison-unload @ dc368f16`)
+
+**THE GENERAL SHAPE, which is not about garrisons.** When a defect lives in a task armed as a SIDE
+EFFECT of one particular code path, a scenario that merely reproduces the defect's *state* proves
+nothing — the state has to be reached **through that path**. Reaching it by any other route leaves
+the task un-armed, and the run is then green under sabotage, with text identical to the real pass.
+That is what happened here: `test-garrison-unload-keeps-manned-owner` PASSED both as GREEN
+(`260921_151920`) and with `MayRevertHoldToNeutral`'s veto argument forced to `false`
+(`260921_152208`) — same notes string, byte for byte, down to `House owner Neutral; shelter=0;
+ports=0`.
+
+**THE TWO EXITS.** `UnloadCargo` unloads a man and then enqueues a frame-end task that re-reads
+`cargo.PassengerCount` and reverts the building if the hold is empty (`UnloadCargo.cs:235-252`).
+`GarrisonManager.DeployToPort` ALSO empties a hold slot — it calls `cargo.Unload(self, soldier)`
+directly (`GarrisonManager.cs:441`) from its own `ITick`, with no activity in the chain and
+therefore **no such task**. So the hold reaching zero is not sufficient for the defect; it must
+reach zero *on an `UnloadCargo` unload*.
+
+**WHY THE SCENARIO TOOK THE WRONG EXIT.** Its phase 1b waited for `CountPorts() > 0` — the FIRST
+port manned — and then drained the shelter through the unload menu. Seven ports were still free at
+that moment, so `GarrisonManager` was concurrently deploying the very men the menu was ordering out,
+and the last one to leave the hold left through a port. Fixed by waiting for **all eight**
+(`^CivBuilding` declares exactly eight, `civilian.yaml:133-183`): with every port occupied there is
+nowhere left to deploy, so the remaining men can only leave through `UnloadCargo`. Ten men and eight
+ports is why the map places ten.
+
+**All eight are reachable from four baits, and that is not obvious.** The eight ports share four
+yaws two apiece, and a second port on the same diagonal takes the same bait under a score PENALTY
+(`-400` per port already targeting, `GarrisonManager.cs:1227-1228`) rather than an exclusion —
+`ScanForTarget` seeds `bestScore = int.MinValue` and keeps any `score > bestScore` (`:1102`,
+`:1131`), so there is no positive threshold a penalised candidate can fail.
+
+**A SECOND-ORDER TRAP IN THE SAME RUN, and the reason the false pass was so convincing.** Phase 4's
+success condition is "ports clear AND the house is Neutral" — which the sabotage *itself* produces.
+So the broken RED did not merely fail to fail; the damage it did was indistinguishable from the
+repair it was meant to disprove. **When a verdict's PASS clause names the same end state the
+regression produces, the scenario cannot tell them apart from the end state alone** — it has to
+catch the transition, which is why phase 3 now WATCHES ownership for a beat instead of sampling it
+once.
+
+**On the sampling: `Trigger.AfterDelay` is itself a frame-end task.** It schedules a `DelayedAction`
+effect (`TriggerGlobal.cs:77`) whose tick re-queues the body to the frame end
+(`DelayedAction.cs:32`), so a Lua callback and an activity's frame-end task land in the same drain
+loop (`World.cs:520-521`). The activity's is enqueued from the ACTOR tick (`:505`) and the Lua one
+from the EFFECT tick (`:510`), so the FIFO queue orders flip-then-callback and a single sample does
+see the flip. That is derived from reading, not observed — hence the watch.
+
+**AND THE CHEAP LESSON:** a RED that passes is not a weaker result than a RED that fails to compile;
+it is the most dangerous outcome available, because it certifies the fix. Before banking any RED,
+ask **which line arms the defect** and whether the scenario's own setup can reach the measured state
+without ever executing it.
