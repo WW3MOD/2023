@@ -71,7 +71,9 @@ local SETTLE_TICKS = 15      -- every World trait has ticked; DefconEscalation's
 local CLOCK_TICKS = 150      -- DefconEscalation.NoRushTicksOverride in both rules.yaml
 local CLOCK_SLACK = 200      -- budget over the clock before "the 3 -> 2 edge never happened"
 local KILL_TICKS = 600       -- budget for the ordered shots to finish the t90 in EITHER arm
-local AFTER_TICKS = 30       -- let the widget tick past the edge before the final read
+local AFTER_TICKS = 30       -- settle before the final read
+local CASUALTY_GRACE = 15    -- ticks the level is allowed to take to notice a death; it moves on the
+                             -- SAME tick in the engine, so this is slack, not a budget
 
 local DEADLINE_TICKS = 1500
 local DEADLINE_SECONDS = DEADLINE_TICKS / TicksPerSecond
@@ -83,7 +85,7 @@ WorldLoaded = function()
 	local ticks = 0
 	local phase = "settle"
 
-	local twoTick, oneTick, orderTick = -1, -1, -1
+	local twoTick, oneTick, orderTick, deadTick = -1, -1, -1, -1
 
 	local function Census()
 		return string.format(
@@ -206,13 +208,36 @@ WorldLoaded = function()
 				return false
 			end
 
+			-- THE TWO OUTCOMES ARE REPORTED SEPARATELY, AND THE FIRST VERSION DID NOT DO THAT. It
+			-- printed `Contact.IsDead and "0" or Contact.Health` under the heading "the t90 never
+			-- died", so a DEAD t90 was reported as a live one sitting on zero hp -- and run
+			-- 260921_171955 was diagnosed twice from that sentence before the census's own
+			-- `t90 hp (dead)/(dead)` settled it. A message that can describe two different worlds
+			-- with the same words is worse than no message.
+			if Contact.IsDead and deadTick < 0 then
+				deadTick = ticks
+				print("[banner-" .. BannerArm.name .. "] t90 destroyed. " .. Census())
+			end
+
+			if deadTick >= 0 and ticks > deadTick + CASUALTY_GRACE then
+				return string.format(
+					"fail: THE T90 IS DEAD AND DEFCON IS STILL %d, %d ticks later. The shot landed and "
+					.. "the hold permitted it, so this is not a fire-discipline failure -- it is the "
+					.. "casualty not being COUNTED. DefconCasualtyObserver.IsQualifyingCasualty is the "
+					.. "only gate between a death and DefconEscalationState.ReportCasualty; read "
+					.. "debug.log for the `DEFCON casualty at level 2:` line, which names the attacker, "
+					.. "the owners and which clause rejected it. %s",
+					Test.DefconLevel(), ticks - deadTick, Census())
+			end
+
 			if ticks > orderTick + KILL_TICKS then
 				return string.format(
-					"fail: the t90 never died. %d ticks after an accepted Attack order it is on %s hp "
-					.. "and the level is still %d, so neither banner branch was ever reached. If the "
-					.. "abrams is not firing at all, that is the DEFCON 2 hold refusing an ORDERED "
-					.. "shot, which is a worse defect than the one this scenario was written for. %s",
-					KILL_TICKS, Contact.IsDead and "0" or tostring(Contact.Health),
+					"fail: the t90 is still ALIVE on %s/%s hp, %d ticks after an accepted Attack order, "
+					.. "and the level is still %d. If the abrams is not firing at all, that is the "
+					.. "DEFCON 2 hold refusing an ORDERED shot -- a worse defect than the one this "
+					.. "scenario was written for, and NOT what run 260921_171955 showed (there the "
+					.. "shot landed and the t90 died). %s",
+					tostring(Contact.Health), tostring(Contact.MaxHealth), KILL_TICKS,
 					Test.DefconLevel(), Census())
 			end
 

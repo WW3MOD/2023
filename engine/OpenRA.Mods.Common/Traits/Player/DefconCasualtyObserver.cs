@@ -105,7 +105,41 @@ namespace OpenRA.Mods.Common.Traits
 		void INotifyKilled.Killed(Actor self, AttackInfo e)
 		{
 			// `self` is the VICTIM, not the player actor -- see the file header.
-			if (escalation == null || !IsQualifyingCasualty(self, e))
+			if (escalation == null)
+				return;
+
+			var qualifies = IsQualifyingCasualty(self, e);
+
+			// ---- WHY A DEATH DID OR DID NOT END DEFCON 2 --------------------------------------
+			// ADDED 2026-09-21 after run 260921_171955, where a t90 was killed by an enemy abrams at
+			// DEFCON 2 and the level did not move -- and NOTHING anywhere said why. Every input to
+			// IsQualifyingCasualty is reconstructible only from inside this method: the attacker is
+			// gone from the log by the time anyone looks, and the four rejection clauses are
+			// indistinguishable from outside ("the level is still 2" is all any observer can see).
+			// Four hours of reading the dispatch, the relationship setup and the death path could not
+			// discriminate between them; one line here does.
+			//
+			// GATED ON THE HOLD-FIRE RUNG, so this is at most a handful of lines in a real match --
+			// deaths at DEFCON 3 cannot happen (nothing fires) and deaths at 1 are not listened for.
+			// It is the only rung where the answer is interesting, because it is the only rung where
+			// a death is supposed to DO something.
+			if (DefconFireDiscipline.HoldsFire(escalation.Mode, escalation.Level))
+			{
+				var attacker = e?.Attacker;
+				var reason = qualifies ? "qualifies"
+					: attacker == null ? "REJECTED: no attacker named"
+					: attacker == self ? "REJECTED: self-inflicted (attacker == victim)"
+					: self.Owner == null || attacker.Owner == null ? "REJECTED: an owner is null"
+					: "REJECTED: not enemy action, relationship is "
+						+ attacker.Owner.RelationshipWith(self.Owner);
+
+				Log.Write("debug",
+					$"DEFCON casualty at level {escalation.Level}: {self.Info.Name}" +
+					$"({self.Owner?.InternalName ?? "<null>"}) killed by " +
+					$"{attacker?.Info.Name ?? "<none>"}({attacker?.Owner?.InternalName ?? "<none>"}) -- {reason}.");
+			}
+
+			if (!qualifies)
 				return;
 
 			// The ATTACKER goes through too (§B6): the event-log line that goes with the combined

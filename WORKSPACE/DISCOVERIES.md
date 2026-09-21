@@ -3,6 +3,66 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`)
+
+**The message bug first, because it is the transferable part.** `test-escalation-banner-separate`
+timed out and reported:
+
+> *"the t90 never died. 600 ticks after an accepted Attack order it is on 0 hp"*
+
+The t90 **was dead**. The sentence is `Contact.IsDead and "0" or tostring(Contact.Health)` under a
+heading that says "never died", so a dead actor renders as a live one sitting on zero hit points.
+Two separate diagnoses were then built on it -- a missing `Health.HP` override, a damage floor
+keeping it alive at 1 -- and both were wrong. The run's own census said `t90 hp (dead)/(dead)` four
+fields later and settled it.
+
+**The rule: a failure message must not be able to describe two different worlds with the same
+words.** If a formatter has an `IsDead` branch, the *heading* must branch with it. The two outcomes
+here ("it never died" and "it died and nothing noticed") point at opposite halves of the engine, and
+merging them sent both rounds of reading into the wrong half.
+
+**What the run actually established**, from `result.json` and `debug.log`:
+
+- The `Health.HP: 40000` override **applied** -- `t90 hp 40000/40000` at settle. The scenario's
+  `t90:` key matches the defining `t90:` in `vehicles-russia.yaml:289`; no case-merge problem.
+- **An ORDERED shot IS permitted at DEFCON 2, confirmed twice over.** By reading:
+  `DefconFireDiscipline.Permits` (`:126-158`) returns true for `forceAttack` and for any source that
+  is not `AutoTarget.IsAutoAcquiredSource`, and an ordered attack arrives as `AttackSource.Default`.
+  By observation: the abrams killed a 40000-hp t90 at DEFCON 2 and then went `(idle)`. The hold is
+  on autonomous fire only, exactly as designed -- a scenario that needs a casualty inside DEFCON 2
+  does NOT need `FiresDuringCeaseFire` or a scripted kill.
+- `DEFCON wall: no line derived from 2 combatant home(s) in 2 alliance group(s); the wall stays down.`
+- `NUCLEAR EXCHANGE sides: Russia(-2), USA(-3)` -- both negative, so both teamless, two sides.
+- At DEFCON 3 the abrams held an `AttackActivity` with **no order given**, which means autotarget
+  acquired the t90 -- so `USA -> Russia` is `Enemy` at that moment.
+
+**THE OPEN DEFECT: the kill did not end the phase.** `at1=-1`, `defcon=2`, `casualty none`, and no
+`DEFCON 1 (...)` line in `debug.log`. Every input checks out on paper:
+
+| candidate | ruled out by |
+|---|---|
+| observer absent | `player.yaml:1533` declares `DefconCasualtyObserver:` unconditionally; the scenario strips nothing |
+| `escalation` null in the observer | `Created` dereferences `self.World.WorldActor` directly -- a null would have thrown, and the match ran |
+| dispatch never reaches the player actor | `Health.cs:128` caches `self.Owner.PlayerActor.TraitsImplementing<INotifyKilled>()`, `:294-295` calls them on `HP == 0` |
+| not a `Health` death | t90 carries `SpawnActorOnDeath` and no `Explodes`; a husk settled (`Husk.cs:127`), i.e. an ordinary death |
+| `VehicleCrew` killed it | its `Killed` handler only cleans up slot bookkeeping (`VehicleCrew.cs:341-357`); it does not kill |
+| relationship not `Enemy` | autotarget engaged at DEFCON 3, which requires `USA -> Russia == Enemy` |
+
+**The one structural difference from every scenario where a casualty DOES move the level**
+(`test-bot-defcon2-breaks-peace`, `test-escalation-full-match`) is that here the KILLER is the
+**client-occupied `Playable: True` slot** and the victim is a map player. `Player.cs` has two
+constructor branches and the client branch is already documented (see `CombatantSides`' header) to
+drop `PlayerReference` fields the map-player branch copies. Whether it also affects the relationship
+that `IsQualifyingCasualty` reads is **NOT established** -- and the autotarget evidence argues
+against it, which is why it is recorded as a suspect and not a finding.
+
+**Instrumented rather than guessed.** `DefconCasualtyObserver.Killed` now writes one
+`DEFCON casualty at level 2: <victim>(<owner>) killed by <attacker>(<owner>) -- <verdict>` line per
+death, gated on the hold-fire rung so a real match gets a handful at most, naming which of the four
+`IsQualifyingCasualty` clauses rejected. Every input to that predicate is reconstructible only from
+inside the method; from outside, all four rejections look identical ("the level is still 2"). One
+line closes what hours of reading could not.
+
 ## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`)
 
 `test-escalation-banner-combined` asserted `DefconTransitionBannerWidget.BannersRaised == 1` on the tick
