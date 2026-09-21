@@ -41,19 +41,43 @@ Players:
 Actors:
 	# Russia-owned so both are ordinary enemy targets: Armament.TargetRelationships defaults to
 	# Enemy, so a Neutral building would need force-fire and that is a second variable.
+	#
+	# TWO INDEPENDENT LANES, AND THE GEOMETRY IS THE WHOLE FIXTURE -- READ THIS BEFORE MOVING A CELL.
+	# HIMARSTargeter is Range 50c0 / MinRange 16c0 (weapons-missiles.yaml:382-383, inherited from
+	# IskanderTargeter). The Lua orders both shots with allowMove=false, so whatever separation is
+	# written here is the ONLY separation these launchers will ever have. Attack.cs:276 sets
+	# `tooClose` from MinRange, :282 folds it into `needsToMove`, and :299-300 returns
+	# UnableToAttack as soon as `move == null` -- which is what allowMove=false produces (:75).
+	# So inside 16 cells the attack activity ENDS ON ITS FIRST TICK having never aimed: no shot, no
+	# warning, no Lua error, and both targets sitting at exactly full HP. That is precisely what this
+	# scenario did on its first ever run (2026-09-21: "no impact within 40s -- church 38000/38000,
+	# block 120000/120000") when each launcher stood 10 cells from its target while this comment
+	# claimed 20. Full HP on BOTH targets is the signature of that failure, as opposed to a damage
+	# shortfall, which shows up as a partial number.
+	#
+	#   LauncherB (44,20) -> Church (20,20)  = 23.51 cells
+	#   LauncherA (44,44) -> Block  (20,44)  = 24.01 cells
+	#
+	# Both clear the minimum by ~7.5 cells and sit under half the maximum. The two lanes are 24 cells
+	# apart on Y so that neither missile overflies the other lane and neither impact splashes into the
+	# other target -- the widest reach on HIMARSExplosion is the shockwave's MaxRadius 2c512
+	# (weapons-explosions.yaml:605), about 2.5 cells. Keeping the lanes clean is what lets the Lua
+	# treat "first tick this target took damage" as "its own missile arrived".
+	#
+	# Terrain is NOT the constraint here: every cell inside Bounds on this map is clear TEMPERAT
+	# (template 255; the only four exceptions are at y=0, outside Bounds). Range is the constraint.
 	Church: v01
 		Owner: Russia
-		Location: 30,14
-	Block: rushouse
-		Owner: Russia
-		Location: 30,44
-	# HIMARS Range is 50c0 with MinRange 16c0 -- 20 cells clears the minimum with margin.
-	LauncherA: himars
-		Owner: USA
-		Location: 30,34
+		Location: 20,20
 	LauncherB: himars
 		Owner: USA
-		Location: 30,24
+		Location: 44,20
+	Block: rushouse
+		Owner: Russia
+		Location: 20,44
+	LauncherA: himars
+		Owner: USA
+		Location: 44,44
 	OwnSR: supplyroute
 		Owner: USA
 		Location: 90,6
