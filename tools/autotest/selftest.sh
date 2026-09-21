@@ -116,6 +116,26 @@ EOF
 OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${RUNNER}" ${RUNNER_FLAGS} "${SCENARIO}" 2>&1); RC=$?
 check "verdict fail" FAIL 1 "${RC}" "${OUT}"
 
+# ── A pass that says NOTHING ────────────────────────────────────────────────
+# The empty-note tripwire, proved without launching a game. The ONLY difference
+# from the "verdict pass" case above is `"notes":""` -- same status, same exit
+# code -- which is exactly why this outcome had to exist: nothing else in the
+# verdict distinguishes a green that measured something from one that did not.
+#
+# Exit stays 0 deliberately (this runner's 0/1/2/3 contract is load-bearing; see
+# its header). The name is what carries the distinction, and run-batch.sh grades
+# the name -- so THIS assertion, on the outcome rather than the code, is the
+# whole mechanism. See WORKSPACE/audit/260921-assertwithin-false-green.md.
+H=$(new_home passempty)
+STUB=$(make_stub passempty <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"pass","notes":""}' > "\${RP}"
+EOF
+)
+OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${RUNNER}" ${RUNNER_FLAGS} "${SCENARIO}" 2>&1); RC=$?
+check "verdict pass, EMPTY notes" PASS-EMPTY 0 "${RC}" "${OUT}"
+
 # ── Crash: died writing nothing, but left a fresh exception log ──────────────
 # This is the shape that was read as "broken harness" — and in the sync-guard
 # case the crash WAS the finding.
