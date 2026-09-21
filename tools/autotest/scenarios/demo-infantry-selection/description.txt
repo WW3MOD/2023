@@ -1,0 +1,1 @@
+Audit §2.6 U2: does a selected rifleman show anything? Arm A is shipped (no corner bracket); arm B is the same sprite with SelectionDecorations ShowNever: false. Each arm has an unselected control row, plus a selected/unselected abrams pair.

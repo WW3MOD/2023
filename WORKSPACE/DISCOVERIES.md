@@ -3,6 +3,75 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-21 - INFANTRY DO HAVE A SELECTION-ONLY MARK, it is parked on top of the class pictogram with no z-order, and the curated claim about the VEHICLE bracket cites a line that cannot draw one (`wt/infantry-selection`, base `main @ eacc1cff`)
+
+Static read for audit package 4 (`audit/260921-release-readiness.md` §2.6 **U2**, *"Infantry give no
+selection feedback at all — box-select six riflemen, nothing changes"*, citing `infantry.yaml:57
+ShowNever: true`). The finding's **premise is half right and the interesting half is not the half it
+names.** Nothing below is measured; `tools/autotest/scenarios/demo-infantry-selection` was built in
+the same branch to photograph all of it and had not been run when this was written.
+
+- **The corner-bracket box really is off for infantry, and `ShowNever` gates ONLY that box.**
+  `^Infantry` sets `SelectionDecorations: ShowNever: true` (`mods/ww3mod/rules/ingame/infantry.yaml:56-57`,
+  the only `ShowNever` under `mods/`) and `SelectionDecorationsBase.cs:109` is literally
+  `if (selected && !Info.ShowNever)`. **It does not touch anything else in `DrawDecorations`** — the
+  selection-bars call at `:113-115` and the whole `IDecoration` loop at `:129-132` run regardless. So
+  "ShowNever" is a much narrower switch than its name suggests, and reading it as "infantry draw
+  nothing when selected" is the error this entry exists to stop.
+
+- **`^Soldier` carries a dedicated selection pip, and nobody in the audit trail knew.**
+  `WithDecoration@Selected` (`infantry.yaml:232-237`), `RequiresSelection: true`, draws
+  `selected_infantry`/`pip-selected` (`mods/ww3mod/sequences/sequences-infantry.yaml:61-64`; the art is
+  real — `mods/ww3mod/bits/units/pips/pip-selected.shp`). Every rifleman has it:
+  `E3.america → ^E3 → ^CamoSoldier → ^Soldier → ^Infantry`.
+
+- **THE LIVE SUSPECT, and the reason the user's report can be true anyway: the pip is authored at the
+  EXACT anchor of the class pictogram, and decorations have no z-order.** Both
+  `WithDecoration@Class` (`:226-231`, `e3_class` on `^E3` at `:1334-1335`) and
+  `WithDecoration@Selected` are `Position: Top, Margin: 0,6`. Which one lands on top is decided by
+  `TraitsImplementing<IDecoration>` order captured once at `Created` (`SelectionDecorationsBase.cs:42-43`);
+  every decoration renderable reports `ZOffset = 0`. `WORKSPACE/indicator-audit.md:271` already
+  recorded the collision ("Collision 4 — class pictogram vs 'selected' pip, exact") without drawing
+  the consequence. **If the class pip wins, the mod's one infantry selection mark is authored,
+  shipped, and invisible** — which is a better bug than the one filed, and a one-line fix in a
+  different place (move the margin) than the one the audit implies.
+
+- **There is no health bar anywhere in this mod, so it is not a fallback cue.**
+  `SelectionBarsAnnotationRenderable.Render` has its `DrawHealthBar` call commented out deliberately,
+  with an in-tree warning that two people have already improved that dead chain and a standing
+  instruction to ask before re-enabling it. `DrawHealthBar` and `GetHealthColor` have no other callers.
+
+- **CORRECTED IN `DOCS/reference/architecture.md` ON SIGHT — the vehicle mechanism there was wrong.**
+  The curated bullet said own vehicles draw their corner brackets on the *unselected* path, citing
+  `renderDecorations = selected ? selectedDecorations : decorations` (`SelectionDecorationsBase.cs:129`).
+  **That line governs `IDecoration` traits and cannot emit a bracket.** The bracket is a
+  `SelectionBoxAnnotationRenderable` (four 1px L-corners, 4px arms,
+  `SelectionBoxAnnotationRenderable.cs:44-55`), and in the whole engine it is constructed at four
+  sites: `SelectionDecorations.cs:75` (the render path, reached only from
+  `SelectionDecorationsBase.cs:110` under `selected && !Info.ShowNever`), the isometric variant
+  `IsometricSelectionDecorations.cs:70`, the map editor preview `EditorActorPreview.cs:106`, and three
+  support-power target previews via `ISelectionDecorations.RenderSelectionAnnotations`. None of the
+  latter is normal play. **A vehicle's bracket is selection-gated.**
+
+- **What that correction does NOT do is refute the measurement, and the distinction matters.** The
+  same bullet recorded a full-frame pixel diff in which selecting four Bradleys changed *zero pixels*.
+  A code reading cannot overturn a pixel count. The two most likely reconciliations are that the
+  always-on white marks a vehicle carries (the concealment diamond, two stance glyphs, damage/cargo/ammo
+  pips) were read as the bracket, or that the selection never applied in that capture — the same
+  failure the capture scenario built here guards against by printing `selected=N`.
+  **The general shape is worth more than the instance: a bullet that pairs a correct OBSERVATION with
+  an invented MECHANISM is the most durable kind of wrong, because the observation keeps vouching for
+  the explanation.** The observation here survived curation and promotion into a trusted doc; the
+  mechanism was never checked against the constructor's call sites, which takes one grep.
+
+- **Two arms of a `ShowNever` comparison cannot share one actor type.** `ShowNever` is a plain Info
+  field on `SelectionDecorationsBaseInfo` (`:24`), not a `ConditionalTraitInfo`, so nothing can toggle
+  it during a run. The way to get both arms into one frame is a second actor type that renders the
+  same sprite: `e3r1.america` inherits `e3.america` wholesale (`infantry-america.yaml:24-30`), so it
+  shares the sprite, the `Selectable`/`DecorationBounds` (`500,700,65,-128`) and the decoration stack —
+  with `-ProducibleWithLevel:` added scenario-locally, because its shipped `InitialLevels: 2` would
+  otherwise put a rank chevron on one arm and not the other.
+
 ## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
 
 Found while re-deriving item 78's edge-choice rule from source for
