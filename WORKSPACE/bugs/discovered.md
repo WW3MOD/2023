@@ -802,6 +802,21 @@ button never un-highlights · three stale duration/gate comments · the stray It
   arithmetic, NOT by screenshot**, so "pre-existing" is reasoned, not observed.
   (found while working on: the typed-element tooltip rewrite, `wt/tooltip-elements`)
 
+  **FIXED 2026-09-21 on `wt/tooltip-legibility` (base `main @ d69e6883`), by the first of those two
+  routes.** The transparency is now a measured number rather than an observation: `dialog4`'s centre
+  tile, `uibits/dialog.png` 518,393 52x52, is `(0,0,0,159)` at **every one of its 2704 pixels** —
+  38% of what is behind it came through. `PRODUCTION_TOOLTIP` now draws on a new `tooltip-panel`
+  collection: dialog4's eight frame pieces byte-for-byte, with `background` moved to dialog5's
+  fully-opaque black tile (580,388 62x62). **The right column was NOT narrowed and the panel still
+  overlaps the sidebar** — the entry is right that the geometry is not the bug.
+  Two things stay true and are not regressions: the 6px frame ring is still alpha-159 black plus its
+  bevel highlight, deliberately, because replacing it would flatten the bevel every other panel in
+  the mod has; and **this was still not settled by screenshot** — it is settled by decoding the art,
+  which `engine/OpenRA.Test/TooltipPanelOpacityTest.cs` now does on every test run (RED-controlled
+  both ways: reverting to `dialog4`, and re-pointing `background` at the translucent tile, each fail
+  with their own message). A capture request is staged at
+  `tools/autotest/scenarios/demo-production-tooltip/README.md` for the manager to run.
+
 ---
 
 > ### Reading note for the 2026-08-20 ambush/concealment/cover block below

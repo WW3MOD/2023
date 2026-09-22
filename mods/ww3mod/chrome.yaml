@@ -436,6 +436,48 @@ dialog5:
 	PanelRegion: 580, 388, 0, 0, 62, 62, 0, 0
 	PanelSides: Center
 
+# The production tooltip's panel. dialog4's frame with an OPAQUE interior.
+#
+# WHY IT IS NOT JUST dialog4. dialog4's centre tile (dialog.png 518,393 52x52) is black at
+# ALPHA 159 of 255 -- 38% of whatever is behind it comes through. The production tooltip is
+# anchored to the LEFT of the production sidebar (TooltipContainerWidget.GetAnchoredPosition,
+# :154, places it at anchor.X - tooltipWidth - AnchorGap and clamps only vertically), so on a
+# wide display a tall tooltip lands across the sidebar's icon column and unit portraits are
+# legible THROUGH the panel, behind the tooltip's own text. Filed 2026-08-30 in
+# WORKSPACE/bugs/discovered.md; the geometry is not the bug, the alpha is.
+#
+# HOW IT IS BUILT. `Regions:` rather than `PanelRegion:` because a PanelRegion is one contiguous
+# 3x3 grid on the sheet and cannot take its centre from somewhere else. The eight frame pieces
+# are dialog4's, byte-for-byte -- 512,387 with 6px margins and a 52x52 middle -- and only
+# `background` moves, to dialog5's fully-opaque black tile (580,388 62x62, alpha 255 at every
+# one of its 3844 pixels). ChromeProvider looks these nine names up in exactly this role
+# (ChromeProvider.cs:248-259), and WidgetUtils.DrawPanel tiles `background` across the interior
+# rect only, inset by the border sprite sizes (:174-176), so a 62x62 tile under a 6px frame is
+# correct at any panel size.
+#
+# WHAT IS STILL TRANSLUCENT, ON PURPOSE: the 6px frame ring itself. Its inner pixels are the
+# same alpha-159 black and its outer row is the bevel highlight. Replacing those would flatten
+# the bevel every other panel in the mod has. The tooltip's TEXT sits in the interior, which is
+# now opaque; the ring is chrome.
+#
+# DO NOT RENAME THIS WITHOUT GREPPING. A Background: naming a collection that does not exist
+# draws NOTHING -- TryGetPanelImages returns null and the caller silently skips
+# (WidgetUtils.cs:93-95). common/chrome/tooltips.yaml is shared with the `ra` and `ts` mods, so
+# the same collection is declared in engine/mods/ra/chrome.yaml and engine/mods/ts/chrome.yaml.
+# Guarded by engine/OpenRA.Test/TooltipPanelOpacityTest.cs, which decodes the sheet.
+tooltip-panel:
+	Inherits: ^Dialog
+	Regions:
+		corner-tl: 512, 387, 6, 6
+		border-t: 518, 387, 52, 6
+		corner-tr: 570, 387, 6, 6
+		border-l: 512, 393, 6, 52
+		background: 580, 388, 62, 62
+		border-r: 570, 393, 6, 52
+		corner-bl: 512, 445, 6, 6
+		border-b: 518, 445, 52, 6
+		corner-br: 570, 445, 6, 6
+
 # dark blue fill (from button-pressed interior) for lobby background
 dialog-lobby-fill:
 	Inherits: ^Dialog
