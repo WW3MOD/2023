@@ -41,6 +41,38 @@ PBOX:
 		InitialStanceAI: HoldFire
 	Health:
 		HP: 100000
+	# UNGATE THE SELF-SIGHT THIS SCENARIO STAGES ON. Phase 1 needs USA to see 8,16 through the
+	# building it owns, and since 70e63582 (wt/neutral-entry, 2026-09-21) a PBOX sees NOTHING
+	# while unmanned: `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded`
+	# (structures-defenses.yaml:214) re-states all ten Vision@N keys carrying
+	# `RequiresCondition: loaded` (defaults.yaml:156-177), so MiniYaml's key collision gates the
+	# whole ladder ^Defense supplied via ^StandardVision. Nothing garrisons this Box, so before
+	# this override every Vision@N on it is disabled and USA's ghost sits at 'shrouded' (cell
+	# visibility 0) forever -- the run 260922_065240 failure, 161 ticks of vis=0.
+	#
+	# THE GATE IS CORRECT AND IS NOT BEING ARGUED WITH. An empty bunker should see nothing; GTWR
+	# and HBOX have always been gated and PBOX was the outlier. The building type is pure staging
+	# here -- what this scenario asserts is FrozenUnderFog.OnOwnerChanged's refresh of the OLD
+	# owner's ghost, which needs any building the old owner watched and then stopped watching.
+	# Restoring the sight locally is the same category of staging override as the HoldFire stance
+	# and the padded HP above, and it keeps the actor, the geometry and the cursor arm identical
+	# to the run this scenario was authored and last passed against (260921_215910).
+	#
+	# ADDITIVE, NOT AN OVERRIDE OF Vision@10. A new key cannot inherit the gate, so this needs no
+	# `-Vision@10:` and no empty-value `RequiresCondition:` -- both of which depend on merge
+	# semantics that are easy to get subtly wrong and impossible to check without a lint run. The
+	# ten gated traits stay, disabled, contributing WDist.Zero (AffectsMapLayer.Range), and
+	# MapLayers keys sources by trait INSTANCE, so an eleventh Vision is an ordinary extra source
+	# -- ^StandardVision already mounts ten on this same actor.
+	#
+	# Strength 10 over 0..4c0 reproduces ^StandardVision's Vision@10 exactly, which is the rung
+	# that actually lit this cell before the gate: the green log reads `vis=10 state=live`, NOT
+	# the strength 3 the map/lua comments used to claim (see the correction there). After the
+	# capture the trait moves to Russia with the actor and Vision.AddCellsToPlayerMapLayer's
+	# Ally-only check drops USA, so phase 2 still gets its `vis=1 state=frozen`.
+	Vision@TestSelfSight:
+		Strength: 10
+		Range: 4c0
 
 abrams:
 	AutoTarget:

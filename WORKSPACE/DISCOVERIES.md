@@ -3,6 +3,78 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
+
+`test-frozen-tooltip-owner-hidden` passed on 2026-09-21 21:59 and failed on main @ `ef7362a7`
+with `SETUP -- after 161 ticks USA's ghost of its OWN Box reads state 'shrouded'
+(cell visibility 0), never 'live'`. Nothing in the tooltip/hotkey/bot merges everyone suspected
+touched vision. The cause is one added inherit line, four merges earlier than the window the
+triage brief assumed:
+
+```
+mods/ww3mod/rules/ingame/structures-defenses.yaml:214
+PBOX:
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded   # added by 70e63582 (wt/neutral-entry)
+```
+
+`^StandardVisionWhenLoaded` (`mods/ww3mod/rules/defaults.yaml:156-177`) inherits
+`^StandardVision` and re-states all ten `Vision@N` keys carrying nothing but
+`RequiresCondition: loaded`. By MiniYaml key collision that gates the entire ladder `^Defense`
+supplied at `structures-defenses.yaml:5`. **An UNMANNED pbox now reveals nothing at all,
+including its own cell.** The gate is correct (GTWR and HBOX were always gated; PBOX was the
+outlier) and was not the bug. The scenario staged on the old behaviour: its Box is an ungarrisoned
+USA-owned pbox and phase 1 waits for USA to see it.
+
+### Three things worth carrying
+
+**1. The failing scenario's own explanation of its premise was wrong, and had been from the
+start.** Both `map.yaml` and the phase-1 fail text cited `^BasicBuilding`'s ladder
+(`structures.yaml:14-23`, strength 3 out to 1c0). That ladder never lit this cell. `^Defense`
+inherits `^Building` FIRST and `^StandardVision` SECOND (`structures-defenses.yaml:3-5`), and
+`^StandardVision` re-declares the keys `Vision@3/@2/@1` at 22-32c0 (`defaults.yaml:143-154`) --
+so the later inherit OVERWRITES `^BasicBuilding`'s three short rungs outright. The rung that
+actually lit 8,16 was `Vision@10` (strength 10, 0..4c0), which is why the green log reads
+`vis=10`, not `vis=3`. A correct-looking comment citing a real file:line was wrong for two
+different reasons at once, and reading it first cost the better part of the triage. Corrected
+in-tree.
+
+**2. No gate catches this class, and none of the obvious ones would have.** `make nav-guard` is
+scenario-blind (baseline is `mods/ww3mod/maps` only). `lua-gate` checks inert-but-valid shapes,
+not staging premises. Lint would pass: `Vision` with `RequiresCondition: loaded` is perfectly
+well-formed YAML naming a condition `Cargo.LoadedCondition` really grants. The scenario is
+*valid*; it is merely *vacuous*. The only thing that finds it is running it, and the only thing
+that would have flagged it at authoring time is a grep for `: pbox` across
+`tools/autotest/scenarios/*/map.yaml` -- **18 scenarios place one**, which is cheap enough to be
+the actual rule: *when you change a shared actor template, grep the scenario map.yamls for that
+actor type before merging.*
+
+**3. Blast radius was exactly ONE scenario, and the cross-check is worth repeating.** Of the 39
+distinct failures in the 260922 main suite, three place a pbox. The other two
+(`test-supplyroute-exempt-from-fog`, `test-unscouted-building-hidden`) fail on an unrelated
+`FrozenUnderFog.IsVisible` short-circuit -- they assert on an ENEMY pbox being wrongly visible,
+not on self-sight, so the gate does not reach them. The sister scenario
+`test-frozen-owner-snapshot` uses a pbox too and still passes: its USA sees the cell through a
+Scout at 5,16, never through the building.
+
+### Side observation, unexplained and NOT chased
+
+`[danger] reference ground=` (`DangerFieldLayer.cs:443`) is **map-dependent**, not tree-constant:
+across ~340 runs on 2026-09-22 it reads `2748 / ground-types=92/460 / min=21` for most scenarios
+and `2797 / 90/460 / min=171` for others, and the split does not follow the checkout. Both values
+occur in the same worktree on the same day. This is expected in principle (`w.Map.Rules` includes
+map overrides), but it makes the line **useless as a build fingerprint** -- which is exactly what
+it was being used for during this triage before the pattern showed up. Do not read a change in
+that line as evidence the engine changed.
+
+### And the triage lesson that actually cost the time
+
+The brief located the green run at worktree ref `a5366487` and the delta at 13 engine files. The
+green run is timestamped 2026-09-21T20:00Z; `a5366487` was committed 2026-09-22T02:10. **The run
+predates the commit by six hours.** The worktree was at `e6732446`, whose main base is
+`1160a531` (2026-09-21 15:22) -- not `d69e6883` (20:50). The true window was **15 merges, not 5**,
+and the cause sat in `70e63582`, four merges outside the assumed one. When a run dir is offered as
+a code reference, check the run's timestamp against the commit's `%cI` before diffing.
+
 ## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`)
 
 One `tournament-s1-eco-river-zeta` match, `--seeds 1 --max-wall-secs 600`, full 7,500-tick clock,

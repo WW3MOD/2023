@@ -135,10 +135,19 @@ WorldLoaded = function()
 			if Ticks > Grace + 120 then
 				return "fail: SETUP -- after " .. Ticks .. " ticks USA's ghost of its OWN Box " ..
 					"reads state '" .. state .. "' (cell visibility " .. vis .. "), never 'live'. " ..
-					"USA owns Box and ^BasicBuilding mounts Vision strength 3 out to 1c0 " ..
-					"(structures.yaml:14-23), so the building reveals its own footprint to its " ..
-					"owner -- 'frozen' or 'shrouded' here means that ladder was removed or " ..
-					"overridden. 'none' means Box has no FrozenUnderFog trait and this scenario " ..
+					"USA owns Box and its sight of 8,16 comes from ONE trait: the ungated " ..
+					"Vision@TestSelfSight (strength 10, 0..4c0) this scenario's own rules.yaml " ..
+					"adds to PBOX. It is there because the SHIPPED ladder is gated -- PBOX " ..
+					"inherits ^StandardVisionWhenLoaded (structures-defenses.yaml:214), so every " ..
+					"Vision@N on an unmanned bunker carries RequiresCondition: loaded and reveals " ..
+					"nothing. 'shrouded' with visibility 0 is exactly what that gate looks like, " ..
+					"so suspect the override was dropped, renamed or merged away before you " ..
+					"suspect the engine; that is how this scenario broke on 2026-09-22 " ..
+					"(run 260922_065240, gate merged in 70e63582). Do NOT look at " ..
+					"^BasicBuilding's strength-3 ladder: ^Defense takes ^StandardVision after " ..
+					"^Building, and its Vision@3/@2/@1 at 22-32c0 (defaults.yaml:143-154) " ..
+					"overwrite those keys outright. " ..
+					"'none' means Box has no FrozenUnderFog trait and this scenario " ..
 					"is testing nothing"
 			end
 
@@ -161,7 +170,7 @@ WorldLoaded = function()
 					"nothing below means anything. If state is 'live', something USA-side still " ..
 					"covers 8,16 -- Box's Vision traits should have moved to Russia with the " ..
 					"actor, and the Observer at 52,16 is 44 cells away, past ^StandardVision's " ..
-					"outermost 32c0 rung by 12 (defaults.yaml:95-133); read the visibility band " ..
+					"outermost 32c0 rung by 12 (defaults.yaml:115-154); read the visibility band " ..
 					"back to a distance and find what is sitting at it. If state is 'shrouded' " ..
 					"the explored bit at 8,16 was cleared, which MapLayers.cs:241-256 only does " ..
 					"via ResetExploration on defeat -- that would be a finding about " ..
