@@ -75,7 +75,12 @@ Actors:
 	# (vehicles.yaml:184-187), so a vehicle staged below half BLEEDS OUT and would race the 1%-per-burst
 	# repair in the opposite direction. At 75% the DamageState is Light/Medium — enough for
 	# GrantConditionOnDamageState@Damaged, not enough to bleed.
-	Casualty: abrams
+	# THE TYPE IS THIS SCENARIO'S OWN CLONE OF abrams, not abrams itself: rules.yaml re-roles it to
+	# UnitRole.Logistics so no bot pool can draft it, and doing that to the shipped `abrams` both
+	# fails CheckUnitRoleTable (which pins abrams to MainBattle over every map's ruleset) and would
+	# re-role the tanks the bot buys. Everything else about it is abrams — it Inherits the shipped
+	# actor, so Health, DamageStates and the repair-target types below are unchanged.
+	Casualty: casualtyabrams
 		Owner: USA-bot
 		Location: 22,16
 	# FOUR CELLS EAST OF THE CASUALTY. Deliberately short: Armament@Repair's weapon has Range: 1c0
@@ -94,10 +99,14 @@ Actors:
 	# cells WEST to the casualty; a module whose priority order is inverted walks him ~14 cells EAST to
 	# the screen centroid instead. Without these the scenario would prove only that the engineer took the
 	# one job on offer, which is a much weaker claim than the one it is making.
-	ScreenDecoyA: e3.america
+	# Same clone treatment as the casualty (screendecoye3 Inherits E3.america): held still so the
+	# anchor they form is STABLE rather than drifting the moment a pool drafts them. FindScreenAnchor
+	# requires AttackBase + Mobile and a distance from the SR, never a role, so re-roling them does
+	# not take the discriminator out of the run.
+	ScreenDecoyA: screendecoye3
 		Owner: USA-bot
 		Location: 56,28
-	ScreenDecoyB: e3.america
+	ScreenDecoyB: screendecoye3
 		Owner: USA-bot
 		Location: 57,28
 	OpponentSR: supplyroute

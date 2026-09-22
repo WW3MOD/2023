@@ -160,6 +160,77 @@ predates the commit by six hours.** The worktree was at `e6732446`, whose main b
 `1160a531` (2026-09-21 15:22) -- not `d69e6883` (20:50). The true window was **15 merges, not 5**,
 and the cause sat in `70e63582`, four merges outside the assumed one. When a run dir is offered as
 a code reference, check the run's timestamp against the commit's `%cI` before diffing.
+## 2026-09-22 - A SCENARIO CANNOT RE-ROLE A SHIPPED UNIT: `AIUnitRole` in a scenario's `rules.yaml` is lint-visible, because `CheckUnitRoleTable` runs over EVERY map's resolved ruleset
+
+`5f8fed03` kept a staged casualty out of the bot's offensive pool by writing
+
+```
+abrams:
+	AIUnitRole:
+		Role: Logistics
+```
+
+into `tools/autotest/scenarios/test-experimental-engineer-repairs/rules.yaml`. The mechanism was
+right — nothing in the engine recruits `UnitRole.Logistics` — and the reasoning in the file was
+sound. **The prediction attached to it was not.** That worker's report said the change "would most
+likely still pass lint". What the gate actually said, one line above the baseline floor (Errors: 23
+vs 22):
+
+```
+NEW: test-experimental-engineer-repairs | CheckUnitRoleTable: `abrams` derived role Logistics, expected MainBattle.
+```
+
+It reached `origin/main` (`e8d61097`) only because a chained merge script pushed over the red.
+
+### The generalisable fact: map rules are not a private namespace as far as lint is concerned
+
+`CheckYaml` runs **every** `ILintRulesPass` against **every** map's resolved ruleset, not only against
+`modData.DefaultRules` — `CheckYamlCommand`/`CheckYaml.cs:103` walks the map list and `:137` sets the
+error scope to the map's package folder, which is where the `test-…` prefix in the message comes
+from. `CheckUnitRoleTable` then pins a table of key units by name (`CheckUnitRoleTable.cs:31-108`,
+`abrams` at `:34`) and asserts each one's **derived** role in the loop at `:134-145`. A scenario that
+overrides a pinned actor's role therefore fails the pin *for that map*, and the pin is right to fail:
+its whole purpose (see the file header) is to catch a YAML edit that silently reclassifies a key
+combat unit. Nothing about a map being a test map makes `abrams` a logistics unit.
+
+Only the **set-equality** half of that lint is gated on `ReferenceEquals(rules, modData.DefaultRules)`
+(`:175`). The name-pin loop, the troop-carrier checks and `CheckCategory` are not — so "it is only a
+scenario" buys nothing for any of them.
+
+### The fix pattern: re-role a scenario-local CLONE, never the shipped actor
+
+```
+casualtyabrams:
+	Inherits: abrams
+	RenderSprites:
+		Image: abrams
+	AIUnitRole:
+		Role: Logistics
+	-Buildable:
+```
+
+and stage the clone from `map.yaml`. The exclusion is identical (same trait, same value, same four
+role-mode pools) and the shipped unit keeps its classification, so the lint has nothing to say.
+Precedent already in tree: `pauperabrams` (`test-evac-refund-indicator/rules.yaml:63`) and the
+humvee/m113/abrams families in `test-burn-compare/rules.yaml`.
+
+**The clone form fixes a second, quieter defect that had nothing to do with lint.** Overriding the
+TYPE re-roles every instance — including the `abrams` and `E3.america` the bot BUYS during the run —
+so the scenario had also emptied the offensive module's own pools of the units it was supposed to go
+on fielding, while a comment three lines above claimed production was unaffected. A clone touches
+only what `map.yaml` places.
+
+**Two lines are mandatory on any such clone and both have cost a run before.** `RenderSprites: Image:`
+— sprites resolve by ACTOR NAME and not through `Inherits`, so the engine dies at world load with
+"Image `<clone>` does not have any sequences defined", and no static gate catches it because the
+sequence set is not resolved until world load. And `-Buildable:` — an inherited `Buildable` would put
+a Logistics-roled tank in the live production queue for the whole run.
+
+**One asymmetry worth carrying:** a mis-cased top-level KEY in map rules silently overrides nothing,
+but a mis-cased `Inherits:` VALUE is loud — `MiniYaml.cs:461-464` throws `Parent type ... not found`
+at load. `abrams` is lowercase (`vehicles-america.yaml:464`); `E3.america` has a capital E3
+(`infantry-america.yaml:18`). The clone form converts the silent failure mode into the loud one.
+
 ## 2026-09-22 - A bot module ordered a unit ONTO the actor it was sent to service, and no gate could see it (`EngineerOperatorBotModule`, `main @ ef7362a7`)
 
 `test-experimental-engineer-repairs` passed on 2026-09-21 (run `260921_213228`) and failed on
