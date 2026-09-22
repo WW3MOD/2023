@@ -149,3 +149,29 @@ Container@HOWTOPLAY_PANEL:
 			Height: 17
 			Font: Regular
 			Text: what is left of their cost. A unit that dies takes its budget with it.
+		# THE ONLY POINTER TO THE KEY LIST. Added 2026-09-21 for audit 260921 §2.5 I1. The list
+		# itself is the engine's Settings > Hotkeys panel, which has always shipped (mod.yaml:208
+		# loads common|chrome/settings-hotkeys.yaml) and reads each binding live from
+		# modData.Hotkeys, so it stays correct after a rebind. What did not exist was anything
+		# telling a player it is there. NO KEY LIST IS DUPLICATED HERE, on purpose: hand-written
+		# key text is wrong the first time anyone rebinds, and this panel cannot read bindings.
+		#
+		# THE WORDING NAMES NO ROUTE TO SETTINGS because this file is loaded in TWO places and
+		# the route differs. HowToPlayBriefingLogic.cs:26 loads this same HOWTOPLAY_PANEL into
+		# the main menu's BRIEFING_CONTENT, where Settings is a main-menu button and there is no
+		# Esc menu at all; in a match it is Esc then Settings. "under Settings > Hotkeys" is true
+		# in both. An earlier draft said "Press Esc, then..." and was wrong in the main menu.
+		#
+		# Y IS THE LAST ROW THAT FITS, and the binding constraint is the MAIN MENU, not the match.
+		# The 17px pitch continues from FOOT_L2 at 395, so this row runs 412..429. In a match
+		# HOWTOPLAY_PANEL sits at Y:65 in a 500px PANEL_ROOT (ingame-menu.yaml:40-44) -> 494 of
+		# 500. In the main menu it fills BRIEFING_CONTENT, whose declared height went 420 -> 435
+		# in mainmenu-howtoplay.yaml to cover this row. A further row overflows both: no
+		# ContainerWidget here sets a scissor, so it would draw outside the frame rather than clip.
+		Label@FOOT_L3:
+			X: 20
+			Y: 412
+			Width: PARENT_WIDTH - 40
+			Height: 17
+			Font: Regular
+			Text: Every key is listed under Settings > Hotkeys, and rebindable there.

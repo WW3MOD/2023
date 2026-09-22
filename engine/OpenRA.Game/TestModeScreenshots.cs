@@ -227,6 +227,29 @@ namespace OpenRA
 						Log.Write("debug", $"[TestMode] external click: {id} → {(hit ? "dispatched" : "NO SUCH VISIBLE WIDGET")}");
 					});
 				}
+				// "type <widget-id> <text>" — put <text> into a text field and fire its edit
+				// callback, so a driver can reach a filtered list. `click` cannot do this: it needs
+				// an OnClick, and a TextFieldWidget has none, which left the hotkeys panel's
+				// FILTER_INPUT (and every list like it) unphotographable below the fold. Scrolling
+				// is the other half of that gap and is NOT addressed here — ScrollPanelWidget
+				// exposes no clickable child either.
+				//
+				// <text> MAY BE EMPTY ("type FILTER_INPUT" with nothing after) — that clears the
+				// field, which is how a driver gets back to the unfiltered list.
+				else if (line.StartsWith("type ", StringComparison.OrdinalIgnoreCase))
+				{
+					var rest = line.Substring("type ".Length).Trim();
+					var split = rest.IndexOf(' ');
+					var id = split < 0 ? rest : rest[..split];
+					var text = split < 0 ? "" : rest[(split + 1)..];
+
+					// Deferred for the same reason `click` is: OnTextEdited rebuilds widget trees.
+					Game.RunAfterTick(() =>
+					{
+						var hit = TypeIntoWidget(id, text);
+						Log.Write("debug", $"[TestMode] external type: {id} → {(hit ? $"typed \"{text}\"" : "NO SUCH VISIBLE TEXT FIELD")}");
+					});
+				}
 					// "hover <actor-name>" — arm a production-icon hover. Applied by
 					// ProductionPaletteWidget on its next Tick, which is where the icon
 					// rectangles are known. Send a screenshot on a later line (or a later
@@ -290,6 +313,38 @@ namespace OpenRA
 				return false;
 
 			onClick();
+			return true;
+		}
+
+		// Set a text field's Text and run its edit callback. Reflection for the same reason
+		// ClickWidget uses it: TextFieldWidget lives in OpenRA.Mods.Common, which OpenRA.Game does
+		// not reference.
+		//
+		// THE OnTextEdited CALL IS THE POINT, not the assignment. Consumers hang their real work
+		// off it — HotkeysSettingsLogic rebuilds its whole list there — so setting Text alone
+		// changes the glyphs in the box and filters nothing, which would photograph an unfiltered
+		// list under a filtered caption.
+		//
+		// Requiring an OnTextEdited field is also what keeps this off the wrong widget: several
+		// widgets expose a writable Text, but only a text field carries that callback, so a typo'd
+		// id reports as a miss rather than quietly relabelling a button.
+		static bool TypeIntoWidget(string id, string text)
+		{
+			var target = FindVisible(Widgets.Ui.Root, id);
+			if (target == null)
+				return false;
+
+			var type = target.GetType();
+			var onTextEdited = type.GetField("OnTextEdited")?.GetValue(target) as Action;
+			if (onTextEdited == null)
+				return false;
+
+			var textProperty = type.GetProperty("Text");
+			if (textProperty == null || textProperty.PropertyType != typeof(string) || !textProperty.CanWrite)
+				return false;
+
+			textProperty.SetValue(target, text);
+			onTextEdited();
 			return true;
 		}
 

@@ -1,0 +1,332 @@
+#!/bin/sh
+# WW3MOD — photograph the HOTKEY REFERENCE the player can actually reach:
+# Esc > Settings > Hotkeys (SETTINGS_PANEL's HOTKEYS_PANEL tab).
+#
+# Usage:  ./tools/autotest/screenshot-hotkeys.sh [<map-id>]
+#         default map: river-zeta-ww3
+#
+# WHY A SKIRMISH AND NOT A REPLAY, unlike screenshot-infopanel.sh next door. The tab strip under
+# test is SettingsLogic's, not GameInfoLogic's, and it is reached through INGAME_MENU's SETTINGS
+# button, which IngameMenuLogic.CreateSettingsButton (:480-493) creates unconditionally in any
+# world. A replay would do; a skirmish is simpler because it needs no artifact that can age out.
+#
+# WHY THERE IS NO BLIND SLEEP BEFORE THE FIRST CLICK. The first cut of this script slept 20s and
+# then clicked, and on run 260922_005942 both clicks missed: debug.log put
+# `external click: SETTINGS -> NO SUCH VISIBLE WIDGET` ABOVE the sprite loads, `Scenario
+# selection`, `[danger] reference`, `DEFCON wall region` and `Sync reports disabled` -- every one
+# of them a world-construction line. The world was still loading, so there was no player HUD, no
+# MenuButtonsChromeLogic and no INGAME_MENU to find. The second click landed one line after
+# `Sync reports disabled`, i.e. missed by a hair. Both screenshots then came out as healthy
+# 1,024,258-byte pictures of the Esc menu -- BYTE-IDENTICAL to each other, which is its own tell.
+#
+# THE FRAME DOES NOT LICENCE THE SLEEP. A capture at t~26s showing the menu says nothing about
+# t=20s, and reading it as "20s was enough" is how this gets mis-fixed as an id problem. The ids
+# were never wrong: IngameMenuLogic.AddButton:331 assigns `button.Id = id` from the bare string in
+# ingame-menu.yaml:5's Buttons: list, and PollCommands Trim()s the verb argument.
+#
+# So click_until below RETRIES until debug.log says the click dispatched, which makes the
+# precondition itself the wait. Both retries are safe to repeat: a second `click SETTINGS` after a
+# successful one finds nothing, because CreateSettingsButton sets hideMenu = true and
+# IngameMenuLogic:193 gates buttonContainer on !hideMenu; and re-clicking a settings tab just
+# re-selects the tab it is already on.
+#
+# WHY Test.OpenIngameInfoPanel IS THE FIRST STEP AND NOT A click. Opening the Esc menu means
+# clicking OPTIONS_BUTTON, a MenuButtonWidget whose OnClick MenuButtonsChromeLogic assigns
+# (:42-55) -- reachable by the cmd file's `click` verb in principle, but the launch arg already
+# does exactly this and is the path the other drivers use. It loads INGAME_MENU (MenuButtonWidget
+# .MenuContainer defaults to "INGAME_MENU", MenuButtonWidget.cs:16), which is the screen carrying
+# the SETTINGS button. The panel name passed here is irrelevant to this capture -- it only selects
+# which GAME_INFO_PANEL tab shows on the right before we leave for Settings, so AutoSelect -- a
+# real IngameInfoPanel value, unlike the misspelled LobbbyOptions -- is the honest thing to pass.
+#
+# THE TWO IDs ARE NOT GUESSES. IngameMenuLogic.AddButton assigns `button.Id = id` from the
+# Buttons: list in ingame-menu.yaml:5, so the Esc menu's button is literally `SETTINGS`.
+# SettingsLogic.AddSettingsTab assigns `tab.Id = id` where id is the PANEL key from
+# settings.yaml:5-10, so the Hotkeys tab button is literally `HOTKEYS_PANEL`.
+# TestModeScreenshots.ClickWidget finds by Id under IsVisible() and invokes the widget's own
+# OnClick, which is the same handler a real click runs.
+#
+# READ "NO SUCH VISIBLE WIDGET" AS TWO DIFFERENT FAILURES. ClickWidget returns false both when
+# FindVisible found nothing AND when it found the widget but could not read a non-null `OnClick`
+# field off it (TestModeScreenshots.cs:282-294), and the log line is the same either way. That
+# matters here: HOTKEYS_PANEL is the id of BOTH the tab button (SettingsLogic.AddSettingsTab sets
+# `tab.Id = id`) and the panel container (`container.Id = panel.Key`, same string). FindVisible
+# walks Children FORWARD and returns the first match; SETTINGS_TAB_CONTAINER precedes
+# PANEL_CONTAINER in settings.yaml and the container is IsVisible-gated on being the active panel,
+# so the button wins -- but if that order ever changes, this script would retry forever against a
+# container that has no OnClick, reporting a missing widget that is on screen.
+#
+# FAILURE IS LOUD AND IS NOT READ THROUGH A PIPE. Every capture is verified as a file on disk
+# with a non-trivial byte size and the summary is written to result.txt in the run dir.
+# `cmd | tail` returns tail's exit code and has inverted a verdict in this project twice.
+
+set -eu
+
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "${REPO_ROOT}"
+
+MAP="${1:-river-zeta-ww3}"
+
+RUN_ID="manual_hotkeys_$(date +%y%m%d_%H%M%S)"
+RUN_DIR="${HOME}/.ww3mod-tests/screenshots/${RUN_ID}"
+CMD_FILE="${RUN_DIR}/cmd.txt"
+RESULT="${RUN_DIR}/result.txt"
+mkdir -p "${RUN_DIR}"
+rm -f "${CMD_FILE}"
+
+ENGINE_LOG="${HOME}/Library/Application Support/OpenRA/Logs/debug.log"
+
+echo "==> Map:     ${MAP}"
+echo "==> Run dir: ${RUN_DIR}"
+
+# debug.log is a fixed global path with no run identity, so a stale one reads exactly like a
+# current one. Empty it, then poll-copy while the run is in flight.
+: > "${ENGINE_LOG}" 2>/dev/null || true
+( while :; do cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true; sleep 2; done ) &
+LOGCOPY_PID=$!
+
+# Windowed on purpose: launch-game.sh defaults to PseudoFullscreen, which switches the display
+# mode and takes the whole screen off whoever is at the machine. 1600x900 is the size the other
+# UI drivers here use, and the settings window is authored 900x600 (settings.yaml:11-12), so it
+# sits centred with room around it at this resolution and is legible in one Read.
+./launch-game.sh \
+	"Graphics.Mode=Windowed" \
+	"Graphics.WindowedSize=1600,900" \
+	"Test.Mode=true" \
+	"Test.Name=hotkeys-panel" \
+	"Test.ScreenshotDir=${RUN_DIR}" \
+	"Test.ScreenshotCmdFile=${CMD_FILE}" \
+	"Test.OpenIngameInfoPanel=AutoSelect" \
+	"Launch.Map=${MAP}" > "${RUN_DIR}/game-stdout.log" 2>&1 &
+GAME_PID=$!
+
+cleanup() {
+	kill "${LOGCOPY_PID}" 2>/dev/null || true
+	cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+	kill "${GAME_PID}" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Consumption, not elapsed time, is the readiness signal: PollCommands deletes the file after
+# reading it, so its disappearance proves the game reached LogicTick and ran the command.
+# Blind-sleeping a guessed number of seconds is how a shot lands on a black loading frame.
+send() {
+	printf '%s\n' "$1" > "${CMD_FILE}"
+	i=0
+	while [ -f "${CMD_FILE}" ]; do
+		i=$((i + 1))
+		if [ "${i}" -gt 120 ]; then
+			echo "!! command never consumed after 120s: $1" >&2
+			return 1
+		fi
+		if ! kill -0 "${GAME_PID}" 2>/dev/null; then
+			echo "!! game exited before consuming: $1" >&2
+			return 1
+		fi
+		sleep 1
+	done
+	echo "==> consumed: $1"
+}
+
+# Has this id's click been reported as dispatched yet? Copies the log first: the poll-copy loop
+# above only runs every 2s, and ClickWidget is deferred through Game.RunAfterTick, so the line
+# lands a tick after the command is consumed.
+dispatched() {
+	cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+	grep -q "external click: $1 .* dispatched" "${RUN_DIR}/debug.log" 2>/dev/null
+}
+
+# Send `click <id>` until debug.log says it dispatched, or give up. Checks BEFORE each send so a
+# click that landed while we were not looking costs at most one extra no-op send.
+click_until() {
+	_id="$1"
+	_deadline="${2:-150}"
+	_t=0
+	while :; do
+		if dispatched "${_id}"; then
+			echo "==> dispatched: ${_id} (after ${_t}s)"
+			return 0
+		fi
+
+		if [ "${_t}" -ge "${_deadline}" ]; then
+			echo "!! never dispatched within ${_deadline}s: ${_id}" >&2
+			return 1
+		fi
+
+		send "click ${_id}" || return 1
+		sleep 3
+		_t=$((_t + 3))
+	done
+}
+
+# Put text into a text field and wait for the engine to say it landed. The `type` verb exists
+# because `click` needs an OnClick and a TextFieldWidget has none, so FILTER_INPUT -- and with it
+# every row below the fold -- was unreachable. Re-typing the same string is idempotent: it sets the
+# same Text and re-runs the same InitHotkeyList.
+#
+# THE FILTER IS THE ONLY WAY DOWN THE LIST. ScrollPanelWidget exposes no clickable child and no
+# scroll verb exists, so an unfiltered capture can only ever show the first ~11 rows. That is why
+# run 260922_011140's second shot was byte-identical to its first and never reached the new section.
+type_until() {
+	_id="$1"
+	_text="$2"
+	_deadline="${3:-45}"
+	_t=0
+	while :; do
+		cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+		if grep -q "external type: ${_id} .* typed \"${_text}\"" "${RUN_DIR}/debug.log" 2>/dev/null; then
+			echo "==> typed: ${_id} = '${_text}'"
+			return 0
+		fi
+
+		if [ "${_t}" -ge "${_deadline}" ]; then
+			echo "!! never typed within ${_deadline}s: ${_id} = '${_text}'" >&2
+			return 1
+		fi
+
+		send "type ${_id} ${_text}" || return 1
+		sleep 2
+		_t=$((_t + 2))
+	done
+}
+
+# Filter the list, let it rebuild, photograph it. InitHotkeyList calls ScrollToTop, so a filtered
+# list always starts at its first row and nothing below a fold is lost.
+shoot_filtered() {
+	_text="$1"
+	_label="$2"
+	if type_until FILTER_INPUT "${_text}"; then
+		sleep 2
+		send "screenshot ${_label}" || true
+		sleep 3
+		return 0
+	fi
+	FILTER_FAILED="${FILTER_FAILED} ${_text}"
+	return 1
+}
+
+# One capture of wherever we actually got to, so a failure is diagnosable instead of silent.
+# Named so it can never be mistaken for the frame this script exists to take.
+bail() {
+	echo "!! stuck at: $1" >&2
+	send "screenshot 99-stuck-at-$1" || true
+	sleep 3
+	send "quit" || true
+	FAILED_AT="$1"
+}
+
+FAILED_AT=""
+FILTER_FAILED=""
+
+# A floor, not a readiness wait -- click_until does the waiting. This only keeps the retry loop
+# from hammering the cmd file through the first seconds of a load it cannot possibly beat.
+sleep 12
+
+# The Esc menu comes up on its own via Test.OpenIngameInfoPanel; SETTINGS does not exist until it
+# does, so this retry IS the wait for the world to finish loading.
+if click_until SETTINGS; then
+	sleep 2
+	# SettingsLogic opens on its first registered panel (DISPLAY_PANEL). Switch to Hotkeys.
+	if click_until HOTKEYS_PANEL 60; then
+		sleep 3
+		send "screenshot 01-hotkeys-panel-top" || true
+		sleep 3
+
+		# THREE FILTERED SHOTS, because no single filter reaches all four new groups. The filter
+		# is a case-insensitive substring of the DESCRIPTION (HotkeysSettingsLogic.cs:335-343),
+		# and the four new groups share no common word; this was computed over all 210 shipped
+		# descriptions rather than guessed. Between them these three prove every new heading:
+		#   position -> Engagement Stance Commands (2) + Garrison & Transport Commands (8 ports)
+		#   spacing  -> Cohesion Commands (3)
+		#   ammo     -> Resupply Behaviour Commands (2)
+		shoot_filtered position 02-filter-position || true
+		shoot_filtered spacing  03-filter-spacing  || true
+		shoot_filtered ammo     04-filter-ammo     || true
+	else
+		bail HOTKEYS_PANEL
+	fi
+else
+	bail SETTINGS
+fi
+
+# The duplicate second shot this script used to take is gone. It existed against SCREENSHOT.md's
+# one-frame-late sampling, but it photographed the same unfiltered, unscrolled view as shot 01 and
+# came back byte-identical on run 260922_011140 -- a frame that can only ever repeat its neighbour
+# is not a safeguard, it is a second chance to photograph the same mistake. The filtered shots
+# above are genuinely different states and each carries its own settle.
+if [ -z "${FAILED_AT}" ]; then
+	send "quit" || true
+fi
+i=0
+while kill -0 "${GAME_PID}" 2>/dev/null && [ "${i}" -lt 30 ]; do i=$((i + 1)); sleep 1; done
+kill "${GAME_PID}" 2>/dev/null || true
+
+# ---- verdict, from files on disk ----
+# Take a final copy first: the poll-copy loop runs every 2s and the verdict reads debug.log.
+cp "${ENGINE_LOG}" "${RUN_DIR}/debug.log" 2>/dev/null || true
+
+STATUS="PASS"
+COUNT=0
+{
+	echo "run: ${RUN_ID}"
+	echo "map: ${MAP}"
+	for f in "${RUN_DIR}"/*.png; do
+		[ -f "${f}" ] || continue
+		SIZE=$(wc -c < "${f}" | tr -d ' ')
+		COUNT=$((COUNT + 1))
+		# An almost-flat PNG compresses to nothing: a black frame is ~59 KB where a real one is
+		# megabytes (SCREENSHOT.md "The tell for a blank frame is file size, not the image").
+		if [ "${SIZE}" -lt 120000 ]; then
+			echo "BLANK?  ${f}  ${SIZE} bytes"
+			STATUS="NO-RESULT"
+		else
+			echo "ok      ${f}  ${SIZE} bytes"
+		fi
+	done
+	if [ "${COUNT}" -eq 0 ]; then
+		echo "no captures written at all"
+		STATUS="NO-RESULT"
+	fi
+	# A MISSED CLICK IS THE FAILURE MODE THAT LOOKS LIKE A RESULT. `send` only waits for the cmd
+	# file to be consumed, which happens whether or not the widget was found, so a click that fired
+	# before the menu existed photographs the Esc menu and writes a healthy multi-megabyte PNG --
+	# which is exactly what run 260922_005942 did, twice, byte-identically.
+	# TestModeScreenshots.cs:227 logs each dispatch; require both to have landed.
+	for W in SETTINGS HOTKEYS_PANEL; do
+		if grep -q "external click: ${W} .* dispatched" "${RUN_DIR}/debug.log" 2>/dev/null; then
+			echo "click   ${W}: dispatched"
+		else
+			echo "click   ${W}: NOT DISPATCHED -- no frame here shows the hotkey panel"
+			STATUS="NO-RESULT"
+		fi
+	done
+	if [ -n "${FAILED_AT}" ]; then
+		echo "stuck:  ${FAILED_AT} (see 99-stuck-at-${FAILED_AT}.png for where it got to)"
+		STATUS="NO-RESULT"
+	fi
+	if [ -n "${FILTER_FAILED}" ]; then
+		echo "filter: NEVER APPLIED ->${FILTER_FAILED}"
+		echo "note:   01-hotkeys-panel-top is still a valid unfiltered frame; only the"
+		echo "note:   filtered views of the new groups are missing"
+		STATUS="NO-RESULT"
+	fi
+	# Every frame here is meant to be a DIFFERENT state, so any two that match byte-for-byte mean a
+	# filter did not take and one shot repeated its neighbour. This is what caught run
+	# 260922_011140, where the whole second frame was a duplicate.
+	# Guarded on md5 existing: a missing tool yields an empty pipe, and an unguarded count would
+	# read 0 distinct images and fail a perfectly good run.
+	UNIQ="${COUNT}"
+	if command -v md5 >/dev/null 2>&1; then
+		UNIQ=$(md5 -q "${RUN_DIR}"/*.png 2>/dev/null | sort -u | wc -l | tr -d ' ')
+	elif command -v md5sum >/dev/null 2>&1; then
+		UNIQ=$(md5sum "${RUN_DIR}"/*.png 2>/dev/null | awk '{print $1}' | sort -u | wc -l | tr -d ' ')
+	fi
+	if [ "${COUNT}" -gt 0 ] && [ "${UNIQ}" != "${COUNT}" ]; then
+		echo "warn:   only ${UNIQ} distinct images among ${COUNT} frames -- a filter did not take"
+		STATUS="NO-RESULT"
+	fi
+	echo "status: ${STATUS}"
+} > "${RESULT}"
+
+cat "${RESULT}"
+[ "${STATUS}" = "PASS" ] || exit 2

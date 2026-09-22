@@ -332,6 +332,192 @@ that passed this batch carry the same shrunken idiom: `test-wgm-deny-thru-5-tree
 Their windows are a third shorter than authored and they may be passing without enforcing. Left
 untouched on purpose - editing a passing scenario's budget with no run to compare against is an
 unmeasured behavioural change, and a green proves nothing about which of its assertions still fire.
+## 2026-09-22 - Two chrome buttons may carry the same `Key:` and the winner is decided by CHILD ORDER, reversed — and a DISABLED button still claims the key (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Settling the `O` collision (`WaypointMode` vs `ProductionTypePowers`, both WW3MOD's own, the only
+duplicate across 209 definitions). The question "which one actually fires?" looked like it needed a
+capture. It does not — it is decided by three lines of engine code and one ordering fact.
+
+- **`Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks `Children` in REVERSE and returns on
+  the first handler that claims the key.** So of two visible buttons sharing a key, **the one
+  declared LATER in the chrome file wins** — the opposite of the reading order, and the opposite of
+  `TestModeScreenshots.FindVisible`, which walks the same tree FORWARD. Two traversals of one tree
+  with opposite precedence is a genuine trap: a scripted click and a real keypress do not resolve
+  ambiguity the same way.
+- **A DISABLED button still claims it.** `ButtonWidget.HandleKeyPress` (`:155-170`) tests only
+  `Key.IsActivatedBy` and `IsVisible()` (via the outer walk); when `IsDisabled()` it plays the
+  disabled sound and **still returns `true`**. So a greyed-out button silently eats the key from
+  everything below it. Only `IsVisible()` can release it.
+- Applied here: under `Container@PLAYER_WIDGETS` in `chrome/ingame-player.yaml`,
+  `Container@SIDEBAR_PRODUCTION` is child index **24** and `Container@COMMAND_BAR` is index **15**,
+  so the production tab takes `O` and the command bar's `QUEUE_ORDERS` button has been
+  keyboard-dead since `746c592c` gave it a key. Nothing surfaced that: the tooltip still advertises
+  the button, and the only place the clash was visible was the settings panel nobody opened.
+
+**The reusable rule: a `Key:` on a chrome button is not scoped to its panel.** It is claimed by
+whichever visible widget the reverse walk reaches first, anywhere in the tree. That is the same
+mechanism that made eleven per-slot garrison hotkeys undesirable in this branch (a visible
+`EJECT_PORT` bound to `1` would eat control-group 1), and it means **a new `Key:` must be checked
+against every definition the mod loads, not against the file it is added in** — `mod.yaml:281-290`
+loads nine, and a clash needs only overlapping `Contexts`.
+
+Cheap detector, no build and no launch: parse the nine files, normalise `<KEY> <Mods…>` to
+`(key, frozenset(mods))`, and report any pair with equal value and intersecting `Contexts`. That is
+exactly `HotkeyManager.GetFirstDuplicate` (`HotkeyManager.cs:91-103`). It found this one and, after
+the fix, reports zero.
+
+## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Both found from run `manual_hotkeys_260922_011140`, the first capture of the Settings → Hotkeys
+panel this project has taken.
+
+**1. The description column is 198px, right-aligned, and unclipped.** Derived entirely from
+authored numbers: `SETTINGS_PANEL` 900 wide (`settings.yaml:11`) → `PANEL_TEMPLATE`
+`PARENT_WIDTH - 190 - 20` = 690 → `Container@TEMPLATE` `(PARENT_WIDTH - 24) / 2 - 10` = 323 (it is a
+**two-column** grid, which is the part that surprises) → `Label@FUNCTION` `PARENT_WIDTH - 120 - 5` =
+**198**. `Align: Right` with no scissor on the path, so an over-long label is drawn *leftwards* out
+of its own container and across the neighbouring column. There is no tooltip fallback:
+`WidgetUtils.TruncateButtonToTooltip` is applied to the `HOTKEY` button, never to this label.
+
+Measured all 210 shipped descriptions in FreeSans 14 (`Regular` via `ChromeMetrics TextFont`),
+including the `:` that `BindHotkeyPref` appends. **Eight overflowed. All eight were WW3MOD's own —
+not one upstream description did**, which says the 198px budget is a real constraint upstream
+writes to and we had simply never been shown. Worst was 328px, 130px over. All eight shortened;
+widest in the mod is now 177px. **Three of the eight had been added the previous day**, by me, in
+the same branch that first made this panel worth looking at — the column was never checked because
+nothing had ever displayed these strings.
+
+**Rule worth carrying: a hotkey `Description:` has a hard budget of ~198px in FreeSans 14, which is
+about 30 characters of mixed case.** Anything longer silently damages the row beside it.
+
+**2. A `ScrollPanelWidget` cannot be driven, so a capture sees ~11 rows and no more.**
+`HOTKEY_LIST` is 395px tall at 30+5 per row. The cmd-file verbs at this SHA were
+screenshot/click/hover/zone-paint/zone-erase/quit — `click` needs an `OnClick`, and neither
+`ScrollPanelWidget` nor `TextFieldWidget` has one, so there was **no way to photograph any row
+below the eleventh**. The second shot came back byte-identical to the first (794,825 B both) and
+the section the branch existed to add was never in frame.
+
+Fixed by adding a **`type <widget-id> <text>`** verb to `TestModeScreenshots.cs`: it sets the
+widget's `Text` property by reflection and then invokes its `OnTextEdited` field. **Invoking the
+callback is the whole point** — consumers hang their real work off it (`HotkeysSettingsLogic`
+rebuilds its entire list there), so setting `Text` alone would change the glyphs in the box and
+filter nothing, photographing an unfiltered list under a filtered caption. Requiring an
+`OnTextEdited` field is also what keeps the verb off the wrong widget: several widgets expose a
+writable `Text`, only a text field carries that callback, so a typo'd id reports a miss instead of
+quietly relabelling a button. **Scrolling is still unreachable** — this buys filtering only.
+
+**A duplicate frame is a signal, not noise.** Two byte-identical PNGs mean the state did not change
+between them, which for a driver taking deliberately different shots is a failure. `run-test`-style
+size checks cannot see it (both frames were a healthy 794 KB). `screenshot-hotkeys.sh` now counts
+distinct md5s and fails the run when it is short.
+
+## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+From run `manual_hotkeys_260922_005942`, a driver written the day before. Both `click` commands
+missed; both screenshots came out as **1,024,258-byte, byte-identical** pictures of the Esc menu
+with the target button plainly on screen. Every instinct — and the first two hypotheses raised off
+the frames — said the widget ids must be wrong.
+
+**They were not. `debug.log` ordering settles it, and nothing else does.**
+`external click: SETTINGS → NO SUCH VISIBLE WIDGET` sits **above** the sprite loads,
+`Scenario selection`, `[danger] reference`, `DEFCON wall region` and `Sync reports disabled` — all
+world-construction lines. The blind `sleep 20` expired mid-load, so there was no player HUD, no
+`MenuButtonsChromeLogic` and no `INGAME_MENU`. The second click landed one line *after*
+`Sync reports disabled` and missed by a hair. **A frame at t≈26s showing the menu is not evidence
+about t=20s** — that inference is the whole trap, and it points the fix at the ids.
+
+The ids were correct and checkable without launching: `IngameMenuLogic.AddButton:331` assigns
+`button.Id = id` from the bare string in `ingame-menu.yaml:5`'s `Buttons:` list (no prefix, no
+composition), and `PollCommands` `.Trim()`s the verb argument
+(`TestModeScreenshots.cs:219`).
+
+**Three things to carry:**
+
+- **`NO SUCH VISIBLE WIDGET` is ambiguous.** `ClickWidget` (`TestModeScreenshots.cs:282-294`)
+  returns false both when `FindVisible` found nothing **and** when it found the widget but could not
+  read a non-null public `OnClick` field off it, and `:227` logs the identical string for both. A
+  widget that is on screen and simply has no click handler reports as absent.
+- **`HOTKEYS_PANEL` is the id of two different widgets.** `SettingsLogic` sets `tab.Id = id`
+  (`:178`) on the tab button and `container.Id = panel.Key` (`:90`) on the panel container — the
+  same string. `FindVisible` walks `Children` **forward** and returns the first match (note
+  `Widget.HandleKeyPressOuter` walks them in **reverse**, so a real keypress and a scripted click do
+  not resolve ambiguity the same way). Today the tab wins because `SETTINGS_TAB_CONTAINER` precedes
+  `PANEL_CONTAINER` in `settings.yaml` and the container is `IsVisible`-gated on being active. A
+  reorder would silently turn this into an infinite retry against a widget with no `OnClick`.
+- **`send`-style "the command was consumed" is not "the command did something".** The existing
+  `send` helper in these drivers waits for `PollCommands` to delete the cmd file, which happens
+  whether or not the click found anything — so a missed click looks exactly like a hit and the run
+  goes on to capture. The fix that generalises is to retry against the **dispatch log line** rather
+  than a clock, which makes the precondition itself the wait. `screenshot-hotkeys.sh` now does this
+  (`click_until`); `screenshot-infopanel.sh` and `screenshot-editor-zones.sh` still use blind
+  sleeps and have the same latent failure — **not audited, not changed here.**
+
+Same family as the launcher-127 and zero-byte-log traps in `CLAUDE.md`, with one addition that is
+worse than either: those produce an obviously empty artifact, whereas this produces a large,
+well-formed PNG of the wrong screen. **File size cannot detect it** — SCREENSHOT.md's "the tell for
+a blank frame is file size" is true and does not apply. What detects it is the dispatch line, and
+secondarily that the two frames were byte-identical.
+
+## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Found re-deriving audit `260921-release-readiness.md` §2.5 **I1** ("There is no hotkey list a player
+can read", evidence: "`chrome/` inventory — no help/keys panel"). **I1 is wrong as stated.**
+`mod.yaml:208` loads `common|chrome/settings-hotkeys.yaml`, `common|chrome/settings.yaml:9` declares
+`HOTKEYS_PANEL: Hotkeys` in `SettingsLogic`'s tab list, and `IngameMenuLogic.CreateSettingsButton`
+(`:480-493`) is created unconditionally from `ingame-menu.yaml:5`'s `Buttons:` line. So Esc →
+Settings → Hotkeys has always enumerated the bindings, with each one read **live** from
+`modData.Hotkeys[hd.Name].GetValue().DisplayString()` (`HotkeysSettingsLogic.cs:73`) — a rebind
+cannot make it stale. The real I1 is a *discoverability* gap: nothing in the game points at it.
+
+**The defect underneath is different and is the one worth carrying.**
+
+- **A hotkey exists to the player only if its `Types:` appear in a `HotkeyGroups:` entry in
+  `settings-hotkeys.yaml`.** `HotkeysSettingsLogic.InitHotkeyList` (`:183-214`) iterates the
+  **groups**, not the definitions, and selects `hd.Types.Overlaps(typesInGroup)`. A definition whose
+  type matches no group is never cloned into the list: it cannot be read and cannot be rebound,
+  however well it works in a match. The chrome file is the registration.
+- **Nine WW3MOD keys were in exactly that state, and this is all of R5.** `84a1ee69` ("Add Cohesion
+  and Resupply Behavior stance bars") introduced three new types — `EngagementStance`,
+  `CohesionStance`, `ResupplyBehavior` — in `engine/mods/common/hotkeys/game.yaml` and did not touch
+  `settings-hotkeys.yaml`, which `git log` shows has only ever been written by upstream merges. The
+  nine (`Ctrl+Alt+A/D/F`, `Ctrl+Alt+1-6`) are all **bound and working** — `ingame-player.yaml:637-817`
+  wires each to a command-bar button — so R5's own column header, "unbound hotkey declarations", is a
+  misnomer; its verdict text, "9 declarations, none player-reachable", is exact. Unbound-by-default is
+  a separate and much larger set: **21** definitions ship with no key, 20 of them `SupportPowerNN` and
+  `StatisticsGraph`/`StatisticsArmyGraph`/`RemoveFromControlGroup`, plus `PowerDown`, whose key is
+  commented out in place (`ww3mod|hotkeys.yaml`, `PowerDown: # X`).
+- **Grouping is a display filter, not a registration, and that makes the hole quieter.**
+  `HotkeyManager` computes `HasDuplicates` over every definition regardless (`HotkeyManager.cs:43`,
+  `GetFirstDuplicate` `:91-103`: equal value **and** overlapping `Contexts`). But the red that flag
+  drives is painted on a remap button (`HotkeysSettingsLogic.cs:80-83`) that an ungrouped definition
+  never gets, so a clash involving one of the nine could not be seen by anyone.
+
+**Two things that fell out of the same sweep, both pre-existing:**
+
+- **`O` is double-bound in the Player context.** `WaypointMode: O` (`common|hotkeys/game.yaml:187`,
+  `Types: OrderGenerator`) and `ProductionTypePowers: O` (`ww3mod|hotkeys.yaml:20`, `Types:
+  Production`) share `Contexts: Player`, which is precisely `GetFirstDuplicate`'s predicate — this is
+  the **only** such collision across all 198 definitions the mod loaded at `d69e6883`. Both buttons
+  are visible at once in a match and `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks children
+  in reverse and returns on the first claim, so one of the two is dead. Which one is a draw-order
+  question this pass did not settle, and no capture was taken. Filed as a bug, not fixed here.
+- **`K` is the last free unmodified letter in the Player context.** Counted over all nine files
+  `mod.yaml:281-290` loads: every other letter A–Z is taken. This corroborates
+  `ww3mod|hotkeys.yaml`'s own comment ("J and K are the only unbound letters left") and is why the
+  eleven garrison/cargo buttons of §2.6 **U3** were given named-but-unbound definitions rather than
+  defaults — eleven defaults would have to be modifier chords or thefts.
+
+**Why a `Key:` on one of those eleven could not simply reuse a taken key.** `HandleKeyPressOuter` is
+gated on `IsVisible()` **only**, and children are walked in reverse with the first `true` winning. A
+visible `EJECT_PORT_0` bound to `1` would silently swallow control-group 1 for as long as a garrison
+is selected — a conflict with no symptom a player could trace. Panel-scoped keys are not scoped.
+
+**Also noticed, not acted on:** `ingame-info-howtoplay.yaml:96-101` tells the player Supply Routes
+are "indestructible". `CLAUDE.md` is emphatic that they are **untargetable, not indestructible**
+(`structures.yaml:347-348` `TargetTypes: NoAutoTarget`; the `Armor: Type: Indestructable` at `:368`
+is inert), and the distinction is exactly what decides whether a bypass such as `VaporizeWarhead`
+reaches one. Whether player-facing copy should carry that nuance is a call for the user, so the line
+is left alone and flagged here.
 
 ## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
 

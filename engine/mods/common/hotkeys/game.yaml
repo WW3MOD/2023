@@ -170,7 +170,7 @@ AutoEnter: L
 	Contexts: Player
 
 Evacuate: E
-	Description: Evacuate (leave via map edge, refund value)
+	Description: Evacuate (map edge, refund)
 	Types: Unit
 	Contexts: Player
 
@@ -184,7 +184,36 @@ ForceAttack: G
 	Types: OrderGenerator
 	Contexts: Player
 
-WaypointMode: O
+# SHIFT+O, NOT O, SINCE 2026-09-22 -- AND THIS IS NOT A PREFERENCE, IT IS A REPAIR.
+# Bare O was taken twice in the Player context: here (WW3MOD's own addition, 746c592c) and by
+# ProductionTypePowers in ww3mod|hotkeys.yaml. That is exactly HotkeyManager.GetFirstDuplicate's
+# predicate -- equal value and overlapping Contexts (HotkeyManager.cs:91-103) -- and it was the
+# ONLY such collision across all 209 definitions the mod loads. Esc > Settings > Hotkeys drew both
+# in red; nobody had ever opened it.
+#
+# THIS SIDE IS THE ONE THAT LOST, so moving it costs nothing a player currently has.
+# Widget.HandleKeyPressOuter (Widget.cs:450-465) walks Children in REVERSE and returns on the first
+# handler that claims the key. Under Container@PLAYER_WIDGETS (chrome/ingame-player.yaml) the
+# production sidebar is child index 24 and the command bar is index 15, so the sidebar is reached
+# first and ProductionTypeButton@POWERS swallows O every time -- unconditionally, because
+# ButtonWidget.HandleKeyPress returns true even when the button is DISABLED (:160-169), and nothing
+# hides the tab (ClassicProductionLogic sets IsVisible on the scroll arrows only). The command
+# bar's QUEUE_ORDERS button has therefore been keyboard-dead since the day it was given a key.
+#
+# WHY THIS SIDE AND NOT THE TAB. Both keys are WW3MOD's; neither is an upstream default, and
+# nothing outside mods/ww3mod/chrome/ingame-player.yaml references WaypointMode at all. So the
+# choice is on merit: Y/U/I/O is a deliberate contiguous run matching the production tab order
+# (see ww3mod|hotkeys.yaml), breaking it would cost a working key, and this binding is the one that
+# has never worked -- there is no muscle memory to preserve.
+#
+# WHY SHIFT AND NOT K. K is the last free unmodified letter in the Player context and this is a
+# comfort toggle over a gesture that already exists: the button's own tooltip says "Hold {(Shift)}
+# to activate temporarily while commanding units", and Shift+right-click already queues. Spending
+# the last bare letter on the sticky version of a modifier that already does the job is poor value,
+# and Shift is the modifier that already MEANS queue. O+Shift is free -- checked against every
+# definition -- and HotkeyReference.IsActivatedBy compares Modifiers for EQUALITY
+# (HotkeyReference.cs:43), so this cannot re-collide with the tab's bare O.
+WaypointMode: O Shift
 	Description: Waypoint (queue orders) mode
 	Types: OrderGenerator
 	Contexts: Player

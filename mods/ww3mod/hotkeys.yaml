@@ -16,7 +16,18 @@ ProductionTypeAircraft: I
 	Types: Production
 	Contexts: Player
 
-# O continues the Y/U/I run on the top row and is unbound in the Player context.
+# O continues the Y/U/I run on the top row.
+#
+# THE LINE HERE USED TO CLAIM O WAS "unbound in the Player context". IT WAS NOT, AND WAS NOT WHEN
+# WRITTEN: 746c592c had already given bare O to WaypointMode in common|hotkeys/game.yaml, so the
+# two collided under HotkeyManager.GetFirstDuplicate (equal value, overlapping Contexts) and the
+# settings panel drew both red. This side WON the clash and keeps its key -- Widget's reverse
+# child walk reaches the production sidebar (PLAYER_WIDGETS index 24) before the command bar
+# (index 15) -- so nothing about this binding changes. WaypointMode moved to O+Shift on
+# 2026-09-22; the reasoning is written out where that key lives.
+#
+# A NEW BINDING IN THIS FILE IS NOT PROVEN FREE BY THE FILES IN THIS FILE. The mod loads nine
+# hotkey files (mod.yaml:281-290) and a clash only needs overlapping Contexts, not a shared file.
 ProductionTypePowers: O
 	Description: Support Powers Tab
 	Types: Production
@@ -104,7 +115,7 @@ SupportPower17:
 	Contexts: Player
 
 GroupScatter: G Shift
-	Description: Scatter queued waypoints among selected units
+	Description: Scatter queued waypoints
 	Types: World
 	Contexts: Player
 
@@ -114,12 +125,12 @@ ToLastEvent: BACKSPACE
 	Contexts: Player, Spectator
 
 ShowAllOrders: Space
-	Description: Hold to show all friendly unit orders
+	Description: Hold to show friendly orders
 	Types: Viewport
 	Contexts: Player
 
 ShowTerritory: T
-	Description: Hold to show the territory (control) overlay
+	Description: Hold to show territory overlay
 	Types: Viewport
 	Contexts: Player
 
@@ -139,6 +150,96 @@ PowerDown: # X
 # (UnloadCargo.cs:69). Wording that ties the gesture to a location would promise placement
 # this feature does not have.
 UnloadMenu: J
-	Description: Unload menu — choose which class leaves the transport
+	Description: Unload menu (choose a class)
 	Types: World
+	Contexts: Player
+
+# ---------------------------------------------------------------------------------------------
+# GARRISON / TRANSPORT HOLD COMMANDS — the eleven buttons of chrome/ingame-player.yaml's
+# GARRISON_PANEL (:830) and CARGO_PANEL (:1053), which shipped with labels and tooltips and no
+# `Key:` at all (audit 260921 §2.6 U3, item R6).
+#
+# EVERY ONE OF THEM IS DELIBERATELY UNBOUND, and that is the point rather than an omission.
+# Two independent reasons, and either alone would be enough:
+#
+# 1. THERE IS ONE FREE UNMODIFIED LETTER IN THE PLAYER CONTEXT AND IT IS K. Counted across all
+#    nine files mod.yaml's Hotkeys block loads: A B C D E F G H I J L M N O P Q R S T U V W X Y Z
+#    are all taken. Handing out eleven defaults would mean eleven modifier chords nobody asked
+#    for, or stealing keys that already do something.
+# 2. A KEY ON A VISIBLE BUTTON SHADOWS EVERYTHING BELOW IT. Widget.HandleKeyPressOuter
+#    (Widget.cs:450-465) walks children in reverse and returns on the first handler that claims
+#    the key, and it is gated on IsVisible() only -- so an EJECT_PORT button bound to `1` would
+#    silently eat control-group 1 for as long as a garrison is selected. Not a conflict the
+#    player could diagnose.
+#
+# So these follow the SupportPower07-17 pattern directly above: a Description and no key, which
+# makes them BINDABLE rather than BOUND. Paired with the hotkey-group-hold-commands group in
+# common|chrome/settings-hotkeys.yaml, all eleven now appear under Esc > Settings > Hotkeys with
+# their live binding, which is the readable reference the audit says does not exist.
+#
+# Types: Hold is a new type. It exists so these eleven get their own section in that panel
+# instead of being buried among Unit Commands; nothing in C# reads it.
+#
+# WHAT ALREADY HAS A KEY, AND WHY THESE ARE STILL NOT REDUNDANT. UnloadAllTroops and DropSupply
+# duplicate Deploy (F) exactly -- Cargo and DropsSupplyCache both implement IIssueDeployOrder
+# (Cargo.cs:422, DropsSupplyCache.cs:587) and their button gates match CanIssueDeployOrder --
+# and the shipped tooltips say "Same as Deploy" out loud. They are declared anyway so the panel
+# enumerates the hold buttons completely; a player who never finds Deploy can bind these.
+# EjectAll is NOT a duplicate: it fires on GarrisonManager.HasAnyOccupants (ports + shelter)
+# while Deploy fires on Cargo.CanIssueDeployOrder = !IsEmpty() (shelter only), so with every
+# soldier pushed out to a firing port -- the 1HP-rubble case GarrisonPanelLogic.cs:53-56 names --
+# Deploy is disabled and this is the only order that still works.
+GarrisonEjectPort01:
+	Description: Unload firing position 1
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort02:
+	Description: Unload firing position 2
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort03:
+	Description: Unload firing position 3
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort04:
+	Description: Unload firing position 4
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort05:
+	Description: Unload firing position 5
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort06:
+	Description: Unload firing position 6
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort07:
+	Description: Unload firing position 7
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectPort08:
+	Description: Unload firing position 8
+	Types: Hold
+	Contexts: Player
+
+GarrisonEjectAll:
+	Description: Unload all (ports and shelter)
+	Types: Hold
+	Contexts: Player
+
+TransportUnloadAll:
+	Description: Unload all troops (= Deploy)
+	Types: Hold
+	Contexts: Player
+
+TransportDropSupply:
+	Description: Drop all supply (= Deploy)
+	Types: Hold
 	Contexts: Player
