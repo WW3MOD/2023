@@ -30,10 +30,11 @@
 -- GrantConditionOnDamageState@Damaged to grant `damaged` and switch on Targetable@VehicleRepair, not
 -- enough to bleed.
 --
--- DEADLINES ARE IN TICKS, NOT HARNESS SECONDS, PER AUTOTEST.md. TestHarness.TicksPerSecond is 25
--- while the mod runs at 16.67 ticks/s, so every "N seconds" window in this suite is really N x 1.5
--- and any duration reported in seconds is overstated by half again. Trigger.AfterDelay counts real
--- ticks and is immune to both that constant and to whatever game speed a run happens to use.
+-- DEADLINES ARE IN TICKS, NOT HARNESS SECONDS, PER AUTOTEST.md. This file names no harness constant
+-- at all and every window in it is a tick literal, which is why the 2026-09-22 correction of
+-- TestHarness.TicksPerSecond (25 -> 16.667, the engine's real rate) moved nothing here. Kept as tick
+-- literals deliberately: Trigger.AfterDelay counts real ticks and is immune both to that constant and
+-- to whatever game speed a run happens to use.
 
 local EvalTicks = 1500        -- ~90s of real time; the whole sequence should finish inside ~400.
 local SnapshotEvery = 100
@@ -44,6 +45,14 @@ local RepairRangeCells = 1    -- Repair weapon Range: 1c0, weapons-other.yaml:37
 
 local pollCount = 0
 local startHealth = 0
+local stagedCasualtyCell = nil
+local closestApproach = -1     -- best (smallest) sampled engineer->casualty distance; -1 until sampled
+
+-- HOW FAR THE CASUALTY MAY DRIFT before this scenario is measuring something else entirely. Two cells:
+-- large enough to absorb a pathfinder nudge, far smaller than the 10-38 cells a drafted casualty
+-- covers inside the window (measured: 22,16 -> 33,16 by t300 in run 260922_063223).
+local DraftedDriftCells = 2
+local DraftCheckTick = 400     -- both recorded runs had an offensive axis ORDERED by t189.
 
 local function chebyshev(a, b)
 	local dx = a.X - b.X
@@ -101,17 +110,78 @@ WorldLoaded = function()
 	end
 
 	local startDistance = engineerDistance()
+	stagedCasualtyCell = Casualty.Location
+	closestApproach = startDistance
+
+	-- ── THE DRAFTED-CASUALTY GUARD, AND IT IS A PRECONDITION READ-BACK RATHER THAN A VERDICT ──
+	--
+	-- WHAT IT WATCHES FOR. `abrams` resolves to UnitRole.MainBattle and PoiOffensiveBotModule's free
+	-- pool accepts exactly MainBattle || IndirectFire (PoiOffensiveBotModule.cs:3230), so before
+	-- rules.yaml overrode the staged actors' AIUnitRole the bot DRAFTED ITS OWN CASUALTY into an
+	-- offensive axis and drove it at the enemy Supply Route. The engineer then chases a tank at
+	-- infantry speed against a cell refreshed once per OrderSettleTicks (200) and the verdict turns on
+	-- the RNG seed: run 260921_213228 passed because the casualty crossed ONTO his cell at t100, and
+	-- run 260922_063223 failed because it left from 22,16 and reached 38 cells away. Same code, same
+	-- mechanism, opposite verdicts.
+	--
+	-- WHY IT SKIPS AND DOES NOT FAIL. If this fires, the AIUnitRole override in rules.yaml did not
+	-- reach the actor and NO STATEMENT ABOUT THE MODULE IS AVAILABLE from this run — the measurement
+	-- apparatus is what broke. Failing here would file a module bug against a scenario fault. Same
+	-- precedent as test-ambush-lane-share, which skips unless it reads its own floor back.
+	--
+	-- A MIS-CASED KEY IN A MAP'S rules.yaml IS SWALLOWED, which is exactly why a runtime read-back is
+	-- the only honest check: Map.PostInit catches a map-rules load failure, logs `Failed to load rules`
+	-- to debug.log and falls back to the tileset defaults (Map.cs:540-547). The keys are `abrams`
+	-- lowercase and `E3.america` with a capital E3; either one mis-cased reverts this scenario to
+	-- measuring the drafted casualty, silently and greenly.
+	Trigger.AfterDelay(DraftCheckTick, function()
+		if Casualty.IsDead then
+			return      -- the deadline handler below reports this, and reports it better.
+		end
+
+		local drift = chebyshev(Casualty.Location, stagedCasualtyCell)
+		if drift > DraftedDriftCells then
+			Test.Skip(string.format(
+				"apparatus fault, not a verdict: the casualty has moved %d cells from its staged cell " ..
+				"(%d,%d -> %d,%d) by tick %d, so something recruited it and the engineer is chasing a " ..
+				"moving vehicle rather than walking to a parked one. The `AIUnitRole: Role: Logistics` " ..
+				"override in this scenario's rules.yaml did not reach the actor — check the key casing " ..
+				"(`abrams` lowercase, `E3.america` capital E3; MiniYaml merges top-level keys " ..
+				"case-sensitively and a map-rules load failure is SWALLOWED into a defaults fallback), " ..
+				"then grep debug.log for `Failed to load rules`",
+				drift, stagedCasualtyCell.X, stagedCasualtyCell.Y,
+				Casualty.Location.X, Casualty.Location.Y, DraftCheckTick))
+		end
+	end)
 
 	-- Self-rescheduling snapshot; there is no Trigger.OnTick in this engine. Live counters go HERE and
 	-- never into a failure string built at registration time, which Lua would evaluate eagerly and
 	-- which would therefore report the starting values forever.
 	local function snapshot()
 		pollCount = pollCount + SnapshotEvery
+
+		-- CLOSEST SAMPLED APPROACH, because the FINAL distance cannot tell the two interesting
+		-- outcomes apart. Run 260921_213228 ended at dist 21 and PASSED: the engineer had been at 0 at
+		-- t100 and was left behind by a casualty that drove off. Run 260922_063223 ended at dist 24 and
+		-- had never been closer than 2. A single end-of-run number reads those as the same run, and the
+		-- old failure text — "the engineer NEVER WALKED" — was that conflation written down.
+		-- SAMPLED, not continuous: a transit through repair range between two polls is invisible here,
+		-- so this bounds the approach from above and the health delta stays the verdict.
+		local distanceNow = engineerDistance()
+		if distanceNow >= 0 and (closestApproach < 0 or distanceNow < closestApproach) then
+			closestApproach = distanceNow
+		end
+
+		local casualtyCell = Casualty.IsDead and "dead" or string.format("%d,%d (drift %d)",
+			Casualty.Location.X, Casualty.Location.Y,
+			stagedCasualtyCell and chebyshev(Casualty.Location, stagedCasualtyCell) or -1)
+
 		print(string.format(
-			"[eng-op] tick=%d | casualty hp=%d/%d (start %d) | engineer dist=%d c4=%d | decoys %s",
+			"[eng-op] tick=%d | casualty hp=%d/%d (start %d) cell=%s | engineer dist=%d (closest %d) " ..
+			"c4=%d | decoys %s",
 			pollCount,
-			Casualty.IsDead and -1 or Casualty.Health, maxHealth, startHealth,
-			engineerDistance(),
+			Casualty.IsDead and -1 or Casualty.Health, maxHealth, startHealth, casualtyCell,
+			distanceNow, closestApproach,
 			Engineer.IsDead and -1 or Engineer.AmmoCount("secondary-ammo"),
 			(ScreenDecoyA.IsDead or ScreenDecoyB.IsDead) and "lost" or "alive"))
 
@@ -139,10 +209,12 @@ WorldLoaded = function()
 
 		local hp = Casualty.Health
 		local distance = engineerDistance()
+		local casualtyDrift = chebyshev(Casualty.Location, stagedCasualtyCell)
 		local summary = string.format(
-			"casualty hp=%d/%d (staged %d, delta %d) | engineer dist=%d (started %d) c4=%d",
-			hp, maxHealth, startHealth, hp - startHealth, distance, startDistance,
-			Engineer.AmmoCount("secondary-ammo"))
+			"casualty hp=%d/%d (staged %d, delta %d) | engineer dist=%d (started %d, closest %d) " ..
+			"c4=%d | casualty drift %d cells",
+			hp, maxHealth, startHealth, hp - startHealth, distance, startDistance, closestApproach,
+			Engineer.AmmoCount("secondary-ammo"), casualtyDrift)
 
 		print("[eng-op] RESULT " .. summary)
 
@@ -151,26 +223,61 @@ WorldLoaded = function()
 			return
 		end
 
-		-- The two failures that share this one symptom, named so the next reader does not have to
-		-- guess which of them happened. `dist` separates them outright: the engineer either never
-		-- left, or arrived and did not heal.
+		-- THE THREE failures that share this one symptom, named so the next reader does not have to
+		-- guess which happened. The discriminators are `closest` and the casualty's drift, NOT the
+		-- final distance — which is the correction of 2026-09-22.
+		--
+		-- WHY THIS BRANCH SET GREW A THIRD ARM. It used to offer two ("never walked" / "arrived and
+		-- did not heal") and chose between them on the FINAL distance alone, so a run in which the
+		-- engineer walked correctly and the CASUALTY drove away was reported as "the engineer NEVER
+		-- WALKED: ... He was not employed at all", pointing the reader at map.yaml's actor name. In run
+		-- 260922_063223 that text was printed against a log showing the module ordering him every
+		-- cycle and the casualty 38 cells downrange — a confident, specific, wrong diagnosis, and the
+		-- triage it sent the next reader on is the cost this arm exists to avoid.
+		if casualtyDrift > DraftedDriftCells then
+			Test.Fail(string.format(
+				"the CASUALTY LEFT: it drifted %d cells from where it was staged, so the engineer was " ..
+				"chasing a moving vehicle. This is NOT a statement that he was unemployed — read the " ..
+				"`[engineer] ... repair cell=` anchors in debug.log; they track the casualty. Either " ..
+				"this scenario's AIUnitRole override stopped excluding it from the combat pools (it is " ..
+				"drafted after tick %d, past the read-back guard) or a module that ignores roles has " ..
+				"recruited it. %s",
+				casualtyDrift, DraftCheckTick, summary))
+			return
+		end
+
+		if closestApproach > RepairRangeCells then
+			Test.Fail(string.format(
+				"the engineer NEVER CLOSED: his closest sampled approach was %d cells and Repair " ..
+				"reaches %d, with the casualty parked throughout (drift %d). He was either not " ..
+				"employed at all — check that map.yaml places `e6.america` and not a bare `e6`, since " ..
+				"EngineerOperatorBotModuleInfo.OperatorActorTypes names the faction-suffixed types and " ..
+				"a bare e6 stands still exactly like a broken module — or he was ordered ONTO the " ..
+				"casualty's own cell, which he cannot enter, and stalled beside it: that was the " ..
+				"shipped bug until EngineerOperatorBotModule.RepairParkAnchor, so check the " ..
+				"`[engineer] ... repair cell=` anchor against the casualty's own cell first. %s",
+				closestApproach, RepairRangeCells, casualtyDrift, summary))
+			return
+		end
+
 		if distance > RepairRangeCells then
 			Test.Fail(string.format(
-				"the engineer NEVER WALKED: the casualty gained nothing and he is still %d cells away " ..
-				"(Repair reaches %d). He was not employed at all — the module did not order him, or " ..
-				"it did not recognise him. Check that map.yaml places `e6.america` and not a bare " ..
-				"`e6`: EngineerOperatorBotModuleInfo.OperatorActorTypes names the faction-suffixed " ..
-				"types, and a bare e6 stands still exactly like a broken module. %s",
-				distance, RepairRangeCells, summary))
+				"the engineer REACHED THE CASUALTY AND LEFT AGAIN without healing it: closest approach " ..
+				"%d cells, now %d away, casualty parked (drift %d). He was employed and he arrived, so " ..
+				"suspect a re-task that pulled him off a completed park — the screen employment " ..
+				"competing every ReevaluateInterval, or OrderSettleTicks expiring — rather than the " ..
+				"armament. %s",
+				closestApproach, distance, casualtyDrift, summary))
 			return
 		end
 
 		Test.Fail(string.format(
 			"the engineer ARRIVED AND DID NOT HEAL: he is %d cells from the casualty, inside the " ..
-			"%d-cell Repair range, and the casualty gained nothing. The employment fired but the " ..
-			"armament did not — suspect the auto-target chain (AutoTargetPriority@Repair, " ..
-			"Armament@Repair's `PauseOnCondition: suppressed >= 10`, or the casualty not presenting " ..
-			"Targetable@VehicleRepair) rather than the tasking module. %s",
-			distance, RepairRangeCells, summary))
+			"%d-cell Repair range, the casualty is parked (drift %d) and it gained nothing. The " ..
+			"employment fired and the walk completed but the armament did not — suspect the " ..
+			"auto-target chain (AutoTargetPriority@Repair, Armament@Repair's `PauseOnCondition: " ..
+			"suppressed >= 10`, or the casualty not presenting Targetable@VehicleRepair) rather than " ..
+			"the tasking module. %s",
+			distance, RepairRangeCells, casualtyDrift, summary))
 	end)
 end

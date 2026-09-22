@@ -384,7 +384,7 @@ namespace OpenRA.Mods.Common.Traits
 
 				case EngineerEmployment.Repair:
 					claimedTargets.Add(repair.ActorID);
-					IssuePark(bot, op, EngineerEmployment.Repair, repair.Location, repair.ActorID, tick);
+					IssuePark(bot, op, EngineerEmployment.Repair, RepairParkAnchor(op, repair), repair.ActorID, tick);
 					break;
 
 				case EngineerEmployment.Screen:
@@ -525,6 +525,52 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return best;
+		}
+
+		// The cell to send the engineer to in order to SERVICE `target`: an adjacent cell he can enter
+		// and stand on, chosen nearest-first from where he is now. Never the target's own cell.
+		//
+		// THE TARGET'S OWN CELL WAS THE SHIPPED ANCHOR AND IT IS WHY REPAIR NEVER LANDED. `repair.Location`
+		// went straight into IssuePark, whose BotTerrain.TryNearestStandable clamp tests TERRAIN ONLY —
+		// the ground under a tank is ordinary ground, so the clamp returned that same cell and the engineer
+		// was ordered to Move into the body of the thing he was sent to repair. Nothing downstream rescues
+		// it: a mobile blocker is not BlockedByActor.Immovable, so Mobile.NearestMoveableCell does not
+		// relocate the destination either (BotTerrain.EngineRelocationCells docs), and the Move simply
+		// stalls him short — OUTSIDE the one-cell repair reach — for the whole OrderSettleTicks window.
+		// Measured in run 260922_063223: ordered `cell=22,16` onto the casualty at 22,16, engineer sat at
+		// 24,16 from t100 to t300 without moving, delta 0. The run that passed the day before
+		// (260921_213228) did so because the casualty had been drafted onto the engineer's OWN cell by an
+		// offensive axis and was momentarily co-located — a coincidence, not the mechanism working.
+		//
+		// CanEnterCell AND CanStayInCell, both, in that order. CanEnterCell covers terrain, subcell
+		// occupancy and blockers in the one predicate the ENGINE uses, which is what the terrain-only
+		// clamp cannot do; CanStayInCell is separate because a transit-only cell can be entered and not
+		// held, and this is a PARKING employment — he has to stand there while the armament fires.
+		CPos RepairParkAnchor(Actor op, Actor target)
+		{
+			var mobile = op.TraitOrDefault<Mobile>();
+			if (mobile == null)
+				return target.Location;
+
+			// The engineer's own cell is included by construction whenever he is already adjacent —
+			// CanEnterCell ignores `self` — so an engineer who has arrived is re-anchored to where he
+			// stands and IssuePark's shift damping then leaves him alone. That is the difference between
+			// holding a completed park and re-walking it every cycle.
+			foreach (var offset in EngineerTaskingMath.ParkCandidateOffsets(op.Location - target.Location))
+			{
+				var candidate = target.Location + offset;
+				if (!world.Map.Contains(candidate))
+					continue;
+
+				if (mobile.CanEnterCell(candidate) && mobile.CanStayInCell(candidate))
+					return candidate;
+			}
+
+			// Ringed in — eight neighbours all blocked, off-map or unstandable. Fall back to the target's
+			// cell, which is the shipped behaviour: it does not work, but it keeps a standing order and a
+			// logged anchor rather than silently dropping this engineer out of the employment for a cycle,
+			// and the ring reopens as soon as whatever is crowding the casualty moves.
+			return target.Location;
 		}
 
 		// Where the forward friendly group is, or null when nothing is deployed. The SR exclusion is

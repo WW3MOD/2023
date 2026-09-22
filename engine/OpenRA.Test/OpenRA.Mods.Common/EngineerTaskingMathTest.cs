@@ -9,6 +9,7 @@
  */
 #endregion
 
+using System;
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
 
@@ -277,6 +278,103 @@ namespace OpenRA.Test
 				Assert.That(EngineerTaskingMath.CentroidAxis(5, 2), Is.EqualTo(3));
 				Assert.That(EngineerTaskingMath.CentroidAxis(-5, 2), Is.EqualTo(-3));
 			});
+		}
+
+		// ---------- ParkCandidateOffsets ----------
+
+		[Test]
+		public void ParkRing_NeverOffersTheTargetsOwnCell()
+		{
+			// THE REGRESSION THIS PINS, and it is the whole point of the ring. The repair employment used
+			// to pass the casualty's own Location as the park anchor; BotTerrain.TryNearestStandable tests
+			// TERRAIN ONLY and handed that cell straight back, so the engineer was ordered to Move into
+			// the body of the tank he was sent to repair and stalled short of the one-cell repair reach.
+			// A zero offset reappearing here would restore that outright.
+			foreach (var offset in EngineerTaskingMath.ParkCandidateOffsets(new CVec(4, 0)))
+				Assert.That(offset, Is.Not.EqualTo(new CVec(0, 0)), "the ring must never include the target's own cell");
+		}
+
+		[Test]
+		public void ParkRing_OffersEveryNeighbourExactlyOnce()
+		{
+			// Eight distinct cells, all adjacent. A ring that dropped one would refuse a legal park and
+			// fall back to the target's cell — i.e. to the bug — whenever that cell was the only free one.
+			var ring = EngineerTaskingMath.ParkCandidateOffsets(new CVec(0, -3));
+
+			Assert.That(ring, Has.Length.EqualTo(8));
+			Assert.That(ring, Is.Unique);
+
+			foreach (var offset in ring)
+			{
+				Assert.That(Math.Abs(offset.X), Is.LessThanOrEqualTo(1));
+				Assert.That(Math.Abs(offset.Y), Is.LessThanOrEqualTo(1));
+			}
+		}
+
+		[Test]
+		public void ParkRing_LeadsWithTheCellNearestTheEngineer()
+		{
+			// He walks to the NEAR side. Ordering the ring canonically instead would send an engineer
+			// standing due east of a casualty around it to the north cell — a longer walk through
+			// whatever the casualty is being shot at by, for no gain.
+			Assert.Multiple(() =>
+			{
+				Assert.That(EngineerTaskingMath.ParkCandidateOffsets(new CVec(4, 0))[0], Is.EqualTo(new CVec(1, 0)));
+				Assert.That(EngineerTaskingMath.ParkCandidateOffsets(new CVec(-4, 0))[0], Is.EqualTo(new CVec(-1, 0)));
+				Assert.That(EngineerTaskingMath.ParkCandidateOffsets(new CVec(0, 4))[0], Is.EqualTo(new CVec(0, 1)));
+				Assert.That(EngineerTaskingMath.ParkCandidateOffsets(new CVec(0, -4))[0], Is.EqualTo(new CVec(0, -1)));
+			});
+		}
+
+		[Test]
+		public void ParkRing_PrefersAnOrthogonalCellOverADiagonalAtEqualDistance()
+		{
+			// RANGE MARGIN, not style. `Repair` reaches 1c0 = 1024 and range is measured to the target
+			// HitShape's EDGE: against the ^Vehicle rectangle (+/-350 x, +/-500 y) an orthogonal
+			// neighbour sits 674 out and a diagonal 854. Both are legal, so a diagonal is still offered —
+			// but at EQUAL WALKING DISTANCE the orthogonal cell is offered first, keeping 350 units of
+			// margin against a footprint this arithmetic has not been re-derived for.
+			//
+			// A CARDINAL APPROACH IS WHERE THE TIE ACTUALLY LIVES, and an earlier version of this test
+			// asserted it on a diagonal approach of (4,-4) instead — where the north-east cell is
+			// Chebyshev 3 from the engineer and both neighbouring orthogonals are 4, so the diagonal is
+			// genuinely NEARER and winning on distance is correct. The rule under test only bites on a
+			// tie. Due east at (4,0): the east cell and both east diagonals are all 3 away.
+			var ring = EngineerTaskingMath.ParkCandidateOffsets(new CVec(4, 0));
+			var east = Array.IndexOf(ring, new CVec(1, 0));
+			var northEast = Array.IndexOf(ring, new CVec(1, -1));
+			var southEast = Array.IndexOf(ring, new CVec(1, 1));
+
+			Assert.Multiple(() =>
+			{
+				Assert.That(east, Is.LessThan(northEast), "the orthogonal east cell must precede the tied NE diagonal");
+				Assert.That(east, Is.LessThan(southEast), "the orthogonal east cell must precede the tied SE diagonal");
+			});
+		}
+
+		[Test]
+		public void ParkRing_IsDeterministicForAGivenApproach()
+		{
+			// Zero RNG is a stated invariant of the whole influence stack, and a park cell that varied
+			// between two calls in the same tick would desync a bot order. The tiebreak is the declared
+			// canonical order, so two calls must agree element for element.
+			var a = EngineerTaskingMath.ParkCandidateOffsets(new CVec(2, -5));
+			var b = EngineerTaskingMath.ParkCandidateOffsets(new CVec(2, -5));
+
+			Assert.That(a, Is.EqualTo(b));
+		}
+
+		[Test]
+		public void ParkRing_HandlesAnEngineerStandingOnTheTarget()
+		{
+			// A zero approach vector is reachable: infantry and a vehicle can share a cell in transit,
+			// which is exactly the coincidence that made run 260921_213228 pass. It must still return all
+			// eight neighbours rather than dividing by anything or returning the zero offset.
+			var ring = EngineerTaskingMath.ParkCandidateOffsets(new CVec(0, 0));
+
+			Assert.That(ring, Has.Length.EqualTo(8));
+			Assert.That(ring, Is.Unique);
+			Assert.That(ring, Has.No.Member(new CVec(0, 0)));
 		}
 	}
 }

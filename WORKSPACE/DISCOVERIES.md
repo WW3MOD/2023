@@ -74,6 +74,91 @@ predates the commit by six hours.** The worktree was at `e6732446`, whose main b
 `1160a531` (2026-09-21 15:22) -- not `d69e6883` (20:50). The true window was **15 merges, not 5**,
 and the cause sat in `70e63582`, four merges outside the assumed one. When a run dir is offered as
 a code reference, check the run's timestamp against the commit's `%cI` before diffing.
+## 2026-09-22 - A bot module ordered a unit ONTO the actor it was sent to service, and no gate could see it (`EngineerOperatorBotModule`, `main @ ef7362a7`)
+
+`test-experimental-engineer-repairs` passed on 2026-09-21 (run `260921_213228`) and failed on
+2026-09-22 (run `260922_063223`). **It was not a regression.** The two runs differ in RNG seed, not
+in any code that reaches this mechanism, and the defect the failing run exposed is present in the
+passing run's own log.
+
+### The generalisable finding: a terrain-only clamp cannot express "park NEXT TO"
+
+`EngineerOperatorBotModule.IssuePark` took the repair anchor as `repair.Location` — the casualty's
+**own cell** — and ran it through `BotTerrain.TryNearestStandable`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/EngineerOperatorBotModule.cs:634`). That clamp tests
+**terrain only** and says so in its own docs (`BotTerrain.cs`, `EngineRelocationCells`): the ground
+under a tank is ordinary ground, so it returned the same cell unchanged. The engineer was then
+ordered to `Move` into the body of the thing he was sent to repair.
+
+**Nothing downstream rescues it, and this is the part worth carrying.** The engine's own relocation
+(`Mobile.NearestMoveableCell`) tests `CanEnterCell(..., BlockedByActor.Immovable)` — and a **mobile**
+blocker is not `Immovable`, so the destination is not relocated either. Both the bot's clamp and the
+engine's clamp accept a cell occupied by a vehicle. The unqueued `Move` then stalls the engineer
+beside the casualty, **outside** `Repair`'s one-cell reach, for the whole `OrderSettleTicks` (200)
+window. Measured: ordered `cell=22,16` onto the casualty at `22,16`; engineer sat at `24,16` from
+t100 to t300 without moving; health delta 0.
+
+The module's own `[Desc]` says "PARKED within one cell of the thing he is servicing". **The code and
+the Desc disagreed, and the prose is what everyone read.**
+
+**Rule: when a module's anchor is a live ACTOR rather than a centroid, the terrain clamp is the wrong
+tool — the destination has to come off an adjacency ring filtered by `Mobile.CanEnterCell` AND
+`Mobile.CanStayInCell` (a transit-only cell can be entered and not held, and a parking employment has
+to stand still while its armament fires).** `FiresStandoffMath.NearestPassableCell` and
+`BotTerrain.TryNearestStandable` both answer a terrain question only. Fixed in
+`EngineerTaskingMath.ParkCandidateOffsets` + `EngineerOperatorBotModule.RepairParkAnchor`.
+
+### Why the passing run passed, and why that is the more useful half
+
+Not because the mechanism worked. The bot **drafted its own casualty into an offensive axis** —
+`abrams` resolves to `UnitRole.MainBattle` and `PoiOffensiveBotModule`'s free pool accepts exactly
+`MainBattle || IndirectFire` (`PoiOffensiveBotModule.cs:3230`) — and drove it at the enemy Supply
+Route. In `260921_213228` the casualty crossed **onto the engineer's own cell** at t100 while
+transiting east; at range 0 the repair armament fired once (+280 hp, 1%), and the deferred verdict
+read `hp > startHealth` and passed. In `260922_063223` the axis formed 52 ticks later and the
+casualty left from `22,16` instead, reaching 38 cells away.
+
+**The tell was in both logs and in neither verdict:** `[engineer] ... repair cell=` tracks the
+casualty east in each (`24,16 -> 36,16 -> 47,14 -> 56,6`, converging on the enemy SR at `60,4`).
+
+**Rule: a scenario that stages a COMBAT-ROLE actor as passive furniture is measuring a race against
+its own bot.** The scenario had carefully eliminated the confounder it thought of (no enemy is ever
+observed, so the higher-priority BREACH employment cannot fire) and was defeated by its own casualty
+being a legal recruit. The mod's own exclusion mechanism is the cheap fix and it closes all four
+pools at once: `AIUnitRole: Role: Logistics` — the same trait that keeps `^E6` parked
+(`infantry.yaml:1913-1914`) and the reason this module had to exist. Grepped, not assumed: nothing
+recruits `Logistics` (`UnitRole.Logistics` appears only in `CheckUnitRoleTable` and
+`UnitRoleResolverTest`), and the role filter is shared by `PoiOffensiveBotModule`,
+`LayeredDefenceBotModule`, `PoiGarrisonBotModule` and `LaneAmbushBotModule`.
+
+### The failure text was confidently, specifically wrong — and it is a repeatable shape
+
+The scenario chose between its two failure branches on the **final** distance alone, and printed:
+
+> "the engineer NEVER WALKED: ... He was not employed at all — the module did not order him, or it
+> did not recognise him. Check that map.yaml places `e6.america` and not a bare `e6`"
+
+against a log showing the module ordering him **every cycle** and a casualty 38 cells downrange. The
+engineer had also started 4 cells away and ended 24 — **the number in the same sentence contradicted
+the sentence**.
+
+**Rule: an end-of-run distance cannot distinguish "never arrived" from "arrived and was left
+behind", so do not let it select a failure message. Track the CLOSEST approach and the subject's
+drift from where it was staged.** The passing run ended at dist 21 having been at 0; the failing run
+ended at dist 24 having never been closer than 2. A single final number reads those as the same run.
+
+### No gate on this repo could have caught either half
+
+`make all`, `make check`, `dotnet test`, `make lua-gate` and `--check-yaml` are all green across
+this defect, and `make smoke` would be too: the World constructs, the map ticks, the module runs and
+logs, every order is issued and accepted. **The only instrument that can see "the bot did the wrong
+useful-looking thing" is a verdict scenario — which is exactly why a verdict scenario that passes on
+a coin flip is worse than none.** Its two recorded runs are one pass and one fail at different
+wall-clock seeds (`run-test.sh:770` seeds from the clock unless `--seed` is given); with n=2 there
+was no way to tell that apart from a regression, and the brief that triaged it as one was reasonable.
+
+**Rule: before bisecting a scenario flip, check whether the two runs share a seed.** If they do not,
+the code delta is a hypothesis and the two logs are the evidence — diff the logs first.
 
 ## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`)
 
