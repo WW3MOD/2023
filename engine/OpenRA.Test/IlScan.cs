@@ -14,6 +14,12 @@
  * method this body genuinely mentions. What it must never do is silently resolve NOTHING and read
  * as clean, which is why every caller asserts a floor on ResolvedCalls.
  *
+ * ScanStringLiterals (2026-09-22) answers it about ldstr, for BotOrderedMutationTest, which has to
+ * check that the order string a bot module ISSUES is the one the receiving trait RESOLVES. A
+ * mismatch there is invisible to a call scan: both halves still exist and still call each other's
+ * methods, the order is simply never matched and the feature is inert. Same naivety, same two
+ * outcomes, same floor rule.
+ *
  * ScanFieldWrites (2026-09-15) answers the same question about stfld/stsfld, for GarrisonPanelTest,
  * which has to distinguish "this logic class assigns Widget.IsVisible" from "this logic class
  * assigns Widget.Visible" -- two field stores, no call between them. The same naivety applies with
@@ -39,6 +45,7 @@ namespace OpenRA.Test
 		const byte NewobjOpcode = 0x73;
 		const byte StfldOpcode = 0x7D;
 		const byte StsfldOpcode = 0x80;
+		const byte LdstrOpcode = 0x72;
 
 		public sealed class Result
 		{
@@ -127,6 +134,43 @@ namespace OpenRA.Test
 			}
 
 			return written;
+		}
+
+		/// <summary>
+		/// Every string literal this method loads. Answers "do these two methods name the same order
+		/// string" — an issuer and a receiver that disagree compile, link and run, and the feature is
+		/// simply never reached. Same linear walk and the same caveats as <see cref="Scan"/>: a
+		/// spurious mid-operand token can only ADD a literal, so "this literal is present" is the safe
+		/// claim. Callers should assert a floor on the count before reading anything into an absence.
+		/// </summary>
+		public static List<string> ScanStringLiterals(MethodBase method)
+		{
+			var literals = new List<string>();
+
+			var body = method.GetMethodBody();
+			var il = body?.GetILAsByteArray();
+			if (il == null)
+				return literals;
+
+			for (var i = 0; i + 4 < il.Length; i++)
+			{
+				if (il[i] != LdstrOpcode)
+					continue;
+
+				var token = BitConverter.ToInt32(il, i + 1);
+				try
+				{
+					var literal = method.Module.ResolveString(token);
+					if (literal != null)
+						literals.Add(literal);
+				}
+				catch (ArgumentException)
+				{
+					// Not a string token — the byte matched mid-operand of another instruction.
+				}
+			}
+
+			return literals;
 		}
 	}
 }
