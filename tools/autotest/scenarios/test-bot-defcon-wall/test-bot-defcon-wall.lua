@@ -23,8 +23,19 @@ local BAND_WEST_EDGE = 43
 -- it (measured) -- DRIFT is what separates them; see the note on HOLD_ORDER_BUDGET below.
 local ADVANCE_X = 30
 
-local RUN_SECONDS = 70
-local HOLD_WINDOW_SECONDS = 20
+-- 1750 / 500 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+--
+-- THESE TWO ARE WHY THIS SCENARIO WENT RED, and the mechanism is not a plain timeout. The hold
+-- window OPENS at (RUN_TICKS - HOLD_WINDOW_TICKS); shrinking both by a third moved that open from
+-- tick 1250 to tick 833, i.e. into the stretch where the axis is still walking to the border. The
+-- drift it then measured was approach, not hold. Both are consumed as raw ticks now -- there is no
+-- seconds form left to drift, and Trigger.AfterDelay wants ticks anyway.
+local RUN_TICKS = 1750
+local HOLD_WINDOW_TICKS = 500
 local HOLD_DRIFT_CELLS = 2
 
 -- THE MODULE UNDER TEST, and the budget is scoped to it rather than to the bot.
@@ -121,7 +132,7 @@ WorldLoaded = function()
 	sample()
 
 	-- Open the hold window: snapshot where everything is and how many orders have been issued.
-	Trigger.AfterDelay((RUN_SECONDS - HOLD_WINDOW_SECONDS) * TicksPerSecond, function()
+	Trigger.AfterDelay(RUN_TICKS - HOLD_WINDOW_TICKS, function()
 		holdStart = {}
 		forEachLiveTank(function(i, t)
 			holdStart[i] = { t.Location.X, t.Location.Y }
@@ -131,7 +142,7 @@ WorldLoaded = function()
 		totalStartOrders = Test.BotOrdersQueued(USAbot)
 	end)
 
-	Trigger.AfterDelay(RUN_SECONDS * TicksPerSecond, function()
+	Trigger.AfterDelay(RUN_TICKS, function()
 		if furthestX < ADVANCE_X then
 			-- A FLOOR, NOT THE DISCRIMINATOR. The first RED run passed this (measured, 260913_233651):
 			-- the fires/echelon/staging anchors resolve to reachable cells on our own side and walk the
@@ -173,10 +184,10 @@ WorldLoaded = function()
 		local issued = Test.BotOrdersQueued(USAbot, HOLD_ORDER_MODULE) - holdStartOrders
 		if issued > HOLD_ORDER_BUDGET then
 			Test.Fail(string.format(
-				"%s queued %d orders during the %ds hold window (budget %d): the axis is churning "
+				"%s queued %d orders during the %d-tick hold window (budget %d): the axis is churning "
 				.. "-- re-offering a destination it cannot reach every scan. NOTE this counts that "
 				.. "module alone, so production and supply traffic cannot be the cause.",
-				HOLD_ORDER_MODULE, issued, HOLD_WINDOW_SECONDS, HOLD_ORDER_BUDGET))
+				HOLD_ORDER_MODULE, issued, HOLD_WINDOW_TICKS, HOLD_ORDER_BUDGET))
 			return
 		end
 
