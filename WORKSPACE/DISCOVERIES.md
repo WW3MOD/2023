@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it
+
+Measured, `test-combined-arms-rendezvous` run `260922_203626` (commit `b333834e`). The new escape
+fired exactly as designed — `[exp-transport] depart ... aboard=4 target=5 still-coming=1
+reason=EscortInContact grace=100 tick=378`, 94 ticks earlier than the `reason=Full` at t472 the same
+geometry produced the run before. **And the carrier did not move.**
+
+```
+t378  depart reason=EscortInContact aboard=4 still-coming=1
+      carrier bradley@8,18 ... pax=4 task=True
+      carrier bradley@8,18 ... pax=5 task=True      <- the straggler boarded
+t478  delivery-move-reissued carrier=bradley@8,18 drop=32,10
+      carrier bradley@10,18 activity=Move pax=5     <- first movement, 100 ticks after departing
+```
+
+`lua.log` agrees: `carrier=8,18` at t100, t200, t300, t400 **and t500**.
+
+**THE MECHANISM IS ALREADY WRITTEN DOWN TWICE IN THE SAME FILE**, which is what makes this worth
+recording — the information needed to predict it was in front of whoever added the valve:
+* `MountedTransportBotModuleInfo.FillBeforeDeparture`'s own `[Desc]`: a carrier that leaves early
+  leaves the rest "chasing it (**they then hold cargo reservations that keep the carrier Locked**; see
+  `Cargo.LockForPickup`)".
+* the Delivering idle-recovery comment, from the other end: "a passenger arriving after departure
+  calls `Cargo.ReserveSpace`, whose `LockForPickup` does **`self.CancelActivity()` on the CARRIER** —
+  killing the delivery move outright. **FillBeforeDeparture also removes the usual cause** (it does
+  not leave stragglers walking toward a departed carrier)".
+
+So `FillBeforeDeparture` was not only a fix for half-empty loads; it was *also* the thing suppressing
+the move-cancel, and any escape from it re-opens the second defect while solving the first. **Net
+effect measured: the valve saved 94 ticks and then lost 100.** A flag that moves `@stable` and is
+exactly counter-productive is the third instance of the same trap in this item, after
+`RendezvousWithOffensiveStaging` and `InfantryEscortHoldEnabled`.
+
+**The fix is to stand the stragglers down at departure** — `Stop` to every reserved/top-up passenger
+still in-world (out-of-world means *aboard*), plus a ledger release, sorted by ActorID because issuing
+ORDERS over a HashSet is order-dependent in a way the ledger release next to it is not. Scoped to the
+escape reason alone so no other departure path drifts. **It costs a passenger** — in this run the
+fifth boarded after departure and would now be left behind — which is the trade the "timely over full"
+doctrine call explicitly accepts, and it should be stated rather than discovered.
+
+**GENERAL RULE.** Before adding an escape from a wait, list what the WAIT was incidentally protecting.
+A wait state in a system with reservations is rarely only about the thing it is named for.
+
 ## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else
 
 Measured in `260922_200826`: `task-created` t72, `depart ... reason=Full` t472. **400 ticks loading**,

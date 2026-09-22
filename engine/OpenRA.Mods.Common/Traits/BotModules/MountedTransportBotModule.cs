@@ -623,6 +623,46 @@ namespace OpenRA.Mods.Common.Traits
 				goalGuard.Ledger.Commit(pax, TransportObjectiveKey(task.Carrier), world.WorldTick, goalGuard.DefaultCommitmentTicks);
 		}
 
+		/// <summary><para>Stand down every reserved passenger still WALKING when the escort escape fires, so
+		/// nobody is left chasing a carrier that has already left.</para>
+		///
+		/// <para>WITHOUT THIS THE ESCAPE IS SELF-DEFEATING, and the mechanism is written down twice in this file
+		/// already. <c>FillBeforeDeparture</c>'s own [Desc]: a carrier that drives away with passengers still
+		/// walking leaves them "chasing it (they then hold cargo reservations that keep the carrier Locked; see
+		/// Cargo.LockForPickup)". The Delivering re-issue says it from the other end: a late boarder's
+		/// <c>Cargo.ReserveSpace</c> calls <c>LockForPickup</c>, which does <c>CancelActivity()</c> on the CARRIER
+		/// and kills the delivery move outright. MEASURED, run 260922_203626: the escape departed t378 with
+		/// <c>still-coming=1</c>, the straggler boarded (pax 4 -> 5), the move died, and the carrier sat at 8,18
+		/// until the idle recovery re-issued at t478 — ONE HUNDRED TICKS, more than the ninety-four the escape had
+		/// just saved. The valve was exactly counter-productive.</para>
+		///
+		/// <para>Scoped to the escape alone, so a profile leaving EscortLoadGraceTicks at 0 gets no drift.
+		/// Out-of-world means ABOARD, so the in-world test is what separates a straggler from a passenger; the
+		/// capturer is never stood down.</para>
+		///
+		/// <para>DETERMINISM: the passenger sets are HashSets with no guaranteed iteration order, and this issues
+		/// ORDERS rather than the order-independent ledger release <see cref="ReleaseTaskPassengers"/> does — so
+		/// it sorts by ActorID, the explicit total order the rest of this module uses.</para></summary>
+		void StandDownStragglers(IBot bot, CarrierTask task)
+		{
+			var stragglers = task.ReservedPassengers.Concat(task.TopUpPassengers)
+				.Where(pax => pax != task.Capturer && !pax.IsDead && pax.IsInWorld)
+				.OrderBy(pax => pax.ActorID);
+
+			foreach (var pax in stragglers)
+			{
+				bot.QueueOrder(new Order("Stop", pax, false));
+
+				if (goalGuard != null && !goalGuard.IsTraitDisabled)
+					goalGuard.Ledger.Release(pax);
+
+				Log.Write("debug",
+					$"[exp-transport] straggler-stood-down player={player.PlayerName} " +
+					$"pax={pax.Info.Name}#{pax.ActorID}@{pax.Location} carrier={task.Carrier.Info.Name} " +
+					$"tick={world.WorldTick}");
+			}
+		}
+
 		// Release a task's passengers from the ledger (on unload / task teardown) so a delivered unit re-enters
 		// the free pool for offense immediately rather than idling until the TTL lapses. Idempotent — a second
 		// release for an already-freed unit is a no-op, so calling it at both unload and teardown is safe.
@@ -1012,6 +1052,14 @@ namespace OpenRA.Mods.Common.Traits
 							$"aboard={aboard} target={task.SeatTarget} still-coming={stillComing} " +
 							$"reason={departure} grace={Info.EscortLoadGraceTicks} " +
 							$"ferry={task.CaptureTarget != null} tick={world.WorldTick}");
+
+						// THE ESCAPE PATH ONLY, and it is what makes the escape worth anything at all. See
+						// StandDownStragglers: leaving a passenger walking toward a carrier that has just
+						// departed is the defect FillBeforeDeparture's own [Desc] describes, and an escape that
+						// departs early without this trades a late start for a CANCELLED one.
+						if (departure == CarrierDeparture.EscortInContact && stillComing > 0)
+							StandDownStragglers(bot, task);
+
 						LaunchDelivery(bot, task);
 					}
 
