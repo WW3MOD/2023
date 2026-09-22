@@ -3,6 +3,63 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
+
+Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any
+PASSING scenario had quietly become vacuous. **It had not.** All 23 scenarios that touch a pbox
+were read — lua verdict, `rules.yaml`, `map.yaml` — and the result is **UNAFFECTED 22 / BROKEN 1
+(already fixed) / VACUOUS 0 / WRONG 0**. Table and per-row citations:
+`WORKSPACE/audit/260922-pbox-vision-gate.md`.
+
+**THE REASON IT IS ONE SCENARIO IS A SINGLE LINE, AND IT GENERALISES.** `Vision.ValidRelationships`
+defaults to `PlayerRelationship.Ally` (`Vision.cs:24`, enforced in `AddCellsToPlayerMapLayer` at
+`:48-50`) and nothing in `mods/ww3mod` overrides it. Twenty of the twenty-three place their pbox
+under a player **other than the viewer**, so that pbox never contributed a cell to the reading
+player's layer — before or after the gate. A vision change to an actor can only invalidate a
+scenario that stages on the actor's OWN side seeing. That is the question to ask first next time,
+and it collapses most of the work.
+
+**THE COUNTERMEASURE GREP IS INCOMPLETE — this is the part worth carrying.** The rule this file
+recorded on 2026-09-22 was *grep `tools/autotest/scenarios/*/map.yaml` for the actor type before
+merging*, and it gives **18**, which is right for literal `: pbox` placements. Three more
+scenarios reach the same gate and are invisible to it, because they place a scenario-local CLONE
+declared in their own `rules.yaml` with `Inherits: PBOX`: `fogmarker`
+(`test-fog-darkness-ruler`), `shademarker` (`test-minimap-stance-shades`), `probebox`
+(`test-evac-refund-indicator`). All three happen to strip all ten `Vision@N`, so all three are
+immune — but that is luck the grep did not establish, and a clone written tomorrow without the
+removals would be gated silently. **Grep both sides: the map.yamls for the actor, and the
+rules.yamls for `Inherits: <ACTOR>`.** The remaining two of the 23 mention a pbox only in prose.
+
+**A STALE JUSTIFICATION IS A SECOND-ORDER CASUALTY OF A RULES CHANGE, AND IT OUTLIVES THE
+BREAKAGE.** Those same three clone scenarios each explain their `-Vision@N` block with some form
+of *"a stock pillbox would light its own 32-cell circle"*. Every one of those sentences became
+false on 2026-09-21 and none of them broke anything — the scenarios still pass, the removals are
+simply belt-and-braces now. The hazard is not the scenario, it is the next reader taking a
+confident comment with a real `file:line` beside it as evidence for a property PBOX no longer
+has. The same shape cost the better part of `cb8ce077`'s triage (point 1 of that entry: a
+correct-looking comment citing a real file:line, wrong for two reasons at once). All three
+corrected in-tree; the removals kept, because they keep each instrument independent of a gate it
+does not control.
+
+**AND THE CITE EVERYONE COPIED WAS OFF BY ONE.** `cb8ce077`, the scenario's `rules.yaml`, its
+`.lua`, this file, and the brief that commissioned the audit all cite the gate line as
+`structures-defenses.yaml:214`. It is **`:215`** — and it always was: the file is byte-identical
+from `70e63582` to `1d7ea03b` (`git log 70e63582..HEAD -- <file>` is empty) and reads `:215` at
+both ends. A wrong line number propagates faster than a wrong claim because it looks checkable;
+four copies existed within a day of the original. Corrected in all three live sites.
+
+**Verified, not assumed, that the gate really does mean "reveals nothing".** The only other
+vision ladder in PBOX's ancestry is `^BasicBuilding`'s `Vision@3/@2/@1` (`structures.yaml:14-23`),
+and all three keys are re-declared by `^StandardVision` and therefore sit inside the gated set;
+PBOX's own block (`:204-334`) and `^Defense` (`:2-23`) carry no second reveal trait. Related: an
+unmanned pbox also cannot SHOOT — its only armament is `AttackGarrisoned`, so the "AutoTarget
+needs vision" hazard is structurally unreachable for an empty box.
+
+**GTWR and HBOX: no action, and the reason is checkable.** Both were already gated before
+`70e63582` (`git show 70e63582^:…` → `:79` and `:329`), so the merge added the third and changed
+neither. 31 scenarios place a `gtwr` or an `hbox` and **not one contains a `GetVisibility` or
+`IsDetectedBy` call**, so none can be assuming either sees while unmanned.
+
 ## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
 
 **THE STALE CLAIM AND WHY IT SURVIVED THREE RECONCILIATIONS.** `WORKSPACE/HOTBOARD.md:18` and
@@ -98,7 +155,7 @@ touched vision. The cause is one added inherit line, four merges earlier than th
 triage brief assumed:
 
 ```
-mods/ww3mod/rules/ingame/structures-defenses.yaml:214
+mods/ww3mod/rules/ingame/structures-defenses.yaml:215
 PBOX:
 	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded   # added by 70e63582 (wt/neutral-entry)
 ```

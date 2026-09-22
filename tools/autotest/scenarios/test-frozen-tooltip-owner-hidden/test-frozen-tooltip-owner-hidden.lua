@@ -138,7 +138,7 @@ WorldLoaded = function()
 					"USA owns Box and its sight of 8,16 comes from ONE trait: the ungated " ..
 					"Vision@TestSelfSight (strength 10, 0..4c0) this scenario's own rules.yaml " ..
 					"adds to PBOX. It is there because the SHIPPED ladder is gated -- PBOX " ..
-					"inherits ^StandardVisionWhenLoaded (structures-defenses.yaml:214), so every " ..
+					"inherits ^StandardVisionWhenLoaded (structures-defenses.yaml:215), so every " ..
 					"Vision@N on an unmanned bunker carries RequiresCondition: loaded and reveals " ..
 					"nothing. 'shrouded' with visibility 0 is exactly what that gate looks like, " ..
 					"so suspect the override was dropped, renamed or merged away before you " ..
