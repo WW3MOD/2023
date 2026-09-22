@@ -1,7 +1,9 @@
 # nuke-perf — measuring what a nuclear detonation costs the CPU
 
-Two scenarios and one analyser. The scenarios fire a nuclear order at a pinned tick onto a
-populated 128×128 map and then do nothing; the analyser reads what the engine wrote.
+Three scenarios and one analyser. The first two fire a nuclear order at a pinned tick onto a
+populated but INERT 128×128 map and then do nothing; the analyser reads what the engine wrote.
+The third fires into a live bot-vs-bot match and reports its own readings — see
+[The third scenario](#the-third-scenario-a-nuke-inside-a-real-match).
 
 | | |
 |---|---|
@@ -9,6 +11,8 @@ populated 128×128 map and then do nothing; the analyser reads what the engine w
 | `tools/autotest/scenarios/demo-nuke-perf-single` | one `NukeSarmatRV`, the denominator |
 | `tools/nuke-perf/analyse.py` | reads `perf.log` + the benchmark CSVs, prints the table |
 | `tools/nuke-perf/selftest.py` | proves the parse against synthetic logs. No build, no launch |
+| `tools/autotest/scenarios/demo-nuke-perf-populated` | the same question inside a REAL two-bot match — see below |
+| `tools/nuke-perf/drive-populated.lua` | runs that scenario's Lua offline against stubbed bindings. No build, no launch |
 
 ---
 
@@ -243,6 +247,39 @@ produces an enormous log of rows reading zero. Against a 60 ms tick budget, a 1 
   invisible to it. Do not subtract it from `tick_time` and call the remainder anything.
 
 ---
+
+## The third scenario: a nuke inside a real match
+
+`tools/autotest/scenarios/demo-nuke-perf-populated` answers the question the two rigs above
+deliberately do not: **what does a tick cost when a salvo lands in a populated late game.**
+Two `@experimental` bots play a real Skirmish match on the shipped Polar Disorder map with
+production, movement, combat and fog all running; Russia fires one six-RV Sarmat at tick
+8000 and a back-to-back pair at 9600; `tick_time` p50/p90/p99/max is recorded for eight
+windows either side of each. Asked for by `WORKSPACE/audit/260921-release-readiness.md`
+P1/P3 and Part 3 row 11, which quote *What this does not measure* below back at this file.
+
+```sh
+./tools/autotest/run-test.sh --hidden --speed 4 --timeout 2400 demo-nuke-perf-populated
+grep -F 'NUKEPOP window' "$APPDATA/OpenRA/Logs/lua.log"
+```
+
+**IT TAKES NO `AUTOTEST_EXTRA_ARGS`, AND `Launch.Benchmark` MUST NOT BE ADDED.** Same reason
+the salvo/exchange pair above drops it, applied to the headline number rather than to the
+attribution: `Launch.Benchmark` sets `PerfHistory.Sampling`, which forces the terrain relight
+down its serial path, so a benchmarked `tick_time` is a measurement of a build nobody ships.
+That scenario reads the same `PerfHistory` item the CSV is written from via
+`Test.GetTickTimeMs()` — no flag, no sample — so its numbers are taken against the shipped
+configuration. `analyse.py` does not read it and is not meant to: there are no CSVs.
+
+**Its numbers are NOT comparable to this rig's in absolute terms** — different map, 96x96
+against 126x126, fog on rather than off, bots rather than statues. Compare the *shape* of the
+before/during/after delta, not the milliseconds. This rig stays the A/B instrument, because
+its aim point, actor count and impact ticks are pinned and that one's ground zero follows a
+moving army.
+
+Its Lua can be run to completion **without a launch slot**: `lua tools/nuke-perf/drive-populated.lua`
+stubs the engine bindings and exercises the windows, the statistics and the validity checks.
+Two real bugs were caught there before the first run was ever requested.
 
 ## What this does not measure
 

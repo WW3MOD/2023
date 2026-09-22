@@ -1,0 +1,204 @@
+DEMO: what a tick costs when a nuke lands in a POPULATED late game.
+
+Two @experimental bots play a real Skirmish match on the shipped Polar Disorder map.
+At tick 8000 Russia fires one full six-RV Sarmat salvo into the live centroid of USA's
+ground army; at tick 9600 it fires two more back to back. tick_time p50/p90/p99/max is
+recorded for eight windows -- the build-up, a baseline before each shot, the flight, the
+detonation, and the recovery after it.
+
+THE VERDICT IS A READING. There is no AssertWithin, no Test.Pass and no Test.Fail, and no
+number in this scenario is a threshold: neither WORKSPACE/audit/260921-release-readiness.md
+nor tools/nuke-perf/ names one, and nobody has agreed what a nuke is allowed to cost. It
+ends on Test.Skip at a pinned tick so the process exits cleanly and lua.log's buffered
+writer is flushed -- a watchdog kill loses the readings.
+
+WHY IT IS demo- AND NOT test-. Three separate reasons, any one of which is sufficient.
+  1. DOCS/recipes/DEMO.md: a test-* scenario asserts and writes a pass/fail result.json.
+     This one produces a distribution. lua-gate warns (exit 1) on a test- scenario that can
+     reach no verdict, and it would be right to.
+  2. run-batch.sh --all globs test-*. This run is ~10800 ticks, which at the throughput
+     measured on this map (below) is 900-1965 s against run-test.sh's 300 s default --
+     test-escalation-full-match's own description warns about exactly that and it is a
+     test-. A demo- prefix keeps it out of --all by construction rather than by a warning.
+  3. tools/autotest/scenarios/demo-nuke-perf and demo-nuke-perf-single are the same class of
+     thing -- measurement rigs that end on Test.Skip -- and tools/nuke-perf/README.md
+     already argues why Test.Skip in a demo- is right. This is the third member of that set
+     and belongs with them.
+
+WHY IT EXISTS AT ALL. demo-nuke-perf measures a detonation with everything that is not a
+detonation removed. Its own README says so: "Anything about a real match. There are no
+bots, no production, no combat: the 448 Russian actors sit still and the single USA actor is
+a Supply Route 54 cells away ... the absolute numbers are a floor for what a live game would
+pay, not an estimate of it." The 2026-09-21 release-readiness audit files that as P1 and P3
+and asks for this as Part 3 row 11: "The nuke perf pair + a populated-map nuke -- we learn
+whether a nuke in a real late game stutters. Today nothing measures that."
+
+--------------------------------------------------------------------------------------
+RUN IT AS
+--------------------------------------------------------------------------------------
+
+  ./tools/autotest/run-test.sh --hidden --speed 4 --timeout 2400 demo-nuke-perf-populated
+
+NO AUTOTEST_EXTRA_ARGS, AND THAT IS THE POINT -- do NOT add Launch.Benchmark here. It sets
+PerfHistory.Sampling (Game.cs:886), and TerrainLighting refuses its parallel sweep while
+that flag is true (TerrainLighting.cs:316-318), so a benchmarked run measures the serial
+relight -- a build nobody ships. Test.GetTickTimeMs() reads the same PerfItem the benchmark
+CSV is written from (Benchmark.cs:31) without setting the flag. Debug.EnableSimulationPerfLogging
+is optional and costs a real per-trait tax (three GC.CollectionCount calls and a
+Stopwatch.GetTimestamp around every trait tick, PerfTickLogger.cs:36-50) -- add it only when
+you want perf.log's long-tick attribution and accept that it inflates every tick_time here.
+
+WHERE --timeout 2400 COMES FROM, AND WHY IT IS NOT THE NOMINAL. --speed 4 nominally asks for
+66.7 ticks/s. The four runs recorded in test-escalation-full-match/description.txt, on THIS
+map with two bots, measured ~12 ticks/s on an idle machine and ~5.5 on a loaded one; that
+file's conclusion is that the scenario is CPU-bound on its own simulation, so --speed 8 does
+not double it. 10800 ticks is ~900 s at 12 ticks/s and ~1965 s at 5.5. 2400 is sized off the
+SLOW row with ~20 % of headroom. Sizing off the nominal is what cost that scenario its first
+two runs, both TIMEOUT-FAIL.
+
+IF THE SLOT IS TIGHT: FireTick1, FireTick2 and HardEndTick are three constants at the top of
+the .lua and everything else derives from them. Moving the pair to 6000/7600/8800 costs ~5
+minutes of wall clock and buys a less-late late game. Say which you ran.
+
+EXPECT "AUTOTEST_VERDICT outcome=SKIP exit=2". SKIP is the success case here: it is the rig
+saying "I finished, the numbers are in the log". TIMEOUT-FAIL means the watchdog fired and
+the readings may not have been flushed. Exit 3 is a LAUNCH failure -- nothing ran and nothing
+was measured; read server.log, and see tools/nuke-perf/README.md for the two causes that
+have actually happened (two traits registering the same ILobbyOptions id; a trait declared
+under the wrong system actor).
+
+--------------------------------------------------------------------------------------
+WHERE THE READINGS ARE
+--------------------------------------------------------------------------------------
+
+All of it is in lua.log, on lines prefixed NUKEPOP. The headline lines:
+
+  NUKEPOP window name=<w> from=<tick> to=<tick> n=<samples> p50=<ms> p90=<ms> p99=<ms>
+                 max=<ms> mean=<ms> over_budget=<n> over_bins=<n> census=usa_army=<n> rus_army=<n>
+
+  grep -F 'NUKEPOP window' lua.log
+
+THE EIGHT WINDOWS, and what each is for:
+
+  build      [300, 7699]        the whole bot build-up. The control: what a tick on this map
+                                costs with two bots and no nuke anywhere.
+  prefire1   [7700, 7999]       300 ticks immediately before shot 1. THIS IS THE BASELINE
+                                EVERY DETONATION NUMBER IS READ AGAINST -- same armies, same
+                                fog, same production, no warhead in the air.
+  flight1    [8000, 8157]       order to first impact. Should look like prefire1; if it does
+                                not, the beacon or the missile actor costs something.
+  deton1     [8158, 8558]       the detonation. 400 ticks, which outlasts ShockwaveEffect's
+                                ~400-tick sweep -- clipping at the last impact would measure
+                                the fireball and miss the sweep.
+  recover1   [8559, 8858]       300 ticks after. Should return to prefire1. If it does not,
+                                something the detonation created is still running.
+  prefire2   [9300, 9599]       baseline for the pair, on a map the first salvo has already
+                                changed (fewer actors, scarred terrain).
+  pair       [9758, 10188]      two salvos ~10 ticks apart: twelve RVs, twelve fireball
+                                lights. 430 ticks. THE QUESTION THIS WINDOW ASKS is whether
+                                two overlapping detonations cost about twice one, or worse.
+  recover2   [10189, 10488]     as recover1.
+
+Bounds shift with the actual order ticks; the log prints the ones used.
+
+READ p50 AS THE HEADLINE AND max AS THE HAZARD. p50 is what a tick costs while the
+detonation is live; max is the single worst tick, and a tick over 60 ms is one the
+simulation could not deliver on time, which is what a player feels as a freeze.
+`over_budget` counts those directly. Prefer comparing p50 between two runs: max is one
+sample and moves with whatever else the machine was doing.
+
+RESOLUTION, STATED SO NOBODY OVER-READS IT. p50/p90/p99 are 1 ms histogram bins -- exact to
+within 1 ms and biased low. That is the resolution the rest of the perf tooling already
+works at (PerfTimer.cs:26 formats ms as an integer; tools/nuke-perf/README.md calls a 1 ms
+floor "1.7 % against a 60 ms tick budget ... fine as a floor"). `max` and `mean` are full
+precision. Every sample lags two ticks and is filed under the tick it actually measures --
+see the .lua header, and note that a benchmark CSV lags by ONE, so the two are not
+line-up-able on a tick number.
+
+Supporting lines:
+
+  NUKEPOP loaded ...                  the schedule and the derived impact offset
+  NUKEPOP census tick=<t> ...         army sizes every 500 ticks, the whole match
+  NUKEPOP order shot=<n> ...          order tick, ground zero, army under it at r24 and r48
+  NUKEPOP salvo-window-opens/closes   the impact-counter cross-check
+  NUKEPOP shot slot=<n> ...           one summary line per shot
+  NUKEPOP pair gap_ticks=<n>          how back-to-back the pair actually was
+  NUKEPOP valid yes | NUKEPOP invalid <why>    read this FIRST
+
+--------------------------------------------------------------------------------------
+WHAT MAKES A RUN INVALID
+--------------------------------------------------------------------------------------
+
+The run says so itself, on `NUKEPOP invalid` lines, and a run with any of them is not a
+reading about a populated late game however healthy the milliseconds look. An empty map is
+indistinguishable from a cheap detonation -- demo-nuke-perf's first run produced a clean
+1000-tick log of nothing happening, which is the worst failure this class of rig has.
+
+  * A SHOT NEVER ISSUED. The arm status says which gate was shut: `refused` means the queue
+    would not take it (the sandbox option or the faction prerequisite), `absent` means no
+    such power on the player, `loading` means it never finished. Every window downstream of
+    that shot is a window of nothing.
+  * NO ARMY. Either side below ArmyFloor (12) ground attackers at a fire tick. The word
+    "populated" stops being honest and the numbers are a small-match reading.
+  * NOTHING UNDER THE AIM POINT. Zero target actors within 48 cells of ground zero.
+  * THE SALVO DID NOT RAISE THE IMPACT COUNT. Fewer gated impacts across the derived salvo
+    window than in the flight window before it, scaled -- so the warheads did not land where
+    the derived offset says, or landed on nothing, and every window for that shot is
+    measuring something else.
+
+ONE WAY THE LAST ONE CAN HAPPEN ON GOOD TERRAIN, worth knowing before you diagnose it as a
+geometry bug: CreateEffectWarhead discards impacts on invalid terrain, and Polar Disorder is
+not solid land -- nav-guard reports cell (48,48), the middle of the playfield, as impassable
+for wheeled, heavytracked and foot alike. Ground zero is the centroid of a GROUND army so it
+is near passable ground by construction, but a centroid can still fall in a gap between two
+wings of an army. If a run reports a rise at or below zero while the census is healthy and
+the shots were issued, read `groundzero` off the order line and look at where it is before
+assuming the approach geometry moved.
+
+(For the record, the geometry that matters was checked without launching: both Supply Routes
+-- 93,16 and 4,81 -- are in the LARGEST connected component for wheeled, heavytracked and
+foot, so the two bots can reach each other, and nav-guard's per-locomotor component table for
+this scenario is byte-identical to test-escalation-full-match's on the same terrain.)
+
+A positive rise short of six warheads is a NOTE, not an invalidation: the combat baseline is
+one sample of a live battle and is noisy at this window length. The offline driver measured
+that noise rather than assuming it (see the .lua).
+
+TWO THINGS THAT ARE *NOT* INVALIDATIONS:
+  * A bot losing its whole field army to a salvo. Neither side can be conquered out --
+    SUPPLYROUTE carries Targetable.TargetTypes: NoAutoTarget, a target type no weapon lists,
+    so no warhead reaches it and the bot keeps producing into the window.
+  * Wildly different numbers from demo-nuke-perf. Different map, different size, fog on
+    rather than off, bots rather than statues. The two rigs are not comparable in absolute
+    terms and this one is not a replacement for that one.
+
+--------------------------------------------------------------------------------------
+WHY THE ONLY NUCLEAR DETONATIONS ARE THE THREE THIS FILE ORDERS
+--------------------------------------------------------------------------------------
+
+This matters more than it looks: an unscheduled bot nuke inside a baseline window would ruin
+the reading silently. It cannot happen here, for two independent reasons.
+  * The engine's SupportPowerBotModule is instantiated NOWHERE in mods/ww3mod. ai.yaml:2899
+    says so: "every bot in every mode has sat on a full nuclear bin and never clicked it."
+  * NuclearBotModule, the one thing that does fire, early-returns on
+    `nuclearExchange.Mode != DefconGameMode.Escalation` (NuclearBotModule.cs:278) and its
+    [Desc] ends "Inert outside DefconGameMode.Escalation" (:82).
+This scenario leaves the mode at its shipped Skirmish, so both gates are shut. IF ANYONE EVER
+SWITCHES THIS SCENARIO TO ESCALATION, THAT GUARANTEE IS GONE and every window becomes
+unattributable.
+
+--------------------------------------------------------------------------------------
+WHAT THIS STILL DOES NOT MEASURE
+--------------------------------------------------------------------------------------
+
+  * THE GPU UPLOAD AND FRAME RATE. Under --hidden nothing is drawn. This measures simulation
+    ticks and says nothing about whether the detonation looks smooth. Same limitation
+    demo-nuke-perf's Profile A has, for the same reason.
+  * TWO RUNS AT THE MILLISECOND. Ground zero is the live centroid of a moving army, so two
+    runs differ in what was under the warheads. Every input that makes them differ is printed
+    with the shot. demo-nuke-perf remains the A/B rig; this is a reading.
+  * THE FINAL-EXCHANGE VARIANT. Shipped NukeSarmatRV only. demo-nuke-perf's `exchange` arm
+    covers that comparison and covers it better, because its two arms share a schedule.
+  * VARIANCE. One run is one run, on a machine that may be building something else at the
+    time -- background load moves these numbers by 3x on its own
+    (WORKSPACE/DISCOVERIES.md, 2026-09-20). Two disagreeing runs mean the machine was busy.

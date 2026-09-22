@@ -59,6 +59,98 @@ needs vision" hazard is structurally unreachable for an empty box.
 `70e63582` (`git show 70e63582^:…` → `:79` and `:329`), so the merge added the third and changed
 neither. 31 scenarios place a `gtwr` or an `hbox` and **not one contains a `GetVisibility` or
 `IsDetectedBy` call**, so none can be assuming either sees while unmanned.
+## 2026-09-22 - `tick_time` can be read from Lua WITHOUT `Launch.Benchmark`, and that matters because the benchmark flag measures a build nobody ships (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**THE INSTRUMENT AND THE TAX ARE THE SAME FLAG, AND ONLY ONE OF THEM IS WANTED.** `tools/nuke-perf`
+reads per-tick cost out of `nukeperf-tick_time.csv`, which only exists when the run is launched with
+`Launch.Benchmark`. That argument also sets `PerfHistory.Sampling` (`Game.cs:886`) — and since the
+parallel-relight lever, `TerrainLighting` refuses its parallel sweep while that flag is true
+(`TerrainLighting.cs:316-318`, the `&& !PerfHistory.Sampling` conjunct). So **every benchmarked
+`tick_time` number is taken against the SERIAL relight**, i.e. against a build the mod does not
+ship. `tools/nuke-perf/README.md` already knows this for the salvo/exchange pair — it tells you to
+drop `Launch.Benchmark` for that arm — but the general `tick_time` reading it leads with is still
+taken under the flag.
+
+**THE DATA IS THERE WITHOUT THE FLAG.** The `tick_time` `PerfSample` lives in `Game.InnerLogicTick`
+(`Game.cs:805`) and is **unconditional**: it runs on every tick whether or not anything is sampling.
+`Benchmark.Tick` does nothing cleverer than `PerfHistory.Items["tick_time"].LastValue`
+(`Benchmark.cs:31`). A Lua binding that reads the same property is the same quantity in the same
+unit, with no flag set and no sample taken. Added as `Test.GetTickTimeMs()`.
+
+**THE TWO READINGS LAG BY DIFFERENT AMOUNTS, AND THE DIFFERENCE IS ONE TICK.** `PerfHistory.Tick()`
+publishes the accumulated total and zeroes it at `Game.cs:826`; the `tick_time` sample only *adds*
+this tick's cost when its `using` block closes at `:833`. A `Trigger.OnTick` callback runs inside
+`world.Tick()` at `:824`, i.e. **before** the publish, so what Lua reads is the cost of tick **N-2**.
+`Benchmark.Tick` runs at `:834`, after both, so a **CSV row labelled N holds the cost of tick N-1**.
+Offset by 2 in a script and by 1 in a CSV; never line a Lua reading up against a CSV row on the same
+tick number.
+
+**WHAT THIS DOES NOT BUY.** Nothing about attribution — `perf.log`'s long-tick rows still need
+`Debug.EnableSimulationPerfLogging`, which carries its own per-trait-tick tax
+(`PerfTickLogger.cs:36-50`). And nothing about the GPU: under `--hidden` nothing is drawn either
+way.
+
+## 2026-09-22 - Anchoring a measurement window on an OBSERVED impact works on an inert map and cannot work in a live match; the fix is to derive the tick and count impacts instead (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`demo-nuke-perf` anchors its detonation window on the first rise in `Test.GetImpactEffectCount()`,
+and is right to: its map is 448 statues and one Supply Route, so the only thing that can move that
+counter is the salvo.** Put the same rig in a two-bot match and the counter climbs every few ticks
+from ordinary combat, so the first rise after an order is almost never a warhead — it is whichever
+tank round happened to land. A window anchored there is a window pointed at nothing in particular,
+and the resulting p50 looks perfectly plausible.
+
+**THE OFFLINE DRIVER MEASURED THIS RATHER THAN THE COMMENT ASSERTING IT.** With a synthetic combat
+impact every 9 ticks, the first-rise anchor fired 22 ticks early on **all three** shots, in the arm
+where no warhead landed at all.
+
+**THE WORKING SHAPE IS: DERIVE THE TICK, AND USE THE COUNTER AS A COUNT.** The impact tick is fully
+determined by shipped geometry — `entry standoff = mapDiagonal + ApproachMargin` (and
+`TestHarness.ApproachStandoffCells`, which takes **MapSize, not Bounds**), `flight = standoff /
+Speed`, `impact = MissileDelay + PreLaunchTicks + flight`. On a 98x98 map with `Speed: 1600` and
+`MissileDelay: 60` that is **158**; the same arithmetic on `demo-nuke-perf`'s 128x128 map gives 126,
+which is the number that file's own header records — that agreement is what makes the derivation
+trustworthy. The counter is then sampled three times per shot and asked a question it *can* answer:
+did the salvo window carry more gated impacts than the flight window before it, scaled?
+
+**TWO THINGS THAT BIT WHILE BUILDING THAT CHECK, BOTH FOUND OFFLINE, EITHER OF WHICH WOULD HAVE COST
+A LAUNCH SLOT.**
+1. **One 72-tick combat sample is too noisy to subtract.** With all six warheads landing, two
+   adjacent 72-tick samples read 13 and 9 — a rise of 4 against 6 warheads, so a good salvo was
+   called a miss. The verdict is now graded: a rise **at or below zero** invalidates, a positive
+   rise short of six is a note saying the evidence is weak.
+2. **The obvious fix — sample three spans BEFORE the impact — reaches back past the order.** At
+   `impact - 216` on this schedule the shot record does not exist yet, the sample is never taken,
+   and the run dies at the closing sample on `attempt to perform arithmetic on a nil value`. The
+   **flight window** is the baseline that has neither problem: bounded by the order at one end and
+   the impact at the other, and always available.
+
+**GENERAL FORM, worth carrying past this scenario: a detector calibrated on an inert rig does not
+transfer to a populated one, and it fails SILENTLY — by pointing somewhere plausible rather than by
+erroring.** Any autotest predicate that reads a mod-wide running counter (`GetImpactEffectCount`,
+`GetActiveMissileCount`) is in this class the moment a second combatant is added to the map.
+
+## 2026-09-22 - Three small traps met while building a scenario on a fresh worktree, none of which is about the scenario (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`tools/nav-guard/nav_guard.py` IS TRACKED NON-EXECUTABLE** (mode `100644`, against
+`tools/lua-gate/lua_gate.py`'s `100755`). `./tools/nav-guard/nav_guard.py report ...` — the form
+[`DOCS/recipes/AUTOTEST.md`](../DOCS/recipes/AUTOTEST.md) §"Verify before you ask for a slot" prints
+twice — dies with `permission denied` and **exit 126**. Same family as the `engine/utility.sh` 126
+trap already in CLAUDE.md: a fast non-zero exit with no useful output is a LAUNCH failure, not a
+result. `python3 tools/nav-guard/nav_guard.py ...` works. (`make nav-guard` is unaffected; it
+invokes the interpreter itself.)
+
+**THERE IS A LUA INTERPRETER ON THIS MACHINE.** `test-escalation-full-match.lua:52` states, as the
+reason it hand-writes `math.floor(a * 100 / b)` rather than `//`, that "there is no Lua interpreter
+on the dev machines to parse with". On this macOS host there is: `/usr/local/bin/lua`, **Lua 5.5.1**.
+`lua -e 'assert(loadfile("<scenario>.lua"))'` is a free syntax check, and stubbing the `Test.*`,
+`TestHarness.*` and `Player.*` bindings makes the whole scenario **runnable offline** — which is how
+both bugs in the entry above were found without a slot. **The `//` warning still stands and is
+sharper, not weaker:** 5.5 *accepts* floor division, so a local parse would GREEN a file that Eluant
+rejects. Use the interpreter for logic, never as evidence about the dialect.
+
+**`ls -d tools/autotest/scenarios/*/ | wc -l` = 367 at this ref**, against CLAUDE.md's predicted-but-
+unobserved 320 and its 10 shipped maps. That row says to recount rather than quote, and it is right:
+the figure moved by 47 in the time it took the prediction to be written down.
 
 ## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
 

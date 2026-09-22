@@ -18,6 +18,7 @@ using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
 using OpenRA.Mods.Common.Widgets.Logic.Ingame;
 using OpenRA.Scripting;
+using OpenRA.Support;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -1515,6 +1516,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 		public int GetImpactEffectCount()
 		{
 			return TestMode.IsActive ? TestMode.ImpactEffectCount : 0;
+		}
+
+		[Desc("The wall-clock cost in milliseconds of a recently completed simulation tick. This is " +
+			"the SAME quantity, in the same unit, that benchmark mode writes to the `tick_time` CSV: " +
+			"both read PerfItem.LastValue off PerfHistory.Items[\"tick_time\"] (Benchmark.cs:31), and " +
+			"that item's PerfSample lives in Game.InnerLogicTick (Game.cs:805) where it runs on every " +
+			"tick whether or not anything is sampling.\n" +
+			"WHY THIS EXISTS RATHER THAN Launch.Benchmark: setting Launch.Benchmark sets " +
+			"PerfHistory.Sampling (Game.cs:886), and TerrainLighting refuses its parallel sweep while " +
+			"that flag is true (TerrainLighting.cs:316-318). A benchmarked run therefore measures the " +
+			"serial relight, which is not the build the mod ships. This binding sets no flag and takes " +
+			"no sample, so it reads tick cost off the shipped configuration.\n" +
+			"THE VALUE LAGS TWO TICKS, AND NOT BY THE SAME AMOUNT AS THE CSV. PerfHistory.Tick() " +
+			"publishes the accumulated total and zeroes it at Game.cs:826, while the tick_time sample " +
+			"only disposes — and so only adds this tick's cost — when the using block closes at :833. " +
+			"A Lua tick callback runs inside world.Tick() at :824, i.e. before the publish, so what it " +
+			"reads is the cost of tick N-2. Benchmark.Tick runs at :834, after both, so a CSV row " +
+			"labelled N holds the cost of tick N-1. Offset by 2 here and by 1 there; never line a Lua " +
+			"reading up against a CSV row on the same tick number.\n" +
+			"Returns 0.0 before two ticks have completed, and 0.0 outside test mode. Test mode only.")]
+		public double GetTickTimeMs()
+		{
+			return TestMode.IsActive ? PerfHistory.Items["tick_time"].LastValue : 0.0;
 		}
 
 		[Desc("Returns the number of in-flight Missile projectiles currently in the world. " +
