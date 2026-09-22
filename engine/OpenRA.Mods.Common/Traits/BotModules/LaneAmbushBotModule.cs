@@ -53,6 +53,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using OpenRA.Mods.Common.Pathfinder;
 using OpenRA.Traits;
@@ -98,6 +99,38 @@ namespace OpenRA.Mods.Common.Traits
 			"below the minimum through attrition is retired through the ordinary release path. Set equal to",
 			"UnitsPerAmbush for 'post a full lane or none'.")]
 		public readonly int MinUnitsPerAmbush = 0;
+
+		[Desc("ARMY-SHARE RESERVE: refuse to recruit a unit while doing so would leave PoiOffensiveBotModule's",
+			"free pool below ITS OWN FreePoolMinAdvanceUnits. false (default) = OFF, leaving the ungated",
+			"module's behaviour untouched, which is what any profile omitting the field reads.",
+			"THE HOLE IT CLOSES (PIPELINE item 86). MinUnitsPerAmbush stops the lane posting a unit ALONE; it",
+			"says nothing about what the lane's share of a small army should be. Measured in run 260906_091912",
+			"with three eligible units: `[exp-ambush] lane post=28,12 units=2` and `[exp-ledger] free=1 held=2",
+			"by=ambush:2` — the lane took two, the army's only MBT among them, and the tank walked 8,16 -> 20,14",
+			"and died at t585, while `[exp-staging] hold-under-min pool=1 min=2` shows offense refusing to",
+			"advance the single unit it had left. Neither module was wrong on its own: offense held correctly",
+			"below its floor, the lane posted a correctly-manned pair. The army was split below the threshold",
+			"BOTH halves needed, and nothing in either module could see the other's share.",
+			"READS THE OFFENSE'S OWN NUMBERS, never a private estimate: the free-pool count and axis state",
+			"published by PoiOffensiveBotModule.TryGetFreePoolSnapshot (identical to the free= in that tick's",
+			"[exp-ledger] line) and the floor from its EffectiveFreePoolMinAdvanceUnits.",
+			"THERE IS NO AXIS WAIVER. The first cut waived the reserve whenever an offensive axis was live, by",
+			"analogy with ForwardStagingMath.FreePoolMayAdvance, and run 260922_005229 proved the analogy false:",
+			"an axis formed at t118 out of the ENTIRE two-unit free pool and the waiver let the lane recruit two",
+			"units at t200 with no reserve line printed. An axis has CONSUMED units; its existence is not",
+			"evidence of spare capacity. Narrowing by axis SIZE would not have helped — that axis held exactly",
+			"EarlyMinAxisSize (2). CONSEQUENCE, and it is a doctrine change worth knowing: with no waiver the",
+			"lane recruits only while offense's free pool EXCEEDS its floor, so on a bot whose pool hovers at the",
+			"floor all match the lane may never post at all. That is ruling (a) applied literally.",
+			"FAILS TOWARD OFFENSE and cannot churn, like MinUnitsPerAmbush above: the refusal is at the RECRUIT",
+			"step, so nothing is committed, granted or ordered and there is nothing to hand back next eval — the",
+			"unit simply never leaves the free pool. It never RECALLS a posted unit. Per-eval count test, no",
+			"counter and no latch. See AmbushLaneMath.ReserveAllowance.",
+			"NOT A UNIT PREFERENCE. The reserve bounds HOW MANY the lane takes, never WHICH: recruits are still",
+			"chosen by proximity to the post cell alone (:389-393), so a pool large enough to clear the floor can",
+			"still hand the lane the army's only tank. That is a separate behavioural change and is filed as a",
+			"follow-up on item 86, not fixed here.")]
+		public readonly bool OffenseFloorReserveEnabled = false;
 
 		[Desc("Where along the friendly-SR -> enemy-SR line to post the ambush, as a percent of the way",
 			"from OUR beachhead toward the enemy's. Below 50 keeps the post on our side of the midline —",
@@ -355,6 +388,16 @@ namespace OpenRA.Mods.Common.Traits
 			var free = BuildFreePool();
 			var ordered = lanes.OrderByDescending(l => l.Score).ThenBy(l => l.AnchorId).ToList();
 
+			// ARMY-SHARE RESERVE (item 86). ONE allowance for the whole eval, spent across lanes in the same
+			// score order they are filled in — two lanes must share the army's spare units, not each take the
+			// full allowance. int.MaxValue = unbounded (reserve off / nothing to protect); see ReserveAllowance.
+			var allowance = ResolveReserveAllowance(
+				out var reserveFree, out var reserveMin, out var reserveAxes, out var reserveClause);
+			var reserveStartAllowance = allowance;
+			var freeAtFill = free.Count;
+			var reserveRecruited = 0;
+			var reserveCouldRecruit = false;
+
 			foreach (var lane in ordered)
 			{
 				// Shed surplus (farthest from the post cell) back to the pool.
@@ -378,21 +421,48 @@ namespace OpenRA.Mods.Common.Traits
 				if (need <= 0)
 					continue;
 
+				// A lane wants units this eval, so the reserve had a decision to make and must say so below —
+				// whatever it decided, and whether or not it bound.
+				reserveCouldRecruit = true;
+
 				// MINIMUM MANNING (item 64), leg 1 of 2: refuse to RECRUIT into a lane that cannot reach the
 				// minimum with what is free right now. Refusing at the recruit step rather than at the order step
 				// is what makes this churn-free: nothing has been committed, granted or ordered yet, so there is
 				// nothing to hand back next eval — the unit simply never leaves the free pool, and offense (whose
 				// own FreePoolMinAdvanceUnits then decides) keeps it. Leg 2, below, covers a lane that had enough
 				// and lost it.
-				if (!AmbushLaneMath.LaneMayPost(lane.Units.Count + free.Count, Info.MinUnitsPerAmbush))
+				//
+				// ARMY-SHARE RESERVE (item 86) composes with minimum manning by capping AVAILABILITY before it
+				// is tested, not by vetoing afterwards: a lane the reserve can only part-fill is then refused by
+				// MinUnitsPerAmbush as under-manned, so the two gates agree instead of the reserve leaving a
+				// half-lane that manning would have refused. Unbounded allowance ⇒ takeable == free.Count and
+				// both lines below read exactly as they did before the reserve existed.
+				var takeable = allowance == int.MaxValue ? free.Count : Math.Min(free.Count, allowance);
+
+				if (!AmbushLaneMath.LaneMayPost(lane.Units.Count + takeable, Info.MinUnitsPerAmbush))
+					continue;
+
+				var take = Math.Min(need, takeable);
+				if (take <= 0)
 					continue;
 
 				var postPos = world.Map.CenterOfCell(lane.PostCell);
 				var recruits = free
 					.OrderBy(u => (u.CenterPosition - postPos).LengthSquared)
 					.ThenBy(u => u.ActorID)
-					.Take(need)
+					.Take(take)
 					.ToList();
+
+				// Spent against the ONE eval-wide allowance. A recruit that was SHED from an earlier lane this
+				// eval was ledger-committed at snapshot time and so was never in offense's pool — charging it
+				// here spends allowance offense never had at stake. Deliberate: it over-reserves by at most the
+				// shed count, in the direction this module's other gates already fail (toward offense), and
+				// tracking provenance per unit would need the offense pool as a SET rather than the count its
+				// own floor test is decided on.
+				if (allowance != int.MaxValue)
+					allowance -= recruits.Count;
+
+				reserveRecruited += recruits.Count;
 
 				foreach (var u in recruits)
 				{
@@ -400,6 +470,32 @@ namespace OpenRA.Mods.Common.Traits
 					lane.Units.Add(u);
 					lane.HasOrdered = false; // set changed
 				}
+			}
+
+			// ARMY-SHARE RESERVE (item 86) — DIAGNOSTIC, printed on EVERY eval where a lane wanted units,
+			// whatever the reserve decided. The first cut printed only when the reserve BOUND, so an eval where
+			// it was WAIVED printed nothing at all — and in run 260922_005229 that silence is precisely what had
+			// to be reconstructed from three other modules' lines to find the bug. An absent line must mean "no
+			// lane wanted units", never "a decision was taken and not recorded".
+			//
+			// `waived` names the clause (see AmbushReserveClause); `none` means the arithmetic ran. `axes` is
+			// context ONLY and is not a term in the decision. `taken` counts recruits directly rather than
+			// diffing the pool, which the shed-surplus path above also GROWS. `lanes` is the shape produced.
+			if (reserveCouldRecruit)
+			{
+				var manned = 0;
+				foreach (var l in lanes)
+					if (l.Units.Count > 0)
+						manned++;
+
+				var allowText = reserveStartAllowance == int.MaxValue
+					? "inf" : reserveStartAllowance.ToString(NumberFormatInfo.InvariantInfo);
+
+				Log.Write("debug",
+					$"[exp-ambush] reserve player={player.PlayerName} allow={allowText}" +
+					$" free={freeAtFill} taken={reserveRecruited}" +
+					$" offense-free={reserveFree} min={reserveMin} axes={(reserveAxes ? 1 : 0)}" +
+					$" waived={ReserveClauseText(reserveClause)} lanes={manned} tick={tick}");
 			}
 
 			// 6b. MINIMUM MANNING (item 64), leg 2 of 2: a lane that fell BELOW the minimum — attrition, or a
@@ -592,6 +688,53 @@ namespace OpenRA.Mods.Common.Traits
 			lanes.Clear();
 		}
 
+		// ARMY-SHARE RESERVE (item 86): how many units this module may take from the free pool this eval.
+		// int.MaxValue = unbounded. The three offense terms are OUT so the caller can print the decision.
+		//
+		// The offensive module is resolved PER EVAL and deliberately NOT cached behind a one-shot latch: both
+		// profiles instantiate a twin of it (@experimental and @stable) and only one is ever enabled, so
+		// TraitOrDefault would throw on the twin — and a lookup that happened to resolve null would otherwise
+		// stay null for the rest of the match. Same reasoning, and the same expression, as
+		// MountedTransportBotModule.ResolveRendezvous.
+		// Stable lowercase tokens for the log — ToString() on the enum would leak PascalCase and would silently
+		// change if a member were renamed, so the mapping is explicit.
+		static string ReserveClauseText(AmbushLaneMath.AmbushReserveClause clause)
+		{
+			switch (clause)
+			{
+				case AmbushLaneMath.AmbushReserveClause.Off: return "off";
+				case AmbushLaneMath.AmbushReserveClause.NoOffense: return "no-offense";
+				case AmbushLaneMath.AmbushReserveClause.NoFloor: return "no-floor";
+				case AmbushLaneMath.AmbushReserveClause.UnknownPool: return "unknown-pool";
+				case AmbushLaneMath.AmbushReserveClause.Bound: return "none";
+				default: return "unknown";
+			}
+		}
+
+		int ResolveReserveAllowance(out int offenseFree, out int offenseMin, out bool offenseAxisLive,
+			out AmbushLaneMath.AmbushReserveClause clause)
+		{
+			offenseFree = 0;
+			offenseMin = 0;
+			offenseAxisLive = false;
+
+			if (!Info.OffenseFloorReserveEnabled)
+				return AmbushLaneMath.ReserveAllowance(false, false, false, 0, 0, out clause);
+
+			var offensive = player.PlayerActor.TraitsImplementing<PoiOffensiveBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+
+			if (offensive == null)
+				return AmbushLaneMath.ReserveAllowance(true, false, false, 0, 0, out clause);
+
+			offenseMin = offensive.EffectiveFreePoolMinAdvanceUnits;
+
+			// axisLive is read for the LOG ONLY — it is not a term in the decision. See ReserveAllowance.
+			var snapshotValid = offensive.TryGetFreePoolSnapshot(out offenseFree, out offenseAxisLive, out _);
+
+			return AmbushLaneMath.ReserveAllowance(true, true, snapshotValid, offenseFree, offenseMin, out clause);
+		}
+
 		List<Actor> BuildFreePool()
 		{
 			var tick = world.WorldTick;
@@ -696,6 +839,99 @@ namespace OpenRA.Mods.Common.Traits
 		/// COUNT, never an iteration order).</para></summary>
 		public static bool LaneMayPost(int units, int minUnits)
 			=> minUnits <= 0 || units >= minUnits;
+
+		/// <summary>Which clause of <see cref="AmbushLaneMath.ReserveAllowance"/> decided this eval. Printed in
+		/// the <c>[exp-ambush] reserve</c> line so a run says WHY, not merely what — the absence of that line
+		/// cost run 260922_005229 its diagnosis.</summary>
+		public enum AmbushReserveClause
+		{
+			/// <summary>OffenseFloorReserveEnabled is false — unbounded, the C# default.</summary>
+			Off,
+
+			/// <summary>No enabled PoiOffensiveBotModule on this player — nothing to reserve for.</summary>
+			NoOffense,
+
+			/// <summary>Offense applies no floor (feature off, or forward staging off) — nothing to be below.</summary>
+			NoFloor,
+
+			/// <summary>Offense has a floor but has published no pool yet — withhold rather than guess.</summary>
+			UnknownPool,
+
+			/// <summary>The arithmetic ran: allowance = max(0, offenseFree - offenseMin).</summary>
+			Bound,
+		}
+
+		/// <summary>How many units may this module take from the free pool THIS EVAL without leaving the
+		/// offensive stager below its own forward-staging floor? PIPELINE item 86, ruling (a) "army-share
+		/// reserve". <see cref="int.MaxValue"/> = unbounded (take whatever the lane wants).</summary>
+		/// <remarks>
+		/// <para>THE DEFECT IT CLOSES. At the opening of a match the lane's budget argument — "MaxAmbushes x
+		/// UnitsPerAmbush is small, so offense keeps the rest" — assumes offense has units to spare. Measured
+		/// (run 260906_091912): with three eligible units the lane took two of them, the army's only MBT among
+		/// them, and posted them PostFractionPct of the way to the enemy beachhead while
+		/// <c>[exp-staging] hold-under-min pool=1 min=2</c> says offense was ITSELF refusing to advance the one
+		/// unit it had left. Both modules behaved correctly in isolation; between them the army was split below
+		/// the threshold either half needed.</para>
+		///
+		/// <para>THERE IS NO AXIS WAIVER, AND THE ABSENCE IS LOAD-BEARING. The first cut of this helper waived
+		/// the reserve whenever an offensive axis was live, by analogy with
+		/// <see cref="ForwardStagingMath.FreePoolMayAdvance"/>. THE ANALOGY IS FALSE and it cost run
+		/// 260922_005229: FreePoolMayAdvance's axis term answers "may this late arrival walk to the muster
+		/// ALONE?" — yes, because it is joining a body. The reserve answers a different question, "does offense
+		/// have units to SPARE?", and an axis is not evidence of spare capacity because an axis has CONSUMED
+		/// units. In that run an axis formed at t118 out of the entire two-unit free pool
+		/// (<c>[exp-offense] axis-new … units=2</c>, <c>reeval pool=2 free=0 … axes=1</c>) and the waiver then
+		/// let the lane recruit freely at t200. NARROWING the waiver by axis SIZE would not have helped either:
+		/// that axis held 2 units, exactly <c>EarlyMinAxisSize</c>, so every "below the axis floor" test passes
+		/// it. The term had to go, not shrink.</para>
+		///
+		/// <para>The remaining terms are the offense's own, not a re-derivation:
+		/// <paramref name="offenseFreeCount"/> is PoiOffensiveBotModule's published free-pool count (identical
+		/// to the <c>free=</c> in that tick's <c>[exp-ledger]</c>) and <paramref name="offenseMinAdvanceUnits"/>
+		/// its EffectiveFreePoolMinAdvanceUnits — the floor that same module applies to itself.</para>
+		///
+		/// <para>FAILS TOWARD OFFENSE in its one unknown. <paramref name="snapshotValid"/> false means an
+		/// offensive module is enabled and HAS a floor but has not yet computed a pool, so whether taking a unit
+		/// would breach the floor is unknowable — the lane takes nothing rather than guess.</para>
+		///
+		/// <para><paramref name="enabled"/> false ⇒ unbounded: the C# default, and the only reading that leaves
+		/// the ungated module's behaviour untouched. Pure integer arithmetic, zero RNG, order-independent (it
+		/// reads COUNTS, never an iteration order).</para>
+		/// </remarks>
+		public static int ReserveAllowance(bool enabled, bool offenseResolved, bool snapshotValid,
+			int offenseFreeCount, int offenseMinAdvanceUnits, out AmbushReserveClause clause)
+		{
+			if (!enabled)
+			{
+				clause = AmbushReserveClause.Off;
+				return int.MaxValue;
+			}
+
+			// Nobody to reserve FOR.
+			if (!offenseResolved)
+			{
+				clause = AmbushReserveClause.NoOffense;
+				return int.MaxValue;
+			}
+
+			// Offense applies no floor (feature off, or forward staging off ⇒ the field is never read), so there
+			// is no floor to be left below. Deliberately ahead of the snapshot test: this state is configuration,
+			// knowable without a pool count, and must not fall into the withhold-on-unknown branch below.
+			if (offenseMinAdvanceUnits <= 0)
+			{
+				clause = AmbushReserveClause.NoFloor;
+				return int.MaxValue;
+			}
+
+			if (!snapshotValid)
+			{
+				clause = AmbushReserveClause.UnknownPool;
+				return 0;
+			}
+
+			clause = AmbushReserveClause.Bound;
+			return Math.Max(0, offenseFreeCount - offenseMinAdvanceUnits);
+		}
 
 		/// <summary>The concealed post position on the corridor between our beachhead and an enemy anchor:
 		/// a point <paramref name="fractionPct"/> percent of the way from <paramref name="friendly"/> toward

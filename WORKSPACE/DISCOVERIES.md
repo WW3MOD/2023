@@ -620,6 +620,147 @@ live full-damage-to-infantry by the same rule, but they are plausibly intended a
 sign-off territory. `Brick` has now left the union entirely; `Kevlar`, `Unarmored` and
 `Indestructable` remain in zero tables, so `conventions.md`'s standing claim that no warhead
 discriminates infantry damage by armour class still holds.
+## 2026-09-22 - A scenario whose two arms produce the same outcome is not a control: construct the state under test, do not hope the opening supplies it (`test-ambush-lane-share`)
+
+Four runs of `test-combined-arms-rendezvous` were spent trying to judge PIPELINE item 86 with it. It cannot,
+and the reason generalises to any bot-behaviour scenario.
+
+**THE SYMPTOM.** Reserve ON (`260922_012732`) and reserve OFF (`260922_012930`) produced the **same verdict,
+the same failure text and the same outcome**. Not because the fix does not work — the ON arm shows
+`[exp-ambush] reserve allow=0 … waived=none lanes=0` at every eval and the ledger never shows `by=ambush` —
+but because in the OFF arm the lane *also* posted nothing: offense had already absorbed the whole free pool
+into an axis before the lane's first eval (`[exp-ledger] free=4` at t189 → axis, so `free=0` at t200).
+**The opening never contained the state the feature governs, so neither arm could exercise it.**
+
+**THE RULE: a RED arm must be able to fail DIFFERENTLY, and on a bot map that usually means CONSTRUCTING the
+state rather than waiting for it.** The failing assumption here was that a small opening army would naturally
+leave units uncommitted at the lane's eval. It does not, and *which* module gets them first turns on a
+`world.LocalRandom` eval stagger. The new scenario's `rules.yaml` lifts the offensive module's axis floor
+above any unit count the opening can reach, so `DesiredAxisCount` returns 0, no axis forms, and offense
+provably holds its units under its own advance floor for the whole window. The state under test is then a
+property of the scenario, not of a race.
+
+**CONSTRUCTING IT CREATES A NEW FAILURE MODE, AND THE SCAFFOLD MUST CHECK ITSELF.** A `rules.yaml` override
+that stops merging — a renamed trait, a changed `@suffix`, MiniYaml's case-sensitive top-level merge — is
+**silent**, and the scenario then measures the shipped default and goes GREEN having proved nothing. The fix
+is to read the overridden value back at runtime and **SKIP rather than PASS** unless it is what was asked for
+(`Test.GetBotOffenseAdvanceFloor` must equal 40). Any scenario that constructs its state through a rules
+override needs this; without it the override is exactly the "the override isn't taking effect" trap with a
+green tick on top.
+
+**AND A SECOND GUARD: a PASS must prove the feature was ASKED the question.** "Nothing happened" passes
+trivially when the module is disabled, when no lane is viable, or when the units died early. The scenario
+requires having observed offense holding a pool `>= MinUnitsPerAmbush` **and** `<= its floor`, and SKIPs
+otherwise. **`-1` from a binding is information, not zero** — "offense has not evaluated yet" must not read
+as "offense has no floor".
+
+**MEASURING "A MODULE DID NOT ACT" NEEDS A LEDGER READ, NOT A POSITION READ.** No bot module logs which
+ACTOR it sent where (`LayeredDefenceBotModule.cs:545` says so outright), and an un-recruited unit at the
+Supply Route is indistinguishable by position from an idle one, a garrisoned one, or one a held axis is
+sitting on. Three runs were lost to inferring it from a tank's survival — and the tank turned out to belong
+to a different module. The three new test-mode bindings (`Test.GetBotLedgerHeld` / `GetBotOffenseFreePool` /
+`GetBotOffenseAdvanceFloor`) return the *same numbers the feature itself decides on*, so the verdict cannot
+drift away from the mechanism.
+
+**`make lua-gate` CAN RED-TEST A SCENARIO YOU CANNOT LAUNCH.** It resolves every `Test.*` call against the
+C# bindings. Sabotaging one call (`Test.GetBotLedgerHeldXYZ`) made it name the exact file and line and exit
+2; restoring made it clean. On a machine where launches are serialised and expensive, that is a real
+RED-before-green on the scaffold, available in seconds and with no slot.
+
+## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229)
+
+The item-86 reserve below shipped with an axis waiver and it did not bind on its first measured run. The
+failure is worth more than the fix.
+
+**WHAT HAPPENED.** `AmbushLaneMath.ReserveAllowance` waived the reserve whenever an offensive axis was live,
+reasoning that `ForwardStagingMath.FreePoolMayAdvance` waives the staging floor on exactly that term, so the
+two gates should agree. At t118 offense formed an axis **out of its entire two-unit free pool**
+(`[exp-offense] axis-new … order units=2` then `reeval pool=2 free=0 … axes=1`). At t200 the ambush lane read
+that snapshot, hit the waiver, and recruited unbounded — the very behaviour the reserve exists to stop.
+
+**THE GENERALISABLE ERROR: borrowing a predicate without re-deriving what it ANSWERS.** The two gates consume
+the same three numbers and ask different questions. `FreePoolMayAdvance` asks *"may this late arrival walk to
+the muster ALONE?"* — and a live axis answers yes, because the arrival is joining a body. The reserve asks
+*"does offense have units to SPARE?"* — and a live axis is evidence **against**, because an axis has
+**consumed** units. Sharing the inputs made the two look like the same test. **When you reuse another gate's
+terms, restate the question in your own words first; if the sentences differ, the waivers do not transfer.**
+
+**THE OBVIOUS NARROWING ALSO FAILS, which is why the term was deleted rather than shrunk.** "Waive only for an
+axis at or above the axis floor" is the repair that suggests itself. That axis held exactly 2 units and
+`EarlyMinAxisSize` is 2 (`ai.yaml:380`), so it passes every below-the-floor test. Pinned as a test
+(`NarrowingTheWaiverByAxisSizeWouldNotHaveFixedTheMeasuredRun`) because the repair will suggest itself again.
+
+**A SECOND BUG IN THE SAME SNAPSHOT: "publish on every call, last wins" recorded the POST-claim pool.**
+`BuildFreePool` runs three times per offense eval. Publishing at the end of each meant the recorded count was
+taken *after* axis formation: 0 at t118, while `[exp-ledger]` printed `free=2` the same tick. **The rule now
+is to publish on the same pass the diagnostic census rides**, so the number a consumer decides on is
+byte-equal to the number a human reads in the log. Two values for "the free pool" in one tick, one in a log
+line and one in a decision, is a defect generator — the log will exonerate the code that is wrong.
+
+**AND A LOGGING RULE PAID FOR IN A RUN: log the DECISION, not the exception.** The reserve line printed only
+when the reserve bound, so the eval where it was waived printed **nothing**, and the waiver had to be
+reconstructed from three other modules' lines across two runs. An absent diagnostic must mean "there was no
+decision to take", never "a decision was taken and not recorded". The line now prints on every eval where a
+lane wanted units, carrying `waived=<clause>`.
+
+**SEPARATELY, AND IT INVALIDATED THE MEASUREMENT: the tank in `test-combined-arms-rendezvous` is OFFENSE's,
+not the lane's.** The 09-21 acceptance criterion ("only a tank death at ~20,14 is an item-86 regression") was
+an unverified inference. `[composition] census tick=80` shows the only two combat units in the world are the
+abrams and one `ar.america` — the exact `pool=2` the t118 axis took whole — and the tank moves `8,16@t100 →
+11,16@t200` while the lane still reads `lanes=0`. With `AxisCommitmentTicks: 250` the lane could not have
+taken it. **The scenario's VERDICT cannot gate item 86; only its log lines can.** Generalisable: an
+acceptance criterion that names a specific ACTOR needs the ownership derived from the census before the run,
+not assumed from the direction it walked.
+
+## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`)
+
+PIPELINE item 86, ruling (a). Recorded because the SHAPE generalises past this fix.
+
+**The defect is not a bug in either module.** In run `260906_091912` the bot had three eligible units.
+`LaneAmbushBotModule` took two of them (the army's only MBT among them) and posted them 40% of the way to
+the enemy SR; `PoiOffensiveBotModule` then read `[exp-staging] hold-under-min pool=1 min=2` and correctly
+refused to advance the single unit it had left. **Both gates did exactly what they were written to do.**
+The lane's posting cleared `MinUnitsPerAmbush: 2`; offense's hold cleared `FreePoolMinAdvanceUnits: 2`. The
+army was split below the threshold *both halves needed*, and the tank walked to `20,14` alone and died at
+t585.
+
+**The generalisable rule: a per-consumer minimum is not a share.** `MinUnitsPerAmbush` (item 64) asks *"is
+this lane big enough?"* — a question entirely internal to the lane. It cannot ask *"is what I am leaving
+behind big enough?"*, and no number of local floors composes into a global one. Whenever two modules draw
+from one pool and each carries its own floor, the floors are **jointly unsatisfiable on a small pool** and
+the failure looks like correct behaviour in both logs. Look for this wherever the `PoiGoalGuard` ledger
+arbitrates: the ledger stops two modules owning the same unit, it does not stop them between them starving
+a third thing.
+
+**The fix reads the other module's own numbers, and that is the part to copy.**
+`AmbushLaneMath.ReserveAllowance` is decided on `PoiOffensiveBotModule.TryGetFreePoolSnapshot`'s published
+free-pool count and axis state plus `EffectiveFreePoolMinAdvanceUnits` — the *same three terms*
+`ForwardStagingMath.FreePoolMayAdvance` is decided on. That is what makes the two gates agree rather than
+merely both exist: a floor of 0 and a live axis waive the reserve **because they waive the floor**. A
+private re-derivation of "how many units does offense have" would have needed its own maintenance and would
+have drifted the first time the offense pool's predicate changed.
+
+**Why a published snapshot and not a live call (the trap worth knowing).**
+`PoiOffensiveBotModule.BuildFreePool()` looks pure and is not: it calls `PruneStandoffMemory()` and, through
+`StoodOffForTransport`, **writes `standoffSince[a] = tick`** — it latches the transport standoff clock at
+the tick of whoever calls it. A consumer calling it to "just count" would start offense's standoff clocks on
+the *consumer's* cadence, and would additionally re-emit the once-per-tick `[exp-ledger]` census at a
+foreign tick. **Before reading another module's pool, check the counting function for writes.** Publishing a
+snapshot from inside the existing computation costs nothing and has no such reach.
+
+**Two imprecisions, both bounded, both vanishing exactly where the item lives** — recorded because the
+argument, not the numbers, is what makes the design defensible. (1) The snapshot is published on offense's
+`ReevaluateInterval` (100), so a consumer on a different cadence reads a number up to one interval old;
+offense's `TraitEnabled` stagger is a `LocalRandom` draw, so the phase offset varies per match. (2)
+`BuildFreePool` runs three times per offense eval and the last wins, while the floor test consumes the
+second — they differ by whatever an axis claimed in between. **At the opening no axis can form at all**
+(`DesiredAxisCount` returns 0 below `EarlyMinAxisSize` — item 64's premise), so nothing is claimed between
+the calls and all three counts are equal, and the pool is small enough that a 100-tick-old count and a live
+one give the same verdict against a floor of 2.
+
+Code: `LaneAmbushBotModule.cs` (`OffenseFloorReserveEnabled`, `ResolveReserveAllowance`,
+`AmbushLaneMath.ReserveAllowance`), `PoiOffensiveBotModule.cs` (`TryGetFreePoolSnapshot`,
+`EffectiveFreePoolMinAdvanceUnits`), `ai.yaml:1093` / `:3227`.
 
 ## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
 

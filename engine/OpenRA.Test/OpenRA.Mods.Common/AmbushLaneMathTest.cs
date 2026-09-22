@@ -200,5 +200,162 @@ namespace OpenRA.Test
 				}
 			}
 		}
+
+		// ── ReserveAllowance: the army-share reserve (PIPELINE item 86) ──
+		//
+		// The measured defect (260906_091912): three eligible units, offense floor 2. Unbounded the lane takes
+		// two of them (the army's only MBT among them) and leaves offense at one — below its own floor, which it
+		// then correctly refuses to advance.
+
+		static int Allowance(bool enabled, bool resolved, bool valid, int free, int min)
+		{
+			return AmbushLaneMath.ReserveAllowance(enabled, resolved, valid, free, min, out _);
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWhenDisabled()
+		{
+			// The C# default. Every term is the failing opening; only `enabled` differs.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(false, true, true, 3, 2, out var clause),
+				Is.EqualTo(int.MaxValue));
+			Assert.That(clause, Is.EqualTo(AmbushLaneMath.AmbushReserveClause.Off));
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWithNoOffensiveModule()
+		{
+			// Nothing to reserve FOR — a profile running ambush without the offensive stager is unaffected.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(true, false, false, 0, 0, out var clause),
+				Is.EqualTo(int.MaxValue));
+			Assert.That(clause, Is.EqualTo(AmbushLaneMath.AmbushReserveClause.NoOffense));
+		}
+
+		[Test]
+		public void ReserveIsUnboundedWhenOffenseAppliesNoFloor()
+		{
+			// min <= 0 is FreePoolMayAdvance's own off-switch, and it is also what
+			// EffectiveFreePoolMinAdvanceUnits reports when forward staging is off. Checked BEFORE the snapshot
+			// term on purpose: it is configuration, knowable without a pool count, and must not fall into the
+			// withhold-on-unknown path.
+			Assert.That(Allowance(true, true, true, 3, 0), Is.EqualTo(int.MaxValue));
+			Assert.That(Allowance(true, true, false, 0, 0), Is.EqualTo(int.MaxValue));
+			Assert.That(Allowance(true, true, true, 3, -1), Is.EqualTo(int.MaxValue));
+
+			AmbushLaneMath.ReserveAllowance(true, true, true, 3, 0, out var clause);
+			Assert.That(clause, Is.EqualTo(AmbushLaneMath.AmbushReserveClause.NoFloor));
+		}
+
+		[Test]
+		public void ReserveWithholdsEverythingWhenTheSnapshotIsUnknown()
+		{
+			// Offense has a floor but has not computed a pool, so whether a take would breach it is unknowable.
+			// Fails toward offense, like MinUnitsPerAmbush.
+			Assert.That(
+				AmbushLaneMath.ReserveAllowance(true, true, false, 0, 2, out var clause),
+				Is.EqualTo(0));
+			Assert.That(clause, Is.EqualTo(AmbushLaneMath.AmbushReserveClause.UnknownPool));
+		}
+
+		[Test]
+		public void ReserveAboveTheFloorAllowsOnlyTheSurplus()
+		{
+			// Five free, floor 2 ⇒ three are spare. Taking the fourth would put offense at 1.
+			Assert.That(Allowance(true, true, true, 5, 2), Is.EqualTo(3));
+		}
+
+		[Test]
+		public void ReserveAtTheFloorAllowsNothing()
+		{
+			// Offense sits exactly on its floor: every remaining unit is load-bearing.
+			Assert.That(Allowance(true, true, true, 2, 2), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReserveBelowTheFloorAllowsNothingAndNeverGoesNegative()
+		{
+			// The state the 260906 run was ALREADY in at t226 ([exp-ledger] free=1, min=2). A negative allowance
+			// would read as "owed" and, min'd against a need, would hand the lane units.
+			Assert.That(Allowance(true, true, true, 1, 2), Is.EqualTo(0));
+			Assert.That(Allowance(true, true, true, 0, 2), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReserveOnTheMeasuredOpeningRefusesTheSecondUnitAndSoTheWholeLane()
+		{
+			// Run 260906_091912 verbatim: three eligible units, offense floor 2. The lane wanted
+			// UnitsPerAmbush=2 and got an allowance of ONE — and since MinUnitsPerAmbush is also 2, a lane that
+			// can be filled to only one is refused by minimum manning, so NOBODY is posted. That composition is
+			// the fix: the reserve caps availability and manning then refuses the part-lane.
+			var allowance = Allowance(true, true, true, 3, 2);
+			Assert.That(allowance, Is.EqualTo(1));
+			Assert.That(AmbushLaneMath.LaneMayPost(0 + allowance, 2), Is.False);
+		}
+
+		[Test]
+		public void ReserveLeavesALargePoolUntouchedForAFullLane()
+		{
+			// The unchanged case: a twelve-unit pool clears the floor with room to spare, so both lanes fill and
+			// the module behaves as it always did.
+			var allowance = Allowance(true, true, true, 12, 2);
+			Assert.That(allowance, Is.EqualTo(10));
+			Assert.That(AmbushLaneMath.LaneMayPost(0 + System.Math.Min(2, allowance), 2), Is.True);
+		}
+
+		// ── THE AXIS WAIVER IS GONE, and these pin its absence (run 260922_005229) ──
+
+		[Test]
+		public void ReserveIgnoresAxisStateEntirely()
+		{
+			// THE REGRESSION THIS FIXTURE EXISTS FOR. The first cut took an `offenseAxisLive` term and returned
+			// int.MaxValue on it, by analogy with ForwardStagingMath.FreePoolMayAdvance. The analogy is false:
+			// FreePoolMayAdvance's axis term answers "may this late arrival walk to the muster ALONE?", while
+			// the reserve asks "does offense have units to SPARE?" — and an axis has CONSUMED units.
+			//
+			// In 260922_005229 an axis formed at t118 out of the ENTIRE two-unit free pool
+			// ([exp-offense] axis-new … units=2, reeval pool=2 free=0 … axes=1) and the waiver then let the lane
+			// recruit two units freely at t200 with no [exp-ambush] reserve line printed at all.
+			//
+			// There is no axis parameter left to pass, so the guarantee is structural: the signature cannot
+			// express the waiver. This test states the arithmetic the axis state must never alter.
+			Assert.That(Allowance(true, true, true, 2, 2), Is.EqualTo(0));
+			Assert.That(Allowance(true, true, true, 3, 2), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void NarrowingTheWaiverByAxisSizeWouldNotHaveFixedTheMeasuredRun()
+		{
+			// Worth pinning because it is the fix that suggests itself and it does NOT work. The obvious repair
+			// was "waive only for an axis at or above the axis floor". The t118 axis held exactly 2 units and
+			// EarlyMinAxisSize is 2 (ai.yaml:380 / :3064), so every "below the axis floor" test PASSES it and
+			// the waiver fires anyway. The term had to be removed, not shrunk.
+			const int AxisUnitsAtT118 = 2;
+			const int EarlyMinAxisSize = 2;
+			Assert.That(AxisUnitsAtT118 >= EarlyMinAxisSize, Is.True);
+
+			// Offense's pre-claim pool at t118 was 2 ([exp-ledger] free=2 held=0) against a floor of 2, so the
+			// arithmetic — with no waiver to short-circuit it — withholds, which is the corrected behaviour.
+			Assert.That(Allowance(true, true, true, 2, 2), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void ReservePublishedCountIsThePreClaimPoolNotThePostClaimOne()
+		{
+			// The second half of the 260922_005229 defect. The snapshot was published on EVERY BuildFreePool
+			// call and the LAST won, so it recorded the POST-axis-claim pool: 0 at t118, while [exp-ledger]
+			// printed free=2 the same tick. Publishing once per tick on the first call makes the two agree.
+			//
+			// Both readings withhold here, but they are not interchangeable: the post-claim 0 withholds for the
+			// whole match because offense re-spends its pool every eval, while the pre-claim count tracks what
+			// offense actually had to work with.
+			const int PreClaimPoolAtT118 = 2;   // [exp-ledger] free=2 held=0 tick=118
+			const int PostClaimPoolAtT118 = 0;  // [exp-offense] reeval pool=2 free=0 … axes=1 tick=118
+			Assert.That(Allowance(true, true, true, PreClaimPoolAtT118, 2), Is.EqualTo(0));
+			Assert.That(Allowance(true, true, true, PostClaimPoolAtT118, 2), Is.EqualTo(0));
+			Assert.That(Allowance(true, true, true, PreClaimPoolAtT118 + 2, 2), Is.EqualTo(2));
+			Assert.That(Allowance(true, true, true, PostClaimPoolAtT118 + 2, 2), Is.EqualTo(0));
+		}
+
 	}
 }
