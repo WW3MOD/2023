@@ -102,6 +102,29 @@ Actors:
 	BotTank: abrams
 		Owner: USA-bot
 		Location: 8,16
+	# THE SECOND FREE-POOL UNIT, and the scenario does not work without it at
+	# DefaultCash 0. Of USA's placed force exactly one actor reaches offense's free
+	# pool: the bradley is in PoiOffensiveBotModule's ExcludeUnitTypes and all four
+	# e3.america are PassengerTypes withheld by TransportStandoffEnabled while an
+	# empty carrier wants them. A pool of ONE is below both EarlyMinAxisSize (2) and
+	# FreePoolMinAdvanceUnits (2), so no axis forms, nothing advances, and the run
+	# times out with the tank still on its start cell — which is the "never produced
+	# a verdict" this scenario recorded the last time cash was set to 0 (see
+	# rules.yaml). Two is the floor, so two is what is placed: this is the SMALLEST
+	# staging that gives USA one axis, not a balance choice.
+	#
+	# It also reproduces what cash 7500 produced by accident — `axis-new ... units=2`
+	# at t112 in runs 260922_200826 and 260922_203626 — with a deterministic force
+	# instead of a purchased one.
+	#
+	# SIDE EFFECT WORTH KNOWING: at pool=2 the ambush lane can take nothing.
+	# AmbushLaneMath.ReserveAllowance is max(0, offense-free - floor) = max(0, 2-2)
+	# = 0 (item 86), so LaneAmbushBotModule cannot raid this opening the way it did
+	# at main in run 260906_002507. That is why this scenario does not need the
+	# `-LaneAmbushBotModule@experimental` removal test-push-departs-together carries.
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 9,16
 	BotCarrier: bradley
 		Owner: USA-bot
 		Location: 8,18
@@ -124,13 +147,22 @@ Actors:
 	# believed enemy or ResolveStagingAnchor returns null — in which case the
 	# armour never stages forward either, which is the very pre-condition of the
 	# symptom under test (StageFreePool early-returns on a null anchor).
-	# UNVERIFIED TUNING — see the header note. Reduced from four t90s at x=50-52 to
-	# two at the far corner because the four-tank version KILLED the lead abrams
-	# before the assertion could be judged ("the bot's tank died before the
-	# rendezvous could be judged"), which is an inconclusive run, not a control.
-	# The belief source only has to populate the control field; it does not have to
-	# be able to win a fight. Whoever runs this next should confirm the abrams
-	# survives to the anchor, and push these further right / drop to one if not.
+	# Reduced from four t90s at x=50-52 to two at the far corner because the
+	# four-tank version KILLED the lead abrams before the assertion could be judged,
+	# which is an inconclusive run, not a control. The belief source only has to
+	# populate the control field; it does not have to be able to win a fight.
+	#
+	# THAT REDUCTION WAS RIGHT AND DID NOT GO FAR ENOUGH — resolved 2026-09-22 in
+	# rules.yaml, not here. It capped the BELIEF source and left the PURCHASED army
+	# alone, and the purchased army is what was killing the tank: at DefaultCash 7500
+	# Russia fielded t90 x2 + giatsint + bmp2 + btr and ordered a 3-unit flank via
+	# 33,21 at t443. The lead abrams advanced to x=19-21, stopped at contact and died
+	# alone in every run — t624 @ 21,16 (260922_200826), t567 @ 19,16 (260922_203626),
+	# same shape at 260922_193617 — on a clock that closes by ~t600 whatever the
+	# transport does. Cash is now 0, so these two are the whole of Russia's offence
+	# and sit 54 cells from USA's Supply Route, far outside the measurement window.
+	# Do not add more here to "make it a fight": a fight is what this scenario is
+	# for NOT having.
 	EnemyTank1: t90
 		Owner: Russia-bot
 		Location: 60,30

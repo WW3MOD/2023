@@ -124,6 +124,11 @@ end
 -- ferry never ran at all" (a scenario that measured nothing), and those demand
 -- opposite responses -- so the reason string has to say which happened.
 local BestTankAdvance = 0
+-- Premise guard state (see the read-back in the poller). The deadline is generous on
+-- purpose: it only has to outlast the bot's first few evals, and firing it early would
+-- turn a slow start into a SKIP.
+local PoolReached = false
+local PoolDeadlineTicks = 600
 local EverCarried = 0
 local BestTogether = 0
 local BestCarriedGap = 9999
@@ -167,6 +172,38 @@ WorldLoaded = function()
 			if r ~= nil and not r.IsInWorld and not WasCarried[i] then
 				WasCarried[i] = true
 				EverCarried = EverCarried + 1
+			end
+		end
+
+		-- THE PREMISE GUARD, and it is here because a timeout cannot tell you WHY.
+		-- At DefaultCash 0 the placed actors are the whole force, and offense's free
+		-- pool has to reach its own advance floor or no axis forms, nothing advances,
+		-- and this scenario times out reporting `tank advanced 0/8` -- which reads as
+		-- "the rendezvous failed" when what actually happened is that the staging was
+		-- wrong. That is the no-verdict run rules.yaml records from the last time cash
+		-- was set to 0. Exactly one placed USA actor reaches the pool by default (the
+		-- bradley is ExcludeUnitTypes, the four e3.america are withheld PassengerTypes),
+		-- which is why map.yaml places BotTank2; if that ever stops being true -- a
+		-- renamed actor, a changed ExcludeUnitTypes, a wider PassengerTypes -- SKIP with
+		-- the numbers rather than failing on a premise the run never met.
+		-- Same discipline as test-ambush-lane-share's floor read-back, inverted: that
+		-- scenario verifies the pool CANNOT reach the floor, this one that it DOES.
+		if not PoolReached then
+			-- BotTank.Owner, not a player lookup: this scenario never resolves a player
+			-- handle, and the tank is known alive here because the IsDead branch above
+			-- has already returned for the dead case.
+			local bot = BotTank.Owner
+			local free = Test.GetBotOffenseFreePool(bot)
+			local floor = Test.GetBotOffenseAdvanceFloor(bot)
+			if free >= floor and floor > 0 then
+				PoolReached = true
+			elseif tick > PoolDeadlineTicks then
+				Test.Skip("staging not met: offense's free pool never reached its advance floor" ..
+					" (free=" .. free .. " floor=" .. floor .. " by tick " .. tick .. ")." ..
+					" With DefaultCash 0 the placed actors are the entire force -- check that" ..
+					" BotTank2 still exists and is neither a PassengerType nor in ExcludeUnitTypes." ..
+					" The tank cannot advance from a pool under the floor, so clause (a) is" ..
+					" unreachable and this run measured nothing about the rendezvous.")
 			end
 		end
 
