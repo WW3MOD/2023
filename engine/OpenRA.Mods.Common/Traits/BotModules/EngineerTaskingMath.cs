@@ -192,6 +192,84 @@ namespace OpenRA.Mods.Common.Traits
 			return shiftCells >= minShiftCells && shiftCells > 0;
 		}
 
+		/// <summary>The eight cells adjacent to a serviced actor, in a FIXED canonical order: the four
+		/// orthogonal neighbours walked clockwise from north, then the four diagonals likewise. Consumed
+		/// only through <see cref="ParkCandidateOffsets"/>, whose stable sort leaves this order intact
+		/// between candidates that tie on distance — so the canonical order IS the tiebreak, and it is a
+		/// declared one rather than whatever a dictionary walk produced.</summary>
+		static readonly CVec[] CanonicalParkOffsets =
+		{
+			new CVec(0, -1), new CVec(1, 0), new CVec(0, 1), new CVec(-1, 0),
+			new CVec(1, -1), new CVec(1, 1), new CVec(-1, 1), new CVec(-1, -1)
+		};
+
+		/// <summary>
+		/// <para>The eight cells a parking engineer may hold ADJACENT to the actor he is servicing,
+		/// ordered nearest-first for an engineer standing at <paramref name="approach"/> cells from that
+		/// actor (i.e. <c>engineer.Location - target.Location</c>). Orthogonal neighbours come before
+		/// diagonals at equal distance; ties beyond that resolve to
+		/// <see cref="CanonicalParkOffsets"/>'s declared order.</para>
+		///
+		/// <para>WHY AN ADJACENT RING EXISTS AT ALL, and it is the bug this function was extracted to fix.
+		/// The repair employment used to park the engineer on the CASUALTY'S OWN CELL: it passed
+		/// <c>repair.Location</c> as the anchor and <see cref="BotTerrain.TryNearestStandable"/> handed it
+		/// straight back, because that clamp tests TERRAIN ONLY and the ground under a tank is ordinary
+		/// ground. The engineer was then ordered to Move into the body of the thing he was sent to repair,
+		/// which he cannot enter — a mobile blocker is not <c>BlockedByActor.Immovable</c>, so
+		/// <see cref="Mobile.NearestMoveableCell(CPos, int, int)"/> does not relocate it either — and he
+		/// stalled short, outside the repair weapon's one-cell reach, for the whole settle window. The
+		/// module's own Desc says "PARKED within one cell of the thing he is servicing"; this is the cell
+		/// set that sentence describes.</para>
+		///
+		/// <para>ORTHOGONAL BEFORE DIAGONAL IS RANGE MARGIN, NOT STYLE. `Repair` has Range: 1c0 = 1024
+		/// (weapons-other.yaml:369) and range is measured to the target HitShape's EDGE, not its centre.
+		/// Against the ^Vehicle rectangle (+/-350 x, +/-500 y, vehicles.yaml:28-32) an orthogonal
+		/// neighbour sits 674 from the edge and a diagonal 854 — both inside 1024, so a diagonal is a
+		/// legal park and is offered rather than discarded, but the orthogonal cell keeps 350 units of
+		/// margin against a footprint this arithmetic has not been re-derived for.</para>
+		///
+		/// <para>PURE AND ALLOCATION-STABLE: no world, no occupancy, no RNG. Whether a candidate can
+		/// actually be entered and stood on is the caller's question, because only the caller has the
+		/// mover — see <c>EngineerOperatorBotModule.RepairParkAnchor</c>, which asks
+		/// <see cref="Mobile.CanEnterCell"/> and <see cref="Mobile.CanStayInCell"/> in this order and
+		/// takes the first cell that answers yes.</para>
+		/// </summary>
+		public static CVec[] ParkCandidateOffsets(CVec approach)
+		{
+			var ordered = new CVec[CanonicalParkOffsets.Length];
+			var keys = new int[CanonicalParkOffsets.Length];
+			var n = 0;
+
+			foreach (var offset in CanonicalParkOffsets)
+			{
+				var dx = offset.X - approach.X;
+				var dy = offset.Y - approach.Y;
+				if (dx < 0)
+					dx = -dx;
+
+				if (dy < 0)
+					dy = -dy;
+
+				var key = dx > dy ? dx : dy;
+
+				// Insertion sort, STRICTLY-GREATER shift so equal keys keep canonical order. Eight
+				// elements, so the loop is cheaper than a comparer allocation, and a stable sort is what
+				// makes the tiebreak declared rather than incidental.
+				var i = n++;
+				while (i > 0 && keys[i - 1] > key)
+				{
+					keys[i] = keys[i - 1];
+					ordered[i] = ordered[i - 1];
+					i--;
+				}
+
+				keys[i] = key;
+				ordered[i] = offset;
+			}
+
+			return ordered;
+		}
+
 		/// <summary>
 		/// <para>One axis of an integer centroid: <paramref name="sum"/> of coordinates over
 		/// <paramref name="count"/> contributors, rounded to nearest rather than truncated.</para>

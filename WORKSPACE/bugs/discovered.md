@@ -5,6 +5,29 @@
 
 ---
 
+- [2026-09-22] [MEDIUM] **The engineer's repair employment cannot service a MOVING casualty: it is a
+  stern chase at infantry speed against a cell refreshed once per 200 ticks, and it can never close.**
+  `EngineerOperatorBotModule.IssuePark` issues an unqueued `Move` to a fixed cell and
+  `OrderSettleTicks` (200) then holds that order even once the anchor is stale, so a damaged vehicle
+  that is under anyone else's orders — an offensive axis, a defence line, a garrison walk — outruns
+  the engineer indefinitely. Observed in both recorded runs of
+  `test-experimental-engineer-repairs`: the `[engineer] ... repair cell=` anchor tracks the casualty
+  east across `24,16 -> 36,16 -> 47,14 -> 56,6` while the engineer trails 12-20 cells behind
+  (`~/.ww3mod-tests/screenshots/260921_213228_p64650`, `260922_063223_p90965`).
+  **NOT the same bug as the park-on-top defect fixed at `RepairParkAnchor` on branch
+  `wt/engineer-repairs-regress`, and not fixed by it** — that one stopped him being ordered into the
+  casualty's body; this one is about the anchor going stale. Arguably acceptable behaviour (he trails
+  the group and catches up when it halts), which is exactly why it wants a measurement before a
+  change: `FindRepairTarget` picks the NEAREST damaged friendly with no viability term, so a racing
+  casualty can shadow a genuinely parked one 3 cells from the SR that he could have serviced all
+  match. Two candidate shapes, neither measured: give the repair employment a viability test in the
+  spirit of `EngineerTaskingMath.IsBreachViable` (refuse a casualty that is ledger-committed to
+  another objective), or abandon a target the engineer has not gained ground on across two
+  evaluations. **Deliberately left alone** rather than bundled into the park fix — it is a second
+  behavioural change with no scenario that can currently discriminate it, since
+  `test-experimental-engineer-repairs` now holds its casualty still by design.
+  (found while working on: the `test-experimental-engineer-repairs` pass/fail flip, 260921 vs 260922)
+
 - [2026-09-22] [HIGH] **A Tunguska at 24 cells, missiles loaded, under a live player attack order,
   never fires its 9M311 and never closes — it just stands there for 30 s.**
   `test-tunguska-missile-standoff` re-run at the scenario's ORIGINAL authored budget (500 ticks,

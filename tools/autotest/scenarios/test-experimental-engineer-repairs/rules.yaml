@@ -6,6 +6,62 @@ Player:
 	PlayerResources:
 		DefaultCash: 1000
 
+# ── THE STAGED ACTORS ARE MADE UN-DRAFTABLE (2026-09-22) ──
+#
+# WHY THIS EXISTS, and without it the scenario cannot measure what it claims to. The casualty is an
+# `abrams`, which resolves to UnitRole.MainBattle, and PoiOffensiveBotModule's own free pool accepts
+# exactly `MainBattle || IndirectFire` (PoiOffensiveBotModule.cs:3230) — so the bot DRAFTED ITS OWN
+# CASUALTY INTO AN OFFENSIVE AXIS and drove it at the enemy Supply Route, 38 cells east. The engineer
+# is then chasing a tank at infantry speed, re-aimed at a stale cell once per OrderSettleTicks (200),
+# and whether he ever lands a repair burst is decided by where the tank happened to be when the
+# module first evaluated — i.e. by the wall-clock RNG seed.
+#
+# BOTH RECORDED RUNS SHOW THE CHASE; only the verdicts differ, which is what makes this a measurement
+# fault rather than a bug the scenario caught:
+#   260921_213228 (pass) — axis ordered at t37, casualty crossed ONTO the engineer's own cell at t100,
+#                          one burst landed (+280 hp), then it outran him to 56,6. Coincidence.
+#   260922_063223 (fail) — axis ordered at t89, casualty left from 22,16 and reached 38 cells away.
+#                          delta 0. Same mechanism, unluckier phase.
+# The `[engineer]` anchor cell tracks the casualty east in BOTH logs (24,16 -> 36,16 -> 47,14 -> 56,6).
+#
+# THE MECHANISM USED HERE IS THE MOD'S OWN EXCLUSION, not a new one. ^E6 is kept out of every combat
+# pool by `AIUnitRole: Role: Logistics` (infantry.yaml:1913-1914) — that is precisely why an engineer
+# parks at the Supply Route for a whole match and why this module had to be written. Applying the same
+# override to the staged actors makes them invisible to EVERY free-pool module in one stroke: the role
+# filter is shared by PoiOffensiveBotModule, LayeredDefenceBotModule (IsLineEligibleByRole),
+# PoiGarrisonBotModule (IsEligibleCombatUnit) and LaneAmbushBotModule (IsEligibleAmbusher), all of
+# which set UseUnitRoles: true on @experimental. Grepped, not assumed: NOTHING recruits Logistics —
+# `UnitRole.Logistics` appears only in CheckUnitRoleTable and UnitRoleResolverTest, so this cannot
+# hand the casualty to some logistics module instead.
+#
+# WHY NOT RAISE THE AXIS FLOORS, the way test-ambush-lane-share constructs its opening. That works for
+# offense and offense alone; the layered-defence and garrison pools would still take these three
+# actors. Excluding by role closes all four with one predicate.
+#
+# WHAT IT DOES NOT AFFECT, checked individually:
+#   * Repair eligibility — FindRepairTarget filters on GetAllTargetTypes() overlapping
+#     {VehicleRepair, BuildingRepair}, which is conditional on `damaged` and has no role term.
+#   * The screen discriminator — FindScreenAnchor requires AttackBase + Mobile and a distance from the
+#     SR, never a role, so the two riflemen still anchor a live screen 14 cells east of the casualty.
+#     They are held still too, which makes that anchor STABLE rather than drifting as it is drafted.
+#   * Production — newly-bought units keep their derived roles and still form axes, so the offensive
+#     module is exercised rather than switched off. It just cannot touch the measurement.
+#
+# CASE IS LOAD-BEARING ON BOTH KEYS AND THEY DO NOT MATCH EACH OTHER. MiniYaml merges top-level keys
+# CASE-SENSITIVELY, so these must be spelled as the defining files spell them: `abrams` lowercase
+# (vehicles-america.yaml:464) and `E3.america` with a capital E3 (infantry-america.yaml:18). Writing
+# `Abrams:` or `e3.america:` here defines a NEW actor that overrides nothing, silently, and the
+# scenario would go back to measuring the drafted casualty. The Lua reads the override back at runtime
+# for exactly that reason — see the drafted-casualty guard.
+
+abrams:
+	AIUnitRole:
+		Role: Logistics
+
+E3.america:
+	AIUnitRole:
+		Role: Logistics
+
 World:
 	-StartGameNotification:
 	# The bot's own Supply Route is placed explicitly in map.yaml; letting the engine also spawn a
