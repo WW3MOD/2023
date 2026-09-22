@@ -3,6 +3,85 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") CANNOT FIRE IN THE OPENING: the anchor it reads is deliberately null exactly then, and the bound that fixed its one measured regression rejects it even when it is not
+
+Flipping `mods/ww3mod/rules/ai/ai.yaml` `RendezvousWithOffensiveStaging: false -> true` on both
+`MountedTransportBotModule` twins is what `WORKSPACE/audit/260921-release-readiness.md:287`
+(package 8) asks for, and the audit's line numbers resolve exactly at its own SHA `cf25edbe`
+(`:2258` = the `@poi`/stable twin, `:2353` = the `@experimental` twin). The flag is correctly
+identified. **It is also measured-inert by code reading, for three independent reasons, and the
+scenario the audit names to measure it cannot see it at all.**
+
+**1. `test-push-departs-together` has no carrier, so the flag is unreachable there.**
+The scenario creates 2 `abrams` + 4 `e3.america` from Lua and sets `DefaultCash: 0`
+(`rules.yaml`), and its `map.yaml:69-78` says the absence of a carrier is deliberate
+("NO CARRIER, AND THAT IS NOT AN OVERSIGHT"). With no owned `bradley`/`bmp2`/`m113`,
+`MountedTransportBotModule`'s scan returns at
+`engine/OpenRA.Mods.Common/Traits/BotModules/MountedTransportBotModule.cs:1384-1385`
+(`if (candidates.Count == 0) return;`) **before** `PickDropOffCell` is ever called. So no
+drop cell is resolved, `ResolveRendezvous` never runs, and no number this scenario prints can
+move on this flip. **The audit's "`test-push-departs-together` RED->GREEN" pairing is wrong.**
+
+**2. The only state that reaches the rendezvous is the one where the anchor it needs is null.**
+`ResolveRendezvous` has exactly one caller: `PreContactStagingCell`
+(`MountedTransportBotModule.cs:1753`), itself reached only via `StageForwardOrGiveUp` when
+`PickDropOffCellUnclamped` found no frontline cell -- i.e. **pre-contact only**. In that state
+`PoiOffensiveBotModule.ResolveStagingAnchor` returns null when the frontier descent stalls on the
+SR's grid cell (`PoiOffensiveBotModule.cs:2657-2667`), and the fallback cell `StageFreePool`
+substitutes is a deliberate **local**, never the module field:
+
+```
+PoiOffensiveBotModule.cs:2946-2950
+// LOCAL, never the module field. `stagingAnchor` is shared state ... writing the fallback into it
+// would leak this method's decision into every later consumer in the same eval and is precisely
+// the second variable this change must not introduce.
+var effectiveAnchor = stagingAnchor;
+```
+
+`ForwardStagingAnchor => stagingAnchor` (`:1335`) publishes the RAW field, so it stays null on the
+fallback path. `RendezvousMath.ResolveDropOff(enabled: true, hasAnchor: false, ...)` returns the
+caller's lerp unchanged -- the identity path. **Measured, twice:** `[exp-clog] ... anchor=14,16
+anchorsrc=fallback` (run `260905_183118`) and `... sr=6,16 anchor=12,16 anchorsrc=fallback`
+(item-64 dossier, 09-05). `anchorsrc=fallback` is emitted iff `onFallback` is true
+(`:2992-2995`), which is true iff `stagingAnchor` was null.
+
+**3. Where an anchor IS published, the 6-cell withdraw bound rejects it -- by design.**
+`RendezvousMaxAdvanceCells = 6` and `RendezvousMaxWithdrawCells = 6`
+(`MountedTransportBotModule.cs:100,109`), neither overridden in `ai.yaml`, so the acceptance band
+is `[fallbackReach-6, fallbackReach+6]`. On `test-combined-arms-rendezvous`'s geometry (own SR
+`6,16`, enemy SR `58,4`, `PreContactStagingPct: 50`) the lerp is `(32,10)` and
+`fallbackReach = Chebyshev = 26`, so an anchor must sit **20-32 cells** from the SR to be
+accepted. The offensive muster sits at `StagingFallbackCells: 6` (`ai.yaml:759`/`:3176`), i.e.
+**6 cells** -- rejected. This is the two-sided bound working exactly as specified: it is the fix
+for run `260815_202509`, NUnit-pinned as `AnchorParkedOnOurOwnSupplyRoute_IsRejected`
+(`engine/OpenRA.Test/OpenRA.Mods.Common/RendezvousMathTest.cs:183-203`) on this same
+`6,16 / 7,17 / 32,10` geometry.
+
+**THE STRUCTURAL POINT, and it is why no flag value fixes this.** The feature's intent ("drop the
+infantry where the armour is mustering") and the bound's intent ("do not drop near our own SR")
+are in **direct conflict at the opening**, because at the opening the armour's muster IS near the
+SR -- 6 cells out against a 26-cell lerp. The 2026-08-19 bound did not merely remove a blocker; it
+made the pre-contact case, which is the only case `DeliverBeforeContact` exists to serve,
+permanently unreachable. `ai.yaml`'s own comment already contains the premise ("before contact the
+frontier descent has nothing to descend toward, so the anchor sits on the Supply Route and is
+ALWAYS behind the lerp") without drawing the conclusion.
+
+**What delivering item 64's combined-arms half would actually take** (NOT done here; each is a
+behavioural change on a trait both profiles carry, owed its own measured run):
+1. publish the *effective* staging anchor (gradient or fallback) on a **new** property -- not by
+   writing it into `stagingAnchor`, which `:2946-2950` forbids in terms; and
+2. a doctrine ruling on the withdraw bound, since accepting a 6-cell anchor against a 26-cell lerp
+   is definitionally the 1-cell-shuttle shape the bound exists to reject. A ratio, a pre-contact
+   exemption and a "clamp toward the anchor rather than adopt it" are all candidates, and all are
+   doctrine, not tuning.
+
+**The residual "lone tank" the audit row describes is a different defect.** Per
+`WORKSPACE/pipeline/items/86-ambush-lane-opening-share.md:219-238`, after item 86 the residual is
+the OFFENSE AXIS forming at `EarlyMinAxisSize: 2` and being ordered 53 cells out while
+reinforcements join behind it -- item 64's missing **lead-hold**, which is not built in any bot
+module. `test-push-departs-together`'s own `expected-status` says so: *"DELETE THIS FILE when a
+lead-hold ... lands and d1/d2 can be met."*
+
 ## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
 
 `test-frozen-tooltip-owner-hidden` passed on 2026-09-21 21:59 and failed on main @ `ef7362a7`

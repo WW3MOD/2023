@@ -2283,7 +2283,27 @@ Player:
 		BoardingStallTicks: 250
 		CaptureFerryEscortSeats: 3
 		TopUpDuringLoading: true
-		RendezvousWithOffensiveStaging: false
+		# COMBINED ARMS — PIPELINE item 64, turned ON 2026-09-22 (was false since the field was added).
+		# Default FALSE on the engine class (MountedTransportBotModule.cs:92), per the architecture rule for a
+		# behavioural field on a trait both profiles instantiate; these two YAML lines are the whole change.
+		# THIS MOVES @stable — a deliberate improvement, not drift; re-take the ai-bench baseline.
+		#
+		# WHAT IT DOES: the transport's pre-contact drop cell becomes the cell the OFFENSIVE reserve is
+		# actually mustering on (PoiOffensiveBotModule.ForwardStagingAnchor) instead of a 50% lerp toward the
+		# top-ranked POI that only this module ever knew. Infantry arrive mounted AT the armour. It is a
+		# DESTINATION preference and nothing else: no unit waits for any other, so it cannot deadlock, and
+		# every rejection path (no anchor, anchor out of band) returns the legacy lerp unchanged.
+		#
+		# WHY IT IS SAFE TO FLIP NOW. It was held off on a MEASUREMENT, not caution: run 260815_202509 (seed
+		# 1017, wip-transport-delivers) moved the drop from lerp=32,10 to anchor=7,17 — one cell from the SR at
+		# 6,16 — and the carrier shuttled in place, load 5 / drive 1 / unload, four times. The cause was a
+		# MISSING LOWER BOUND: AnchorAcceptable tested only `anchorReach <= fallbackReach + advance`, so it
+		# accepted without limit an anchor BEHIND the fallback. That bound landed 2026-08-19
+		# (RendezvousMaxWithdrawCells, default 6, two-sided gate at RendezvousMath.cs:AnchorAcceptable) and is
+		# NUnit-pinned on that exact 6,16 / 7,17 / 32,10 geometry (RendezvousMathTest.cs:185). Under it the
+		# measured regression is REJECTED: |7,17-6,16| = 1 against |32,10-6,16| = 26, and 1 >= 26-6 is false.
+		# So the known blocker is closed by a test, and what remains is to show the feature helps.
+		RendezvousWithOffensiveStaging: true
 		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
 		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
 		# for a behavioural field on a trait both profiles instantiate; this file is the single visible
@@ -2360,25 +2380,11 @@ Player:
 		# scan while loading. Cannot postpone departure: the departure math counts the original cohort only.
 		# Default false on the engine class and NOT set on the @poi twin ⇒ @stable is unchanged.
 		TopUpDuringLoading: true
-		# COMBINED ARMS, the other half of PoiOffensiveBotModule.TransportStandoffEnabled — and it STAYS OFF,
-		# on a measurement rather than on caution. Enabled once (run 260815_202509, seed 1017,
-		# wip-transport-delivers) it moved the drop cell from lerp=32,10 to anchor=7,17 — ONE CELL from the
-		# Supply Route at 6,16 — and the carrier then looped: load 5, drive one cell, unload, reload, four
-		# times. It replaced a 26-cell forward delivery with a shuttle in place.
-		#
-		# The cause was a MISSING LOWER BOUND, not a tuning value. RendezvousMath.AnchorAcceptable tested only
-		# `anchorReach <= fallbackReach + margin`, so it rejected an anchor too far FORWARD and accepted
-		# without limit one BEHIND the cell the transport would have chosen. Whenever the reserve is mustering
-		# near the SR — which is every pre-contact opening, since the frontier descent has nothing to descend
-		# toward — the anchor is behind the lerp and the rendezvous dragged the delivery backwards.
-		#
-		# 2026-08-19: THE LOWER BOUND NOW EXISTS. AnchorAcceptable is two-sided (RendezvousMaxWithdrawCells,
-		# default 6), NUnit-pinned on the measured 6,16 / 7,17 / 32,10 geometry that produced the shuttle.
-		# It STILL STAYS OFF here: the bound removes the known blocker, it does not demonstrate the feature
-		# helps. Flipping it is a behavioural change to @experimental and needs its own measured run — the
-		# scenario to beat is the one that produced the loop above. Until that run exists this line is what
-		# keeps both profiles byte-identical on this path.
-		RendezvousWithOffensiveStaging: false
+		# COMBINED ARMS, the other half of PoiOffensiveBotModule.TransportStandoffEnabled. TURNED ON 2026-09-22
+		# (PIPELINE item 64). Verbatim the @poi twin's value and for the same reasons — see the block above for
+		# the mechanism, the 260815_202509 regression, the two-sided bound that closed it, and the @stable note.
+		# Both twins carry it because the rendezvous is in the shared class, not in a profile.
+		RendezvousWithOffensiveStaging: true
 		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
 		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
 		# and the @stable note. Both twins carry it because the defect is in the shared class, not in a
