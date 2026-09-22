@@ -5,8 +5,11 @@
 
 ---
 
-- [2026-09-21] [MEDIUM] **`O` is bound twice in the Player context, so one of the two commands is
-  dead and nothing says which** (found while: re-deriving audit 260921 §2.5/§2.6 for the hotkey
+- [2026-09-21] [MEDIUM] [**FIXED 2026-09-22**, `wt/hotkey-reference`: `WaypointMode` moved to
+  `O Shift`; the panel no longer draws either row red, and the command bar's Waypoint Mode button
+  has a working key for the first time. The "which one is dead" question below is answered in the
+  resolution note at the end of this entry.] **`O` is bound twice in the Player context, so one of
+  the two commands is dead and nothing says which** (found while: re-deriving audit 260921 §2.5/§2.6 for the hotkey
   reference, `wt/hotkey-reference`, `main @ d69e6883`). `WaypointMode: O`
   (`engine/mods/common/hotkeys/game.yaml:187`, `Types: OrderGenerator`, `Contexts: Player`) and
   `ProductionTypePowers: O` (`mods/ww3mod/hotkeys.yaml:20`, `Types: Production`, `Contexts:
@@ -25,6 +28,20 @@
   one of them, `K` is the only free unmodified letter left in the Player context, and spending it is
   a design call rather than a worker's. `ww3mod|hotkeys.yaml`'s own header comment asserts the
   `Y/U/I/O` run is "unbound in the Player context", which was already false when written.
+  **RESOLUTION 2026-09-22.** The dead one was `WaypointMode` — settled by reading, not by capture.
+  `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks `Children` in **reverse** and returns on
+  the first handler that claims the key; under `Container@PLAYER_WIDGETS` the production sidebar is
+  child index **24** and the command bar index **15**, so the sidebar is reached first and
+  `ProductionTypeButton@POWERS` takes `O`. It does so **unconditionally**: `ButtonWidget
+  .HandleKeyPress` returns `true` even when the button is disabled (`:160-169`), and nothing hides
+  the tab (`ClassicProductionLogic` sets `IsVisible` on the scroll arrows only). So the command
+  bar's `QUEUE_ORDERS` key has never fired since `746c592c` gave it one. Moved to `O Shift` rather
+  than to `K`: `K` is the last free bare letter and this is a comfort toggle over a gesture that
+  already exists (the button's own tooltip says *"Hold {(Shift)} to activate temporarily"*, and
+  Shift+right-click already queues), so Shift is both the cheaper and the more mnemonic modifier.
+  `HotkeyReference.IsActivatedBy` compares `Modifiers` for equality (`:43`), so `O Shift` cannot
+  re-collide with the tab's bare `O`. Re-swept all 209 definitions afterwards: **0 duplicate
+  bindings with overlapping contexts.**
 
 
 - [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,

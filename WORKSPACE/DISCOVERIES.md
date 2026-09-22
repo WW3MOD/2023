@@ -3,6 +3,40 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - Two chrome buttons may carry the same `Key:` and the winner is decided by CHILD ORDER, reversed — and a DISABLED button still claims the key (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Settling the `O` collision (`WaypointMode` vs `ProductionTypePowers`, both WW3MOD's own, the only
+duplicate across 209 definitions). The question "which one actually fires?" looked like it needed a
+capture. It does not — it is decided by three lines of engine code and one ordering fact.
+
+- **`Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks `Children` in REVERSE and returns on
+  the first handler that claims the key.** So of two visible buttons sharing a key, **the one
+  declared LATER in the chrome file wins** — the opposite of the reading order, and the opposite of
+  `TestModeScreenshots.FindVisible`, which walks the same tree FORWARD. Two traversals of one tree
+  with opposite precedence is a genuine trap: a scripted click and a real keypress do not resolve
+  ambiguity the same way.
+- **A DISABLED button still claims it.** `ButtonWidget.HandleKeyPress` (`:155-170`) tests only
+  `Key.IsActivatedBy` and `IsVisible()` (via the outer walk); when `IsDisabled()` it plays the
+  disabled sound and **still returns `true`**. So a greyed-out button silently eats the key from
+  everything below it. Only `IsVisible()` can release it.
+- Applied here: under `Container@PLAYER_WIDGETS` in `chrome/ingame-player.yaml`,
+  `Container@SIDEBAR_PRODUCTION` is child index **24** and `Container@COMMAND_BAR` is index **15**,
+  so the production tab takes `O` and the command bar's `QUEUE_ORDERS` button has been
+  keyboard-dead since `746c592c` gave it a key. Nothing surfaced that: the tooltip still advertises
+  the button, and the only place the clash was visible was the settings panel nobody opened.
+
+**The reusable rule: a `Key:` on a chrome button is not scoped to its panel.** It is claimed by
+whichever visible widget the reverse walk reaches first, anywhere in the tree. That is the same
+mechanism that made eleven per-slot garrison hotkeys undesirable in this branch (a visible
+`EJECT_PORT` bound to `1` would eat control-group 1), and it means **a new `Key:` must be checked
+against every definition the mod loads, not against the file it is added in** — `mod.yaml:281-290`
+loads nine, and a clash needs only overlapping `Contexts`.
+
+Cheap detector, no build and no launch: parse the nine files, normalise `<KEY> <Mods…>` to
+`(key, frozenset(mods))`, and report any pair with equal value and intersecting `Contexts`. That is
+exactly `HotkeyManager.GetFirstDuplicate` (`HotkeyManager.cs:91-103`). It found this one and, after
+the fix, reports zero.
+
 ## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`)
 
 Both found from run `manual_hotkeys_260922_011140`, the first capture of the Settings → Hotkeys

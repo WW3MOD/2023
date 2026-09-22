@@ -19,6 +19,11 @@ not a first look at a new one.**
 ./tools/autotest/screenshot-hotkeys.sh            # default map river-zeta-ww3
 ```
 
+> **Rev 4, 2026-09-22, after run `manual_hotkeys_260922_020858` returned a clean four-frame
+> result.** Everything the driver exists to photograph now photographs. The one defect still in
+> frame — `Waypoint (queue orders) mode` drawn red — is fixed in this revision by rebinding it to
+> `Shift + O`; see the frame-1 expectations below. **No driver change at rev 4.**
+>
 > **Rev 3, 2026-09-22, after run `manual_hotkeys_260922_011140` returned rc=0.** That run was a
 > real result — both clicks dispatched, the panel on screen — but its second frame was
 > byte-identical to its first, so the new `Garrison & Transport Commands` section was never
@@ -145,13 +150,15 @@ Four now, and each is a genuinely different state — the old duplicate second s
 - **This frame shows only the first ~11 rows** — `HOTKEY_LIST` is 395 px tall at 30+5 per row —
   so it reaches `Game Commands` and no further. The new groups are in the filtered shots below,
   **not** here; their absence from this frame is expected.
-- **Two things run `260922_011140` already confirmed and that should still be true:**
-  `Waypoint (queue orders) mode: O` in **red** — that is `HasDuplicates` against
-  `ProductionTypePowers`, the collision filed in `bugs/discovered.md`, now visible rather than
-  merely computed; and `Power-down mode: Undefined`, which matches `PowerDown: # X` having its key
-  commented out in place.
-- **No label should now overlap its neighbour or run off the panel's left edge.** That is the
-  regression this revision is mostly for.
+- **`Waypoint (queue orders) mode` must now read `Shift + O` and must NOT be red.** It was
+  `O` in red on runs `…011140` and `…020858` — `HasDuplicates` against `ProductionTypePowers`.
+  Rebound 2026-09-22; **red anywhere in this panel now means a NEW collision**, since a re-sweep of
+  all 209 definitions reports zero.
+- `Support Powers Tab` keeps bare `O` and is also not red.
+- `Power-down mode: Undefined` — unchanged, and correct: `PowerDown: # X` has its key commented out
+  in place.
+- **No label should overlap its neighbour or run off the panel's left edge** — confirmed fixed on
+  run `…020858`, so this is now a regression check.
 
 ### `02-filter-position`, `03-filter-spacing`, `04-filter-ammo` — filtered
 

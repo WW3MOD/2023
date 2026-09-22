@@ -16,7 +16,18 @@ ProductionTypeAircraft: I
 	Types: Production
 	Contexts: Player
 
-# O continues the Y/U/I run on the top row and is unbound in the Player context.
+# O continues the Y/U/I run on the top row.
+#
+# THE LINE HERE USED TO CLAIM O WAS "unbound in the Player context". IT WAS NOT, AND WAS NOT WHEN
+# WRITTEN: 746c592c had already given bare O to WaypointMode in common|hotkeys/game.yaml, so the
+# two collided under HotkeyManager.GetFirstDuplicate (equal value, overlapping Contexts) and the
+# settings panel drew both red. This side WON the clash and keeps its key -- Widget's reverse
+# child walk reaches the production sidebar (PLAYER_WIDGETS index 24) before the command bar
+# (index 15) -- so nothing about this binding changes. WaypointMode moved to O+Shift on
+# 2026-09-22; the reasoning is written out where that key lives.
+#
+# A NEW BINDING IN THIS FILE IS NOT PROVEN FREE BY THE FILES IN THIS FILE. The mod loads nine
+# hotkey files (mod.yaml:281-290) and a clash only needs overlapping Contexts, not a shared file.
 ProductionTypePowers: O
 	Description: Support Powers Tab
 	Types: Production
