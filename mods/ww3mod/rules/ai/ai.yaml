@@ -2323,6 +2323,25 @@ Player:
 		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
 		# unit is past the muster anchor and its whole spread ring.
 		EscortUnloadEnabled: true
+		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
+		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
+		# mechanism stays live and tunable. Default 0 (disabled) on the engine class
+		# (MountedTransportBotModule.EscortLoadGraceTicks); this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): task-created t72, departed Full t472 — 400 ticks loading from passengers
+		# standing ONE cell away, while the escort it exists to reinforce had stopped at 21,16 since t400 and
+		# died at t624 with the carrier still 4 cells short. Nothing bounded that: BoardingStallTicks (250)
+		# bounds only a LACK of progress and progress kept happening; LoadingTimeoutTicks (1500) is three times
+		# the whole episode.
+		# 100 because MinPassengersPerLoad (2) was reached at t172 — one hundred ticks after loading began — so
+		# it is one full boarding cycle and two ScanIntervals, i.e. the top-up pass has run at least twice
+		# before the escape can fire. On that log it would have departed t322 with 3 aboard rather than t472
+		# with 5. The grace is NOT the binding term there (the escort only cleared the muster ring at ~t322, so
+		# 50 through 250 all give t322) — it is the margin against pre-empting a fill that still had a chance.
+		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
+		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
+		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		EscortLoadGraceTicks: 100
 		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
 		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
 		# for a behavioural field on a trait both profiles instantiate; this file is the single visible
@@ -2434,6 +2453,25 @@ Player:
 		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
 		# unit is past the muster anchor and its whole spread ring.
 		EscortUnloadEnabled: true
+		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
+		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
+		# mechanism stays live and tunable. Default 0 (disabled) on the engine class
+		# (MountedTransportBotModule.EscortLoadGraceTicks); this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): task-created t72, departed Full t472 — 400 ticks loading from passengers
+		# standing ONE cell away, while the escort it exists to reinforce had stopped at 21,16 since t400 and
+		# died at t624 with the carrier still 4 cells short. Nothing bounded that: BoardingStallTicks (250)
+		# bounds only a LACK of progress and progress kept happening; LoadingTimeoutTicks (1500) is three times
+		# the whole episode.
+		# 100 because MinPassengersPerLoad (2) was reached at t172 — one hundred ticks after loading began — so
+		# it is one full boarding cycle and two ScanIntervals, i.e. the top-up pass has run at least twice
+		# before the escape can fire. On that log it would have departed t322 with 3 aboard rather than t472
+		# with 5. The grace is NOT the binding term there (the escort only cleared the muster ring at ~t322, so
+		# 50 through 250 all give t322) — it is the margin against pre-empting a fill that still had a chance.
+		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
+		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
+		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		EscortLoadGraceTicks: 100
 		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
 		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
 		# and the @stable note. Both twins carry it because the defect is in the shared class, not in a

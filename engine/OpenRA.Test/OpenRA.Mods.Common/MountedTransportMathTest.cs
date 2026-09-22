@@ -157,7 +157,69 @@ namespace OpenRA.Test
 		static CarrierDeparture Fill(int aboard, int seatTarget, int stillComing, int ticksLoading, int sinceBoard)
 		{
 			return MountedTransportMath.DecideDeparture(true, aboard, seatTarget, stillComing, Min,
-				ticksLoading, Timeout, sinceBoard, Stall);
+				ticksLoading, Timeout, sinceBoard, Stall, false, 0);
+		}
+
+		// ---- Item 64: the bounded escape from FillBeforeDeparture ----
+
+		[Test]
+		public void EscapeIsInertAtGraceZero_SoTheShippedFillIsUnchanged()
+		{
+			// The engine default. Every term of the escape can be true and it must still not fire, because a
+			// profile that never opts in has to keep the 2026-08-15 half-empty-departure fix exactly as it was.
+			// ticksLoading is kept UNDER the hard bound on purpose: past it the correct answer is Timeout, and
+			// a first cut of this test asserted Wait against 9999 and failed on that rather than on the escape.
+			Assert.That(MountedTransportMath.DecideDeparture(true, Min, 5, 3, Min, 400, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 0),
+				Is.EqualTo(CarrierDeparture.Wait), "grace 0 must disable the escape outright");
+		}
+
+		[Test]
+		public void EscapeNeedsAllThreeTerms()
+		{
+			// No escort forward (the no-axis world, which is wip-transport-delivers' whole geometry): wait.
+			Assert.That(MountedTransportMath.DecideDeparture(true, Min, 5, 3, Min, 400, Timeout, 0, Stall,
+					escortInContact: false, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.Wait), "no escort in contact ⇒ the fill is not cut short");
+
+			// Escort forward, grace NOT yet elapsed: wait. This is the term that stops the escape pre-empting a
+			// fill that simply has not had its chance yet.
+			Assert.That(MountedTransportMath.DecideDeparture(true, Min, 5, 3, Min, 99, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.Wait), "grace not elapsed ⇒ keep filling");
+
+			// Escort forward, grace elapsed, but the load is BELOW the minimum: wait. A trip not worth making
+			// does not become worth making because someone forward is in trouble.
+			Assert.That(MountedTransportMath.DecideDeparture(true, Min - 1, 5, 3, Min, 400, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.Wait), "below MinPassengersPerLoad ⇒ still not worth delivering");
+
+			// All three: go.
+			Assert.That(MountedTransportMath.DecideDeparture(true, Min, 5, 3, Min, 400, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.EscortInContact));
+		}
+
+		[Test]
+		public void EscapeNeverStealsAFullerLoadsReason()
+		{
+			// MEASURED SHAPE — run 260922_200826: loading began t72, MinPassengersPerLoad met t172, departed
+			// Full t472. With the escape armed the carrier leaves at 3 of 5 once the escort clears the muster.
+			Assert.That(MountedTransportMath.DecideDeparture(true, 3, 5, 2, Min, 250, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.EscortInContact));
+
+			// A hold that is genuinely Full still reports Full, not the escape — the load was never cut short,
+			// and the log has to say so or a reader cannot tell a rescued departure from an ordinary one.
+			Assert.That(MountedTransportMath.DecideDeparture(true, 5, 5, 0, Min, 400, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.Full));
+
+			// Likewise when nobody else is walking in: the load is already maximal, so NobodyElseComing is the
+			// truer reason even though every escape term also holds.
+			Assert.That(MountedTransportMath.DecideDeparture(true, 3, 5, 0, Min, 400, Timeout, 0, Stall,
+					escortInContact: true, escortGraceTicks: 100),
+				Is.EqualTo(CarrierDeparture.NobodyElseComing));
 		}
 
 		[Test]
@@ -166,14 +228,14 @@ namespace OpenRA.Test
 			// Frozen default: leave the instant MinPassengersPerLoad are aboard, however many more were
 			// ordered. This is the half-empty departure the fill lever exists to remove — pinned so a
 			// profile that does not opt in cannot drift.
-			Assert.That(MountedTransportMath.DecideDeparture(false, 2, 5, 3, Min, 10, Timeout, 10, Stall),
+			Assert.That(MountedTransportMath.DecideDeparture(false, 2, 5, 3, Min, 10, Timeout, 10, Stall, false, 0),
 				Is.EqualTo(CarrierDeparture.Threshold));
 
-			Assert.That(MountedTransportMath.DecideDeparture(false, 1, 5, 4, Min, 10, Timeout, 10, Stall),
+			Assert.That(MountedTransportMath.DecideDeparture(false, 1, 5, 4, Min, 10, Timeout, 10, Stall, false, 0),
 				Is.EqualTo(CarrierDeparture.Wait));
 
 			// Baseline ignores the stall bound entirely — only the hard timeout releases it.
-			Assert.That(MountedTransportMath.DecideDeparture(false, 1, 5, 4, Min, 10, Timeout, 9999, Stall),
+			Assert.That(MountedTransportMath.DecideDeparture(false, 1, 5, 4, Min, 10, Timeout, 9999, Stall, false, 0),
 				Is.EqualTo(CarrierDeparture.Wait));
 		}
 
@@ -224,7 +286,7 @@ namespace OpenRA.Test
 			Assert.That(Fill(0, 5, 2, 400, Stall - 1), Is.EqualTo(CarrierDeparture.Wait));
 
 			// Stall release is opt-out: at 0 only the hard timeout remains.
-			Assert.That(MountedTransportMath.DecideDeparture(true, 3, 5, 2, Min, 400, Timeout, 9999, 0),
+			Assert.That(MountedTransportMath.DecideDeparture(true, 3, 5, 2, Min, 400, Timeout, 9999, 0, false, 0),
 				Is.EqualTo(CarrierDeparture.Wait));
 		}
 
@@ -248,7 +310,7 @@ namespace OpenRA.Test
 						for (var stillComing = 0; stillComing <= 6; stillComing++)
 						{
 							var pastHardBound = MountedTransportMath.DecideDeparture(fill,
-								aboard, seatTarget, stillComing, Min, Timeout + 1, Timeout, 0, Stall);
+								aboard, seatTarget, stillComing, Min, Timeout + 1, Timeout, 0, Stall, false, 0);
 
 							Assert.That(pastHardBound, Is.Not.EqualTo(CarrierDeparture.Wait),
 								$"hung past the hard timeout: fill={fill} aboard={aboard} " +

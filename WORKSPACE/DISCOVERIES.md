@@ -3,6 +3,50 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else
+
+Measured in `260922_200826`: `task-created` t72, `depart ... reason=Full` t472. **400 ticks loading**,
+with `pax-waiting ... activity=RideTransport cells-to-carrier=1` the whole way and `aboard` stepping
+0 / 2 / 2 / 2 / 3 / 4 / 5. `MinPassengersPerLoad` (2) was satisfied at **t172**, three hundred ticks
+before the carrier moved. Its escort had stopped at `21,16` at t400 and died at t624 with the carrier
+still four cells short.
+
+**Both existing bounds are blind to this, and it is worth being precise about why, because each looks
+like it should have caught it:**
+* `BoardingStallTicks` (250) measures `ticksSinceProgress` — a **lack** of progress. Progress kept
+  occurring (`since-progress=0` at t322, t372), so it never armed. A load that fills steadily but
+  slowly is invisible to a stall bound by construction.
+* `LoadingTimeoutTicks` (1500) is the hard bound, and at three times the length of the entire episode
+  it is a bound on pathology, not on tempo.
+
+Neither reads anything about the **world outside the carrier**. That is the actual gap: the transport
+decides how long to wait using only its own hold and its own clocks, and never asks whether the force
+it is loading for still needs the delivery to arrive at all.
+
+**THE SHAPE OF THE FIX, per the project's "gradient over hard transitions" rule: a bounded ESCAPE, not
+a replacement.** `FillBeforeDeparture` stays true and stays the default — the 2026-08-15 half-empty
+departure fix is a real fix and reverting it would re-open a measured defect. What is added is one
+exit priced on the bad state: leave early only when *all* of a deliverable load
+(`MinPassengersPerLoad`), an escort already past the muster ring
+(`PoiOffensiveBotModule.ForwardEscortCell` non-null — the same seam the escort unload reads, not a
+second notion of "forward"), and a grace long enough for the fill to have had its chance
+(`EscortLoadGraceTicks`, default **0 = disabled**) hold together.
+
+**Two placement rules fell out of writing it and both are generalisable:**
+1. **Put the escape AFTER the unconditional releases, not before.** `Full` and `NobodyElseComing`
+   depart on the same tick anyway and are truer descriptions of *why*. Letting the escape win there
+   would make the log claim a load was cut short when it was not, and a reader could no longer
+   distinguish a rescued departure from an ordinary one.
+2. **Exclude the capture ferry outright.** A ferry's spare seats exist precisely to be filled
+   (`CaptureFerryEscortSeats`), and `test-ferry-fills-seats` asserts peak pax >= 2 on that leg — an
+   early bolt with the technician alone is the exact regression that scenario exists to catch.
+
+**And a test-authoring trap, paid for once here.** A "this flag is inert" assertion must keep every
+*other* input inside its normal band. The first cut asserted `Wait` with `ticksLoading: 9999` against
+a `LoadingTimeoutTicks` of 1500, and failed with `But was: Timeout` — correct engine behaviour,
+reported as a failure of the feature under test. An inertness test that trips a different mechanism is
+testing that mechanism.
+
 ## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers
 
 Measured, `test-combined-arms-rendezvous`, worktree @ `288d3db9`. Verdict FAIL, tank dead t624 at
