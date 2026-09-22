@@ -3,7 +3,81 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") CANNOT FIRE IN THE OPENING: the anchor it reads is deliberately null exactly then, and the bound that fixed its one measured regression rejects it even when it is not
+## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate
+
+The measured symptom (run `260922_193617`) is that nothing paces armour against the infantry it is
+supposed to arrive with: the abrams reached `22,16` and died at t621 while the carrier was at `15,15`
+with all four riflemen still aboard. A grouped `AttackMove` goes through `CohesionMoveModifier`,
+which rewrites each subject's destination cell and **carries no speed term at all**.
+
+**The hold slot and the template already exist.** `PoiOffensiveBotModule.CommitAndOrder` is a hold
+LADDER, and `TryOrderHold(bot, axis, units, centroid, alreadyHolding, out holdCell)`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/PoiOffensiveBotModule.cs:5312`) is a general primitive
+with the passability fallback, the `RepathThresholdCells` dedup and a deterministic lowest-ActorID
+representative already in it. It has three callers — `OrderPrepHold` (`:5348`), `OrderSyncHold`
+(`:5361`), `OrderConvergeHold` (`:5482`). **A fourth is ~15 lines.** The converge hold
+(`:3946-3999`) is the closest template: a gate predicate, a bound, an order, and a reconciliation
+that clears the flag and `HasOrdered` so the assault re-issues.
+
+**PLACEMENT IS LOAD-BEARING AND THE FILE SAYS SO.** A hold must return **without** stamping
+`ApplyMissionCommitment` and must sit **before** it (`:3903`): an axis marked `Committed` is frozen
+out by `PartitionHeldAxes`, which skips `CommitAndOrder` entirely, so a holding axis would never
+re-reach its own release gate and its bound would be a dead knob. That is review FIX 4's recorded
+defect, and the prep/sync holds both carry the comment.
+
+**The cross-module seam was already there.** `PoiOffensiveBotModule` already resolves the transport
+module live at `:2594` (`TraitsImplementing<MountedTransportBotModule>().FirstOrDefault(m =>
+!m.IsTraitDisabled)` — twinned, so `TraitOrDefault` throws). So "does the offense know about the
+carriers" needed no new plumbing, only a published read: `MountedTransportBotModule.LoadedDeliveryCells`,
+the mirror of the `ForwardStagingAnchor` the transport already reads off offense. Cells cross the
+seam, never decisions.
+
+**THE NON-OBVIOUS SAFETY PROPERTY, and it is stronger than the deadlock argument it replaces.** The
+worry with gating armour on a carrier is the cycle *"axis waits for carrier, carrier waits for a
+frontline only the axis could create"*. It cannot arise, for two independent reasons, and the second
+is the useful one: **a carrier with no resolvable destination never becomes something such a gate can
+see.** `MountedTransportBotModule` returns at its `no-task reason=no-drop-cell` exit
+(`MountedTransportBotModule.cs:1482-1494`) **before** any `CarrierTask` is constructed, so that
+carrier never enters `Delivering` and never appears in `LoadedDeliveryCells`. A gate keyed on
+*Delivering/Unloading with a non-empty hold* therefore cannot wait on a carrier that has nowhere to
+go — including the `DeliverBeforeContact: false` profile (`wip-transport-delivers`' RED arm), which
+is the case that looks most dangerous and is in fact the safest. Waiting on `Loading` instead would
+lose this property outright, because a `Loading` carrier may time out and never depart.
+
+**A per-axis eval budget is the wrong bound here, and the dossier says why.** 100% of axis retires
+are `reason=dropped` (`ai.yaml`, the axis-churn note), so a counter carried on the `Axis` is
+refreshed every time an axis is dropped and re-formed — which is most often **at the opening**, which
+is exactly where an escort hold lives. A bound that resets with the thing it bounds is not a bound.
+The established alternative is in the same file: `StoodOffForTransport`'s player-level tick valve
+(`:2605-2618`), which releases on expiry and **keeps the record** so the release is one-way rather
+than a hold/advance duty cycle.
+
+**What this does NOT address, stated because the item's name over-promises.** Pacing an axis against
+a CARRIER does nothing for infantry that WALK. `test-push-departs-together` has no carrier at all
+(deliberately — `map.yaml:69-78`), so any carrier-keyed gate is inert there and its d2 clause stays
+red: d2 is a speed clause between an abrams (`Speed: 90`) and a rifleman (`Speed: 25`), and only a
+throttle or a speed-split lead-hold can move it. That remains item 64's separate, unbuilt half.
+
+## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") IS MEASURED-INERT AND DOES NOT SHIP: the 2026-08-19 withdraw bound rejects the anchor in the only state that reaches it
+
+**MEASURED, and the flip was reverted on the strength of it.** Run `260922_193617`
+(`test-combined-arms-rendezvous`, flag ON on both twins, worktree @ `cf3b70f3`): **zero
+`[exp-transport] rendezvous` lines** in the whole run — that line is written only when the resolved
+cell differs from the fallback (`MountedTransportBotModule.cs`, `ResolveRendezvous`), so its absence
+is the proof. The verdict was the unchanged `"the bot's tank died before the rendezvous could be
+judged (tick=621; tank last seen at 22,16, SR is 6,16; ... rifle-1..4=oow/dead=false(rode))"`.
+
+**WHICH of the three predicted gates was live is now settled, and it was not the one I led with.**
+`anchorsrc` read `gradient` x6, `none` x6, `fallback` x1 — so an anchor WAS published for most of
+the run and the "null by design" path (reason 2 below) did **not** apply on this map. **Reason 3 —
+`RendezvousMaxWithdrawCells = 6` — is the live gate.** Reason 2 remains true as written for the
+descent-stalled case (`anchorsrc=fallback`/`none`, 7 of 13 samples here) and is what makes the
+feature unreliable rather than merely bounded; but on this geometry the bound alone is sufficient to
+explain the inertness. The general claim survives; the ranking in it was wrong.
+
+**Do not re-flip this without changing the bound.** A flip labelled "moves `@stable`" that moves
+nothing still forces an ai-bench re-baseline, which is a real cost for no behaviour.
+
 
 Flipping `mods/ww3mod/rules/ai/ai.yaml` `RendezvousWithOffensiveStaging: false -> true` on both
 `MountedTransportBotModule` twins is what `WORKSPACE/audit/260921-release-readiness.md:287`

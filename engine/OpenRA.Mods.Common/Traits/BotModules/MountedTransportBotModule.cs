@@ -384,6 +384,45 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
 		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
 		/// avoid issuing AttackMove orders that would override the EnterTransport.</summary>
+		/// <summary><para>Cells of our carriers that are right now CARRYING at least one passenger toward a
+		/// drop-off — i.e. the infantry an offensive axis would be waiting to arrive with.</para>
+		///
+		/// <para>DELIVERING/UNLOADING ONLY, and the two exclusions are the point. A <c>Loading</c> carrier has not
+		/// departed and may never (the boarding bounds can time it out), and a <c>Returning</c> one is empty;
+		/// waiting on either is waiting on nothing, and an axis that did so would hold for the whole match on a
+		/// carrier that was never coming. The <c>Cargo.IsEmpty()</c> re-test is not redundant with the state: a
+		/// passenger can die or be unloaded between the state transition and this read.</para>
+		///
+		/// <para>Published for PoiOffensiveBotModule's infantry-escort hold, and deliberately the MIRROR of this
+		/// module's own read of that module's <c>ForwardStagingAnchor</c> — cells cross the seam, never decisions,
+		/// so neither module learns the other's arithmetic. Read-only: the caller cannot reach task state through
+		/// it.</para>
+		///
+		/// <para>DETERMINISM: iterates a Dictionary, so the ORDER is not guaranteed — every consumer must be
+		/// order-independent. The one consumer takes a MIN over the set, which is. Do not add a caller that reads
+		/// "the first" of these.</para></summary>
+		public IEnumerable<CPos> LoadedDeliveryCells
+		{
+			get
+			{
+				foreach (var task in carrierTasks.Values)
+				{
+					if (task.State != CarrierState.Delivering && task.State != CarrierState.Unloading)
+						continue;
+
+					var carrier = task.Carrier;
+					if (carrier == null || carrier.IsDead || !carrier.IsInWorld)
+						continue;
+
+					var cargo = carrier.TraitOrDefault<Cargo>();
+					if (cargo == null || cargo.IsEmpty())
+						continue;
+
+					yield return carrier.Location;
+				}
+			}
+		}
+
 		public bool IsPassengerReserved(Actor actor)
 		{
 			foreach (var task in carrierTasks.Values)
