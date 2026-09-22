@@ -22,6 +22,7 @@ The highest-traffic entries, and why they are still worth reading:
 | **47** (GPLv3) | **A grep's scope is part of its claim.** Two separate false findings on one day traced to exactly this. |
 | **8** (ambush implementation) | **The load-bearing line is ruling D — *"human-settable + bot behind the same default-off gate from day one."*** What shipped grants `enable-ambush-tactics` to bot-posted units only, so **the bot-only gate is a regression against this item's own design decision, not a design choice** (live item **68**, 2026-08-20). Also the origin of the "gate (b) benchmark pricing" thread, parked as void-corpus in `AWAITING-USER.md`. **Do not re-file ambush as unbuilt: all four stages are here.** |
 | **78** (evacuation edge) | **Ground evacuation is owner-anchored — do not "restore" `?? self.Location`.** `RotateToEdge.cs:209` falls back to `FriendlyEvacuationOrigin`, the nearest friendly `SUPPLYROUTE`; the **aircraft** branch still uses `?? self.Owner.HomeLocation` (`:195`) and is correct as it stands. Carries the reverse of this file's usual trap: the item's evidence lives under `tools/evac-edge-math/`, **not** `WORKSPACE/`, and a `WORKSPACE`-scoped grep therefore reads shipped work as unstarted — a 2026-09-21 audit did exactly that. The ~12× exposure cost is unapproved and parked in `AWAITING-USER.md`. |
+| **86** (ambush lane share) | **`@stable` MOVED here, knowingly** — `OffenseFloorReserveEnabled` is `true` on BOTH profiles (`ai.yaml:1093` / `:3227`) while the C# default stays `false`, so the benchmark control was re-taken: [`260922-rebaseline.md`](../../benchmarks/260922-rebaseline.md) supersedes the 260905 corpus. Carries three traps. (1) **`test-combined-arms-rendezvous` cannot gate this item in either direction** — the tank it kills is *offense's* axis lead, not the lane's, and both arms fail identically; the discriminating scenario is `test-ambush-lane-share`. (2) **The axis waiver was DELETED, not narrowed** — an axis has *consumed* units, so its existence is evidence against spare capacity; narrowing by axis size would not have fixed the run that found it. (3) The reserve bounds **how many, never which**, so a pool clearing the floor can still hand the lane the army's only MBT — a known residual, not a regression. The lone-tank symptom belongs to **item 64**. |
 | **56** (supply truck delivery) | **The acceptance bar is DISCHARGED — do not re-open this on a red scenario.** Settles that the trucks DO commit: 4 deliveries from 5 dispatches in one live match, zero errands open at the clock, and **zero x-travel reversals** on all four. Carries three traps. (1) The first census line with a `truk=` term reads **`truk=0+0`**, so `grep -F 'truk='` is not the precondition — sum `inWorld+inCargo`. (2) **`drop-declined reason=` is not a contiguous string** — the line is `drop-declined truck=<id>@<x>,<y> reason=<R>`, and `-F` does not rescue it. (3) `[supply] truck=` lines **do** carry per-scan `@x,y`; the ×10 read-out's "these logs carry no truck positions" is wrong, and it is why the movement reading sat undischarged. Also: the reversal criterion **was never part of the bar** — it is §3's spec for a proposed scenario. `test-supply-safe-front-keeps-cargo` is still red, **on the merits and for an `AutoSeekSupplies` reason, not a supply-module one**. |
 
 ---
@@ -874,3 +875,293 @@ if (drop && Info.DropRequiresDanger && !Info.IgnoreDangerForDelivery && !dispatc
 **THE GATE THAT WOULD FIX THE SEEK HALF, stated precisely so the user can be asked.** In `AutoSeekSupplies.TickIdle`, between `FindNearestUsableProvider()` and the `QueueActivity(new SeekSuppliesAndReturn(...))` at `:202`: a new `Info` field — engine default **false**, i.e. today's behaviour, per the shared-trait rule — suppressing the dispatch while the chosen provider is **closing on us**. The cheapest deterministic test with no history problem: cache the chosen provider's `ActorID` and squared distance per scan, and if the same provider is chosen again with a **strictly decreased** squared distance, hold this scan. Zero RNG, one `uint` + one `long` per actor, pruned alongside the existing per-actor state. It is self-limiting and cannot deadlock — the man re-asks every `ScanInterval: 40`, so a truck that parks, stalls or drives away is fetched from within ~40 ticks. It must NOT be applied to the `ReturnWhenEmpty` break-off path (`ITick.Tick`): a wholly dry man should still break off. And `SupplyProvider.OnSupplyErrand` cannot serve as the signal, because it reads only `RestockSupply`/`PlaceSupplyCache`/`CollectSupplyCache`/`DeliverSupply` while the follow path issues a plain `Move`.
 
 **What that costs a HUMAN-OWNED squad, since `AutoSeekSupplies` sits on `^Soldier` and has no owner-side split.** With the field on, a player's low-ammo infantry standing idle no longer trots off to intercept a supply truck that is driving toward them — they hold and are served in place, which is the behaviour the doctrine describes and most players would expect. The costs: (a) up to one extra scan (~40 ticks, ≈1.6 s) of delay before fetching from a truck that turns out to be merely passing by, because the first observation has no previous distance to compare against; (b) a squad that would previously have met a truck halfway now waits for it, so time-to-resupply rises whenever the truck is slower than the men; (c) units under an explicit player order are unaffected either way — this is the idle path only. **Nothing changes unless the field is set in YAML**, and setting it on `^Soldier` moves human play and both bot profiles together. That is the choice to put to the user.
+
+---
+
+### 86. The ambush lane takes 2 of 3 units at the opening and leaves offense below its own floor **[CLOSED 2026-09-22 — shipped `ef7362a7`, verdict scenario green/red both taken, MOVES `@stable`, benchmark control re-taken at `benchmarks/260922-rebaseline.md`]**
+
+`[DOCTRINE RULING NEEDED before any code — every candidate fix is on a trait live on BOTH profiles at match opening]`
+
+**Perceived:** in a small opening army the bot's only tank walks 22 cells forward as half of an "ambush pair" and dies there while the rest of the army never leaves the Supply Route.
+
+**Source:** rendezvous diagnosis, worker 37fdcca8, CONFIRMED by run `260906_091912_p10120_test-combined-arms-rendezvous` (item 64 dossier, 2026-09-06). Filed at `main @ e8e57ada`.
+
+---
+
+#### What the log proves (main @ b6207b9b tree)
+
+`[exp-staging] hold-under-min pool=1 min=2` — offense holds the tank correctly; then at t200 `[exp-ambush] lane … post=28,12 units=2` and `[exp-ledger] free=1 held=2 by=ambush:2`: `LaneAmbushBotModule` takes two of the three eligible units (the tank among them) and posts them 40% of the way to the enemy SR, with **zero `retire` lines** all run. The tank walks 8,16 → 20,14 and dies at t585 (killer unlogged — hypothesis: Russia's 2-unit flank via 32,19). `ai.yaml:1046-1047` predicted it verbatim: *"at the opening the lane takes the entire army"*. `MinUnitsPerAmbush: 2` (bb89f9fd) turned one lone forward unit into a forward pair — it did not remove the behaviour.
+
+#### Candidate rulings (pick one; each is a doctrine change)
+
+(a) **Army-share reserve** — the lane may not take units while offense sits below `FreePoolMinAdvanceUnits`; (b) **danger-aware post cell** — no post beyond a believed-danger threshold; (c) **losing-lane retire** — a lane whose units take damage without contact retires. (a) is the smallest and directly answers the symptom.
+
+**Measurement:** `test-combined-arms-rendezvous` — the tank alive at the rendezvous (scenario now traces positions every 100 ticks and prints the tank's last cell on death, 26aea66a). Related: the ambush block (items 67–71) is USER-GATED — this item is about the lane's *share* at the opening, not about ambush itself.
+
+---
+
+#### Status log
+
+**2026-09-21 — IMPLEMENTED on `wt/item86-lane-share`, base `main @ eacc1cff`. Awaiting the measured run.**
+
+Ruling (a) **army-share reserve** only. Nothing from (b) danger-aware post cell or (c) losing-lane retire.
+Item 64's `RendezvousWithOffensiveStaging` flags (`ai.yaml:2258` / `:2353`) are **untouched** — that is a
+separate un-run behavioural change and the standing rule is one per branch.
+
+| | |
+|---|---|
+| field | `LaneAmbushBotModuleInfo.OffenseFloorReserveEnabled` |
+| C# default | `false` — the ungated behaviour, per the architecture rule for a trait live on both profiles |
+| `@experimental` | `true` (`ai.yaml:1093`) |
+| `@stable` | `true` (`ai.yaml:3227`) — **deliberate, and it MOVES `@stable`**; re-take the ai-bench baseline |
+| pure helper | `AmbushLaneMath.ReserveAllowance` (6 args, `int.MaxValue` = unbounded) |
+| new offense surface | `PoiOffensiveBotModule.TryGetFreePoolSnapshot` + `EffectiveFreePoolMinAdvanceUnits` |
+| NUnit | 9 new tests in `AmbushLaneMathTest.cs` |
+
+**"Would be left below the floor", precisely.** The lane may take `k` units this eval only while
+`offenseFree − k ≥ offenseMin`, so the allowance is `max(0, offenseFree − offenseMin)` — **one allowance for
+the whole eval**, spent across lanes in the order they are filled, so two lanes share the army's spare units
+rather than each taking the full allowance.
+
+Every term is the offense's own, read through the module, never re-derived:
+
+- `offenseFree` — `PoiOffensiveBotModule.TryGetFreePoolSnapshot`, published from inside `BuildFreePool` at
+  `PoiOffensiveBotModule.cs:2449`. That is the list whose `.Count` becomes `ordered.Count` at
+  `StageFreePool` (`:2877`) and is compared against the floor at `:2952`.
+- `offenseMin` — `EffectiveFreePoolMinAdvanceUnits`, i.e. `Info.FreePoolMinAdvanceUnits` (`:640`, set to `2`
+  on both profiles at `ai.yaml:772` / `:3150`) **or 0 when `ForwardStagingEnabled` is false**, because the
+  field's own `[Desc]` says it is only read when staging is on. A consumer reserving for a floor nobody
+  applies would withhold for nothing.
+- `offenseAxisLive` — `axes.Count > 0`, published alongside the count. `ForwardStagingMath.FreePoolMayAdvance`
+  waives the floor whenever an axis exists, so the reserve waives too. **This is what aims the change at the
+  opening**: once an axis is live the lane recruits exactly as it does today.
+
+**Why a published snapshot rather than calling the offense's pool builder.** `BuildFreePool()` is not pure:
+it calls `PruneStandoffMemory()` and, via `StoodOffForTransport`, **writes `standoffSince[a] = tick`**. A
+consumer calling it to count would latch offense's transport-standoff clocks on the *consumer's* cadence and
+re-emit the once-per-tick `[exp-ledger]` census at a foreign tick. The snapshot is recorded inside the
+existing computation and reaches nothing.
+
+**Composition with `MinUnitsPerAmbush` (item 64) is the fix.** The reserve caps *availability* before
+minimum manning tests it (`takeable = min(free.Count, allowance)`), so a lane the reserve can only part-fill
+is then refused by manning as under-manned. On the measured opening — three eligible, floor 2 — the
+allowance is **1**, `LaneMayPost(0 + 1, 2)` is **false**, and **nobody is posted**. Unbounded allowance ⇒
+`takeable == free.Count` and both lines read exactly as before.
+
+**FOLLOW-UP, NOT FIXED HERE (recruit order).** The reserve bounds *how many*, never *which*. Recruits are
+still ordered by proximity to the post cell alone (`LaneAmbushBotModule.cs:389-393`) with no preference
+between a rifleman and the army's only MBT, so **a pool large enough to clear the floor can still hand the
+lane the tank** — e.g. 5 eligible, floor 2, allowance 3: the lane takes 2 and the abrams is nearest the post
+under the same reading that put it there in run 260906_091912 (it spawns at `8,16`, east of the SR at
+`6,16`, while purchased units spawn at `3,16`–`5,16`). That is a second behavioural change and belongs on
+its own branch and its own run. **Worth noting it is exactly the case ruling (a) was chosen as the "smallest"
+answer to, so this is a known residual, not a regression.**
+
+**Over-reserve, bounded and deliberate, in two places.** (1) A unit the lane may take that the offense's
+predicate would *not* count (role/exclusion differences, or one stood off for transport) still spends
+allowance. (2) A unit SHED from an earlier lane this eval was ledger-committed at snapshot time and so was
+never in offense's pool, yet is charged if another lane reclaims it. Both err toward offense, which is the
+direction every other gate on this module fails in; making either exact would need the offense pool as a SET
+rather than the count its own floor test is decided on.
+
+---
+
+#### Status log — 2026-09-22: first measured run, reserve did NOT bind, two defects found and fixed
+
+Run `260922_005229_p43692_test-combined-arms-rendezvous` at `47ff7fd8` (GREEN arm, flag on) and
+`260922_005355_p44806` (RED arm, flag off). **Both FAIL, and they are indistinguishable** — the reserve did
+not bind at the eval that mattered.
+
+**WHICH CLAUSE LET THE LANE THROUGH: the axis waiver**, `if (offenseAxisLive) return int.MaxValue;`. The
+sequence, `debug.log`, USA-bot:
+
+```
+t18   [exp-ledger] free=1 held=0            [exp-staging] hold-under-min pool=1 min=2 axes=0
+t100  [exp-ambush] reserve allow=0 free=1 taken=0 offense-free=1 min=2 axes=0 lanes=0   ← reserve WORKED here
+t118  [exp-ledger] free=2 held=0 by=none
+      [exp-offense] axis-new target=supplyroute#7 cell=58,4 · order units=2 distToTarget=53
+      [exp-offense] reeval pool=2 free=0 targets=1 axes=1 k=1
+t200  (no reserve line) [exp-ambush] lane post=28,12 units=2
+t218  [exp-ledger] free=1 held=4 by=ambush:2,offense:2
+```
+
+At t118 offense formed an axis **out of its entire two-unit free pool** and the eval ended `free=0 axes=1`.
+At t200 the lane read that snapshot, hit the axis waiver, and recruited unbounded.
+
+**BOTH published terms were wrong, and each alone was sufficient to cause this.**
+
+1. **The axis waiver is a false analogy and is now DELETED, not narrowed.**
+   `ForwardStagingMath.FreePoolMayAdvance`'s axis term answers *"may this late arrival walk to the muster
+   ALONE?"* — yes, it is joining a body. The reserve asks *"does offense have units to SPARE?"*, and **an
+   axis has CONSUMED units**; its existence is evidence against spare capacity, not for it. Narrowing by
+   axis SIZE would not have fixed this run: the t118 axis held exactly **2** units and `EarlyMinAxisSize`
+   is **2** (`ai.yaml:380`/`:3064`), so every "below the axis floor" test passes it. The term had to go.
+2. **The snapshot was published on every `BuildFreePool` call, last-wins** — so it recorded the
+   **post**-axis-claim pool (0 at t118) while `[exp-ledger]` printed `free=2` the same tick. Now published
+   **once per tick on the first call**, the same pass the census rides, so `offense-free=` in the reserve
+   line is byte-equal to `free=` in `[exp-ledger]` and a log can never show the two disagreeing.
+
+**The reserve line now prints on EVERY eval where a lane wanted units**, carrying
+`waived=off|no-offense|no-floor|unknown-pool|none`. The silence at t200 is what had to be reconstructed from
+three other modules' lines; an absent line must mean "no lane wanted units", never "a decision was taken and
+not recorded".
+
+**DOCTRINE CONSEQUENCE, stated because it is a real change and not a bug:** with no waiver the lane recruits
+only while offense's free pool **exceeds** its floor. In this scenario `[exp-ledger]` reads `free=2` against
+`min=2` at t218/t318/t418/t518, so **the lane would not post at all for the whole match**. That is ruling (a)
+applied literally.
+
+---
+
+#### CORRECTION — "the tank dies because the lane took it" is FALSE in this scenario
+
+**My 2026-09-21 GREEN criterion ("only a tank death at ~20,14 is an item-86 regression") was wrong, and the
+manager's reading of run 260922_005229 inherits the error.** The tank in this scenario is **offense's**, not
+the lane's. Two independent routes, both from `debug.log`:
+
+- **Timing.** The tank moves `8,16@t100 → 11,16@t200`, and the *only* forward order issued to any USA unit
+  in that window is `[exp-offense] order … units=2 … distToTarget=53 tick=118`. The lane held `lanes=0` at
+  t100 and issued nothing until t200.
+- **Census.** `[composition] census tick=80` gives USA `abrams=1 ar.america=1 bradley=1 e3.america=4`; the
+  bradley is the carrier and the four `e3` are transport-claimed, so **the only two combat units in the world
+  at t118 are the abrams and one `ar.america`** — exactly the `pool=2` the axis took whole. With
+  `AxisCommitmentTicks: 250` that commit is live through t368, and the lane's `BuildFreePool` excludes every
+  ledger-committed actor, so **the lane could not have taken the tank at t200 even unbounded.**
+
+The lane's two recruits at t200 were later arrivals (`at.america` / `ar.america` / `tl.america`; the census
+grows to 5 combat units by t200). **The reserve's one binding moment in this run was t100, where it worked:
+`allow=0` withheld the tank from the lane.** Offense then claimed it at t118.
+
+**So `test-combined-arms-rendezvous`'s VERDICT cannot gate item 86.** The tank died advancing as half of a
+two-unit early-spread axis ordered 53 cells to the enemy Supply Route. The discriminator must be the log.
+
+**FILED SEPARATELY (not item 86, not fixed here): a two-unit `EarlyGameSpread` axis marches the full map.**
+`EarlyMinAxisSize: 2` let an axis form at t118 from the entire army and order it `distToTarget=53` to
+`supplyroute@58,4`; it reinforced to 3 at t218 and 5 at t318 while its lead element was already at 17,16 and
+22,16, and the tank died at t539. This is the same family as item 64's missing lead-hold, on the axis side
+rather than the staging side. It is what actually kills the tank in this scenario, in **both** arms.
+
+---
+
+#### Status log — 2026-09-22 (second pass): the reserve WORKS; item 86 gets its own scenario
+
+**The reserve binds exactly as designed.** Run `260922_012732_p56822` at `616a2e0c`, USA-bot:
+
+```
+t100  [exp-ambush] reserve allow=0 free=1 … waived=none lanes=0
+t200  [exp-ambush] reserve allow=0 free=2 offense-free=2 min=2 axes=0 waived=none lanes=0
+      … lanes=0 / taken=0 at every eval through t500; the ledger NEVER shows by=ambush
+```
+
+**The lane is exonerated.** The verdict was still `FAIL` (tank dead t542 at `21,16`) for a reason that has
+nothing to do with this item — see the handoff below.
+
+**The old scenario cannot judge item 86 IN EITHER DIRECTION on this opening.** The RED arm
+(`260922_012930_p58667`, flag off) reads `allow=inf … waived=off lanes=0` and **`free=0`**: offense had
+already absorbed the whole pool into its axis (`[exp-ledger] free=4` at t189 → axis), so the lane posted
+nothing *with the reserve switched off too*. Same verdict, same outcome, both arms. **A control that cannot
+fail differently from its test is not a control.**
+
+#### NEW SCENARIO: `tools/autotest/scenarios/test-ambush-lane-share`
+
+Asserts the item directly and reads the same numbers the reserve decides on, through three new test-mode
+bindings (`TestGlobal.cs`): `Test.GetBotLedgerHeld(p, "ambush")`, `Test.GetBotOffenseFreePool(p)`,
+`Test.GetBotOffenseAdvanceFloor(p)`. **Verdict: units held under an `ambush:` commitment must stay at ZERO
+while offense's free pool is at or under its advance floor**, sampled every tick to t500.
+
+**The opening is CONSTRUCTED, not hoped for** — that is the lesson of the two runs above. `rules.yaml`
+overrides `PoiOffensiveBotModule@experimental` with `MinAxisSize: 40` / `EarlyMinAxisSize: 40` /
+`FreePoolMinAdvanceUnits: 40`, so `PoiOffenseMath.DesiredAxisCount` returns 0 (`totalUnits < minAxisSize`),
+**no axis ever forms**, and offense sits permanently under its own floor holding its units in the free pool —
+precisely the state ruling (a) governs and the state the lane used to raid. 40 is set against the *measured*
+trajectory on this map and cash (5 combat units by t200, 9 by t500), not guessed.
+
+Two `abrams` at `8,16` and `8,18`. Eligibility is **derived, not assumed**: `abrams` inherits
+`^AutoTargetMBT` → `^AutoTarget` (`vehicles-america.yaml:469`, `defaults.yaml:457-458`), which carries both
+`AmbushTacticsCondition` (`:430`) and the `ExternalCondition@ambushtactics` seam (`:454-455`), so
+`CanHostAmbush` is true and the OBS-1 `^AutoTargetGround` exclusion does not apply; its role is `MainBattle`
+(`UnitRoleResolver.cs:380-382`), which `UseUnitRoles` admits. Two, because `MinUnitsPerAmbush` is 2 — one
+would be refused by minimum manning and the RED would post nothing for the wrong reason. Both cells are
+**proven vehicle-passable** (they held the abrams and the bradley in every rendezvous run on this map.bin).
+
+**Three ways it refuses to produce a false green**, all returning SKIP rather than PASS:
+1. the floor is read back and must equal 40 — if the `rules.yaml` block ever stops merging (renamed trait,
+   changed `@suffix`, the MiniYaml case trap) the override is silently inert and a green would be measuring
+   the shipped default;
+2. offense must at some point hold a pool `>= MinUnitsPerAmbush` **and** `<= floor`, or the reserve was never
+   asked the question;
+3. offense must have published a free pool at all (`-1` is information, not zero).
+
+**Verified without launching:** `make lua-gate` resolves all three new bindings against `TestGlobal`, and a
+deliberate sabotage (`Test.GetBotLedgerHeldXYZ`) makes the gate name this file and line with exit 2, restored
+clean — so the gate demonstrably parses this scenario rather than skipping it.
+
+#### HANDOFF TO ITEM 64 — the residual lone tank is the OFFENSE AXIS, not the lane
+
+`test-combined-arms-rendezvous` still fails, and this is what it is measuring. From `260922_012732`:
+
+```
+t120  [exp-offense] axis-new target=supplyroute#7 cell=58,4 action=Pressure
+      [exp-offense] order … action=Pressure units=2 cohesion=Spread distToTarget=53
+      [exp-offense] reeval pool=2 free=0 axes=1
+t220  [exp-offense] hold units=2 · reinforce-held joined=3 units=5
+t320  [exp-offense] reinforce-held joined=2 units=7
+lua   tank 8,16 → 11,16 → 17,16 → 21,16 (t100–t400), dead t542
+      carrier with all four riflemen sat at 8,18 for the whole run
+```
+
+**Offense forms a two-unit axis out of its entire pool while sitting at its own floor, and orders it 53 cells
+to the enemy Supply Route while the ferry never departs.** `EarlyMinAxisSize: 2` is what lets the axis form;
+the axis then reinforces to 5 and 7 *behind* a lead element already 13 and 17 cells out. That is item 64's
+missing **lead-hold**, on the axis side rather than the staging side — `FreePoolMinAdvanceUnits` gates the
+free pool's departure and nothing gates the axis's. **Item 64 owns it. Not fixed here, and not to be fixed on
+this branch.**
+
+---
+
+#### Status log — 2026-09-22: **CLOSED. Merged at `main @ ef7362a7`, verdict scenario green, `@stable` re-baselined.**
+
+**Merge:** `ef7362a7` (`wt/item86-lane-share`). Gate as reported at the merge: `make all` **0
+errors**, `make check` **0 errors**, NUnit **3725 passing**, YAML **Errors: 22** (the recorded
+lint floor, unchanged). *Not re-run in this closing pass — this is the merge's own record, and
+the docs-only branch that files this entry ran no gate.*
+
+**The verdict scenario discriminates, and both arms were taken.**
+`tools/autotest/scenarios/test-ambush-lane-share`:
+
+| Arm | Run | Verdict | Readout |
+|---|---|---|---|
+| GREEN (reserve on) | `260922_023341_p87319_test-ambush-lane-share` | `pass` | *"the ambush lane held NOTHING through t500 while offense sat under its own advance floor"* — free ranged 3..8 against floor 40, **peak ambush-held 0**, sampled t100…t500 |
+| RED (reserve off) | `260922_023518_p88483_test-ambush-lane-share` | `fail` | **2 units held under `ambush:` at t100** with offense free pool 3 against floor 40 — `allowance max(0, 3−40) = 0`, and the failure text names this item by number |
+
+That is the control the old `test-combined-arms-rendezvous` could not provide: the two arms
+reach **different verdicts on the same opening**, which is what the second-pass status log
+above records as the reason a new scenario was built at all.
+
+**This MOVES `@stable`**, deliberately and per the merge message —
+`LaneAmbushBotModule` is shared by both profiles and `OffenseFloorReserveEnabled` is `true` at
+`ai.yaml:1093` (`@experimental`) *and* `ai.yaml:3227` (`@stable`). The C# default stays `false`
+so the shared-trait rule is honoured; the movement is in YAML, visible, and recorded.
+
+**The benchmark control has been re-taken.** Because `@stable` moved, the 2026-09-05 corpus
+stopped being the control the moment this merged. The replacement is
+[`WORKSPACE/benchmarks/260922-rebaseline.md`](../../benchmarks/260922-rebaseline.md) — four
+batches, 40 matches, all stamped `git_sha: ef7362a7` / `git_dirty: false`, 0 culls, 0 crashes,
+every match the full clock. Headline: `@experimental` is at **parity** with the new `@stable`
+(S1 5/10, S2 6/10, up from 3/10 and 2/10), the S2 capture deficit that decided the 260905
+corpus is gone — **and every one of those differences is inside that corpus's own calibration
+noise bands**, with the S2 6–4 split being exactly what two identical copies of `@stable`
+produced on both cal rungs. **Parity, not a lead. That card is now the control for anything
+measured after `ef7362a7`.** Note also that it does **not** isolate item 86: both bots carry
+the reserve, so there is no arm in which it is off.
+
+**The residual lone tank is NOT this item and is not fixed here.** It is offense's axis
+lead-hold — see the *HANDOFF TO ITEM 64* section immediately above, which stands verbatim and
+is the authoritative description. **Item 64 owns it.** Do not re-file it against 86, and do not
+read a red `test-combined-arms-rendezvous` as an item-86 regression; the CORRECTION section
+above records why that scenario cannot gate this item in either direction.
+
+**Two things this item deliberately left open, both already written up above and neither a
+regression:** the **recruit-order** follow-up (the reserve bounds *how many*, never *which*, so
+a pool large enough to clear the floor can still hand the lane the army's only MBT) and the
+**bounded over-reserve** in two places, both erring toward offense.

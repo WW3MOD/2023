@@ -529,7 +529,7 @@ Closes the largest gap between what this game says it is and what it does: `supp
 
 > **Source:** the 2026-09-06 window (manager F51): item 64 closed as a diagnosis, item 56's safe-front doctrine measured, the @stable re-baseline recorded, the rank and deaths audits written. The user's instruction on wrapping up, verbatim: *"Do NOT build now, but make a note of it … I dont want your findings to be lost I just dont want to start it right now."* Filed at `main @ e8e57ada`. **Nothing in this block is in flight.** Position in the queue is not a ranking.
 >
-> User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 86 and 87 need a ruling before code. 88 is hygiene.
+> User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 87 needs a ruling before code; **86 was ruled (a) army-share reserve, shipped `ef7362a7`, and is CLOSED** — `pipeline/archive/closed-items.md`. 88 is hygiene.
 >
 > Also standing, not an item: **the 260905 @stable baseline pre-dates b6207b9b** (`MissionReinforceEnabled` moved `@stable`); re-take it before the next bot comparison (item 43's record says so).
 
@@ -540,10 +540,6 @@ Closes the largest gap between what this game says it is and what it does: `supp
 ### 85. Lead-hold — tanks pace infantry on a committed axis (item 64's last mechanism)
 `[RECORDED — user: not standalone, maybe inside a larger change, not before v1.0]`
 **Perceived:** the push arrives together. Today d1 ≈ 699 ticks (gate 300), d2 = 15 cells (gate 8) on `test-push-departs-together`. Design V1/V2/V3 written; moves both profiles. → [`items/85-lead-hold-tanks-pace-infantry.md`](pipeline/items/85-lead-hold-tanks-pace-infantry.md)
-
-### 86. The ambush lane takes 2 of 3 units at the opening and leaves offense below its own floor
-`[DOCTRINE RULING NEEDED — traits live on both profiles at match opening]`
-**Perceived:** the only tank walks 22 cells forward as half an ambush pair and dies; the army never leaves the SR. Confirmed by run 260906_091912. Smallest ruling: the lane may not take units while offense is below `FreePoolMinAdvanceUnits`. → [`items/86-ambush-lane-opening-share.md`](pipeline/items/86-ambush-lane-opening-share.md)
 
 ### 87. The scorer charges the doom-drain finishing blow as a death and credits it to nobody
 `[DECISION ITEM — fix the scorer or read the swing metric with the bias]`
