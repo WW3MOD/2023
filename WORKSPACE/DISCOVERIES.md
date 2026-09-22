@@ -3,6 +3,92 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
+
+**THE STALE CLAIM AND WHY IT SURVIVED THREE RECONCILIATIONS.** `WORKSPACE/HOTBOARD.md:18` and
+`audit/260921-release-readiness.md` (Part 3 row 10, defect S2) both describe the second saved-game
+restore leak as *"located, named, NOT fixed, and not re-measured since 08-13"*, carrying the
+divergence fingerprint from `dc8e0abf`: net frame 711 / world tick 2130, actor `4712 at.america`,
+`Mobile.Facing` 256 (recording) vs 118 (replay), `AttackFrontal.IsAiming` replay-only. **It was
+fixed at `61546a51` on 2026-08-16, an ancestor of `main` (`git merge-base --is-ancestor` → yes),
+and re-measured five times that day** — `test-savegame-resume-riverzeta` green at four seeds
+(`-324877760`, `1017`, `-777333`, `20260816`) and `test-savegame-resume-riverzeta-human` green in
+the human-vs-bot layout (`a06adaf4`, merge `19e3b26e`).
+
+**The mechanism of the staleness is worth more than the correction.** The HOTBOARD line pins the
+defect to `Activities/Move/AttackMoveActivity.cs` — halt at `:195-196`, `GroupDetectedBy` at
+`:236` → `CanBeViewedByPlayer` at `:247`/`:260` — and says those cites were *"re-checked at
+`554895ba` and still good"*. They are still good. **That file is the READER of the leaked state,
+not the leaker**, and the fix landed in `LaneAmbushBotModule.cs` + `AutoTarget.cs`. So
+`git log -- AttackMoveActivity.cs` is empty after the fix **by construction**, and re-verifying
+the cites confirms only that the reading site still reads. **When a bug is filed at the site where
+the symptom is OBSERVED, a cite re-check at that site can never detect the fix** — the citation
+freshness and the defect's liveness are independent facts, and the line's own phrasing
+("cites re-checked … and still good. Still live on `@stable`.") reads as though the first clause
+supports the second.
+
+**THE CAUSAL CHAIN, stated because it explains the 256-vs-118 pair exactly and because HOTBOARD
+says the cause was deliberately never named.** It was named four days later. `LaneAmbushBotModule`
+granted `enable-ambush-tactics` with `ec.GrantCondition(u, this)` directly from a bot tick. Not an
+order ⇒ `GameSave` never records it; `ModularBot.BotTick` early-returns while
+`World.IsLoadingGameSave` (`ModularBot.cs:241`, `:339`) ⇒ the restored life never grants it. The
+gate is read by SYNCED code — `AttackMoveActivity.cs:189-206`, the Stage-2 halt-before-contact.
+Recording: gate present → `haltedForAmbush` → the unit stops and holds its heading. Replay: gate
+absent → the engage branch → `QueueChild(ab.GetAttackActivity(...))` → the unit turns to aim.
+**That is `Mobile.Facing` 256 vs 118 with `AttackFrontal.IsAiming` on one side only, and it is a
+live multiplayer desync rather than a saved-game bug** — bot logic runs host-only
+(`Player.cs:224-232`), so the host halted a unit and no other client did. The restore was only the
+cheapest instrument for seeing it.
+
+**A `git log -S` ON THE SYMPTOM FILE IS THE WRONG QUERY FOR A DESYNC.** The pipeline README's rule
+is grep the BEHAVIOUR, not the defect. For a divergence the behaviour is the *write* that escaped
+replication, and it is almost never in the file where the divergence was measured — the measuring
+site is chosen by the instrument (whatever the sync report happened to dump), not by the code. Ask
+instead: what state does the diverging branch read, and who writes it?
+
+### The instrument that was missing, and what it can and cannot see
+
+The audit calls for *"a scenario that saves at a pinned tick and reloads, asserting `Mobile.Facing`
+parity on the named actor — agent-doable and never authored"*. **Two thirds of that already ship.**
+`tools/autotest/scenarios/test-savegame-resume-riverzeta` saves at tick 3000 and reloads in one
+process via `GameSaveRoundTripProbe` (`Traits/World/GameSaveRoundTripProbe.cs`), and parity is
+checked by the engine's own sync hash — `GameSave.RestoreOrders` replays the recorded
+`lastSyncPacket` (`GameSave.cs:262-263`) and `OrderManager.ReceiveSync` (`:202-211`) compares —
+which covers `Mobile.Facing` **and every other `[Sync]` field**, strictly more than one assertion on
+one actor. The genuine gap is diagnostic, not detective: the probe verdicts on *did the restored
+world resume*, so it goes red identically for every member of the class and names nothing. Naming
+the actor previously took hand-applied patches archived outside the repo
+(`~/ww3-savegame-verify-artifacts/*.patch`).
+
+**What this branch adds is the STATIC half the investigation explicitly asked for and nobody
+authored** (DISCOVERIES 2026-08-16: *"How to actually bound this class: a STATIC audit, not a
+dynamic sweep"*). `engine/OpenRA.Test/BotOrderedMutationTest.cs` scans the IL of **86 bot-layer
+types** (every `IBotTick` implementer, plus the `*Math` / `*Tactics` / `*Gate` / `*Guard` /
+`*Blackboard` helpers those modules actually mention) for six direct writes to synced state:
+`Actor.GrantCondition` / `RevokeCondition` / `QueueActivity` / `CancelActivity` and
+`ExternalCondition.GrantCondition` / `TryRevokeCondition`. **12,668 call tokens resolved; zero
+offences on `main` today** — so the class really is closed, by reading rather than by a green run.
+It takes under a second and needs no launch, where the dynamic instrument costs 4-6 minutes.
+
+**THE SCAN FOUND A HOLE IN ITSELF, AND THAT IS THE REUSABLE PART.** A call scan proves the two
+halves of an ordered mutation still call each other's methods. It cannot see whether they still
+agree on the **wire name**. Renaming the order string on the receiving side only —
+`AutoTarget.cs:619`, `"SetAmbushGate"` → `"SetAmbushGateXX"` — left all three tests green while the
+gate became permanently unreachable: the order is issued, matched by nothing, dropped, and the
+ambush halt stops happening **with nothing logged anywhere**. That is the same inert-but-valid
+failure family `tools/lua-gate/README.md` §"The second failure class" catalogues, arriving through
+C# instead of YAML. Closed by adding `IlScan.ScanStringLiterals` (ldstr, `0x72`, resolved through
+`Module.ResolveString`) and asserting both halves name the same literal; the sabotage now fails with
+the literals it *did* find listed (`SetUnitStance, SetEngagementStance, SetCohesion,
+SetResupplyBehavior, SetAmbushGateXX`), which points straight at the typo. **Generalise: whenever a
+mechanism is split across an issuer and a resolver joined by a string, a structural test that checks
+only the call graph is checking the half that cannot break silently.**
+
+**AND THE STANDING LIMIT, restated so no green here is over-read.** The 2026-08-16 investigation
+bounded *bot mutates → synced reads* and left the reverse open: **synced code reading state that
+only bot ticks refresh.** No detector exists for that shape, this fixture is not one, and a green
+run here says nothing about it.
+
 ## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
 
 `test-frozen-tooltip-owner-hidden` passed on 2026-09-21 21:59 and failed on main @ `ef7362a7`
