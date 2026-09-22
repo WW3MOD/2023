@@ -6,8 +6,47 @@
 ## 2026-09-22 - The 16.667 flip broke exactly one class of script, and the class is not "scenarios with deadlines" - it is "scenarios that convert seconds through the HARNESS" (`wt/tick-rate`, base `main @ d69e6883`)
 
 The full suite at `wt/tick-rate @ e6732446` returned Pass 198 / Fail 39 / Skip 21 / Error 1 over 259
-scenarios. Triage: **13 tick-caused**, 32 pre-existing, 15 unexplained. Row-by-row evidence in
+scenarios. Static triage called **13 tick-caused**, 32 pre-existing, 15 unexplained; the re-run at
+`b4747687` settled it at **7 tick-caused, 1 flaky, 5 real findings**. Row-by-row evidence in
 `WORKSPACE/audit/260922-tick16-suite-triage.md`. What generalises:
+
+**THE STATIC TRIAGE WAS RIGHT ABOUT THE CLASS AND WRONG ABOUT SIX OF THIRTEEN MEMBERS, AND THAT
+RATIO IS THE POINT.** "Exposed to the harness converter" AND "failed on its own `timeoutReason`"
+are jointly NECESSARY for a tick casualty and nowhere near SUFFICIENT: a shrunken deadline and a
+broken behaviour produce the same verdict string, and no amount of reading separates them. The
+re-run is what separates them, and it took one run each. **Restoring an authored budget is a
+diagnostic, not a fix** — it is cheap, information-preserving, and converts an ambiguous red into
+either a green or a finding. Budget the run; do not try to reason the answer out.
+
+**ONE PASS IS NOT EVIDENCE THAT THE FIX CAUSED IT — CHECK THE RECORDED TICK AGAINST THE OLD
+BUDGET.** `test-spread-no-autotarget` went green after the restoration and looked like a
+vindication. It passed at **tick 228** against a shrunken budget of **333**: it would have passed
+without the fix, and its earlier red was seed sensitivity, not the flip. The `AssertWithin` note
+("predicate true at tick N of M") makes this a one-line arithmetic check, and it is worth doing on
+every green claimed for a timing fix. Two of the seven confirmed casualties are proven this way in
+the other direction — 261 of 350 against a shrunken 233, and 1819 of 2250 against 1500.
+
+**A TIMEOUT AT THE *RESTORED* BUDGET IS A STRONGER RESULT THAN A MERITS-FAILURE.** Two of the five
+survivors (`test-tunguska-missile-standoff`, `test-crate-force-attack`) timed out again after being
+given back exactly the window their authors validated against — so the budget was never the cause,
+and the behaviour has ~30 s to do something it never does. Distinguishing them costs nothing: a
+predicate failure is recorded with its `fail: ` prefix intact, a `timeoutReason` is not.
+
+**WHEN A BUDGET CHANGE MOVES THE NUMBERS BUT NOT THE VERDICT, THE BUDGET IS EXONERATED.**
+`test-wgm-tree-density-ladder` classified all seven of its rungs identically at 133 and at 200
+ticks; the extra ticks only bought each *firing* lane one more round. A lane that fires does so
+early and a lane that denies still denies — so the decision is not time-dependent, and the
+non-monotonic ladder (3t and 4t deny, 5t and 6t fire) is a real defect. The inverse pattern is
+`test-case01-forest-ambush`, where the restoration visibly changed the measurement (damage
+256 → 461, a defender death at tick 2398, outside the flip's 1500-tick window) and still did not
+move the verdict — because the trend ran the wrong way. **Ask which direction the extra time
+pushed the outcome**, not merely whether it changed anything.
+
+**A VERDICT GATED ON POSITION CANNOT BE RESCUED BY TIME, HOWEVER TIMING-SHAPED THE RED LOOKS.**
+`test-truck-halts-to-serve` failed pre-fix on a timeout and post-fix on "the truck drove past".
+Its fail branch triggers on the truck's x-coordinate, not on the deadline, so once the truck passes
+the line the verdict is sealed whatever budget remains. The restoration did not fix it and could
+not have; what it did was let the run reach the behaviour under test at all.
 
 **THERE ARE TWO SECONDS->TICKS CONVERTERS AND ONLY ONE OF THEM MOVED.** `DateTime.Seconds(n)` is the
 ENGINE converter (`DateTimeGlobal.cs:52-55` -> `TickTime.TicksForSeconds`); it was corrected on
@@ -50,7 +89,9 @@ return the same integer - take the tick constant directly.
 **A PREDICTION WRITTEN IN-TREE WAS RIGHT ONCE AND WRONG ONCE, AND THE WRONG ONE IS THE INSTRUCTIVE
 ONE.** The branch pre-emptively annotated its two predicted casualties.
 `test-tunguska-missile-standoff:25-28` ("if this scenario starts timing out, that is the reason") was
-right - it timed out on its own deadline string. `test-depot-vacate-phantom:66-73` ("If this starts
+right that it would time out and **wrong that the flip was why**: restoring the authored 500-tick
+budget left it failing on the same string, so the prediction named the symptom and misattributed the
+cause. It is now filed as a behaviour defect. `test-depot-vacate-phantom:66-73` ("If this starts
 timing out, re-derive it rather than widening it blindly") was **wrong about the cause while right
 about the symptom**: it did time out, but on the 300 s WALL CLOCK, because
 `TestHarness.Screenshot("2-vacated", ...)` sits inside its per-tick `AssertWithin` predicate with no

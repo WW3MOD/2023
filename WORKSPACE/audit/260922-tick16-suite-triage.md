@@ -3,6 +3,11 @@
 **Suite run:** `wt/tick-rate @ e6732446` (pre-merge), batch log `/tmp/tick-rate-batch.log`,
 run dirs `~/.ww3mod-tests/screenshots/260921_1911…260922_0052`.
 **Result:** Pass 198 · Fail 39 · Skip 21 · Error 1 (259 scenarios).
+**VERIFIED 2026-09-22** (see the section at the end): of the 13 rows called tick-caused below,
+**7 were**, 1 was flaky and 5 are real findings now re-classified to C. Final counts:
+**A 32 · B 7 · C 21.** The per-row buckets in the tables below are the ORIGINAL triage and are
+left as written so the reasoning that produced them stays auditable; the verification section is
+authoritative where they disagree.
 **Triage performed at:** `wt/tick-rate @ e6b218aa` (after merging `main @ d69e6883`).
 **Fixes committed at:** see §Re-run list.
 
@@ -235,3 +240,49 @@ Two qualifications the manager should hold:
    failed fix** — and should be re-classified into C rather than re-tuned.
 2. **B-12 and B-13 are the ones to read carefully**, because their pass condition is "stopped
    skipping". A second skip there means the precondition was never about time.
+
+---
+
+# VERIFICATION — re-run of the 13 at `wt/tick-rate @ b4747687`, 2026-09-22 01:35–02:05
+
+Manager-run, serial. Run dirs `~/.ww3mod-tests/screenshots/260922_0135…0202`.
+**8 PASS · 5 FAIL.** Per this audit's own rule ("a scenario that still fails after this is a
+genuine finding, not a failed fix"), the five re-classify from B to **C**.
+
+## The 8 that the budget fixed — and one that did not need fixing
+
+| Scenario | Evidence it was the budget |
+|---|---|
+| test-ambush-fast-convoy | Passed at **tick 261 of 350**, against a shrunken 233. 261 > 233, so it could not have passed at the flip's budget. **Decisive.** |
+| test-pathfinder-tree-pass | Passed at **tick 1819 of 2250**, against a shrunken 1500. 1819 > 1500. **Decisive.** |
+| test-wgm-accuracy | 81 % damage over 250 ticks against 38 % over 166, `shots_fired=8/8` both times. Consistent. |
+| test-bot-defcon-wall | Own census note. The hold window now opens at tick 1250 rather than 833, which was the diagnosis. |
+| test-lc-rearm-partial-order | Own note. |
+| test-garrison-ownership-flip-evacuation | **SKIP → PASS with a note.** The precondition was the budget, as diagnosed. |
+| test-garrison-port-arc-highpriority | **SKIP → PASS with a note.** Same. |
+| test-spread-no-autotarget | **NOT evidence, and this corrects a row above.** It passed at **tick 228 of 500** — but the shrunken budget was **333**, and 228 < 333, so it would have passed at the shrunken budget too. Its earlier failure is therefore **not** explained by the flip; the two runs differ only in seed. Re-classify: a flaky/seed-sensitive scenario, bucket **C**, not B. The restored budget is still correct (it is the authored one) but it fixed nothing here. |
+
+So the honest count is **7 confirmed budget casualties**, not 8 — and of those seven, two
+(`ambush-fast-convoy`, `pathfinder-tree-pass`) are proven by arithmetic on the recorded tick,
+two more by a SKIP→PASS flip, and three by consistent-but-not-decisive movement in their own notes.
+
+## The 5 that remain red — classification as asked
+
+**First, a correction to how these were characterised.** Only ONE of the five carries a predicate
+`fail:` message. Two are `AssertWithin` **timeouts at the restored, authored budget**, which is a
+stronger result than a merits-failure: the scenario was given exactly the window its author
+validated against and still ran out of time. The recorded note tells them apart with no ambiguity —
+a predicate failure is written with its `fail: ` prefix intact (see truck-halts below), a
+`timeoutReason` is not.
+
+| Scenario | Verdict class | Finding |
+|---|---|---|
+| test-tunguska-missile-standoff | **timeout** at 500 ticks (`.lua:107`) | **(i) real behaviour defect.** Filed. It neither fired nor closed — the `Location.X > ClosingCol` abort branch was not taken either, so a permitted-to-move unit chose to do nothing for 30 s. |
+| test-crate-force-attack | **timeout** at 500 ticks (`.lua:42`) | **(i) real behaviour defect.** Filed. Identical at 333 and 500 ticks; the tank survived and the crate's health never moved. |
+| test-wgm-tree-density-ladder | bespoke `Test.Fail` | **(i) real behaviour defect.** Filed. Budget **proven irrelevant**: all seven rungs classified identically at 133 and 200 ticks; the extra ticks only bought each *firing* lane one more round (ammo 7 → 6). Ladder is non-monotonic — 3t and 4t deny, 5t and 6t fire. |
+| test-case01-forest-ambush | bespoke `Test.Fail` | **(i), with an instrumentation gap.** Filed. The restoration is visible (`defDmgTot` 256 → 461, `defDmgd` 3/5 → 4/5, a defender death at tick 2398 — outside the flip's 1500-tick window) but `attKilled` stayed 0 both times, and the trend runs the wrong way for a time explanation. **What would show it is still budget-shaped:** an `attDmgTot` counter trending toward a kill. The scenario records defender damage only, so it cannot currently distinguish "too slow to kill" from "landing nothing". |
+| test-truck-halts-to-serve | predicate `fail:` | **(ii) threshold / setup question.** Not filed as a bug. Pre-fix it timed out; post-fix the extra 459 ticks let the run reach the real behaviour: the truck passed `DrovePastLine` (x=34) with all four riflemen at 492-or-better of 500. **More budget cannot help** — the fail is gated on the truck's POSITION (`.lua:57-59`), not on the deadline, so once x ≥ 34 the verdict is sealed whatever time remains. The open question is whether `short` (`.lua:51`, any `ammo < FullAmmo`) should demand a literal top-off when the men are within 1.6 % of full, or whether the last aura batch genuinely never lands. That is a ruling, not a fix. |
+
+**(iii) — still plausibly budget-shaped despite the message: none of the five.** `case01` is the
+only one with any claim to it, and its own data argues against: extending the window produced more
+defender casualties, not attacker ones.

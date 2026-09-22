@@ -5,6 +5,67 @@
 
 ---
 
+- [2026-09-22] [HIGH] **A Tunguska at 24 cells, missiles loaded, under a live player attack order,
+  never fires its 9M311 and never closes — it just stands there for 30 s.**
+  `test-tunguska-missile-standoff` re-run at the scenario's ORIGINAL authored budget (500 ticks,
+  restored from the 333 the tick flip had cut it to) fails identically to the shrunken run:
+  `~/.ww3mod-tests/screenshots/260922_013509_p61719` — "tunguska never fired a 9M311 — it sat at 24
+  cells with missiles loaded and a live order". **The budget was never the cause.** Two facts pin
+  the behaviour rather than the rig: the verdict is `AssertWithin`'s `timeoutReason`
+  (`test-tunguska-missile-standoff.lua:107`, no `fail:` prefix), so the predicate never tripped any
+  of its three abort branches — in particular it did **not** take the
+  `Tunguska.Location.X > ClosingCol` branch, so the unit did not drive east toward 30 mm range
+  either. It neither fired nor closed. The order is a plain click with `allowMove=true`
+  (`.lua:90`), which the scenario notes is load-bearing: the unit is permitted to close, so this is
+  a choice, not an inability to reach. `lua.log` carries one line —
+  "littlebird 10 (not in world) is an invalid target for tunguska 9 (not in world)" — which is
+  teardown, both actors already gone.
+  (found while working on: verifying the tick-budget restorations,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+
+- [2026-09-22] [HIGH] **A player-issued attack order on a crate lands no damage in 30 s** —
+  `test-crate-force-attack` at its restored 500-tick budget, run
+  `~/.ww3mod-tests/screenshots/260922_013809_p64154`, fails with `.lua:42`'s `timeoutReason`
+  ("the manual attack order never damaged the crate — excluding it from auto-target has broken the
+  player's own attack order as well"). No `fail:` prefix, so the predicate never took its
+  `MyTank died` branch — the tank was alive throughout and the crate's health never moved. The
+  scenario's own framing is the hypothesis to test first: the crate is excluded from auto-target,
+  and the exclusion may have been implemented somewhere that also vetoes the explicit order.
+  Identical outcome at 333 and at 500 ticks, so this is not a budget artefact. `lua.log` is empty.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
+- [2026-09-22] [MEDIUM] **The WGM tree-density gate is not a threshold — the fire/deny ladder is
+  non-monotonic, and 3 trees denies while 5 and 6 fire.** `test-wgm-tree-density-ladder` expects
+  `trees 0..3 → fire, 4..6 → deny` (`ClearSightThreshold = 3`, `.lua:6-8`). Observed at the
+  restored 200-tick budget (`~/.ww3mod-tests/screenshots/260922_015937_p75311`):
+  `0t=F 1t=F 2t=F 3t=- 4t=- 5t=F 6t=F` — rungs 3 and 4 sat at full ammo 8 (never fired a round),
+  rungs 5 and 6 fired. **Budget is proven irrelevant here, which is what makes it worth filing.**
+  The same run at the shrunken 133-tick budget produced the identical classification for all seven
+  rungs (`0t=F(a7) … 3t=-(a8) 4t=-(a8) 5t=F(a7) 6t=F(a7)`); the only thing the extra 67 ticks
+  changed was that each *firing* lane got one more round away (ammo 7 → 6). A lane that fires does
+  so well inside 133 ticks, and a lane that denies still denies at 200 — so the deny/fire decision
+  is made early and is not time-dependent. Either the density gate mis-counts, or the rig's tree
+  placement does not match the `trees = N` labels in `pairs_data` (`.lua:21-28`) — the second is
+  cheap to check first and would make this a rig bug rather than an engine one.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
+- [2026-09-22] [MEDIUM] **Five ambushing defenders in cover killed none of five attackers in 135 s,
+  while losing one of their own.** `test-case01-forest-ambush` at its restored 2250-tick budget
+  (`~/.ww3mod-tests/screenshots/260922_015253_p71898`) reports
+  `defLoss=100 attLoss=0 survDef=4/5 survAtt=5/5 sprang=true refined=5/5 attKilled=0 defDmgTot=461`.
+  The ambush sprang and all five defenders were confirmed seated in cover
+  (`refined(seated-in-cover)=5/5`, `densWin=100` each, `lua.log`), so the staging is sound. **The
+  budget restoration is visible in the data and did not move the verdict**: damage taken rose
+  256 → 461 and defenders damaged 3/5 → 4/5, and the one defender death landed at tick 2398,
+  i.e. outside the 1500-tick window the flip had imposed — but `attKilled` stayed 0 in both runs.
+  The trend runs the wrong way for a time explanation: more window produced more *defender*
+  casualties, not attacker ones. **Instrumentation gap that blocks the diagnosis:** the scenario
+  records `defDmgTot` but no attacker-damage total, so it cannot distinguish "the ambush is landing
+  damage too slowly to kill" from "the ambush is landing no damage at all". Add an `attDmgTot`
+  before drawing a conclusion. Note also the verdict PROSE is stale — it hardcodes
+  "so defLoss=0 is vacuous" while the same string reports `defLoss=100`.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
 - [2026-09-22] [MEDIUM] **`test-power-buy-loop` died without unwinding — no `result.json`, zero-byte
   `lua.log`, and NO managed exception anywhere in `debug.log`.** Run dir
   `~/.ww3mod-tests/screenshots/260921_232523_p65425_test-power-buy-loop` (batch at
