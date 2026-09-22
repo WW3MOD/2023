@@ -523,6 +523,32 @@ Player:
 		# indefinitely and the seats are never sold. Holding back only what a carrier can take THIS TICK is the
 		# offense's side of that race. Default false on the engine class; @stable omits it => byte-identical.
 		TransportStandoffEnabled: true
+		# PIPELINE item 64 — "push departs together". The axis stands where it is while a carrier of ours is still
+		# driving its infantry up behind it, so the armour does not arrive alone. Default FALSE on the engine class
+		# (PoiOffensiveBotModule.InfantryEscortHoldEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; these two YAML lines are the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# Gap is 7 to match test-combined-arms-rendezvous's own TogetherCells; the valve is the shipped default
+		# (1500, mirroring the transport's LoadingTimeoutTicks) and is a player-level tick clock, so axis churn
+		# cannot refresh it. It does NOT move the transport's drop cell: the 2026-08-19 withdraw bound and the
+		# 1-cell-shuttle guard are untouched, and RendezvousWithOffensiveStaging stays false on both twins.
+		# OFF, AND THE REASON IS MEASURED, NOT CAUTION. Run 260922_200826 produced ZERO [exp-escort] lines with
+		# this on. Two causes, both confirmed from that debug.log and compounding to leave no overlap at all:
+		#   * CommitAndOrder ran at only 2 of 6 evals (t112, t412). At t212/312/512/612 the axis was mission-
+		#     Committed and PartitionHeldAxes skipped the whole method — so placing the gate before
+		#     ApplyMissionCommitment protects a hold from freezing ITSELF, and does nothing about an axis already
+		#     frozen by a commitment stamped on an earlier eval.
+		#   * the carrier only entered Delivering at t472 (`depart ... reason=Full`), i.e. AFTER the last eval
+		#     that entered CommitAndOrder. At t112 and t412 it was Loading, which LoadedDeliveryCells excludes.
+		# A third defect is the gate's own: it compares the carrier to the axis CENTROID, but reinforcements join
+		# at the rear, so the centroid trails while the LEAD runs ahead — 12 units with the lead at 21,16 and the
+		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
+		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
+		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		# CONFIRMED OFF 2026-09-22 after run 260922_211126 went GREEN without it. The two transport-side
+		# levers (EscortUnloadEnabled, EscortLoadGraceTicks) carry the result on their own, so there is no
+		# measured case for moving @stable with a third. Code retained; see the item-64 dossier.
+		InfantryEscortHoldEnabled: false
 		# Mirrors the transport's own LoadingTimeoutTicks (1500). Also has to clear the observed ~1015-tick
 		# latency before the first pre-contact drop cell resolves, or the valve fires before the carrier ever
 		# gets its chance and the hold buys nothing.
@@ -2283,7 +2309,57 @@ Player:
 		BoardingStallTicks: 250
 		CaptureFerryEscortSeats: 3
 		TopUpDuringLoading: true
+		# 2026-09-22, MEASURED AND STILL OFF: run 260922_193617 turned it on and produced ZERO
+		# `[exp-transport] rendezvous` lines. anchorsrc read gradient x6, so an anchor WAS published and the
+		# live gate is the withdraw bound above — the muster sits ~6 cells from the SR against a ~26-cell lerp,
+		# so the anchor is rejected in the pre-contact opening, which is the only state that reaches it. Turning
+		# it on costs an ai-bench re-baseline and buys no behaviour. See WORKSPACE/DISCOVERIES.md 2026-09-22.
 		RendezvousWithOffensiveStaging: false
+		# PIPELINE item 64 — set the infantry down BESIDE THE ARMOUR when the delivery overtakes it, instead of
+		# driving them past it to a drop cell computed from our own SR. Default FALSE on the engine class
+		# (MountedTransportBotModule.EscortUnloadEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and
+		# all five passengers aboard, because the objective was 32,10 — eleven cells PAST the armour. An ADDITIONAL
+		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
+		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
+		# unit is past the muster anchor and its whole spread ring.
+		# GREEN 2026-09-22, run 260922_211126 — the first time this mechanism has ever fired:
+		# `escort-unload carrier=bradley@20,17 escort=23,14 gap=3/5 pax=2 objective=32,10 tick=427`.
+		# The carrier finished TWELVE cells short of the cell it was driving to, because that is where the
+		# armour was (tank=23,14 at t400); the scenario's verdict went true at t450 on riflemen set down
+		# beside the tank, which is the assertion it had never once satisfied before.
+		EscortUnloadEnabled: true
+		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
+		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
+		# mechanism stays live and tunable. Default 0 (disabled) on the engine class
+		# (MountedTransportBotModule.EscortLoadGraceTicks); this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): task-created t72, departed Full t472 — 400 ticks loading from passengers
+		# standing ONE cell away, while the escort it exists to reinforce had stopped at 21,16 since t400 and
+		# died at t624 with the carrier still 4 cells short. Nothing bounded that: BoardingStallTicks (250)
+		# bounds only a LACK of progress and progress kept happening; LoadingTimeoutTicks (1500) is three times
+		# the whole episode.
+		# 100 because MinPassengersPerLoad (2) was reached at t172 — one hundred ticks after loading began — so
+		# it is one full boarding cycle and two ScanIntervals, i.e. the top-up pass has run at least twice
+		# before the escape can fire. On that log it would have departed t322 with 3 aboard rather than t472
+		# with 5. The grace is NOT the binding term there (the escort only cleared the muster ring at ~t322, so
+		# 50 through 250 all give t322) — it is the margin against pre-empting a fill that still had a chance.
+		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
+		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
+		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		# GREEN 2026-09-22, run 260922_211126: `depart carrier=bradley aboard=2 target=4 still-coming=2
+		# reason=EscortInContact grace=100 tick=227`, and — the half that makes it worth anything —
+		# `straggler-stood-down pax=e3.america#11@9,17 / #12@9,17` at the same tick, with NO
+		# delivery-move-reissued afterwards and the carrier's pax staying at 2. The Stop took, the move
+		# survived, the delivery arrived. Contrast run 260922_203626, the same escape WITHOUT the
+		# stand-down: departed t378, then sat at 8,18 until t478 because a late boarder's
+		# Cargo.LockForPickup cancels the CARRIER's activity — it lost more than it saved.
+		# THE ACCEPTED COST is in that same line: aboard=2 of target=4, so two riflemen were left behind
+		# and returned to the free pool. Timely over full, deliberately — and it means EverCarried is no
+		# longer a proxy for "the ferry worked".
+		EscortLoadGraceTicks: 100
 		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
 		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
 		# for a behavioural field on a trait both profiles instantiate; this file is the single visible
@@ -2378,7 +2454,57 @@ Player:
 		# helps. Flipping it is a behavioural change to @experimental and needs its own measured run — the
 		# scenario to beat is the one that produced the loop above. Until that run exists this line is what
 		# keeps both profiles byte-identical on this path.
+		# 2026-09-22, MEASURED AND STILL OFF: run 260922_193617 turned it on and produced ZERO
+		# `[exp-transport] rendezvous` lines. anchorsrc read gradient x6, so an anchor WAS published and the
+		# live gate is the withdraw bound above — the muster sits ~6 cells from the SR against a ~26-cell lerp,
+		# so the anchor is rejected in the pre-contact opening, which is the only state that reaches it. Turning
+		# it on costs an ai-bench re-baseline and buys no behaviour. See WORKSPACE/DISCOVERIES.md 2026-09-22.
 		RendezvousWithOffensiveStaging: false
+		# PIPELINE item 64 — set the infantry down BESIDE THE ARMOUR when the delivery overtakes it, instead of
+		# driving them past it to a drop cell computed from our own SR. Default FALSE on the engine class
+		# (MountedTransportBotModule.EscortUnloadEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and
+		# all five passengers aboard, because the objective was 32,10 — eleven cells PAST the armour. An ADDITIONAL
+		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
+		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
+		# unit is past the muster anchor and its whole spread ring.
+		# GREEN 2026-09-22, run 260922_211126 — the first time this mechanism has ever fired:
+		# `escort-unload carrier=bradley@20,17 escort=23,14 gap=3/5 pax=2 objective=32,10 tick=427`.
+		# The carrier finished TWELVE cells short of the cell it was driving to, because that is where the
+		# armour was (tank=23,14 at t400); the scenario's verdict went true at t450 on riflemen set down
+		# beside the tank, which is the assertion it had never once satisfied before.
+		EscortUnloadEnabled: true
+		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
+		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
+		# mechanism stays live and tunable. Default 0 (disabled) on the engine class
+		# (MountedTransportBotModule.EscortLoadGraceTicks); this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): task-created t72, departed Full t472 — 400 ticks loading from passengers
+		# standing ONE cell away, while the escort it exists to reinforce had stopped at 21,16 since t400 and
+		# died at t624 with the carrier still 4 cells short. Nothing bounded that: BoardingStallTicks (250)
+		# bounds only a LACK of progress and progress kept happening; LoadingTimeoutTicks (1500) is three times
+		# the whole episode.
+		# 100 because MinPassengersPerLoad (2) was reached at t172 — one hundred ticks after loading began — so
+		# it is one full boarding cycle and two ScanIntervals, i.e. the top-up pass has run at least twice
+		# before the escape can fire. On that log it would have departed t322 with 3 aboard rather than t472
+		# with 5. The grace is NOT the binding term there (the escort only cleared the muster ring at ~t322, so
+		# 50 through 250 all give t322) — it is the margin against pre-empting a fill that still had a chance.
+		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
+		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
+		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		# GREEN 2026-09-22, run 260922_211126: `depart carrier=bradley aboard=2 target=4 still-coming=2
+		# reason=EscortInContact grace=100 tick=227`, and — the half that makes it worth anything —
+		# `straggler-stood-down pax=e3.america#11@9,17 / #12@9,17` at the same tick, with NO
+		# delivery-move-reissued afterwards and the carrier's pax staying at 2. The Stop took, the move
+		# survived, the delivery arrived. Contrast run 260922_203626, the same escape WITHOUT the
+		# stand-down: departed t378, then sat at 8,18 until t478 because a late boarder's
+		# Cargo.LockForPickup cancels the CARRIER's activity — it lost more than it saved.
+		# THE ACCEPTED COST is in that same line: aboard=2 of target=4, so two riflemen were left behind
+		# and returned to the free pool. Timely over full, deliberately — and it means EverCarried is no
+		# longer a proxy for "the ferry worked".
+		EscortLoadGraceTicks: 100
 		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
 		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
 		# and the @stable note. Both twins carry it because the defect is in the shared class, not in a
@@ -3102,6 +3228,32 @@ Player:
 		ExcludeUnitTypes: tecn, tecn.america, tecn.russia, e6, e6.america, e6.russia, truk, bradley, bmp2, m113
 		UseUnitRoles: true
 		TransportStandoffEnabled: true
+		# PIPELINE item 64 — "push departs together". The axis stands where it is while a carrier of ours is still
+		# driving its infantry up behind it, so the armour does not arrive alone. Default FALSE on the engine class
+		# (PoiOffensiveBotModule.InfantryEscortHoldEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; these two YAML lines are the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# Gap is 7 to match test-combined-arms-rendezvous's own TogetherCells; the valve is the shipped default
+		# (1500, mirroring the transport's LoadingTimeoutTicks) and is a player-level tick clock, so axis churn
+		# cannot refresh it. It does NOT move the transport's drop cell: the 2026-08-19 withdraw bound and the
+		# 1-cell-shuttle guard are untouched, and RendezvousWithOffensiveStaging stays false on both twins.
+		# OFF, AND THE REASON IS MEASURED, NOT CAUTION. Run 260922_200826 produced ZERO [exp-escort] lines with
+		# this on. Two causes, both confirmed from that debug.log and compounding to leave no overlap at all:
+		#   * CommitAndOrder ran at only 2 of 6 evals (t112, t412). At t212/312/512/612 the axis was mission-
+		#     Committed and PartitionHeldAxes skipped the whole method — so placing the gate before
+		#     ApplyMissionCommitment protects a hold from freezing ITSELF, and does nothing about an axis already
+		#     frozen by a commitment stamped on an earlier eval.
+		#   * the carrier only entered Delivering at t472 (`depart ... reason=Full`), i.e. AFTER the last eval
+		#     that entered CommitAndOrder. At t112 and t412 it was Loading, which LoadedDeliveryCells excludes.
+		# A third defect is the gate's own: it compares the carrier to the axis CENTROID, but reinforcements join
+		# at the rear, so the centroid trails while the LEAD runs ahead — 12 units with the lead at 21,16 and the
+		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
+		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
+		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		# CONFIRMED OFF 2026-09-22 after run 260922_211126 went GREEN without it. The two transport-side
+		# levers (EscortUnloadEnabled, EscortLoadGraceTicks) carry the result on their own, so there is no
+		# measured case for moving @stable with a third. Code retained; see the item-64 dossier.
+		InfantryEscortHoldEnabled: false
 		TransportStandoffMaxHoldTicks: 1500
 		SkipOutOfAmmoUnits: true
 		StarvingRecruitThresholdPerMille: 250

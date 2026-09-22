@@ -128,6 +128,47 @@ namespace OpenRA.Mods.Common.Traits
 			"the chance to load. Only used when TransportStandoffEnabled is set.")]
 		public readonly int TransportStandoffMaxHoldTicks = 1500;
 
+		[Desc("PIPELINE item 64 — \"push departs together\". Hold an offensive axis WHERE IT STANDS while a carrier",
+			"of ours is still driving its infantry up behind it, so the armour and the soldiers it is supposed to",
+			"arrive with reach the objective as one body. Gates the ARMOUR ON THE INFANTRY; it never moves the",
+			"transport's drop cell, so RendezvousMath's two-sided reach bound and the 1-cell-shuttle guard it exists",
+			"to provide are untouched by this feature.",
+			"THE SYMPTOM IT CLOSES, measured: run 260922_193617 (test-combined-arms-rendezvous) put the lone abrams",
+			"16 cells forward at 22,16 where it died at tick 621, while the carrier sat at 15,15 with all four",
+			"riflemen still aboard. Nothing paced them — a grouped AttackMove goes through CohesionMoveModifier,",
+			"which carries no speed term.",
+			"CANNOT DEADLOCK ON THE TRANSPORT, and the guarantee is structural rather than a matter of timing. Two",
+			"independent reasons: the carrier's destination is computed with no reference to any axis",
+			"(MountedTransportBotModule.PickDropOffCellUnclamped — frontline, else the pre-contact lerp), so it is",
+			"never waiting on the thing that is waiting on it; and a carrier with NO destination never becomes",
+			"something this hold can see at all, because MountedTransportBotModule returns before creating any task",
+			"when the drop cell fails to resolve, so it never enters Delivering and never appears in",
+			"LoadedDeliveryCells. An axis therefore cannot wait on a carrier that has nowhere to go. It is bounded",
+			"anyway — see the valve below.",
+			"OFF by default => a profile omitting this field is byte-identical.")]
+		public readonly bool InfantryEscortHoldEnabled = false;
+
+		[Desc("How far a loaded carrier may sit BEHIND the axis centroid (Chebyshev cells) before the axis holds for",
+			"it. Set to test-combined-arms-rendezvous's own TogetherCells (7) so the gate and the scenario that",
+			"judges it agree on what \"together\" means — that scenario passes when a SET-DOWN rifleman is within 7",
+			"cells of the tank, and an axis held to the same distance is the condition for it. Only used when",
+			"InfantryEscortHoldEnabled is set.")]
+		public readonly int InfantryEscortGapCells = 7;
+
+		[Desc("Safety valve: stop holding for a carrier that has taken this many ticks to close the gap, and stay",
+			"released rather than re-holding on the next eval (a one-way valve, not a duty cycle — the same shape as",
+			"TransportStandoffMaxHoldTicks above). 0 = no valve.",
+			"DELIBERATELY A PLAYER-LEVEL TICK CLOCK, NOT A PER-AXIS EVAL BUDGET, and that is the one place this",
+			"feature departs from the converge hold it otherwise copies. 100% of axis retires are reason=dropped",
+			"(ai.yaml, the axis-churn note), so a budget carried on the Axis is refreshed every time an axis is",
+			"dropped and re-formed — which is most often at the opening, exactly where this hold lives. A bound that",
+			"resets with the thing it is bounding is not a bound. This clock survives axis churn because it is keyed",
+			"on nothing.",
+			"MIRRORS MountedTransportBotModule.LoadingTimeoutTicks (1500) for the same reason",
+			"TransportStandoffMaxHoldTicks does: releasing sooner would abandon the escort while the carrier was",
+			"still legitimately en route. Only used when InfantryEscortHoldEnabled is set.")]
+		public readonly int InfantryEscortHoldMaxTicks = 1500;
+
 		[Desc("Skip units whose AmmoPool(s) are ALL empty (evacuating / out-of-ammo). An empty unit",
 			"re-tasked onto an axis has its RotateToEdge evac cancelled by the AttackMove and is sent",
 			"at the enemy with nothing to shoot. OFF by default, so a profile omitting the flag keeps pulling every",
@@ -1272,6 +1313,10 @@ namespace OpenRA.Mods.Common.Traits
 			public bool FlankOrdered;
 			public int ConvergeHoldEvals;
 			public bool OrderedConvergeHold;
+
+			// The main element's last order was an infantry-escort hold at its own centroid. Dedup only — the hold's
+			// BOUND is the module-level escortHoldSince clock, never anything on the axis.
+			public bool OrderedEscortHold;
 		}
 
 		readonly World world;
@@ -1334,6 +1379,61 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public CPos? ForwardStagingAnchor => stagingAnchor;
 
+		/// <summary><para>The cell of the MOST ADVANCED unit on any live offensive axis — the armour an incoming
+		/// carrier's infantry should be set down beside — or null when nothing is far enough out to count as
+		/// "the front".</para>
+		///
+		/// <para>THE LEAD, NOT THE CENTROID, and that distinction is the whole reason this property exists rather
+		/// than the caller reading an axis centroid. An axis absorbs reinforcements at its rear
+		/// (<c>reinforce-held</c>), so its centroid is dragged back toward the Supply Route while its lead element
+		/// runs ahead: measured in run 260922_200826 the axis held 12 units with its lead tank at 21,16 and most
+		/// of the rest still at the SR. Anything keyed on the centroid reads a body that is not where the fighting
+		/// is.</para>
+		///
+		/// <para>"Far enough out" is decided HERE because this module owns the muster geometry: beyond the staging
+		/// anchor plus its full spread ring (<c>StagingFallbackCells</c> + <c>MaxSpreadRings</c> x
+		/// <c>StagingSpreadStepCells</c>), a unit cannot be standing on a muster slot and is therefore genuinely
+		/// forward. Returning null below that line is what stops a consumer setting infantry down at our own
+		/// beachhead — the 1-cell-shuttle shape that run 260815_202509 measured on the other transport path.</para>
+		///
+		/// <para>DETERMINISM: max by distance from the rally cell, ties broken by LOWEST ActorID — an explicit
+		/// total order, never list position. Zero RNG. Pure read: no caller can reach axis state through it.</para></summary>
+		public CPos? ForwardEscortCell
+		{
+			get
+			{
+				if (!rallyCell.HasValue)
+					return null;
+
+				var ring = Info.StagingFallbackCells
+					+ (ForwardStagingMath.MaxSpreadRings(Info.StagingFallbackCells, Info.StagingSpreadStepCells)
+						* Info.StagingSpreadStepCells);
+
+				Actor lead = null;
+				var bestReach = 0;
+				foreach (var axis in axes)
+				{
+					foreach (var u in axis.Units)
+					{
+						if (u == null || u.IsDead || !u.IsInWorld)
+							continue;
+
+						var reach = PoiOffenseMath.Chebyshev(u.Location.X, u.Location.Y, rallyCell.Value.X, rallyCell.Value.Y);
+						if (reach <= ring)
+							continue;
+
+						if (lead == null || reach > bestReach || (reach == bestReach && u.ActorID < lead.ActorID))
+						{
+							lead = u;
+							bestReach = reach;
+						}
+					}
+				}
+
+				return lead?.Location;
+			}
+		}
+
 		// FREE-POOL SNAPSHOT (PIPELINE item 86) — the three numbers the forward-staging floor is decided from,
 		// recorded where the pool is actually computed. Published so LaneAmbushBotModule's army-share reserve
 		// can ask "would taking a unit leave offense below its own floor?" against THE POOL OFFENSE READS
@@ -1386,6 +1486,12 @@ namespace OpenRA.Mods.Common.Traits
 		// Combined-arms transport standoff: when each held unit was first withheld, so the safety valve can
 		// release one the transport never actually collected. Empty unless TransportStandoffEnabled.
 		readonly Dictionary<Actor, int> standoffSince = new();
+
+		// Tick the CURRENT continuous infantry-escort hold began, or null when no axis is holding for a carrier.
+		// Player-level on purpose (see InfantryEscortHoldMaxTicks): an axis-level clock is refreshed by axis churn.
+		// Cleared the moment no axis wants the hold, so a later genuine gap starts a fresh clock; NOT cleared when
+		// the valve expires, which is what keeps the release one-way instead of a hold/advance duty cycle.
+		int? escortHoldSince;
 		int lastStandoffLogTick = int.MinValue;
 		int lastLedgerCensusTick = int.MinValue;
 
@@ -3897,6 +4003,89 @@ namespace OpenRA.Mods.Common.Traits
 				axis.HasOrdered = false;
 			}
 
+			// INFANTRY ESCORT HOLD (item 64, "push departs together", experimental default off): the armour stands
+			// where it is while a carrier of ours is still bringing its infantry up behind it.
+			//
+			// PLACED HERE, WITH THE PREP AND SYNC HOLDS AND BEFORE ApplyMissionCommitment, FOR THE REASON THEY
+			// DOCUMENT: an axis marked Committed is frozen out by PartitionHeldAxes, which skips CommitAndOrder
+			// entirely, so a holding axis would never re-reach its own release gate and the valve would be a dead
+			// knob (review FIX 4's defect). Not stamping is what keeps this method — and therefore the release —
+			// running every eval.
+			//
+			// WHAT IT WAITS ON IS A CARRIER THAT IS ACTUALLY CARRYING. LoadedDeliveryCells is Delivering/Unloading
+			// with a non-empty hold only, so a carrier still Loading (which may time out and never depart) and one
+			// Returning (empty) are both invisible here. That is the difference between pacing the infantry and
+			// waiting on a bus that is not coming.
+			//
+			// IT CANNOT DEADLOCK AGAINST THE TRANSPORT, structurally, and it is worth being precise about why
+			// because the obvious worry — "the axis waits for the carrier, the carrier waits for a frontline the
+			// axis would have made" — is a real shape that simply does not arise here:
+			//   * the carrier's drop cell is resolved with no reference to any axis
+			//     (MountedTransportBotModule.PickDropOffCellUnclamped: the thinnest frontline cell, else the
+			//     pre-contact lerp under DeliverBeforeContact), so it is never waiting on its waiter; AND
+			//   * a carrier with NO destination is invisible to this gate entirely. MountedTransportBotModule
+			//     returns at its `no-task reason=no-drop-cell` exit BEFORE creating a task, so such a carrier
+			//     never enters Delivering and never reaches LoadedDeliveryCells. That covers the
+			//     DeliverBeforeContact-OFF profile (wip-transport-delivers' RED arm) without relying on the valve:
+			//     there, no task exists, so no axis holds, so the arm measures the shuttle geometry it is for.
+			// What the valve IS for is the remaining case: a carrier that HAS a destination and cannot reach it —
+			// blocked ground, a DEFCON border between it and the drop, a route that opens later.
+			//
+			// MIN over the published cells, so the Dictionary iteration order LoadedDeliveryCells warns about
+			// cannot reach a decision. Zero RNG.
+			if (Info.InfantryEscortHoldEnabled && groupUnits.Count > 0)
+			{
+				var transport = player.PlayerActor.TraitsImplementing<MountedTransportBotModule>()
+					.FirstOrDefault(m => !m.IsTraitDisabled);
+
+				var escortGap = int.MaxValue;
+				if (transport != null)
+					foreach (var cell in transport.LoadedDeliveryCells)
+						escortGap = Math.Min(escortGap, PoiOffenseMath.Chebyshev(cell.X, cell.Y, centroid.X, centroid.Y));
+
+				// No loaded carrier ⇒ nothing to wait for. Chebyshev is never negative, so int.MaxValue is an
+				// unambiguous "absent" and needs no second flag.
+				var wantsEscortHold = escortGap != int.MaxValue && escortGap > Info.InfantryEscortGapCells;
+
+				var escortHold = false;
+				if (!wantsEscortHold)
+				{
+					// Gap closed (or nothing loaded): reset the clock so a LATER genuine gap gets a full valve.
+					escortHoldSince = null;
+				}
+				else
+				{
+					if (!escortHoldSince.HasValue)
+						escortHoldSince = tick;
+
+					// Valve expired: release, but KEEP the record — clearing it here would re-hold on the very next
+					// eval and turn a one-way release into a duty cycle. Same discipline as StoodOffForTransport.
+					escortHold = Info.InfantryEscortHoldMaxTicks <= 0
+						|| tick - escortHoldSince.Value < Info.InfantryEscortHoldMaxTicks;
+
+					Log.Write("debug",
+						$"[exp-escort] {(escortHold ? "hold" : "override")} player={player.PlayerName} " +
+						$"target={axis.TargetName}#{axis.TargetId} gap={escortGap}/{Info.InfantryEscortGapCells} " +
+						$"units={groupUnits.Count} distToTarget={distToTarget} " +
+						$"elapsed={tick - escortHoldSince.Value}/{Info.InfantryEscortHoldMaxTicks} tick={tick}");
+				}
+
+				if (escortHold)
+				{
+					OrderEscortHold(bot, axis, groupUnits, centroid, tick);
+					return;
+				}
+			}
+
+			// Released from (or never in) the escort hold: the last order was a hold at our own centroid, so force
+			// the assault below to re-issue rather than assume the stale hold order still stands — the same
+			// discipline as the OrderedRetreat / OrderedPrepHold / OrderedConvergeHold reconciliations.
+			if (axis.OrderedEscortHold)
+			{
+				axis.OrderedEscortHold = false;
+				axis.HasOrdered = false;
+			}
+
 			// Past every fall-back gate: this axis is assaulting, so it takes the mission-commitment baseline. Must
 			// run BEFORE the !moved early-return below so an axis that merely keeps its existing order still has its
 			// commitment refreshed — that is what the pre-hoist code did from the top of the method.
@@ -5476,6 +5665,22 @@ namespace OpenRA.Mods.Common.Traits
 			}
 
 			return flank;
+		}
+
+		// INFANTRY ESCORT HOLD: keep the axis where it stands while its carried infantry close up. Holds at the
+		// axis's OWN centroid — never at a rearward muster, which would march the armour BACKWARDS and reproduce
+		// the axis-vs-staging beat item 64 retracted on 2026-09-05. TryOrderHold falls back to the lowest-ActorID
+		// unit's own cell when that centroid is impassable, so the hold is always a cell something stands on.
+		void OrderEscortHold(IBot bot, Axis axis, List<Actor> units, (int X, int Y) centroid, int tick)
+		{
+			if (!TryOrderHold(bot, axis, units, centroid, axis.OrderedEscortHold, out var holdCell))
+				return;
+
+			axis.OrderedEscortHold = true;
+
+			Log.Write("debug",
+				$"[exp-escort] escort-hold player={player.PlayerName} target={axis.TargetName}@{axis.TargetCell} " +
+				$"holdCell={holdCell} units={units.Count} tick={tick}");
 		}
 
 		// FLANKING converge hold: keep the main element where it stands while the flank comes level.

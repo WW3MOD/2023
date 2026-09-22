@@ -88,6 +88,352 @@ only the call graph is checking the half that cannot break silently.**
 bounded *bot mutates → synced reads* and left the reverse open: **synced code reading state that
 only bot ticks refresh.** No detector exists for that shape, this fixture is not one, and a green
 run here says nothing about it.
+## 2026-09-22 - `DefaultCash: 0` does not "freeze the force under test" on a scenario with a carrier — it silently starves the offensive free pool below its own advance floor, and the scenario that recorded this blamed the wrong override
+
+`test-combined-arms-rendezvous`'s `rules.yaml` carried this from its creation (`ef608a62`,
+2026-08-15) until `4d3801de` (2026-09-22) — five weeks, untouched in between. It is the kind of
+note that costs a later reader a run:
+
+> "An earlier revision of this file also removed SpawnStartingUnits / CrateSpawner /
+> ConquestVictoryConditions **and forced DefaultCash to 0** to freeze the force under test; that
+> run never produced a verdict at all, so the extra overrides are not worth the risk."
+
+The conclusion (revert to 7500) was right; the attribution was wrong, and the wrong attribution is
+what makes it dangerous — it points the next person at the spawn/crate/victory traits, which were
+never the problem. **The cause is arithmetic and is visible without running anything.**
+
+At cash 0 the placed actors are the whole force. Of this scenario's six USA actors, exactly **one**
+reaches `PoiOffensiveBotModule`'s free pool:
+
+| actor | why it is not in the pool |
+|---|---|
+| `bradley` | listed in `PoiOffensiveBotModule.ExcludeUnitTypes` (`ai.yaml`) |
+| `e3.america` x4 | `MountedTransportBotModule.PassengerTypes`, withheld by `TransportStandoffEnabled` for as long as an empty carrier wants them |
+| `abrams` | **the pool** |
+
+Against `EarlyMinAxisSize: 2` and `FreePoolMinAdvanceUnits: 2`, a pool of one forms no axis
+(`DesiredAxisCount` returns 0) and is separately barred from advancing (`hold-under-min`). The tank
+never leaves its start cell, so a clause of the form "the unit has advanced N cells" is never
+satisfied and the run times out **having measured nothing** — reported as `tank advanced 0/8`, which
+reads to a hurried reader as a failed rendezvous rather than a staging that never held.
+
+**THE GENERAL SHAPE, and it is not specific to this scenario.** On any bot scenario that also
+contains a transport, `DefaultCash: 0` subtracts *more* than the purchased army: every
+`PassengerTypes` infantry in the placed force is withheld too, so the free pool is
+`placed − carriers − passengers`, which is very often 0 or 1. **Before setting cash to 0, count that
+subtraction against `EarlyMinAxisSize` and `FreePoolMinAdvanceUnits`.** The fix here was one more
+non-passenger, non-carrier combat actor — two is the floor, so two is placed.
+
+**AND VERIFY THE PREMISE AT RUNTIME RATHER THAN IN A COMMENT.** `test-ambush-lane-share` sets its
+floors to 40 so no axis can form and then reads the floor back through
+`Test.GetBotOffenseAdvanceFloor`, SKIPping if the override did not merge. The inverse guard is just
+as cheap and was added here: read `Test.GetBotOffenseFreePool` and SKIP with both numbers if the
+pool never reaches the floor. A timeout cannot say why it timed out; a SKIP naming `free=` and
+`floor=` sends the next person to the staging instead of to the mechanism.
+
+## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it
+
+Measured, `test-combined-arms-rendezvous` run `260922_203626` (commit `b333834e`). The new escape
+fired exactly as designed — `[exp-transport] depart ... aboard=4 target=5 still-coming=1
+reason=EscortInContact grace=100 tick=378`, 94 ticks earlier than the `reason=Full` at t472 the same
+geometry produced the run before. **And the carrier did not move.**
+
+```
+t378  depart reason=EscortInContact aboard=4 still-coming=1
+      carrier bradley@8,18 ... pax=4 task=True
+      carrier bradley@8,18 ... pax=5 task=True      <- the straggler boarded
+t478  delivery-move-reissued carrier=bradley@8,18 drop=32,10
+      carrier bradley@10,18 activity=Move pax=5     <- first movement, 100 ticks after departing
+```
+
+`lua.log` agrees: `carrier=8,18` at t100, t200, t300, t400 **and t500**.
+
+**THE MECHANISM IS ALREADY WRITTEN DOWN TWICE IN THE SAME FILE**, which is what makes this worth
+recording — the information needed to predict it was in front of whoever added the valve:
+* `MountedTransportBotModuleInfo.FillBeforeDeparture`'s own `[Desc]`: a carrier that leaves early
+  leaves the rest "chasing it (**they then hold cargo reservations that keep the carrier Locked**; see
+  `Cargo.LockForPickup`)".
+* the Delivering idle-recovery comment, from the other end: "a passenger arriving after departure
+  calls `Cargo.ReserveSpace`, whose `LockForPickup` does **`self.CancelActivity()` on the CARRIER** —
+  killing the delivery move outright. **FillBeforeDeparture also removes the usual cause** (it does
+  not leave stragglers walking toward a departed carrier)".
+
+So `FillBeforeDeparture` was not only a fix for half-empty loads; it was *also* the thing suppressing
+the move-cancel, and any escape from it re-opens the second defect while solving the first. **Net
+effect measured: the valve saved 94 ticks and then lost 100.** A flag that moves `@stable` and is
+exactly counter-productive is the third instance of the same trap in this item, after
+`RendezvousWithOffensiveStaging` and `InfantryEscortHoldEnabled`.
+
+**The fix is to stand the stragglers down at departure** — `Stop` to every reserved/top-up passenger
+still in-world (out-of-world means *aboard*), plus a ledger release, sorted by ActorID because issuing
+ORDERS over a HashSet is order-dependent in a way the ledger release next to it is not. Scoped to the
+escape reason alone so no other departure path drifts. **It costs a passenger** — in this run the
+fifth boarded after departure and would now be left behind — which is the trade the "timely over full"
+doctrine call explicitly accepts, and it should be stated rather than discovered.
+
+**GENERAL RULE.** Before adding an escape from a wait, list what the WAIT was incidentally protecting.
+A wait state in a system with reservations is rarely only about the thing it is named for.
+
+## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else
+
+Measured in `260922_200826`: `task-created` t72, `depart ... reason=Full` t472. **400 ticks loading**,
+with `pax-waiting ... activity=RideTransport cells-to-carrier=1` the whole way and `aboard` stepping
+0 / 2 / 2 / 2 / 3 / 4 / 5. `MinPassengersPerLoad` (2) was satisfied at **t172**, three hundred ticks
+before the carrier moved. Its escort had stopped at `21,16` at t400 and died at t624 with the carrier
+still four cells short.
+
+**Both existing bounds are blind to this, and it is worth being precise about why, because each looks
+like it should have caught it:**
+* `BoardingStallTicks` (250) measures `ticksSinceProgress` — a **lack** of progress. Progress kept
+  occurring (`since-progress=0` at t322, t372), so it never armed. A load that fills steadily but
+  slowly is invisible to a stall bound by construction.
+* `LoadingTimeoutTicks` (1500) is the hard bound, and at three times the length of the entire episode
+  it is a bound on pathology, not on tempo.
+
+Neither reads anything about the **world outside the carrier**. That is the actual gap: the transport
+decides how long to wait using only its own hold and its own clocks, and never asks whether the force
+it is loading for still needs the delivery to arrive at all.
+
+**THE SHAPE OF THE FIX, per the project's "gradient over hard transitions" rule: a bounded ESCAPE, not
+a replacement.** `FillBeforeDeparture` stays true and stays the default — the 2026-08-15 half-empty
+departure fix is a real fix and reverting it would re-open a measured defect. What is added is one
+exit priced on the bad state: leave early only when *all* of a deliverable load
+(`MinPassengersPerLoad`), an escort already past the muster ring
+(`PoiOffensiveBotModule.ForwardEscortCell` non-null — the same seam the escort unload reads, not a
+second notion of "forward"), and a grace long enough for the fill to have had its chance
+(`EscortLoadGraceTicks`, default **0 = disabled**) hold together.
+
+**Two placement rules fell out of writing it and both are generalisable:**
+1. **Put the escape AFTER the unconditional releases, not before.** `Full` and `NobodyElseComing`
+   depart on the same tick anyway and are truer descriptions of *why*. Letting the escape win there
+   would make the log claim a load was cut short when it was not, and a reader could no longer
+   distinguish a rescued departure from an ordinary one.
+2. **Exclude the capture ferry outright.** A ferry's spare seats exist precisely to be filled
+   (`CaptureFerryEscortSeats`), and `test-ferry-fills-seats` asserts peak pax >= 2 on that leg — an
+   early bolt with the technician alone is the exact regression that scenario exists to catch.
+
+**And a test-authoring trap, paid for once here.** A "this flag is inert" assertion must keep every
+*other* input inside its normal band. The first cut asserted `Wait` with `ticksLoading: 9999` against
+a `LoadingTimeoutTicks` of 1500, and failed with `But was: Timeout` — correct engine behaviour,
+reported as a failure of the feature under test. An inertness test that trips a different mechanism is
+testing that mechanism.
+
+## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers
+
+Measured, `test-combined-arms-rendezvous`, worktree @ `288d3db9`. Verdict FAIL, tank dead t624 at
+`21,16`. The `lua.log` positional roll is the thing to read first, and it refutes the reading every
+prior status block in this item carried:
+
+```
+tick=100  tank=8,16   carrier=8,18
+tick=200  tank=11,16  carrier=8,18
+tick=300  tank=18,16  carrier=8,18
+tick=400  tank=21,16  carrier=8,18
+tick=500  tank=21,16  carrier=8,18
+tick=600  tank=21,16  carrier=15,18
+```
+
+**The tank reached `21,16` at t400 and never moved again** — `[husk-settle] travel=(0,0)`, a stationary
+vehicle, 224 ticks later. It is not a lead element running away from its escort; it is a lead element
+that stopped at the point of contact and lost a fight alone. "The lone tank walks 22 cells forward to
+die" is true about the WALK and false about the DEATH.
+
+**The ferry's 400-tick load is the other half, and the passengers were ADJACENT the whole time.**
+`task-created` t72, `depart ... reason=Full` t472. In between: `aboard` 0 (t122) -> 2 (t172) -> 2 -> 2
+-> 3 (t322) -> 4 (t372) -> 5 (t472), with `closest=1` and `pax-waiting ... activity=RideTransport
+cells-to-carrier=1` throughout. `FillBeforeDeparture: true` holds for all 5 seats; `MinPassengersPerLoad`
+is 2 and was met at t172, **300 ticks earlier**. The carrier therefore left the Supply Route 72 ticks
+AFTER its escort had already stopped moving, and was still 4 cells short when the escort died.
+
+**WHY THE ESCORT HOLD NEVER FIRED — two causes, confirmed, compounding to leave zero overlap.**
+Neither is the one I would have bet on:
+
+| eval | branch | carrier state |
+|---|---|---|
+| t112 | `axis-new` + `order` — CommitAndOrder RAN | Loading (`aboard=0`) |
+| t212 | `hold ... commitScore=` + `reinforce-held` — **frozen** | Loading |
+| t312 | `hold` + `reinforce-held` — **frozen** | Loading |
+| t412 | `fires` + `order` — CommitAndOrder RAN | Loading (`aboard=4`) |
+| t472 | — | **`depart` -> Delivering** |
+| t512 | `hold` + `reinforce-held` — **frozen** | Delivering |
+| t612 | `hold` + `reinforce-held` — **frozen** | Delivering |
+
+1. **`CommitAndOrder` ran at 2 of 6 evals.** At the other four the axis was mission-`Committed` and
+   `PartitionHeldAxes` skipped the method entirely. **Placing a hold before `ApplyMissionCommitment`
+   protects it from freezing ITSELF; it does nothing about an axis already frozen by a commitment
+   stamped on an EARLIER eval's assault order.** The prep/sync holds' comments describe the first
+   hazard and are silent on the second, so the file reads as a stronger guarantee than it gives.
+2. **The carrier entered `Delivering` at t472 — after the last eval that entered `CommitAndOrder`.**
+   At both reachable evals it was `Loading`, which a Delivering/Unloading-only publication excludes by
+   design. The exclusion is still right (a `Loading` carrier may time out and never depart), but it
+   means the gate is blind for the whole window in which the gap actually opens.
+
+**A third defect is the gate's own key, and it is the generalisable one: an offensive axis's CENTROID
+is not where its fighting is.** Axes absorb reinforcements at the rear (`reinforce-held` joined 2, 3,
+1, 2 -> 12 units), so the centroid is dragged back toward the Supply Route while the lead runs ahead:
+at t412 `[exp-offense] order ... units=9 distToTarget=54` against a target at `58,4` puts the centroid
+around x=5 **while the tank stood at 21,16**. Any gate comparing an external actor to `AxisCentroidCell`
+is comparing it to the rear of the formation. The fix is to publish the LEAD
+(`PoiOffensiveBotModule.ForwardEscortCell`), max-by-distance-from-rally with a lowest-ActorID tie-break.
+
+**CONSEQUENCE FOR THE INSTRUMENT: clause (b) was unreachable for a reason no pacing change can fix.**
+The delivery's objective was `drop=32,10`, **eleven cells past** where the armour stood and died. The
+carrier unloads only within `DropOffArrivalRadius` of that cell, so the riflemen were never going to be
+set down near the tank whatever either of them did. The unload SITE, not the departure discipline, is
+what gates "riflemen set down within 7 cells of the tank".
+
+## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate
+
+The measured symptom (run `260922_193617`) is that nothing paces armour against the infantry it is
+supposed to arrive with: the abrams reached `22,16` and died at t621 while the carrier was at `15,15`
+with all four riflemen still aboard. A grouped `AttackMove` goes through `CohesionMoveModifier`,
+which rewrites each subject's destination cell and **carries no speed term at all**.
+
+**The hold slot and the template already exist.** `PoiOffensiveBotModule.CommitAndOrder` is a hold
+LADDER, and `TryOrderHold(bot, axis, units, centroid, alreadyHolding, out holdCell)`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/PoiOffensiveBotModule.cs:5312`) is a general primitive
+with the passability fallback, the `RepathThresholdCells` dedup and a deterministic lowest-ActorID
+representative already in it. It has three callers — `OrderPrepHold` (`:5348`), `OrderSyncHold`
+(`:5361`), `OrderConvergeHold` (`:5482`). **A fourth is ~15 lines.** The converge hold
+(`:3946-3999`) is the closest template: a gate predicate, a bound, an order, and a reconciliation
+that clears the flag and `HasOrdered` so the assault re-issues.
+
+**PLACEMENT IS LOAD-BEARING AND THE FILE SAYS SO.** A hold must return **without** stamping
+`ApplyMissionCommitment` and must sit **before** it (`:3903`): an axis marked `Committed` is frozen
+out by `PartitionHeldAxes`, which skips `CommitAndOrder` entirely, so a holding axis would never
+re-reach its own release gate and its bound would be a dead knob. That is review FIX 4's recorded
+defect, and the prep/sync holds both carry the comment.
+
+**The cross-module seam was already there.** `PoiOffensiveBotModule` already resolves the transport
+module live at `:2594` (`TraitsImplementing<MountedTransportBotModule>().FirstOrDefault(m =>
+!m.IsTraitDisabled)` — twinned, so `TraitOrDefault` throws). So "does the offense know about the
+carriers" needed no new plumbing, only a published read: `MountedTransportBotModule.LoadedDeliveryCells`,
+the mirror of the `ForwardStagingAnchor` the transport already reads off offense. Cells cross the
+seam, never decisions.
+
+**THE NON-OBVIOUS SAFETY PROPERTY, and it is stronger than the deadlock argument it replaces.** The
+worry with gating armour on a carrier is the cycle *"axis waits for carrier, carrier waits for a
+frontline only the axis could create"*. It cannot arise, for two independent reasons, and the second
+is the useful one: **a carrier with no resolvable destination never becomes something such a gate can
+see.** `MountedTransportBotModule` returns at its `no-task reason=no-drop-cell` exit
+(`MountedTransportBotModule.cs:1482-1494`) **before** any `CarrierTask` is constructed, so that
+carrier never enters `Delivering` and never appears in `LoadedDeliveryCells`. A gate keyed on
+*Delivering/Unloading with a non-empty hold* therefore cannot wait on a carrier that has nowhere to
+go — including the `DeliverBeforeContact: false` profile (`wip-transport-delivers`' RED arm), which
+is the case that looks most dangerous and is in fact the safest. Waiting on `Loading` instead would
+lose this property outright, because a `Loading` carrier may time out and never depart.
+
+**A per-axis eval budget is the wrong bound here, and the dossier says why.** 100% of axis retires
+are `reason=dropped` (`ai.yaml`, the axis-churn note), so a counter carried on the `Axis` is
+refreshed every time an axis is dropped and re-formed — which is most often **at the opening**, which
+is exactly where an escort hold lives. A bound that resets with the thing it bounds is not a bound.
+The established alternative is in the same file: `StoodOffForTransport`'s player-level tick valve
+(`:2605-2618`), which releases on expiry and **keeps the record** so the release is one-way rather
+than a hold/advance duty cycle.
+
+**What this does NOT address, stated because the item's name over-promises.** Pacing an axis against
+a CARRIER does nothing for infantry that WALK. `test-push-departs-together` has no carrier at all
+(deliberately — `map.yaml:69-78`), so any carrier-keyed gate is inert there and its d2 clause stays
+red: d2 is a speed clause between an abrams (`Speed: 90`) and a rifleman (`Speed: 25`), and only a
+throttle or a speed-split lead-hold can move it. That remains item 64's separate, unbuilt half.
+
+## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") IS MEASURED-INERT AND DOES NOT SHIP: the 2026-08-19 withdraw bound rejects the anchor in the only state that reaches it
+
+**MEASURED, and the flip was reverted on the strength of it.** Run `260922_193617`
+(`test-combined-arms-rendezvous`, flag ON on both twins, worktree @ `cf3b70f3`): **zero
+`[exp-transport] rendezvous` lines** in the whole run — that line is written only when the resolved
+cell differs from the fallback (`MountedTransportBotModule.cs`, `ResolveRendezvous`), so its absence
+is the proof. The verdict was the unchanged `"the bot's tank died before the rendezvous could be
+judged (tick=621; tank last seen at 22,16, SR is 6,16; ... rifle-1..4=oow/dead=false(rode))"`.
+
+**WHICH of the three predicted gates was live is now settled, and it was not the one I led with.**
+`anchorsrc` read `gradient` x6, `none` x6, `fallback` x1 — so an anchor WAS published for most of
+the run and the "null by design" path (reason 2 below) did **not** apply on this map. **Reason 3 —
+`RendezvousMaxWithdrawCells = 6` — is the live gate.** Reason 2 remains true as written for the
+descent-stalled case (`anchorsrc=fallback`/`none`, 7 of 13 samples here) and is what makes the
+feature unreliable rather than merely bounded; but on this geometry the bound alone is sufficient to
+explain the inertness. The general claim survives; the ranking in it was wrong.
+
+**Do not re-flip this without changing the bound.** A flip labelled "moves `@stable`" that moves
+nothing still forces an ai-bench re-baseline, which is a real cost for no behaviour.
+
+
+Flipping `mods/ww3mod/rules/ai/ai.yaml` `RendezvousWithOffensiveStaging: false -> true` on both
+`MountedTransportBotModule` twins is what `WORKSPACE/audit/260921-release-readiness.md:287`
+(package 8) asks for, and the audit's line numbers resolve exactly at its own SHA `cf25edbe`
+(`:2258` = the `@poi`/stable twin, `:2353` = the `@experimental` twin). The flag is correctly
+identified. **It is also measured-inert by code reading, for three independent reasons, and the
+scenario the audit names to measure it cannot see it at all.**
+
+**1. `test-push-departs-together` has no carrier, so the flag is unreachable there.**
+The scenario creates 2 `abrams` + 4 `e3.america` from Lua and sets `DefaultCash: 0`
+(`rules.yaml`), and its `map.yaml:69-78` says the absence of a carrier is deliberate
+("NO CARRIER, AND THAT IS NOT AN OVERSIGHT"). With no owned `bradley`/`bmp2`/`m113`,
+`MountedTransportBotModule`'s scan returns at
+`engine/OpenRA.Mods.Common/Traits/BotModules/MountedTransportBotModule.cs:1384-1385`
+(`if (candidates.Count == 0) return;`) **before** `PickDropOffCell` is ever called. So no
+drop cell is resolved, `ResolveRendezvous` never runs, and no number this scenario prints can
+move on this flip. **The audit's "`test-push-departs-together` RED->GREEN" pairing is wrong.**
+
+**2. The only state that reaches the rendezvous is the one where the anchor it needs is null.**
+`ResolveRendezvous` has exactly one caller: `PreContactStagingCell`
+(`MountedTransportBotModule.cs:1753`), itself reached only via `StageForwardOrGiveUp` when
+`PickDropOffCellUnclamped` found no frontline cell -- i.e. **pre-contact only**. In that state
+`PoiOffensiveBotModule.ResolveStagingAnchor` returns null when the frontier descent stalls on the
+SR's grid cell (`PoiOffensiveBotModule.cs:2657-2667`), and the fallback cell `StageFreePool`
+substitutes is a deliberate **local**, never the module field:
+
+```
+PoiOffensiveBotModule.cs:2946-2950
+// LOCAL, never the module field. `stagingAnchor` is shared state ... writing the fallback into it
+// would leak this method's decision into every later consumer in the same eval and is precisely
+// the second variable this change must not introduce.
+var effectiveAnchor = stagingAnchor;
+```
+
+`ForwardStagingAnchor => stagingAnchor` (`:1335`) publishes the RAW field, so it stays null on the
+fallback path. `RendezvousMath.ResolveDropOff(enabled: true, hasAnchor: false, ...)` returns the
+caller's lerp unchanged -- the identity path. **Measured, twice:** `[exp-clog] ... anchor=14,16
+anchorsrc=fallback` (run `260905_183118`) and `... sr=6,16 anchor=12,16 anchorsrc=fallback`
+(item-64 dossier, 09-05). `anchorsrc=fallback` is emitted iff `onFallback` is true
+(`:2992-2995`), which is true iff `stagingAnchor` was null.
+
+**3. Where an anchor IS published, the 6-cell withdraw bound rejects it -- by design.**
+`RendezvousMaxAdvanceCells = 6` and `RendezvousMaxWithdrawCells = 6`
+(`MountedTransportBotModule.cs:100,109`), neither overridden in `ai.yaml`, so the acceptance band
+is `[fallbackReach-6, fallbackReach+6]`. On `test-combined-arms-rendezvous`'s geometry (own SR
+`6,16`, enemy SR `58,4`, `PreContactStagingPct: 50`) the lerp is `(32,10)` and
+`fallbackReach = Chebyshev = 26`, so an anchor must sit **20-32 cells** from the SR to be
+accepted. The offensive muster sits at `StagingFallbackCells: 6` (`ai.yaml:759`/`:3176`), i.e.
+**6 cells** -- rejected. This is the two-sided bound working exactly as specified: it is the fix
+for run `260815_202509`, NUnit-pinned as `AnchorParkedOnOurOwnSupplyRoute_IsRejected`
+(`engine/OpenRA.Test/OpenRA.Mods.Common/RendezvousMathTest.cs:183-203`) on this same
+`6,16 / 7,17 / 32,10` geometry.
+
+**THE STRUCTURAL POINT, and it is why no flag value fixes this.** The feature's intent ("drop the
+infantry where the armour is mustering") and the bound's intent ("do not drop near our own SR")
+are in **direct conflict at the opening**, because at the opening the armour's muster IS near the
+SR -- 6 cells out against a 26-cell lerp. The 2026-08-19 bound did not merely remove a blocker; it
+made the pre-contact case, which is the only case `DeliverBeforeContact` exists to serve,
+permanently unreachable. `ai.yaml`'s own comment already contains the premise ("before contact the
+frontier descent has nothing to descend toward, so the anchor sits on the Supply Route and is
+ALWAYS behind the lerp") without drawing the conclusion.
+
+**What delivering item 64's combined-arms half would actually take** (NOT done here; each is a
+behavioural change on a trait both profiles carry, owed its own measured run):
+1. publish the *effective* staging anchor (gradient or fallback) on a **new** property -- not by
+   writing it into `stagingAnchor`, which `:2946-2950` forbids in terms; and
+2. a doctrine ruling on the withdraw bound, since accepting a 6-cell anchor against a 26-cell lerp
+   is definitionally the 1-cell-shuttle shape the bound exists to reject. A ratio, a pre-contact
+   exemption and a "clamp toward the anchor rather than adopt it" are all candidates, and all are
+   doctrine, not tuning.
+
+**The residual "lone tank" the audit row describes is a different defect.** Per
+`WORKSPACE/pipeline/items/86-ambush-lane-opening-share.md:219-238`, after item 86 the residual is
+the OFFENSE AXIS forming at `EarlyMinAxisSize: 2` and being ordered 53 cells out while
+reinforcements join behind it -- item 64's missing **lead-hold**, which is not built in any bot
+module. `test-push-departs-together`'s own `expected-status` says so: *"DELETE THIS FILE when a
+lead-hold ... lands and d1/d2 can be met."*
 
 ## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
 

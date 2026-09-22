@@ -108,6 +108,47 @@ namespace OpenRA.Mods.Common.Traits
 			"used when RendezvousWithOffensiveStaging is set.")]
 		public readonly int RendezvousMaxWithdrawCells = 6;
 
+		[Desc("PIPELINE item 64. Set the infantry DOWN BESIDE THE ARMOUR when the delivery overtakes it, instead of",
+			"driving them past it to a drop cell computed from our own Supply Route. An ADDITIONAL arrival test, not",
+			"a replacement: the ordinary drop-cell arrival is untouched, and so are RendezvousMath's two-sided reach",
+			"bound and the 1-cell-shuttle guard — this never moves task.DropOff, it only lets the carrier finish",
+			"early when it is already where the infantry are needed.",
+			"MEASURED, run 260922_200826: the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and",
+			"all five passengers still aboard, because the delivery's objective was 32,10 — ELEVEN cells past the",
+			"armour it was supposed to reinforce. The carrier was never going to unload anywhere near the tank.",
+			"CANNOT DUMP AT OUR OWN BEACHHEAD: the escort cell it keys on is PoiOffensiveBotModule.ForwardEscortCell,",
+			"which is null unless a unit is beyond the muster anchor AND its whole spread ring, so \"beside the",
+			"armour\" can never resolve to a slot at the Supply Route.",
+			"OFF by default => a profile omitting this field is byte-identical.")]
+		public readonly bool EscortUnloadEnabled = false;
+
+		[Desc("How close (Chebyshev cells) the carrier must come to the forward escort cell before it sets its",
+			"passengers down there. Kept UNDER test-combined-arms-rendezvous's TogetherCells (7) so the soldiers are",
+			"still within that radius of the armour after they scatter out of the hold — dismounting exactly at the",
+			"limit would put half of them outside it. Only used when EscortUnloadEnabled is set.")]
+		public readonly int EscortUnloadCells = 5;
+
+		[Desc("PIPELINE item 64. BOUNDED ESCAPE from FillBeforeDeparture, not a replacement for it: a carrier may",
+			"leave early — with MinPassengersPerLoad aboard rather than a full hold — ONLY while its escort is",
+			"already in contact and it has been Loading at least this many ticks. 0 (default) disables the escape",
+			"entirely, so a profile omitting this field keeps the 2026-08-15 half-empty-departure fix exactly as it",
+			"is. This prices a bad state rather than forbidding it; the hard mechanism stays live and tunable.",
+			"MEASURED, run 260922_200826: task-created t72, departed Full t472 — 400 TICKS loading from passengers",
+			"standing ONE CELL away (`pax-waiting ... cells-to-carrier=1`, aboard 0/2/2/2/3/4/5). The carrier left",
+			"the Supply Route 72 ticks AFTER its escort had already stopped moving at 21,16, and was still 4 cells",
+			"short when that escort died at t624. Nothing bounds 'we have been loading for 400 ticks while the unit",
+			"we exist to reinforce is losing a fight': BoardingStallTicks (250) bounds only a LACK OF PROGRESS, and",
+			"progress kept occurring, while LoadingTimeoutTicks (1500) is three times the whole episode.",
+			"WHY 100 ON THE SHIPPED TWINS. MinPassengersPerLoad (2) was reached at t172, one hundred ticks after",
+			"loading began — so 100 is one full boarding cycle, and two ScanIntervals (50), which guarantees the",
+			"top-up pass has run at least twice before the escape can fire. On that log the escape would have",
+			"departed at t322 with 3 aboard instead of t472 with 5. Note the GRACE IS NOT THE BINDING CONSTRAINT",
+			"there: the escort only cleared the muster ring at ~t322, so anything from 50 to 250 gives the same",
+			"departure tick. The grace is the safety margin against pre-empting a normal fill, not the trigger.",
+			"NEVER APPLIES TO A CAPTURE FERRY — see the call site: the ferry's spare seats exist to be filled",
+			"(CaptureFerryEscortSeats), and test-ferry-fills-seats asserts exactly that.")]
+		public readonly int EscortLoadGraceTicks = 0;
+
 		[Desc("Experimental (default false = frozen): issue the engine-correct \"Unload\" order on arrival",
 			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
 			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
@@ -384,6 +425,45 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>True if `actor` is currently reserved by any of this module's carrier tasks
 		/// (loading, delivering, unloading, returning). Used by LayeredDefenceBotModule to
 		/// avoid issuing AttackMove orders that would override the EnterTransport.</summary>
+		/// <summary><para>Cells of our carriers that are right now CARRYING at least one passenger toward a
+		/// drop-off — i.e. the infantry an offensive axis would be waiting to arrive with.</para>
+		///
+		/// <para>DELIVERING/UNLOADING ONLY, and the two exclusions are the point. A <c>Loading</c> carrier has not
+		/// departed and may never (the boarding bounds can time it out), and a <c>Returning</c> one is empty;
+		/// waiting on either is waiting on nothing, and an axis that did so would hold for the whole match on a
+		/// carrier that was never coming. The <c>Cargo.IsEmpty()</c> re-test is not redundant with the state: a
+		/// passenger can die or be unloaded between the state transition and this read.</para>
+		///
+		/// <para>Published for PoiOffensiveBotModule's infantry-escort hold, and deliberately the MIRROR of this
+		/// module's own read of that module's <c>ForwardStagingAnchor</c> — cells cross the seam, never decisions,
+		/// so neither module learns the other's arithmetic. Read-only: the caller cannot reach task state through
+		/// it.</para>
+		///
+		/// <para>DETERMINISM: iterates a Dictionary, so the ORDER is not guaranteed — every consumer must be
+		/// order-independent. The one consumer takes a MIN over the set, which is. Do not add a caller that reads
+		/// "the first" of these.</para></summary>
+		public IEnumerable<CPos> LoadedDeliveryCells
+		{
+			get
+			{
+				foreach (var task in carrierTasks.Values)
+				{
+					if (task.State != CarrierState.Delivering && task.State != CarrierState.Unloading)
+						continue;
+
+					var carrier = task.Carrier;
+					if (carrier == null || carrier.IsDead || !carrier.IsInWorld)
+						continue;
+
+					var cargo = carrier.TraitOrDefault<Cargo>();
+					if (cargo == null || cargo.IsEmpty())
+						continue;
+
+					yield return carrier.Location;
+				}
+			}
+		}
+
 		public bool IsPassengerReserved(Actor actor)
 		{
 			foreach (var task in carrierTasks.Values)
@@ -541,6 +621,46 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (pax != task.Capturer)
 				goalGuard.Ledger.Commit(pax, TransportObjectiveKey(task.Carrier), world.WorldTick, goalGuard.DefaultCommitmentTicks);
+		}
+
+		/// <summary><para>Stand down every reserved passenger still WALKING when the escort escape fires, so
+		/// nobody is left chasing a carrier that has already left.</para>
+		///
+		/// <para>WITHOUT THIS THE ESCAPE IS SELF-DEFEATING, and the mechanism is written down twice in this file
+		/// already. <c>FillBeforeDeparture</c>'s own [Desc]: a carrier that drives away with passengers still
+		/// walking leaves them "chasing it (they then hold cargo reservations that keep the carrier Locked; see
+		/// Cargo.LockForPickup)". The Delivering re-issue says it from the other end: a late boarder's
+		/// <c>Cargo.ReserveSpace</c> calls <c>LockForPickup</c>, which does <c>CancelActivity()</c> on the CARRIER
+		/// and kills the delivery move outright. MEASURED, run 260922_203626: the escape departed t378 with
+		/// <c>still-coming=1</c>, the straggler boarded (pax 4 -> 5), the move died, and the carrier sat at 8,18
+		/// until the idle recovery re-issued at t478 — ONE HUNDRED TICKS, more than the ninety-four the escape had
+		/// just saved. The valve was exactly counter-productive.</para>
+		///
+		/// <para>Scoped to the escape alone, so a profile leaving EscortLoadGraceTicks at 0 gets no drift.
+		/// Out-of-world means ABOARD, so the in-world test is what separates a straggler from a passenger; the
+		/// capturer is never stood down.</para>
+		///
+		/// <para>DETERMINISM: the passenger sets are HashSets with no guaranteed iteration order, and this issues
+		/// ORDERS rather than the order-independent ledger release <see cref="ReleaseTaskPassengers"/> does — so
+		/// it sorts by ActorID, the explicit total order the rest of this module uses.</para></summary>
+		void StandDownStragglers(IBot bot, CarrierTask task)
+		{
+			var stragglers = task.ReservedPassengers.Concat(task.TopUpPassengers)
+				.Where(pax => pax != task.Capturer && !pax.IsDead && pax.IsInWorld)
+				.OrderBy(pax => pax.ActorID);
+
+			foreach (var pax in stragglers)
+			{
+				bot.QueueOrder(new Order("Stop", pax, false));
+
+				if (goalGuard != null && !goalGuard.IsTraitDisabled)
+					goalGuard.Ledger.Release(pax);
+
+				Log.Write("debug",
+					$"[exp-transport] straggler-stood-down player={player.PlayerName} " +
+					$"pax={pax.Info.Name}#{pax.ActorID}@{pax.Location} carrier={task.Carrier.Info.Name} " +
+					$"tick={world.WorldTick}");
+			}
 		}
 
 		// Release a task's passengers from the ledger (on unload / task teardown) so a delivered unit re-enters
@@ -866,11 +986,28 @@ namespace OpenRA.Mods.Common.Traits
 					// still reports whether the seats were winnable at all.
 					TopUpLoad(bot, task, aboard, stillComing, farthestComing);
 
+					// Item 64's escape precondition, resolved HERE rather than in the math so the pure function
+					// stays engine-free. Two engine facts it needs:
+					//   * NOT A CAPTURE FERRY. A ferry's spare seats exist precisely to be filled
+					//     (CaptureFerryEscortSeats), and test-ferry-fills-seats asserts peak pax >= 2 on that leg;
+					//     letting a ferry bolt early with the technician alone is the regression that test exists
+					//     to catch. Excluded outright rather than tuned around.
+					//   * THE ESCORT IS FORWARD. Reuses PoiOffensiveBotModule.ForwardEscortCell — the same seam
+					//     the escort unload reads, deliberately NOT a second notion of "forward". It is null until
+					//     a live axis unit is past the muster anchor and its whole spread ring, so "in contact"
+					//     can never mean "standing at our own beachhead", and with no axis at all it is null and
+					//     the escape cannot fire.
+					var escortInContact = Info.EscortLoadGraceTicks > 0
+						&& task.CaptureTarget == null
+						&& player.PlayerActor.TraitsImplementing<PoiOffensiveBotModule>()
+							.FirstOrDefault(m => !m.IsTraitDisabled)?.ForwardEscortCell != null;
+
 					var departure = MountedTransportMath.DecideDeparture(
 						Info.FillBeforeDeparture,
 						aboard, task.SeatTarget, stillComing, minPax,
 						world.WorldTick - task.StateChangedAtTick, Info.LoadingTimeoutTicks,
-						world.WorldTick - task.LastProgressTick, Info.BoardingStallTicks);
+						world.WorldTick - task.LastProgressTick, Info.BoardingStallTicks,
+						escortInContact, Info.EscortLoadGraceTicks);
 
 					// One line per loading task per scan. A task that sits in Loading is the state that was
 				// previously unreachable, so its progress (or lack of it) needs to be visible rather than
@@ -913,7 +1050,16 @@ namespace OpenRA.Mods.Common.Traits
 						Log.Write("debug",
 							$"[exp-transport] depart player={player.PlayerName} carrier={carrier.Info.Name} " +
 							$"aboard={aboard} target={task.SeatTarget} still-coming={stillComing} " +
-							$"reason={departure} ferry={task.CaptureTarget != null} tick={world.WorldTick}");
+							$"reason={departure} grace={Info.EscortLoadGraceTicks} " +
+							$"ferry={task.CaptureTarget != null} tick={world.WorldTick}");
+
+						// THE ESCAPE PATH ONLY, and it is what makes the escape worth anything at all. See
+						// StandDownStragglers: leaving a passenger walking toward a carrier that has just
+						// departed is the defect FillBeforeDeparture's own [Desc] describes, and an escape that
+						// departs early without this trades a late start for a CANCELLED one.
+						if (departure == CarrierDeparture.EscortInContact && stillComing > 0)
+							StandDownStragglers(bot, task);
+
 						LaunchDelivery(bot, task);
 					}
 
@@ -939,13 +1085,49 @@ namespace OpenRA.Mods.Common.Traits
 					// arrived.
 					var distToDrop = (carrier.Location - task.OrderedDropOff).LengthSquared;
 
+					// ESCORT UNLOAD (item 64, default off): the delivery has caught up with the armour, so finish
+					// HERE rather than driving the infantry past it to a cell chosen from our own Supply Route.
+					//
+					// PoiOffensiveBotModule owns the judgement of what counts as "the front" — ForwardEscortCell is
+					// the LEAD unit of a live axis and is null while nothing is past the muster ring, so this module
+					// only has to answer "am I close to it". That split is deliberate: the muster geometry lives in
+					// that module's config, and duplicating the test here would be a second place to get it wrong.
+					// Resolved per pass, twin-safe (TraitOrDefault throws on the twinned trait), and null-tolerant —
+					// with no offensive module, no axis, or nothing forward, this is the identity and the ordinary
+					// drop-cell arrival below is the only way to finish, exactly as before.
+					var escortOverran = false;
+					if (Info.EscortUnloadEnabled && !cargo.IsEmpty())
+					{
+						var offensive = player.PlayerActor.TraitsImplementing<PoiOffensiveBotModule>()
+							.FirstOrDefault(m => !m.IsTraitDisabled);
+
+						var escortCell = offensive?.ForwardEscortCell;
+						if (escortCell.HasValue)
+						{
+							var toEscort = RendezvousMath.CellDistance(
+								carrier.Location.X, carrier.Location.Y, escortCell.Value.X, escortCell.Value.Y);
+
+							escortOverran = toEscort <= Info.EscortUnloadCells;
+							if (escortOverran)
+								Log.Write("debug",
+									$"[exp-transport] escort-unload player={player.PlayerName} " +
+									$"carrier={carrier.Info.Name}@{carrier.Location} escort={escortCell.Value} " +
+									$"gap={toEscort}/{Info.EscortUnloadCells} pax={cargo.PassengerCount} " +
+									$"objective={task.DropOff} tick={world.WorldTick}");
+						}
+					}
+
 					// A carrier that is idle short of its drop has lost its Move and, since Delivering has no
 					// timeout, would sit there loaded for the rest of the match. That happens for real: a
 					// passenger arriving after departure calls Cargo.ReserveSpace, whose LockForPickup does
 					// self.CancelActivity() on the CARRIER — killing the delivery move outright. Re-issuing is
 					// the recovery. FillBeforeDeparture also removes the usual cause (it does not leave
 					// stragglers walking toward a departed carrier), so this is the belt to that braces.
-					if (Info.FillBeforeDeparture && carrier.IsIdle
+					// `!escortOverran` so the recovery cannot pre-empt the escort unload. An idle carrier sitting
+					// next to the armour is the SUCCESS case for that path, not a lost Move: without this term the
+					// recovery would fire first, re-issue a Move to the far objective, `break`, and drive the
+					// infantry away from the escort they had just caught — every scan, forever.
+					if (Info.FillBeforeDeparture && carrier.IsIdle && !escortOverran
 						&& distToDrop > Info.DropOffArrivalRadius * Info.DropOffArrivalRadius)
 					{
 						Log.Write("debug",
@@ -956,7 +1138,7 @@ namespace OpenRA.Mods.Common.Traits
 						break;
 					}
 
-					if (distToDrop <= Info.DropOffArrivalRadius * Info.DropOffArrivalRadius)
+					if (distToDrop <= Info.DropOffArrivalRadius * Info.DropOffArrivalRadius || escortOverran)
 					{
 						// "UnloadCargo" is the UnloadCargo ACTIVITY name, not an order string — Cargo
 						// only resolves "Unload"/"UnloadCargoPassenger", so the legacy string is a no-op
@@ -1861,6 +2043,11 @@ namespace OpenRA.Mods.Common.Traits
 		/// <summary>Hard patience bound elapsed; drive with whoever is aboard.</summary>
 		Timeout,
 
+		/// <summary>Item 64's bounded escape: the escort is already in contact and the grace has elapsed, so a
+		/// load at/above MinPassengersPerLoad goes now rather than waiting for seats it does not need to fill.
+		/// Reachable only when EscortLoadGraceTicks is set AND this is not a capture ferry.</summary>
+		EscortInContact,
+
 		/// <summary>Nothing boarded at all — abandon the task and return the carrier to the pool.</summary>
 		AbortEmpty,
 	}
@@ -1900,7 +2087,8 @@ namespace OpenRA.Mods.Common.Traits
 			bool fillBeforeDeparture,
 			int aboard, int seatTarget, int stillComing, int minPassengers,
 			int ticksLoading, int loadTimeoutTicks,
-			int ticksSinceProgress, int boardingStallTicks)
+			int ticksSinceProgress, int boardingStallTicks,
+			bool escortInContact, int escortGraceTicks)
 		{
 			if (!fillBeforeDeparture)
 			{
@@ -1920,6 +2108,21 @@ namespace OpenRA.Mods.Common.Traits
 
 			if (stillComing <= 0)
 				return aboard > 0 ? CarrierDeparture.NobodyElseComing : CarrierDeparture.AbortEmpty;
+
+			// BOUNDED ESCAPE (item 64, inert at escortGraceTicks 0). Placed AFTER the two unconditional
+			// releases above on purpose: `Full` and `NobodyElseComing` both depart on this same tick anyway and
+			// are the truer descriptions of why, so letting them win keeps the log honest about a load that was
+			// never actually cut short. It is only from here down — where the module would otherwise keep
+			// WAITING on passengers that are still walking — that the escape changes an outcome.
+			//
+			// It does not weaken FillBeforeDeparture for the ordinary case. All three terms must hold: a load
+			// worth delivering (minPassengers), an escort that is ALREADY past the muster and in contact, and a
+			// grace long enough for the fill to have had its chance. With no axis in the world the second is
+			// false and this is the identity — which is the whole of wip-transport-delivers' geometry, and why
+			// the 2026-08-15 half-empty fix is untouched there.
+			if (escortGraceTicks > 0 && escortInContact
+				&& aboard >= minPassengers && ticksLoading >= escortGraceTicks)
+				return CarrierDeparture.EscortInContact;
 
 			// Boarding has stopped progressing. What that means depends on what is aboard:
 			//   * at or above the minimum — deliver it, the load is worth the trip;
