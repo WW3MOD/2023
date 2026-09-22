@@ -27,6 +27,29 @@
   behavioural change with no scenario that can currently discriminate it, since
   `test-experimental-engineer-repairs` now holds its casualty still by design.
   (found while working on: the `test-experimental-engineer-repairs` pass/fail flip, 260921 vs 260922)
+- [2026-09-22] [MEDIUM] **No detector exists for the reverse of the bot-desync class: SYNCED code
+  reading state that only bot ticks refresh.** Filed as its own entry because it has been named
+  three times inside other entries and never once as a thing that can be triaged, assigned or
+  closed — see the trailing caveats on the 2026-08-16 GREEN and STATIC AUDIT paragraphs further
+  down this file, and `audit/260816-bot-direct-mutation.md`. **This is NOT a new discovery and NOT
+  a reported symptom; nothing observed is attributed to it.** What is filed is the absence of a
+  detector. The forward direction — *a bot module mutates synced state directly* — is now bounded
+  twice over: statically, by the 2026-08-16 sweep, and continuously, by
+  `engine/OpenRA.Test/BotOrderedMutationTest.cs` (86 bot-layer types, 12,668 call tokens, zero
+  offences, RED under sabotage). The reverse direction is bounded by nothing. **Why the obvious
+  instruments cannot see it:** the whole-match `SyncHash` sweep watches mutations reaching the
+  hash, and this shape performs no mutation at all — it is a READ, on a client where bot ticks ran,
+  of state a restored or non-host client never refreshed, and it only surfaces later as a different
+  branch taken. `BotOrderedMutationTest` scans bot-layer code for writes and would not look at the
+  reader. The dynamic instrument (`test-savegame-resume-riverzeta`) *would* go red on it, but it
+  goes red identically for every member of every class and names nothing. **Cheapest attack, not
+  attempted here:** enumerate the state bot ticks refresh (bot-module fields and the ledgers they
+  own), then grep for reads of it from `ITick`/`IResolveOrder`/activity code — the mirror of the
+  sweep that bounded the forward direction, and enumerable by reading rather than by running.
+  Severity is MEDIUM on consequence-if-live (a saved-game or multiplayer divergence) discounted by
+  there being no evidence it is live.
+  (found while working on: audit package 10 / defect S2, branch `wt/savegame-facing`,
+  `main @ 4a11439f`)
 
 - [2026-09-22] [HIGH] **A Tunguska at 24 cells, missiles loaded, under a live player attack order,
   never fires its 9M311 and never closes — it just stands there for 30 s.**
