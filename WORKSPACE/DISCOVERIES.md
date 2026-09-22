@@ -3,6 +3,70 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers
+
+Measured, `test-combined-arms-rendezvous`, worktree @ `288d3db9`. Verdict FAIL, tank dead t624 at
+`21,16`. The `lua.log` positional roll is the thing to read first, and it refutes the reading every
+prior status block in this item carried:
+
+```
+tick=100  tank=8,16   carrier=8,18
+tick=200  tank=11,16  carrier=8,18
+tick=300  tank=18,16  carrier=8,18
+tick=400  tank=21,16  carrier=8,18
+tick=500  tank=21,16  carrier=8,18
+tick=600  tank=21,16  carrier=15,18
+```
+
+**The tank reached `21,16` at t400 and never moved again** — `[husk-settle] travel=(0,0)`, a stationary
+vehicle, 224 ticks later. It is not a lead element running away from its escort; it is a lead element
+that stopped at the point of contact and lost a fight alone. "The lone tank walks 22 cells forward to
+die" is true about the WALK and false about the DEATH.
+
+**The ferry's 400-tick load is the other half, and the passengers were ADJACENT the whole time.**
+`task-created` t72, `depart ... reason=Full` t472. In between: `aboard` 0 (t122) -> 2 (t172) -> 2 -> 2
+-> 3 (t322) -> 4 (t372) -> 5 (t472), with `closest=1` and `pax-waiting ... activity=RideTransport
+cells-to-carrier=1` throughout. `FillBeforeDeparture: true` holds for all 5 seats; `MinPassengersPerLoad`
+is 2 and was met at t172, **300 ticks earlier**. The carrier therefore left the Supply Route 72 ticks
+AFTER its escort had already stopped moving, and was still 4 cells short when the escort died.
+
+**WHY THE ESCORT HOLD NEVER FIRED — two causes, confirmed, compounding to leave zero overlap.**
+Neither is the one I would have bet on:
+
+| eval | branch | carrier state |
+|---|---|---|
+| t112 | `axis-new` + `order` — CommitAndOrder RAN | Loading (`aboard=0`) |
+| t212 | `hold ... commitScore=` + `reinforce-held` — **frozen** | Loading |
+| t312 | `hold` + `reinforce-held` — **frozen** | Loading |
+| t412 | `fires` + `order` — CommitAndOrder RAN | Loading (`aboard=4`) |
+| t472 | — | **`depart` -> Delivering** |
+| t512 | `hold` + `reinforce-held` — **frozen** | Delivering |
+| t612 | `hold` + `reinforce-held` — **frozen** | Delivering |
+
+1. **`CommitAndOrder` ran at 2 of 6 evals.** At the other four the axis was mission-`Committed` and
+   `PartitionHeldAxes` skipped the method entirely. **Placing a hold before `ApplyMissionCommitment`
+   protects it from freezing ITSELF; it does nothing about an axis already frozen by a commitment
+   stamped on an EARLIER eval's assault order.** The prep/sync holds' comments describe the first
+   hazard and are silent on the second, so the file reads as a stronger guarantee than it gives.
+2. **The carrier entered `Delivering` at t472 — after the last eval that entered `CommitAndOrder`.**
+   At both reachable evals it was `Loading`, which a Delivering/Unloading-only publication excludes by
+   design. The exclusion is still right (a `Loading` carrier may time out and never depart), but it
+   means the gate is blind for the whole window in which the gap actually opens.
+
+**A third defect is the gate's own key, and it is the generalisable one: an offensive axis's CENTROID
+is not where its fighting is.** Axes absorb reinforcements at the rear (`reinforce-held` joined 2, 3,
+1, 2 -> 12 units), so the centroid is dragged back toward the Supply Route while the lead runs ahead:
+at t412 `[exp-offense] order ... units=9 distToTarget=54` against a target at `58,4` puts the centroid
+around x=5 **while the tank stood at 21,16**. Any gate comparing an external actor to `AxisCentroidCell`
+is comparing it to the rear of the formation. The fix is to publish the LEAD
+(`PoiOffensiveBotModule.ForwardEscortCell`), max-by-distance-from-rally with a lowest-ActorID tie-break.
+
+**CONSEQUENCE FOR THE INSTRUMENT: clause (b) was unreachable for a reason no pacing change can fix.**
+The delivery's objective was `drop=32,10`, **eleven cells past** where the armour stood and died. The
+carrier unloads only within `DropOffArrivalRadius` of that cell, so the riflemen were never going to be
+set down near the tank whatever either of them did. The unload SITE, not the departure discipline, is
+what gates "riflemen set down within 7 cells of the tank".
+
 ## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate
 
 The measured symptom (run `260922_193617`) is that nothing paces armour against the infantry it is

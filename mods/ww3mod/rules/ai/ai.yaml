@@ -532,8 +532,20 @@ Player:
 		# (1500, mirroring the transport's LoadingTimeoutTicks) and is a player-level tick clock, so axis churn
 		# cannot refresh it. It does NOT move the transport's drop cell: the 2026-08-19 withdraw bound and the
 		# 1-cell-shuttle guard are untouched, and RendezvousWithOffensiveStaging stays false on both twins.
-		InfantryEscortHoldEnabled: true
-		InfantryEscortGapCells: 7
+		# OFF, AND THE REASON IS MEASURED, NOT CAUTION. Run 260922_200826 produced ZERO [exp-escort] lines with
+		# this on. Two causes, both confirmed from that debug.log and compounding to leave no overlap at all:
+		#   * CommitAndOrder ran at only 2 of 6 evals (t112, t412). At t212/312/512/612 the axis was mission-
+		#     Committed and PartitionHeldAxes skipped the whole method — so placing the gate before
+		#     ApplyMissionCommitment protects a hold from freezing ITSELF, and does nothing about an axis already
+		#     frozen by a commitment stamped on an earlier eval.
+		#   * the carrier only entered Delivering at t472 (`depart ... reason=Full`), i.e. AFTER the last eval
+		#     that entered CommitAndOrder. At t112 and t412 it was Loading, which LoadedDeliveryCells excludes.
+		# A third defect is the gate's own: it compares the carrier to the axis CENTROID, but reinforcements join
+		# at the rear, so the centroid trails while the LEAD runs ahead — 12 units with the lead at 21,16 and the
+		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
+		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
+		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		InfantryEscortHoldEnabled: false
 		# Mirrors the transport's own LoadingTimeoutTicks (1500). Also has to clear the observed ~1015-tick
 		# latency before the first pre-contact drop cell resolves, or the valve fires before the carrier ever
 		# gets its chance and the hold buys nothing.
@@ -2300,6 +2312,17 @@ Player:
 		# so the anchor is rejected in the pre-contact opening, which is the only state that reaches it. Turning
 		# it on costs an ai-bench re-baseline and buys no behaviour. See WORKSPACE/DISCOVERIES.md 2026-09-22.
 		RendezvousWithOffensiveStaging: false
+		# PIPELINE item 64 — set the infantry down BESIDE THE ARMOUR when the delivery overtakes it, instead of
+		# driving them past it to a drop cell computed from our own SR. Default FALSE on the engine class
+		# (MountedTransportBotModule.EscortUnloadEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and
+		# all five passengers aboard, because the objective was 32,10 — eleven cells PAST the armour. An ADDITIONAL
+		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
+		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
+		# unit is past the muster anchor and its whole spread ring.
+		EscortUnloadEnabled: true
 		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
 		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
 		# for a behavioural field on a trait both profiles instantiate; this file is the single visible
@@ -2400,6 +2423,17 @@ Player:
 		# so the anchor is rejected in the pre-contact opening, which is the only state that reaches it. Turning
 		# it on costs an ai-bench re-baseline and buys no behaviour. See WORKSPACE/DISCOVERIES.md 2026-09-22.
 		RendezvousWithOffensiveStaging: false
+		# PIPELINE item 64 — set the infantry down BESIDE THE ARMOUR when the delivery overtakes it, instead of
+		# driving them past it to a drop cell computed from our own SR. Default FALSE on the engine class
+		# (MountedTransportBotModule.EscortUnloadEnabled), per the architecture rule for a behavioural field on a
+		# trait both profiles instantiate; this line is the whole opt-in.
+		# THIS MOVES @stable — deliberate, and item 64 is meant to; re-take the ai-bench baseline.
+		# MEASURED (run 260922_200826): the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and
+		# all five passengers aboard, because the objective was 32,10 — eleven cells PAST the armour. An ADDITIONAL
+		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
+		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
+		# unit is past the muster anchor and its whole spread ring.
+		EscortUnloadEnabled: true
 		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
 		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
 		# and the @stable note. Both twins carry it because the defect is in the shared class, not in a
@@ -3132,8 +3166,20 @@ Player:
 		# (1500, mirroring the transport's LoadingTimeoutTicks) and is a player-level tick clock, so axis churn
 		# cannot refresh it. It does NOT move the transport's drop cell: the 2026-08-19 withdraw bound and the
 		# 1-cell-shuttle guard are untouched, and RendezvousWithOffensiveStaging stays false on both twins.
-		InfantryEscortHoldEnabled: true
-		InfantryEscortGapCells: 7
+		# OFF, AND THE REASON IS MEASURED, NOT CAUTION. Run 260922_200826 produced ZERO [exp-escort] lines with
+		# this on. Two causes, both confirmed from that debug.log and compounding to leave no overlap at all:
+		#   * CommitAndOrder ran at only 2 of 6 evals (t112, t412). At t212/312/512/612 the axis was mission-
+		#     Committed and PartitionHeldAxes skipped the whole method — so placing the gate before
+		#     ApplyMissionCommitment protects a hold from freezing ITSELF, and does nothing about an axis already
+		#     frozen by a commitment stamped on an earlier eval.
+		#   * the carrier only entered Delivering at t472 (`depart ... reason=Full`), i.e. AFTER the last eval
+		#     that entered CommitAndOrder. At t112 and t412 it was Loading, which LoadedDeliveryCells excludes.
+		# A third defect is the gate's own: it compares the carrier to the axis CENTROID, but reinforcements join
+		# at the rear, so the centroid trails while the LEAD runs ahead — 12 units with the lead at 21,16 and the
+		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
+		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
+		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		InfantryEscortHoldEnabled: false
 		TransportStandoffMaxHoldTicks: 1500
 		SkipOutOfAmmoUnits: true
 		StarvingRecruitThresholdPerMille: 250

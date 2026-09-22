@@ -1379,6 +1379,61 @@ namespace OpenRA.Mods.Common.Traits
 		/// </summary>
 		public CPos? ForwardStagingAnchor => stagingAnchor;
 
+		/// <summary><para>The cell of the MOST ADVANCED unit on any live offensive axis — the armour an incoming
+		/// carrier's infantry should be set down beside — or null when nothing is far enough out to count as
+		/// "the front".</para>
+		///
+		/// <para>THE LEAD, NOT THE CENTROID, and that distinction is the whole reason this property exists rather
+		/// than the caller reading an axis centroid. An axis absorbs reinforcements at its rear
+		/// (<c>reinforce-held</c>), so its centroid is dragged back toward the Supply Route while its lead element
+		/// runs ahead: measured in run 260922_200826 the axis held 12 units with its lead tank at 21,16 and most
+		/// of the rest still at the SR. Anything keyed on the centroid reads a body that is not where the fighting
+		/// is.</para>
+		///
+		/// <para>"Far enough out" is decided HERE because this module owns the muster geometry: beyond the staging
+		/// anchor plus its full spread ring (<c>StagingFallbackCells</c> + <c>MaxSpreadRings</c> x
+		/// <c>StagingSpreadStepCells</c>), a unit cannot be standing on a muster slot and is therefore genuinely
+		/// forward. Returning null below that line is what stops a consumer setting infantry down at our own
+		/// beachhead — the 1-cell-shuttle shape that run 260815_202509 measured on the other transport path.</para>
+		///
+		/// <para>DETERMINISM: max by distance from the rally cell, ties broken by LOWEST ActorID — an explicit
+		/// total order, never list position. Zero RNG. Pure read: no caller can reach axis state through it.</para></summary>
+		public CPos? ForwardEscortCell
+		{
+			get
+			{
+				if (!rallyCell.HasValue)
+					return null;
+
+				var ring = Info.StagingFallbackCells
+					+ (ForwardStagingMath.MaxSpreadRings(Info.StagingFallbackCells, Info.StagingSpreadStepCells)
+						* Info.StagingSpreadStepCells);
+
+				Actor lead = null;
+				var bestReach = 0;
+				foreach (var axis in axes)
+				{
+					foreach (var u in axis.Units)
+					{
+						if (u == null || u.IsDead || !u.IsInWorld)
+							continue;
+
+						var reach = PoiOffenseMath.Chebyshev(u.Location.X, u.Location.Y, rallyCell.Value.X, rallyCell.Value.Y);
+						if (reach <= ring)
+							continue;
+
+						if (lead == null || reach > bestReach || (reach == bestReach && u.ActorID < lead.ActorID))
+						{
+							lead = u;
+							bestReach = reach;
+						}
+					}
+				}
+
+				return lead?.Location;
+			}
+		}
+
 		// FREE-POOL SNAPSHOT (PIPELINE item 86) — the three numbers the forward-staging floor is decided from,
 		// recorded where the pool is actually computed. Published so LaneAmbushBotModule's army-share reserve
 		// can ask "would taking a unit leave offense below its own floor?" against THE POOL OFFENSE READS

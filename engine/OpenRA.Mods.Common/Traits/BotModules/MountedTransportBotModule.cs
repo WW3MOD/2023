@@ -108,6 +108,26 @@ namespace OpenRA.Mods.Common.Traits
 			"used when RendezvousWithOffensiveStaging is set.")]
 		public readonly int RendezvousMaxWithdrawCells = 6;
 
+		[Desc("PIPELINE item 64. Set the infantry DOWN BESIDE THE ARMOUR when the delivery overtakes it, instead of",
+			"driving them past it to a drop cell computed from our own Supply Route. An ADDITIONAL arrival test, not",
+			"a replacement: the ordinary drop-cell arrival is untouched, and so are RendezvousMath's two-sided reach",
+			"bound and the 1-cell-shuttle guard — this never moves task.DropOff, it only lets the carrier finish",
+			"early when it is already where the infantry are needed.",
+			"MEASURED, run 260922_200826: the lead abrams died at 21,16 with the carrier 4 cells behind at 17,17 and",
+			"all five passengers still aboard, because the delivery's objective was 32,10 — ELEVEN cells past the",
+			"armour it was supposed to reinforce. The carrier was never going to unload anywhere near the tank.",
+			"CANNOT DUMP AT OUR OWN BEACHHEAD: the escort cell it keys on is PoiOffensiveBotModule.ForwardEscortCell,",
+			"which is null unless a unit is beyond the muster anchor AND its whole spread ring, so \"beside the",
+			"armour\" can never resolve to a slot at the Supply Route.",
+			"OFF by default => a profile omitting this field is byte-identical.")]
+		public readonly bool EscortUnloadEnabled = false;
+
+		[Desc("How close (Chebyshev cells) the carrier must come to the forward escort cell before it sets its",
+			"passengers down there. Kept UNDER test-combined-arms-rendezvous's TogetherCells (7) so the soldiers are",
+			"still within that radius of the armour after they scatter out of the hold — dismounting exactly at the",
+			"limit would put half of them outside it. Only used when EscortUnloadEnabled is set.")]
+		public readonly int EscortUnloadCells = 5;
+
 		[Desc("Experimental (default false = frozen): issue the engine-correct \"Unload\" order on arrival",
 			"so carriers actually disembark their passengers. The frozen default issues \"UnloadCargo\" —",
 			"which is the UnloadCargo ACTIVITY class name, not an order string, so Cargo.ResolveOrder",
@@ -978,13 +998,49 @@ namespace OpenRA.Mods.Common.Traits
 					// arrived.
 					var distToDrop = (carrier.Location - task.OrderedDropOff).LengthSquared;
 
+					// ESCORT UNLOAD (item 64, default off): the delivery has caught up with the armour, so finish
+					// HERE rather than driving the infantry past it to a cell chosen from our own Supply Route.
+					//
+					// PoiOffensiveBotModule owns the judgement of what counts as "the front" — ForwardEscortCell is
+					// the LEAD unit of a live axis and is null while nothing is past the muster ring, so this module
+					// only has to answer "am I close to it". That split is deliberate: the muster geometry lives in
+					// that module's config, and duplicating the test here would be a second place to get it wrong.
+					// Resolved per pass, twin-safe (TraitOrDefault throws on the twinned trait), and null-tolerant —
+					// with no offensive module, no axis, or nothing forward, this is the identity and the ordinary
+					// drop-cell arrival below is the only way to finish, exactly as before.
+					var escortOverran = false;
+					if (Info.EscortUnloadEnabled && !cargo.IsEmpty())
+					{
+						var offensive = player.PlayerActor.TraitsImplementing<PoiOffensiveBotModule>()
+							.FirstOrDefault(m => !m.IsTraitDisabled);
+
+						var escortCell = offensive?.ForwardEscortCell;
+						if (escortCell.HasValue)
+						{
+							var toEscort = RendezvousMath.CellDistance(
+								carrier.Location.X, carrier.Location.Y, escortCell.Value.X, escortCell.Value.Y);
+
+							escortOverran = toEscort <= Info.EscortUnloadCells;
+							if (escortOverran)
+								Log.Write("debug",
+									$"[exp-transport] escort-unload player={player.PlayerName} " +
+									$"carrier={carrier.Info.Name}@{carrier.Location} escort={escortCell.Value} " +
+									$"gap={toEscort}/{Info.EscortUnloadCells} pax={cargo.PassengerCount} " +
+									$"objective={task.DropOff} tick={world.WorldTick}");
+						}
+					}
+
 					// A carrier that is idle short of its drop has lost its Move and, since Delivering has no
 					// timeout, would sit there loaded for the rest of the match. That happens for real: a
 					// passenger arriving after departure calls Cargo.ReserveSpace, whose LockForPickup does
 					// self.CancelActivity() on the CARRIER — killing the delivery move outright. Re-issuing is
 					// the recovery. FillBeforeDeparture also removes the usual cause (it does not leave
 					// stragglers walking toward a departed carrier), so this is the belt to that braces.
-					if (Info.FillBeforeDeparture && carrier.IsIdle
+					// `!escortOverran` so the recovery cannot pre-empt the escort unload. An idle carrier sitting
+					// next to the armour is the SUCCESS case for that path, not a lost Move: without this term the
+					// recovery would fire first, re-issue a Move to the far objective, `break`, and drive the
+					// infantry away from the escort they had just caught — every scan, forever.
+					if (Info.FillBeforeDeparture && carrier.IsIdle && !escortOverran
 						&& distToDrop > Info.DropOffArrivalRadius * Info.DropOffArrivalRadius)
 					{
 						Log.Write("debug",
@@ -995,7 +1051,7 @@ namespace OpenRA.Mods.Common.Traits
 						break;
 					}
 
-					if (distToDrop <= Info.DropOffArrivalRadius * Info.DropOffArrivalRadius)
+					if (distToDrop <= Info.DropOffArrivalRadius * Info.DropOffArrivalRadius || escortOverran)
 					{
 						// "UnloadCargo" is the UnloadCargo ACTIVITY name, not an order string — Cargo
 						// only resolves "Unload"/"UnloadCargoPassenger", so the legacy string is a no-op
