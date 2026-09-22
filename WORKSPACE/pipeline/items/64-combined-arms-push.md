@@ -1,4 +1,49 @@
-### 64. Coordinated combined-arms push — the first tank attacks alone **[free-pool gate PROVEN · ambush gate KEPT · muster revert DROPPED · the axis↔staging beat is RETRACTED and its real half FIXED, UNMEASURED · what remains is a LEAD-HOLD, which is a new item]**
+### 64. Coordinated combined-arms push — the first tank attacks alone **[GREEN 2026-09-22, run 260922_211126 · shipped: escort UNLOAD + load ESCAPE on, escort HOLD off · NOT CLOSED — owed a merge and an ai-bench re-baseline]**
+
+> ✅ **GREEN 2026-09-22 — `test-combined-arms-rendezvous` PASSES for the first time. Run `260922_211126`, branch `wt/item64-flip` @ `4d3801de`, predicate true at tick 450.** The carried riflemen were set down beside the armour, which is the assertion this scenario has carried since it was written and has never once satisfied.
+>
+> **THE CHAIN, all four links present and in order** (`debug.log`; each was a separate defect on a separate run):
+>
+> ```
+> axis-new  USA-bot                                                              <- pool reached the floor
+> depart    carrier=bradley aboard=2 target=4 still-coming=2
+>           reason=EscortInContact grace=100 tick=227                            <- the load escape
+> straggler-stood-down pax=e3.america#11@9,17 · #12@9,17  tick=227               <- Stop TOOK
+> (no delivery-move-reissued; carrier pax stayed 2)                              <- the move survived
+> escort-unload carrier=bradley@20,17 escort=23,14 gap=3/5 pax=2
+>           objective=32,10 tick=427                                             <- set down 12 cells short
+> ```
+>
+> t400 readings: `tank=23,14 carrier=18,18`, 3 of 4 riflemen latched as carried. Verdict t450. **The unload happened at `20,17` against an objective of `32,10` — the carrier finished twelve cells short of the cell it was driving to, which is the entire point: the armour was at `23,14`, not at `32,10`.**
+>
+> **THE ARC, four runs, and each one refuted the reading the previous one had left standing.** Worth reading as a sequence, because three of the four "fixes" were aimed at a defect that turned out not to be there:
+>
+> | run | change under test | result |
+> |---|---|---|
+> | `260922_193617` | `RendezvousWithOffensiveStaging: true` (audit package 8) | **Inert.** Zero `[exp-transport] rendezvous` lines. `anchorsrc` read `gradient` x6, so an anchor *was* published and the live gate was the 6-cell `RendezvousMaxWithdrawCells`, not the null-anchor path. Reverted. |
+> | `260922_200826` | `InfantryEscortHoldEnabled` (axis paces its carrier) | **Never engaged**, and the premise was refuted. `CommitAndOrder` ran at 2 of 6 evals — the rest the axis was mission-`Committed` and `PartitionHeldAxes` skipped it — and at both reachable evals the carrier was still `Loading`. And the roll showed the tank reached `21,16` at t400 and **never moved again**: it was not outrunning its escort, it stopped at contact and lost a fight alone. |
+> | `260922_203626` | `EscortLoadGraceTicks: 100` (bounded load escape) | **Self-cancelled.** Departed t378, 94 ticks early — then the straggler boarded, `Cargo.LockForPickup` called `CancelActivity()` on the carrier, and it sat at `8,18` until the idle recovery re-issued at t478. Saved 94 ticks, lost 100. |
+> | `260922_211126` | the above + `StandDownStragglers` + `DefaultCash: 0` + `BotTank2` | **GREEN.** |
+>
+> 🚢 **SHIPPED CONFIGURATION, decided from the green run and not before it.** All three flags default to baseline on the engine class; `ai.yaml` is the only place any is switched on.
+> * **`MountedTransportBotModule.EscortUnloadEnabled` — ON, both twins.** The carrier finishes its delivery when it comes within `EscortUnloadCells` (5) of `PoiOffensiveBotModule.ForwardEscortCell`, instead of driving its infantry past the armour to a drop cell computed from our own Supply Route. An **additional** arrival test: `task.DropOff` is never moved, so `RendezvousMath`'s two-sided withdraw bound and the 1-cell-shuttle guard are untouched. Fired for the first time in `211126` at `gap=3/5`.
+> * **`MountedTransportBotModule.EscortLoadGraceTicks` — 100, both twins.** A bounded escape from `FillBeforeDeparture`, which stays true and stays the default: depart at `MinPassengersPerLoad` only when the escort is already past the muster ring and the grace has elapsed. Fired at t227 in `211126`.
+> * **`PoiOffensiveBotModule.InfantryEscortHoldEnabled` — OFF, both twins, code retained.** See below.
+>
+> 🧊 **WHAT THE ESCORT HOLD WAS, AND WHY IT IS OFF.** It was a fourth caller of the existing `TryOrderHold` primitive: hold the axis where it stands while a loaded carrier is still driving its infantry up behind it. It produced **zero** `[exp-escort]` lines in `200826` and is off on a measurement, not on caution. Three reasons, all confirmed from that log:
+> 1. `CommitAndOrder` ran at only 2 of 6 evals. **Placing a hold before `ApplyMissionCommitment` protects it from freezing *itself*; it does nothing about an axis already frozen by a commitment stamped on an earlier eval.** The prep/sync holds' comments describe only the first hazard, so the file reads as a stronger guarantee than it gives.
+> 2. The carrier reached `Delivering` at t472, after the last eval that entered `CommitAndOrder`; at both reachable evals it was `Loading`, which `LoadedDeliveryCells` excludes by design.
+> 3. **It is mis-keyed.** It compares the carrier to the axis **centroid**, but axes absorb reinforcements at the rear, so the centroid trails while the lead runs ahead — 12 units with the lead at `21,16` and `distToTarget=54` putting the centroid near x=5. `ForwardEscortCell` (the lead, not the centroid) exists precisely because of this and is what the two shipped flags key on.
+>
+> 💰 **THE COST, ACCEPTED KNOWINGLY.** A carrier leaving at the minimum load leaves the rest behind: in `211126` it departed `aboard=2 target=4` and stood down **2 of 4** riflemen at `9,17`. Those two rejoin offense's free pool rather than being delivered. That is the "timely over full" trade, and it means **`EverCarried` is no longer a proxy for "the ferry worked"** — a green run can legitimately deliver half the squad. The clause that matters is (b), which asks for two set down near the armour, and two is exactly what arrived. A future tuning question, not a defect: whether `MinPassengersPerLoad` should scale with the seats actually ordered.
+>
+> ⚠️ **TWO OPEN LIMITATIONS, neither measured.**
+> * **One escort clock per player.** `escortHoldSince` and the escape's grace are module-level, not per-axis — deliberately, because 100% of axis retires are `reason=dropped` and an axis-carried counter is refreshed by the churn it is meant to bound. The consequence is that with several axes the first to want a hold starts the clock and a second inherits its remainder. At the opening there is one axis and it does not matter; multi-axis behaviour is untested.
+> * **The hold remains centroid-keyed.** If it is ever revived it must be re-keyed on `ForwardEscortCell` and made reachable on a `Committed` axis. Both are prerequisites, not polish.
+>
+> 🔬 **AND THE INSTRUMENT ITSELF WAS HALF THE PROBLEM** (`4d3801de`, its own commit). At `DefaultCash: 7500` clause (a) was racing an enemy army: Russia fielded `t90` x2 + `giatsint` + `bmp2` + `btr` and flanked via `33,21` at t443, and the lone abrams died at t624 / t567 / same shape, on a clock that closes by ~t600 whatever the transport does. `DefaultCash: 0` alone would have reproduced the scenario's own recorded "never produced a verdict" run — of six placed USA actors exactly **one** reaches the free pool, below both `EarlyMinAxisSize` (2) and `FreePoolMinAdvanceUnits` (2) — so `BotTank2` is placed with it. The old header blamed that no-verdict on the spawn/crate/victory overrides bundled with the cash change; that attribution was wrong and is corrected in tree.
+>
+> ⏭️ **NOT CLOSED.** Owed a merge and an **ai-bench re-baseline** — two flags move `@stable`. `test-push-departs-together` stays `expected-status: fail` and is untouched by any of this: it has no carrier, so both shipped mechanisms are inert there, and its d2 is a speed clause between a walking rifleman and a tank that only a throttle or a speed-split lead-hold can move. That remains item 64's separate, unbuilt half.
 
 > 🔬 **DIAGNOSIS 2026-09-06 — `test-combined-arms-rendezvous`'s "the bot's tank died" is `LaneAmbushBotModule` POSTING THE TANK 22 CELLS FORWARD, and the tank did NOT depart alone. No code fix shipped; every candidate is a doctrine change, not a gate.** Worktree `wt/item64-rem`, base `main @ b6207b9b`. NUnit 2661/2661, no engine change.
 >

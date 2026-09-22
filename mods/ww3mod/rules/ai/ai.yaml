@@ -545,6 +545,9 @@ Player:
 		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
 		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
 		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		# CONFIRMED OFF 2026-09-22 after run 260922_211126 went GREEN without it. The two transport-side
+		# levers (EscortUnloadEnabled, EscortLoadGraceTicks) carry the result on their own, so there is no
+		# measured case for moving @stable with a third. Code retained; see the item-64 dossier.
 		InfantryEscortHoldEnabled: false
 		# Mirrors the transport's own LoadingTimeoutTicks (1500). Also has to clear the observed ~1015-tick
 		# latency before the first pre-contact drop cell resolves, or the valve fires before the carrier ever
@@ -2322,6 +2325,11 @@ Player:
 		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
 		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
 		# unit is past the muster anchor and its whole spread ring.
+		# GREEN 2026-09-22, run 260922_211126 — the first time this mechanism has ever fired:
+		# `escort-unload carrier=bradley@20,17 escort=23,14 gap=3/5 pax=2 objective=32,10 tick=427`.
+		# The carrier finished TWELVE cells short of the cell it was driving to, because that is where the
+		# armour was (tank=23,14 at t400); the scenario's verdict went true at t450 on riflemen set down
+		# beside the tank, which is the assertion it had never once satisfied before.
 		EscortUnloadEnabled: true
 		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
 		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
@@ -2341,6 +2349,16 @@ Player:
 		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
 		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
 		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		# GREEN 2026-09-22, run 260922_211126: `depart carrier=bradley aboard=2 target=4 still-coming=2
+		# reason=EscortInContact grace=100 tick=227`, and — the half that makes it worth anything —
+		# `straggler-stood-down pax=e3.america#11@9,17 / #12@9,17` at the same tick, with NO
+		# delivery-move-reissued afterwards and the carrier's pax staying at 2. The Stop took, the move
+		# survived, the delivery arrived. Contrast run 260922_203626, the same escape WITHOUT the
+		# stand-down: departed t378, then sat at 8,18 until t478 because a late boarder's
+		# Cargo.LockForPickup cancels the CARRIER's activity — it lost more than it saved.
+		# THE ACCEPTED COST is in that same line: aboard=2 of target=4, so two riflemen were left behind
+		# and returned to the free pool. Timely over full, deliberately — and it means EverCarried is no
+		# longer a proxy for "the ferry worked".
 		EscortLoadGraceTicks: 100
 		# THE DEFCON 3 BORDER, and this is the transport half of the same lever PoiOffensiveBotModule
 		# carries above under the same name. Default FALSE on the engine class, per the architecture rule
@@ -2452,6 +2470,11 @@ Player:
 		# arrival test only: task.DropOff is never moved, so RendezvousMath's withdraw bound and the 1-cell-shuttle
 		# guard above are untouched, and it cannot dump at our beachhead because ForwardEscortCell is null until a
 		# unit is past the muster anchor and its whole spread ring.
+		# GREEN 2026-09-22, run 260922_211126 — the first time this mechanism has ever fired:
+		# `escort-unload carrier=bradley@20,17 escort=23,14 gap=3/5 pax=2 objective=32,10 tick=427`.
+		# The carrier finished TWELVE cells short of the cell it was driving to, because that is where the
+		# armour was (tank=23,14 at t400); the scenario's verdict went true at t450 on riflemen set down
+		# beside the tank, which is the assertion it had never once satisfied before.
 		EscortUnloadEnabled: true
 		# PIPELINE item 64 — the BOUNDED ESCAPE from the fill-before-departure wait. FillBeforeDeparture stays
 		# true above and stays the default: this prices the bad state rather than forbidding it, and the hard
@@ -2471,6 +2494,16 @@ Player:
 		# NO AXIS ⇒ NO ESCAPE: the precondition reads ForwardEscortCell, null when nothing is past the muster
 		# ring, so the 2026-08-15 half-empty-departure fix is untouched wherever no axis exists —
 		# wip-transport-delivers (axis-new=0) is the guard. Capture ferries are excluded outright.
+		# GREEN 2026-09-22, run 260922_211126: `depart carrier=bradley aboard=2 target=4 still-coming=2
+		# reason=EscortInContact grace=100 tick=227`, and — the half that makes it worth anything —
+		# `straggler-stood-down pax=e3.america#11@9,17 / #12@9,17` at the same tick, with NO
+		# delivery-move-reissued afterwards and the carrier's pax staying at 2. The Stop took, the move
+		# survived, the delivery arrived. Contrast run 260922_203626, the same escape WITHOUT the
+		# stand-down: departed t378, then sat at 8,18 until t478 because a late boarder's
+		# Cargo.LockForPickup cancels the CARRIER's activity — it lost more than it saved.
+		# THE ACCEPTED COST is in that same line: aboard=2 of target=4, so two riflemen were left behind
+		# and returned to the free pool. Timely over full, deliberately — and it means EverCarried is no
+		# longer a proxy for "the ferry worked".
 		EscortLoadGraceTicks: 100
 		# The DEFCON 3 border. Verbatim the @poi twin's value and for the same reasons — see the block
 		# above MountedTransportBotModule@poi's BorderStagingEnabled for the mechanism, the measured run
@@ -3217,6 +3250,9 @@ Player:
 		# centroid far behind it. Turning this on would move @stable for no measured behaviour, which is the same
 		# mistake RendezvousWithOffensiveStaging below records. Left in code, flag off, until it is re-keyed on the
 		# lead and made reachable on a Committed axis. See WORKSPACE/DISCOVERIES.md 2026-09-22.
+		# CONFIRMED OFF 2026-09-22 after run 260922_211126 went GREEN without it. The two transport-side
+		# levers (EscortUnloadEnabled, EscortLoadGraceTicks) carry the result on their own, so there is no
+		# measured case for moving @stable with a third. Code retained; see the item-64 dossier.
 		InfantryEscortHoldEnabled: false
 		TransportStandoffMaxHoldTicks: 1500
 		SkipOutOfAmmoUnits: true

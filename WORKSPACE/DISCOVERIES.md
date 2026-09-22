@@ -3,6 +3,49 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - `DefaultCash: 0` does not "freeze the force under test" on a scenario with a carrier — it silently starves the offensive free pool below its own advance floor, and the scenario that recorded this blamed the wrong override
+
+`test-combined-arms-rendezvous`'s `rules.yaml` carried this from its creation (`ef608a62`,
+2026-08-15) until `4d3801de` (2026-09-22) — five weeks, untouched in between. It is the kind of
+note that costs a later reader a run:
+
+> "An earlier revision of this file also removed SpawnStartingUnits / CrateSpawner /
+> ConquestVictoryConditions **and forced DefaultCash to 0** to freeze the force under test; that
+> run never produced a verdict at all, so the extra overrides are not worth the risk."
+
+The conclusion (revert to 7500) was right; the attribution was wrong, and the wrong attribution is
+what makes it dangerous — it points the next person at the spawn/crate/victory traits, which were
+never the problem. **The cause is arithmetic and is visible without running anything.**
+
+At cash 0 the placed actors are the whole force. Of this scenario's six USA actors, exactly **one**
+reaches `PoiOffensiveBotModule`'s free pool:
+
+| actor | why it is not in the pool |
+|---|---|
+| `bradley` | listed in `PoiOffensiveBotModule.ExcludeUnitTypes` (`ai.yaml`) |
+| `e3.america` x4 | `MountedTransportBotModule.PassengerTypes`, withheld by `TransportStandoffEnabled` for as long as an empty carrier wants them |
+| `abrams` | **the pool** |
+
+Against `EarlyMinAxisSize: 2` and `FreePoolMinAdvanceUnits: 2`, a pool of one forms no axis
+(`DesiredAxisCount` returns 0) and is separately barred from advancing (`hold-under-min`). The tank
+never leaves its start cell, so a clause of the form "the unit has advanced N cells" is never
+satisfied and the run times out **having measured nothing** — reported as `tank advanced 0/8`, which
+reads to a hurried reader as a failed rendezvous rather than a staging that never held.
+
+**THE GENERAL SHAPE, and it is not specific to this scenario.** On any bot scenario that also
+contains a transport, `DefaultCash: 0` subtracts *more* than the purchased army: every
+`PassengerTypes` infantry in the placed force is withheld too, so the free pool is
+`placed − carriers − passengers`, which is very often 0 or 1. **Before setting cash to 0, count that
+subtraction against `EarlyMinAxisSize` and `FreePoolMinAdvanceUnits`.** The fix here was one more
+non-passenger, non-carrier combat actor — two is the floor, so two is placed.
+
+**AND VERIFY THE PREMISE AT RUNTIME RATHER THAN IN A COMMENT.** `test-ambush-lane-share` sets its
+floors to 40 so no axis can form and then reads the floor back through
+`Test.GetBotOffenseAdvanceFloor`, SKIPping if the override did not merge. The inverse guard is just
+as cheap and was added here: read `Test.GetBotOffenseFreePool` and SKIP with both numbers if the
+pool never reaches the floor. A timeout cannot say why it timed out; a SKIP naming `free=` and
+`floor=` sends the next person to the staging instead of to the mechanism.
+
 ## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it
 
 Measured, `test-combined-arms-rendezvous` run `260922_203626` (commit `b333834e`). The new escape
