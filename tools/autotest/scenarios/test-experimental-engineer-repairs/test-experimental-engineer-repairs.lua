@@ -115,9 +115,9 @@ WorldLoaded = function()
 
 	-- ── THE DRAFTED-CASUALTY GUARD, AND IT IS A PRECONDITION READ-BACK RATHER THAN A VERDICT ──
 	--
-	-- WHAT IT WATCHES FOR. `abrams` resolves to UnitRole.MainBattle and PoiOffensiveBotModule's free
-	-- pool accepts exactly MainBattle || IndirectFire (PoiOffensiveBotModule.cs:3230), so before
-	-- rules.yaml overrode the staged actors' AIUnitRole the bot DRAFTED ITS OWN CASUALTY into an
+	-- WHAT IT WATCHES FOR. A stock abrams resolves to UnitRole.MainBattle and PoiOffensiveBotModule's
+	-- free pool accepts exactly MainBattle || IndirectFire (PoiOffensiveBotModule.cs:3230), so before
+	-- the staged actors became re-roled clones the bot DRAFTED ITS OWN CASUALTY into an
 	-- offensive axis and drove it at the enemy Supply Route. The engineer then chases a tank at
 	-- infantry speed against a cell refreshed once per OrderSettleTicks (200) and the verdict turns on
 	-- the RNG seed: run 260921_213228 passed because the casualty crossed ONTO his cell at t100, and
@@ -129,11 +129,11 @@ WorldLoaded = function()
 	-- apparatus is what broke. Failing here would file a module bug against a scenario fault. Same
 	-- precedent as test-ambush-lane-share, which skips unless it reads its own floor back.
 	--
-	-- A MIS-CASED KEY IN A MAP'S rules.yaml IS SWALLOWED, which is exactly why a runtime read-back is
-	-- the only honest check: Map.PostInit catches a map-rules load failure, logs `Failed to load rules`
-	-- to debug.log and falls back to the tileset defaults (Map.cs:540-547). The keys are `abrams`
-	-- lowercase and `E3.america` with a capital E3; either one mis-cased reverts this scenario to
-	-- measuring the drafted casualty, silently and greenly.
+	-- A BROKEN MAP-RULES LOAD IS SWALLOWED, which is exactly why a runtime read-back is the only
+	-- honest check: Map.PostInit catches a map-rules load failure, logs `Failed to load rules` to
+	-- debug.log and falls back to the tileset defaults (Map.cs:540-547). If that happens the clones
+	-- `casualtyabrams` and `screendecoye3` do not exist at all; short of that, anything that puts the
+	-- casualty back in a combat pool reverts this scenario to measuring a chase, silently and greenly.
 	Trigger.AfterDelay(DraftCheckTick, function()
 		if Casualty.IsDead then
 			return      -- the deadline handler below reports this, and reports it better.
@@ -145,9 +145,9 @@ WorldLoaded = function()
 				"apparatus fault, not a verdict: the casualty has moved %d cells from its staged cell " ..
 				"(%d,%d -> %d,%d) by tick %d, so something recruited it and the engineer is chasing a " ..
 				"moving vehicle rather than walking to a parked one. The `AIUnitRole: Role: Logistics` " ..
-				"override in this scenario's rules.yaml did not reach the actor — check the key casing " ..
-				"(`abrams` lowercase, `E3.america` capital E3; MiniYaml merges top-level keys " ..
-				"case-sensitively and a map-rules load failure is SWALLOWED into a defaults fallback), " ..
+				"carried by this scenario's `casualtyabrams` clone did not reach the actor — check that " ..
+				"map.yaml still stages the CLONE and not a stock `abrams`, and that the clone still " ..
+				"carries the role (a map-rules load failure is SWALLOWED into a defaults fallback), " ..
 				"then grep debug.log for `Failed to load rules`",
 				drift, stagedCasualtyCell.X, stagedCasualtyCell.Y,
 				Casualty.Location.X, Casualty.Location.Y, DraftCheckTick))
@@ -239,7 +239,7 @@ WorldLoaded = function()
 				"the CASUALTY LEFT: it drifted %d cells from where it was staged, so the engineer was " ..
 				"chasing a moving vehicle. This is NOT a statement that he was unemployed — read the " ..
 				"`[engineer] ... repair cell=` anchors in debug.log; they track the casualty. Either " ..
-				"this scenario's AIUnitRole override stopped excluding it from the combat pools (it is " ..
+				"the casualtyabrams clone's AIUnitRole stopped excluding it from the combat pools (it is " ..
 				"drafted after tick %d, past the read-back guard) or a module that ignores roles has " ..
 				"recruited it. %s",
 				casualtyDrift, DraftCheckTick, summary))

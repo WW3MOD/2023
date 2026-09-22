@@ -6,10 +6,10 @@ Player:
 	PlayerResources:
 		DefaultCash: 1000
 
-# ── THE STAGED ACTORS ARE MADE UN-DRAFTABLE (2026-09-22) ──
+# ── THE STAGED ACTORS ARE SCENARIO-LOCAL CLONES, RE-ROLED SO NOTHING DRAFTS THEM (2026-09-22) ──
 #
 # WHY THIS EXISTS, and without it the scenario cannot measure what it claims to. The casualty is an
-# `abrams`, which resolves to UnitRole.MainBattle, and PoiOffensiveBotModule's own free pool accepts
+# abrams, which resolves to UnitRole.MainBattle, and PoiOffensiveBotModule's own free pool accepts
 # exactly `MainBattle || IndirectFire` (PoiOffensiveBotModule.cs:3230) — so the bot DRAFTED ITS OWN
 # CASUALTY INTO AN OFFENSIVE AXIS and drove it at the enemy Supply Route, 38 cells east. The engineer
 # is then chasing a tank at infantry speed, re-aimed at a stale cell once per OrderSettleTicks (200),
@@ -31,8 +31,8 @@ Player:
 # filter is shared by PoiOffensiveBotModule, LayeredDefenceBotModule (IsLineEligibleByRole),
 # PoiGarrisonBotModule (IsEligibleCombatUnit) and LaneAmbushBotModule (IsEligibleAmbusher), all of
 # which set UseUnitRoles: true on @experimental. Grepped, not assumed: NOTHING recruits Logistics —
-# `UnitRole.Logistics` appears only in CheckUnitRoleTable and UnitRoleResolverTest, so this cannot
-# hand the casualty to some logistics module instead.
+# `UnitRole.Logistics` appears nowhere in the engine outside UnitRoleResolver, UnitRoleResolverTest and
+# CheckUnitRoleTable, so this cannot hand the casualty to some logistics module instead.
 #
 # WHY NOT RAISE THE AXIS FLOORS, the way test-ambush-lane-share constructs its opening. That works for
 # offense and offense alone; the layered-defence and garrison pools would still take these three
@@ -44,23 +44,61 @@ Player:
 #   * The screen discriminator — FindScreenAnchor requires AttackBase + Mobile and a distance from the
 #     SR, never a role, so the two riflemen still anchor a live screen 14 cells east of the casualty.
 #     They are held still too, which makes that anchor STABLE rather than drifting as it is drafted.
-#   * Production — newly-bought units keep their derived roles and still form axes, so the offensive
-#     module is exercised rather than switched off. It just cannot touch the measurement.
+#   * Production — the bot's OWN abrams and E3.america are untouched by this file now that the
+#     re-role lives on the clones, so newly-bought units keep their derived roles and still form axes.
+#     The offensive module is exercised rather than switched off; it just cannot touch the staged three.
 #
-# CASE IS LOAD-BEARING ON BOTH KEYS AND THEY DO NOT MATCH EACH OTHER. MiniYaml merges top-level keys
-# CASE-SENSITIVELY, so these must be spelled as the defining files spell them: `abrams` lowercase
-# (vehicles-america.yaml:464) and `E3.america` with a capital E3 (infantry-america.yaml:18). Writing
-# `Abrams:` or `e3.america:` here defines a NEW actor that overrides nothing, silently, and the
-# scenario would go back to measuring the drafted casualty. The Lua reads the override back at runtime
-# for exactly that reason — see the drafted-casualty guard.
+# ── WHY CLONES, AND NOT THE ROLE OVERRIDE WRITTEN ONTO `abrams` / `E3.america` THEMSELVES ──
+#
+# 5f8fed03 first wrote `AIUnitRole: Role: Logistics` straight onto the shipped actor keys. That is
+# wrong twice over, and the first one is RED:
+#   * CheckUnitRoleTable PINS `abrams` to MainBattle (CheckUnitRoleTable.cs:34) and the pin loop
+#     (:134-145) runs over the RESOLVED RULESET OF EVERY MAP, scenarios included — CheckYaml.cs:103
+#     walks the map list and calls the same ILintRulesPass set per map. So a per-scenario re-role of a
+#     pinned unit is a NEW lint error above the baseline floor:
+#       `test-experimental-engineer-repairs | CheckUnitRoleTable: `abrams` derived role Logistics,
+#       expected MainBattle.`
+#     The lint is RIGHT and must stay right: reclassifying the mod's main battle tank is precisely the
+#     silent-AI-regression class it was written for (see its header), and nothing about a map being a
+#     test map makes `abrams` a logistics unit.
+#   * It re-roled the TYPE, so every abrams and every E3.america the BOT BOUGHT during the run was
+#     Logistics too — which quietly contradicts the "production is still exercised" note below and
+#     emptied the offensive module's own pools of the units it would otherwise field.
+# Cloning puts the re-role on actors that exist only inside this scenario. The exclusion mechanism is
+# unchanged (same trait, same value, same four pools); no statement is made about the shipped units.
+# Precedent for scenario-local clones: `pauperabrams` (test-evac-refund-indicator/rules.yaml:63) and
+# the humvee/m113/abrams families in test-burn-compare/rules.yaml.
+#
+# TWO THINGS ARE MANDATORY ON A CLONE AND BOTH HAVE COST A RUN BEFORE:
+#   * `RenderSprites: Image:` — sprites resolve by ACTOR NAME and NOT through Inherits, so a clone
+#     otherwise gets its parent's traits and none of its artwork and the engine dies at world load
+#     with "Image `<clone>` does not have any sequences defined". No static gate catches it; the
+#     sequence set is not resolved until world load (two instruments burned a launch slot each on
+#     2026-09-01 learning this).
+#   * `-Buildable:` — an inherited Buildable would put a Logistics-roled tank in the live Vehicle
+#     queue for the whole run. Stripped, the clone can only ever exist because map.yaml placed it.
+#
+# CASE IS LOAD-BEARING ON THE `Inherits:` VALUES AND THEY DO NOT MATCH EACH OTHER: `abrams` lowercase
+# (vehicles-america.yaml:464) and `E3.america` with a capital E3 (infantry-america.yaml:18). Unlike a
+# mis-cased top-level KEY — which silently defines a new actor and overrides nothing — a mis-cased
+# PARENT is loud: MiniYaml.cs:461-464 throws `Parent type ... not found` at load. The Lua still reads
+# the staged cell back at runtime anyway; see the drafted-casualty guard.
 
-abrams:
+casualtyabrams:
+	Inherits: abrams
+	RenderSprites:
+		Image: abrams
 	AIUnitRole:
 		Role: Logistics
+	-Buildable:
 
-E3.america:
+screendecoye3:
+	Inherits: E3.america
+	RenderSprites:
+		Image: e3.america
 	AIUnitRole:
 		Role: Logistics
+	-Buildable:
 
 World:
 	-StartGameNotification:
