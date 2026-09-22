@@ -3,6 +3,134 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`)
+
+One `tournament-s1-eco-river-zeta` match, `--seeds 1 --max-wall-secs 600`, full 7,500-tick clock,
+`time_limit`, USA-bot (`experimental`) 86,633 vs Russia-bot (`stable`) 53,215. Every figure below
+was re-derived from `match_1_debug.log` in this worktree; the exact greps are given because two of
+the manager's readout strings do not exist in the log as written.
+
+### The precondition clause is met on both halves, for both sides
+
+The 2026-08-14 clause requires `[composition] census` showing **`earned>0` AND a non-zero `truk`
+term** before any delivery evidence is read.
+
+| | first `earned>0` | first NON-ZERO `truk` | peak `truk` | last census (tick 7480) |
+|---|---|---|---|---|
+| USA-bot | tick 80 (`earned=100`) | **tick 5760** (`truk=1+0`) | 7 @ tick 6720 | `earned=78420 trucks-desired=6 held-first-truck=True truk=7+0` |
+| Russia-bot | tick 80 (`earned=100`) | **tick 4640** (`truk=1+0`) | 3 @ tick 5720 | `earned=55454 trucks-desired=3 held-first-truck=True truk=3+0` |
+
+**Trap, and it would have manufactured a false "instrument failure".** The FIRST census line
+carrying a `truk=` term reads **`truk=0+0`** — USA at tick 5680, Russia at tick 4560. The term is
+present one census (40 ticks) before the truck is. `grep -F 'truk='` answers *"is the term
+printed"*, not *"does a truck exist"*; the clause says **non-zero**, so the `inWorld+inCargo` pair
+has to be parsed and summed. Counting lines containing `truk=` gives 120 (USA 46 / Russia 74) —
+the figure the manager reported — but two of those 120 are zero rows.
+
+Census cadence: 374 lines = **187 per side, every 40 ticks**, tick 40 → 7480. `[supply] scan` is
+every 150 ticks (`ScanInterval: 150`, 50 scans per player over 7,500 ticks).
+
+### Deliveries — the bar itself
+
+```
+grep -F -c '[supply] drop truck='   # 5  dispatches, every line ends 'new'
+grep -F -c '[supply] crate-placed'  # 4  deliveries
+grep -F -c 'never-arrived'          # 1  refusal
+```
+
+| truck | owner | dispatched after tick | outcome | after tick |
+|---|---|---|---|---|
+| 4801 | Russia-bot (stable) | 4640 | `crate-placed` supplycache **750** @ 65,31 | 5240 |
+| 4807 | Russia-bot (stable) | 5080 | `crate-placed` supplycache **750** @ 60,31 | 5600 |
+| 4832 | USA-bot (experimental) | 5840 | `crate-placed` supplycache **710** @ 32,42 | 6200 |
+| 4842 | USA-bot (experimental) | 6000 | `crate-refused reason=never-arrived` ordered=27,33 tol=2c | 6200 |
+| 4837 | USA-bot (experimental) | 6120 | `crate-placed` supplycache **710** @ 32,43 | 6560 |
+
+Event ticks are bracketed by interleaving the untimestamped `[supply]` lines against the
+tick-stamped census stream, so each is accurate to the 40-tick census window `(t, t+40]`.
+
+**The accounting closes exactly and leaves nothing open: 4 placed + 1 refused = 5 dispatched.**
+Zero errands were still in flight at the clock, and zero trucks were re-dispatched without having
+placed a crate. Contrast the ×10 re-baseline, where 28 of 78 (36%) were unresolved at the limit and
+18 (23%) were re-dispatched without a crate.
+
+**Delivery ratio = `crate-placed` ÷ dispatches = 4/5 = 80.0%.** Comparable to the **41.0%** (32/78)
+of the 2026-09-06 ×10 re-baseline, which the dossier verified is computed the same way (all its
+`[supply] drop` lines end `new`, so the denominator is fresh dispatches). Because nothing was
+unresolved tonight, 80.0% is also directly comparable to that batch's resolved-only **64%**
+(32/50). **NOT comparable to the 15.0% at `c9626273`** — the dossier flags that figure's definition
+as an unverified HYPOTHESIS and its tournament config as unrecorded anywhere in the repo. N=5 is a
+direction, not a rate.
+
+### `[supply] truck=` DOES carry per-scan positions — the ×10 read-out was wrong about this
+
+Bar run 2 concluded *"these logs carry no per-tick truck positions, so the reversal count cannot be
+computed from them"*. Per-**tick** is right; per-**scan** is wrong. Every `[supply] truck=` line is
+`truck=<id>@<x>,<y>`, one sample per truck per 150-tick scan, and that is enough for a
+monotonicity reading. Collapsing consecutive duplicates:
+
+| truck | x-travel | reversals, dispatch → crate |
+|---|---|---|
+| 4801 | 95 → 89 → 81 → 74 → **65** → 68 | **0** |
+| 4807 | 95 → 84 → 74 → 69 → 61 → **60** → 64 | **0** |
+| 4832 | 6 → 17 → 29 → **32** → 30 | **0** |
+| 4837 | 8 → 18 → 21 → 25 → **32** → 31 | **0** |
+| 4842 | 2 → 11 → 15 → 14 → 20 → 27 → 32 → 37 (parked 10 scans) | 2 — *never arrived* |
+
+**All four deliveries are strictly monotone in x from dispatch to crate.** The single reversal at
+the tail of each successful trace is the post-drop egress — the truck turning round after unloading,
+which is the second half of the wanted behaviour, not oscillation. The user's verbatim complaint is
+*"going back and forth, not committing"*; on this evidence the four committed trucks did not go back
+and forth at all.
+
+**Honest limit of the instrument:** sampling is per scan, so a reversal with a period shorter than
+150 ticks is invisible. Observed per-scan x-deltas are 5–12 cells, so a full round trip hidden
+inside one scan is bounded at roughly ±4 cells. Multi-scan cluster churn — the mechanism §2 of the
+dossier identified — is exactly what this reading does cover.
+
+### Decline histogram, and a grep string that does not exist
+
+```
+grep -F '[supply] drop-declined' match_1_debug.log | grep -oE 'reason=[A-Za-z-]+' | sort | uniq -c
+#  14 reason=Covered
+#  12 reason=NoDemand      (26 total)
+grep -F '[supply] hunt-declined' match_1_debug.log | grep -oE 'reason=[a-zA-Z-]+' | sort | uniq -c
+#  19 reason=no-demand-in-leash
+```
+
+**`drop-declined reason=` is not a contiguous substring anywhere in the log** — the line is
+`drop-declined truck=<id>@<x>,<y> reason=<R>`, with the truck field between the two halves. The
+counts the manager reported (Covered 14, NoDemand 12) are right; the grep as quoted returns 0, and
+`-F` does not save it because the fault is the interleaved field, not bracket expansion. **`Covered`
+(53.8%) overtakes `NoDemand` (46.2%) tonight**, inverting the ×10 batch's NoDemand 55.2% / Covered
+41.4%. `LowLoad` and `NoAnchor` never fire.
+
+`[supply] init` confirms the shipped bypass on both bots: `ignore-danger=True`, `evac=False`,
+`drop=True` (`hunt=True` USA / `False` Russia). Cluster stickiness is live: 75 truck-scan lines
+carry `held=`, 34 of them holding a cluster (`held=4691` ×26, `held=4696` ×8), 41 `held=<none>`.
+
+### Harness lessons
+
+**1. `--max-wall-secs 600` is mandatory for this config on this host, and the default would have
+produced a textbook false negative.** `run-tournament.sh:157-167` auto-computes
+`TIME_LIMIT_SECS * 4 / SpeedMultiplier` = `300 * 4 / 8` = **150s**. The match needed **337s** of
+game execution (started 02:12:15, last `debug.log` write 02:17:52; whole batch 02:11:26 → 02:17:53 =
+387s). The comment at `:149-151` is explicit that it budgets the full multiplier even though "worst
+case the actual speed-up is less" — and this host achieved 7,500 ticks in 337s ≈ 22 ticks/s against
+a requested 8× of a 40 ms timestep, i.e. **~1.1× wall, not 8×**. At 150s the watchdog kills at
+roughly tick **3,340 (45% of the clock)**. **The first truck of the match exists at tick 4,640.**
+So the default cap does not merely truncate the match — it terminates it *before a single truck is
+ever bought*, and the run reads as "no truck was ever purchased" = instrument failure. That is
+precisely the false negative the 2026-08-14 precondition clause was written to catch, arriving
+through the watchdog rather than through the economy.
+
+**2. Census is present from tick 40**, so the precondition is checkable within the first second of
+simulated time — there is no warm-up window to wait out before deciding a run is instrumented.
+
+**3. The supply phase lives in the last 38% of a 5-minute clock.** First truck tick 4,640 (62% in),
+first delivery ~5,250 (70%), last delivery ~6,570 (88%). A 300s config barely admits the subsystem
+under test; the sibling 720s config would sample several times as many dispatches.
+
 ## 2026-09-22 - Three harness/readout traps on the item-56 acceptance-bar run, one of which INVERTED the diagnosis (`main @ d69e6883`, run dir `tools/autotest/tournament-results/260922_0124_tournament-s1-eco-river-zeta`)
 
 All three were hit inside one 150-second tournament attempt. The third is the one worth carrying
