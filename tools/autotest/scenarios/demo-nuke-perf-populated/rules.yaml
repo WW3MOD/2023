@@ -1,0 +1,168 @@
+# demo-nuke-perf-populated -- overrides for a nuclear detonation measured inside a REAL match.
+#
+# THE RULE THIS FILE LIVES BY is demo-nuke-perf's, and it is stricter here than there: override
+# TIMING and ACCESS, never COST and never the MATCH. Not one line below touches a warhead, a
+# radius, a light curve, a damage interval, a unit, a weapon, fog, shroud, starting units or the
+# victory conditions -- because the whole reason this scenario exists is that demo-nuke-perf
+# measures a detonation with all of those things removed. Anything stripped here to make the run
+# convenient is another difference between this reading and a game, and the audit's complaint
+# (WORKSPACE/audit/260921-release-readiness.md, P1/P3 and Part 3 row 11) is precisely that the
+# existing rig has too many of those already.
+#
+# THREE OVERRIDES, AND THEY ARE ALL ABOUT GETTING A SARMAT INTO RUSSIA'S HAND ON A SCHEDULE:
+#   1. the powers sandbox, so `powers.event` exists at all
+#   2. the unlock clock suspended, so a game-ender is reachable outside Escalation
+#   3. power.sarmat priced at 1 and loading in 5 ticks, so buying it does not compete with the
+#      bot's army budget or take 30 s per shot
+# There WAS a fourth -- MissileDelay 60 -- and it was removed on 2026-09-23 because override 1
+# already zeroes it. See the Player block.
+# Plus the three ordinary scenario hygiene removals every bot scenario on this map carries.
+
+World:
+	# THE SANDBOX SWITCH, AND WITHOUT IT THIS SCENARIO FIRES NOTHING. The Sarmat is EVENT TIER --
+	# `Prerequisites: powers.event, player.russia` (player.yaml:238-239) -- and powers.event is
+	# provided by no faction, only by the unfiltered ProvidesPrerequisite traits gated on
+	# `!powers-sandbox-disabled`. Omit this and TestHarness.EnsurePower returns 'refused' forever,
+	# no salvo leaves, and the run produces a clean flat reading of a nuke that did not happen.
+	#
+	# test-escalation-full-match TURNS THIS OFF and is right to: sandbox hands every player
+	# powers.america, powers.russia AND powers.event at once, which is a match no player will be
+	# in. That argument is about what the BOTS get to choose from. It does not apply here, because
+	# NO BOT IN THIS MOD EVER CLICKS A SUPPORT POWER OUTSIDE ESCALATION, and that is two separate
+	# citable facts rather than an assumption:
+	#   * the engine's SupportPowerBotModule is instantiated NOWHERE in mods/ww3mod -- ai.yaml:2899
+	#     says so in as many words ("every bot in every mode has sat on a full nuclear bin and never
+	#     clicked it");
+	#   * NuclearBotModule, the one thing that does fire, early-returns on
+	#     `nuclearExchange.Mode != DefconGameMode.Escalation` (NuclearBotModule.cs:278) and its own
+	#     [Desc] ends "Inert outside DefconGameMode.Escalation" (:82).
+	# This scenario leaves ModeDefault at its shipped Skirmish, so BOTH gates are shut and the only
+	# nuclear detonations in the run are the three the script fires. THAT GUARANTEE IS THE REASON
+	# THE WINDOWS MEAN ANYTHING -- if anyone ever switches this scenario to Escalation, it is gone
+	# and every reading below becomes unattributable.
+	PowersLobbyOptions:
+		NuclearArsenalCheckboxEnabled: true
+		NuclearArsenalCheckboxLocked: true
+		PowersSandboxCheckboxEnabled: true
+		PowersSandboxCheckboxLocked: true
+
+	# THE UNLOCK CLOCK, PINNED TO "NO WAIT" -- copied from demo-nuke-perf with its reasoning, because
+	# the mechanism is identical and so is the failure.
+	#
+	# The Sarmat carries `RequiresCondition: !nuke-arsenal-disabled && nuclear-release-gameender`
+	# (nuclear-arsenal.yaml:241). Outside Escalation that condition comes from
+	# GrantConditionOnNuclearRelease, whose rung is `unlockClock?.ReleasedRung ?? Highest`
+	# (GrantConditionOnNuclearRelease.cs:212-214), and ReleasedRung is
+	# `Active ? RungAt(..., CapRung) : NuclearReleaseLadder.Highest` (NuclearUnlockClock.cs:328-330).
+	# THE CEILING IS INSIDE THE ACTIVE BRANCH: NuclearUnlockSchedule.HighestPurchasableRung is
+	# HundredKiloton, one rung BELOW GameEnder, and is not host-overridable. A RUNNING clock never
+	# releases a game-ender at any interval after any elapsed time. Only a SUSPENDED clock hands back
+	# the top of the ladder, and `Active = IntervalTicks > 0 && !sandbox && mode != Escalation` (:320)
+	# gives three ways to suspend it. The sandbox switch above is already one of them; this is the
+	# second, stated independently, because demo-nuke-perf's first run spent 1000 ticks with the
+	# power hidden and a magazine that never banked.
+	NuclearUnlockClock:
+		IntervalDefault: 0
+		IntervalLocked: true
+
+	-StartGameNotification:
+	# DROPPED SO THE PINNED HomeLocations WIN. With this present the bots are assigned to the two
+	# mpspawns by the spawn assigner (Player.cs:182) and the assignment is not ours to predict, so a
+	# bot could be seated at the OTHER side's Supply Route. Without it, Player.cs:201 takes
+	# pr.HomeLocation, which map.yaml pins to each side's own SR cell. The missile entry point is
+	# derived from the firing player's home, so this also keeps the flight time constant between runs.
+	-MapStartingLocations:
+	-CrateSpawner:
+
+	# SpawnStartingUnits IS KEPT. Both slots carry StartingUnitsClass: motorized and get the same
+	# opening force a lobby game would. A scenario measuring a populated late game does not get to
+	# skip the opening that populates it.
+
+	# DECLARED, and that declaration is the whole of whether the script runs at all. A rules.yaml the
+	# map never references is silently ignored (Map.cs:102-107) and a LuaScript with no Scripts is
+	# skipped by the one engine lint that would catch it (Lint/CheckLuaScript.cs:21-23) -- the
+	# scenario then loads, draws, writes a zero-byte lua.log and does nothing. Three workers hit that
+	# in one day on 2026-09-06; `make lua-gate` is the static check for it.
+	LuaScript:
+		Scripts: test-helpers.lua, demo-nuke-perf-populated.lua
+
+Player:
+	# ==== THERE IS NO MissileDelay OVERRIDE HERE, AND ITS ABSENCE IS THE 2026-09-23 CORRECTION ====
+	# This file used to carry `MissileStrikePower@Sarmat: MissileDelay: 60`, described as "timing
+	# only" and costing "nothing that is measured". IT WAS INERT, and the scenario's derived impact
+	# tick spent it anyway -- which put every detonation window 60 ticks past its own detonation in
+	# run 260923_084012 and got all three shots declared invalid by their own file.
+	#
+	# The mechanism is the PowersLobbyOptions block above. Reaching an event-tier power at all
+	# requires the powers sandbox, PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay defaults TRUE
+	# (PowersLobbyOptions.cs:168), and MissileStrikePower.Activate therefore takes
+	# `baseMissileDelay = 0` (MissileStrikePower.cs:624-626) whatever this file writes. The shipped
+	# 500 and a scenario's 60 are the same number here: zero.
+	#
+	# So the override is GONE rather than corrected to 0, on the mod's own rule that an inert number
+	# reading like a live one is worse than no number -- the same call
+	# MissileStrikePower@Sarmat's own `ChargeInterval IS GONE rather than set high` comment makes,
+	# and the same one that removed its `AimPoints: 6`. AimPointInterval is NOT dropped by the
+	# sandbox and still staggers the warheads 12 ticks apart; the scenario observes that span rather
+	# than assuming it.
+	#
+	# IF ANYONE EVER TURNS THE SANDBOX OFF HERE, the shipped 500 comes back and each salvo grows 500
+	# ticks of beacon over an empty sky. The scenario's windows would still be correct -- they are
+	# keyed on an observed arrival now -- but HardEndCap would need to grow with it.
+	#
+	# AimPointFallbackSpread IS NOT OVERRIDDEN, and that is the deliberate difference from
+	# demo-nuke-perf, which widens it to 40c0 to spread six fireballs across a 128x128 playfield.
+	# Two reasons. Bounds here are 96x96, so 40 cells from an aim point near the middle throws
+	# warheads at or past the border and the salvo stops being four loaded detonations. And the
+	# question this scenario asks is what a player pays for the SHIPPED weapon in a real match;
+	# widening the pattern would be tuning the thing being measured.
+	#
+	# THE PACKAGE IS FOUR WARHEADS ON THIS MAP, NOT SIX. For any power NuclearGameEnders.Is()
+	# accepts the count is DoomsdayStrike.PackageSize and not the YAML AimPoints
+	# (MissileStrikePower.AimPointsFor:296-302): round(Bounds.Width * Bounds.Height /
+	# CellsPerImpact) clamped to [MinPackage, MaxPackage] = round(9216 / 2400) = 4. Nothing here
+	# changes that and nothing should -- it is a shipped property of a 96x96 map.
+
+	# THE TOURNAMENT VALUE, taken from tools/autotest/scenarios/tournament-s1-eco-*/rules.yaml so the
+	# economy this reading is taken inside is the same one every benchmark on this map uses. That
+	# file's own warning is the reason it is not raised to grow the armies faster: "Knobs added here
+	# that shift game balance (starting cash, growth rates) compromise the benchmark's validity."
+	# If the census in the run's own output says the armies were too small to be a late game, THAT
+	# IS THE FINDING -- raise the fire ticks, or report that a WW3MOD late game is smaller than the
+	# word suggests. Do not quietly buy a bigger army here and call the same reading populated.
+	PlayerResources:
+		DefaultCash: 7500
+
+# ==== WHAT IS DELIBERATELY *NOT* OVERRIDDEN ====
+#
+# ConquestVictoryConditions IS KEPT, unlike demo-nuke-perf, which strips it because 448 actors die
+# in its window and an elimination would stop the world mid-measurement. The risk is absent here
+# for the reason test-escalation-full-match's rules.yaml gives: the only structure either side owns
+# is its Supply Route, and SUPPLYROUTE carries Targetable.TargetTypes: NoAutoTarget -- a target type
+# no weapon in the mod lists -- so Warhead.IsValidAgainst rejects every warhead before damage is
+# computed and neither side can be conquered out of the match. A salvo that wipes a bot's field
+# army therefore costs it the army, not the match, and the bot keeps producing into the window.
+#
+# FOG AND SHROUD ARE AT SHIPPED DEFAULTS, and this is the sharpest departure from demo-nuke-perf,
+# which pre-explores the map and turns fog off so that per-cell fog work cannot land inside the
+# detonation window and be attributed to it. That is correct for a rig isolating a detonation and
+# WRONG here: fog is part of what a real tick costs, it is running when a player's nuke lands, and
+# the baseline windows below already carry it so the before/after delta subtracts it cleanly. The
+# consequence, stated rather than discovered later: the absolute numbers from this scenario are NOT
+# comparable to demo-nuke-perf's, in either direction. Different map, different size, different
+# fog, different everything. Compare them to each other only through the shape of the delta.
+#
+# NuclearExchange, DefconEscalation and DefconWall are untouched, so the mode stays Skirmish where
+# all three are no-ops. See the PowersLobbyOptions block for why that is load-bearing.
+
+# PRICE AND LOAD TIME. Neither is a measured quantity, and both exist to keep the FIRING bot's
+# economy identical to the other bot's. Shipped is Cost 30000 (powers.yaml:573) and the inherited
+# ^PurchasableSupportPower load; three shots at the shipped price would take 90000 out of Russia's
+# army budget and nothing out of USA's, which would tilt the very match the reading is taken inside.
+# 1 rather than 0 on purpose: a zero price is a shape nothing else in the mod uses and there is no
+# reason to be the first to find out what divides by it.
+power.sarmat:
+	Valued:
+		Cost: 1
+	Buildable:
+		BuildDuration: 5

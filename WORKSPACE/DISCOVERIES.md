@@ -59,6 +59,215 @@ needs vision" hazard is structurally unreachable for an empty box.
 `70e63582` (`git show 70e63582^:…` → `:79` and `:329`), so the merge added the third and changed
 neither. 31 scenarios place a `gtwr` or an `hbox` and **not one contains a `GetVisibility` or
 `IsDetectedBy` call**, so none can be assuming either sees while unmanned.
+## 2026-09-23 - The powers sandbox silently zeroes `MissileDelay`, and a game-ender's salvo size is the MAP's, not the YAML's — two derived numbers that invalidated a whole run (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`, worked at `5954a0ff`)
+
+**THE RUN.** `260923_084012_p19451_demo-nuke-perf-populated`, the first live run of the populated
+nuke-perf scenario. It finished cleanly at tick 10493, fired 3/3 shots — and **declared all three
+of its own shots INVALID**. Every one of those verdicts was the instrument's, not the weapon's.
+The scenario computed its impact tick as `MissileDelay + standoff / Speed = 158` and opened
+`deton1` there. Two of the three terms were wrong, in the same direction, for unrelated reasons.
+
+### 1. `MissileDelay` is dropped to zero whenever the powers sandbox is on
+
+`PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay` defaults **`true`**
+(`PowersLobbyOptions.cs:168`). `MissileStrikePower.Activate` reads it through
+`PowersLobbyOptionsInfo.SandboxSettingsOrNull` and takes `baseMissileDelay = 0`
+(`MissileStrikePower.cs:624-626`); `extraDelay` — `AimPointInterval * index`, the stagger between
+warheads of one salvo — is deliberately kept.
+
+**The trap is that the sandbox is not optional for this class of scenario.** An event-tier power
+declares `Prerequisites: powers.event` and nothing but the sandbox's unfiltered
+`ProvidesPrerequisite` hands that out, so ANY scenario firing a Sarmat, a Trident or a Tsar Bomba
+outside Escalation *must* enable `PowersSandboxCheckboxEnabled` — and thereby *must* have its
+`MissileDelay` zeroed. A `MissileDelay:` override in such a scenario's `rules.yaml` is inert by
+construction. This one carried `MissileDelay: 60` with a comment calling it "timing only … costs
+nothing that is measured"; both halves were true and the number was still never spent.
+
+`PreLaunchTicks` is a red herring in the same sum: it is a computed property,
+`LaunchRiseTicks > 0 ? LaunchRiseTicks + PostErectionWaitTicks : 0` (`BallisticMissile.cs:114`),
+and every arsenal missile ships `LaunchRiseTicks: 0`. It is zero, always, for a support-power
+strike. The real offset is the flight alone: `standoff / Speed`, exact because `Acceleration: 0`
+makes `BallisticMissileFly.EstimateArcTicks` return `hDist / speed` (`:84-85`). **98 ticks, not
+158.**
+
+### 2. A game-ender's warhead count is `DoomsdayStrike.PackageSize`, not `AimPoints`
+
+`MissileStrikePower.AimPointsFor` (`:296-302`) returns `info.AimPoints` **only** when
+`!NuclearGameEnders.Is(info)`; for a game-ender it returns `DoomsdayStrike.PackageSizeFor`, i.e.
+`FinalExchangePackage.SizeFor(Bounds.Width * Bounds.Height, CellsPerImpact, MinPackage,
+MaxPackage)` = `round(playableCells / 2400)` clamped to `[2, 6]`. **`Bounds`, not `MapSize`.** On a
+`1,1,96,96` map that is `round(9216 / 2400) = 4`, not the 6 the Sarmat is described by everywhere
+in prose. This already bit once — `MissileStrikePower.cs:286-291` records run `260920_140551`
+delivering 3 warheads of a package of 4 for the same reason — and the arsenal YAML's
+`AimPoints IS DELIBERATELY ABSENT` comment exists because of it. It bit again anyway, because the
+*prose* around the weapon ("six-RV Sarmat", "Six of these fly per strike") still says six and is
+correct only on the largest shipped maps.
+
+**Consequence for a scenario:** a salvo of N warheads spans `(N-1) * AimPointInterval` ticks, so
+getting N wrong gets the salvo window length wrong too — 36 ticks here, not 60.
+
+### 3. What a mis-keyed window looks like in the log, and how to spot it without re-running
+
+The two errors put `deton1` 60 ticks past its own detonation. **The window named `flight1`
+measured the detonation; the window named `deton1` measured the aftermath.** No perf number
+revealed that — the *census* did, and only because the scenario stamped one on every window:
+
+| window | census at open | p50 | p99 | max | over 60 ms |
+|---|---|---|---|---|---|
+| `prefire1` 7700–7999 | usa 71 / rus 42 | 16 | 27 | 32.7 | 0 |
+| `flight1` 8000–8157 | usa **80** / rus 41 | 16 | **67** | **74.75** | **4** |
+| `deton1` 8158–8558 | usa **1** / rus 29 | 6 | 26 | 31.5 | 0 |
+
+**79 ground attackers died inside the window the file called the quiet flight.** That is the
+signature, and it is a general one: *a census that changes across a window it should not change
+across means the window is in the wrong place.* One stamp per window is not enough to see it —
+stamp the open **and** the close.
+
+(The run was NOT a self-nuke, which was the other hypothesis. `Russia-bot` fires and `aimAt(Target)`
+takes `USA-bot`'s centroid: ground zero 75,40 with 80 USA attackers inside 48 cells. The 80 → 1 is
+the weapon working on its intended target.)
+
+### 4. Neither `Test.GetActiveMissileCount` nor `MissileTrace` can see a support-power warhead
+
+Both are wired to the **`Missile` projectile** (`Projectiles/Missile.cs:361-366, :1360`).
+`MissileStrikePower` delivers its warheads as **actors** — `world.CreateActor` at
+`MissileStrikePower.cs:818`, carrying the `BallisticMissile` trait. A four-RV Sarmat salvo in
+flight reads **0** from `GetActiveMissileCount()` and **0** from `GetMissileRecordCount()`. A
+scenario reaching for either to time a nuke gets a reading indistinguishable from "nothing was
+fired".
+
+`Test.GetImpactEffectCount` *does* move, but it counts `CreateEffectWarhead` impacts: measured at
+~20 per 750 kt warhead against ordinary tank fire at roughly one every nine ticks, and nothing in
+the number says which is which. Anchoring on it in a live match is what the scenario's own header
+had already rejected.
+
+**Fixed by adding an anchor that observes the arrival:**
+`Test.GetBallisticMissileImpactCount(actorType)` / `Test.GetLastBallisticMissileImpactTick(actorType)`,
+counted in `BallisticMissileFly`'s arrival branch (`:370`, inside the `CallFunc` that runs
+`self.Kill` — the call that fires the `Explodes` payload, so the count and the warhead go off
+together). Exactly one per warhead; a missile shot down en route is not counted because it never
+arrived. **Pass the actor type.** Twenty-one shipped actors carry `BallisticMissile` and two of
+them — `himarsmissile`, `iskandermissile` — are ordinary unit armaments both bots fire all game, so
+the unqualified total is unattributable in a real match.
+
+### 5. A stub that agrees with the code's assumption cannot test the assumption
+
+`tools/nuke-perf/drive-populated.lua` ran this scenario's full Lua offline and caught two real bugs
+before the first launch was ever requested. It did **not** catch this one — because it was
+synthesising its fake detonations at tick 8158, the same derived tick the scenario was looking for
+them at. Both sides of the test shared the error, so the arm passed.
+
+The general rule: **an offline driver must take the quantity under test as an INPUT, not inherit it
+from the code under test.** The driver now takes `SALVO_AT=` (arrival offset), `REBUILD=` (army
+regrowth rate) and observes the order tick out of the scenario's own log line rather than predicting
+it, and `SALVO_AT=158` reproduces the geometry the first draft assumed.
+
+### 6. One salvo deletes a field army, so a second shot on a fixed tick measures a different game
+
+USA: 80 attackers at the order, 1 at impact, rebuilt to 20 by tick 9600 (~14 per 1000 ticks). The
+back-to-back pair — the *more* expensive event — was fired on a fixed tick into a quarter of the
+battlefield the single shot got. Any scenario firing twice at the same target has this shape and
+should **trigger on the recovered state rather than on a tick**, and print what it settled for.
+
+**The one honest number the run still gives**, recorded in `tools/nuke-perf/README.md` with its
+label on: a four-warhead 750 kt salvo landing on ~80 + 41 ground attackers cost a worst tick of
+**74.75 ms** and a p99 of **67 ms** against a prefire baseline of p50 16 / max 32.7, and produced
+the only 4 over-budget ticks in the entire 10 493-tick run. Read as a floor: the p99 is diluted by
+the ~98 quiet ticks the mis-keyed window also contained.
+
+
+## 2026-09-22 - `tick_time` can be read from Lua WITHOUT `Launch.Benchmark`, and that matters because the benchmark flag measures a build nobody ships (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**THE INSTRUMENT AND THE TAX ARE THE SAME FLAG, AND ONLY ONE OF THEM IS WANTED.** `tools/nuke-perf`
+reads per-tick cost out of `nukeperf-tick_time.csv`, which only exists when the run is launched with
+`Launch.Benchmark`. That argument also sets `PerfHistory.Sampling` (`Game.cs:886`) — and since the
+parallel-relight lever, `TerrainLighting` refuses its parallel sweep while that flag is true
+(`TerrainLighting.cs:316-318`, the `&& !PerfHistory.Sampling` conjunct). So **every benchmarked
+`tick_time` number is taken against the SERIAL relight**, i.e. against a build the mod does not
+ship. `tools/nuke-perf/README.md` already knows this for the salvo/exchange pair — it tells you to
+drop `Launch.Benchmark` for that arm — but the general `tick_time` reading it leads with is still
+taken under the flag.
+
+**THE DATA IS THERE WITHOUT THE FLAG.** The `tick_time` `PerfSample` lives in `Game.InnerLogicTick`
+(`Game.cs:805`) and is **unconditional**: it runs on every tick whether or not anything is sampling.
+`Benchmark.Tick` does nothing cleverer than `PerfHistory.Items["tick_time"].LastValue`
+(`Benchmark.cs:31`). A Lua binding that reads the same property is the same quantity in the same
+unit, with no flag set and no sample taken. Added as `Test.GetTickTimeMs()`.
+
+**THE TWO READINGS LAG BY DIFFERENT AMOUNTS, AND THE DIFFERENCE IS ONE TICK.** `PerfHistory.Tick()`
+publishes the accumulated total and zeroes it at `Game.cs:826`; the `tick_time` sample only *adds*
+this tick's cost when its `using` block closes at `:833`. A `Trigger.OnTick` callback runs inside
+`world.Tick()` at `:824`, i.e. **before** the publish, so what Lua reads is the cost of tick **N-2**.
+`Benchmark.Tick` runs at `:834`, after both, so a **CSV row labelled N holds the cost of tick N-1**.
+Offset by 2 in a script and by 1 in a CSV; never line a Lua reading up against a CSV row on the same
+tick number.
+
+**WHAT THIS DOES NOT BUY.** Nothing about attribution — `perf.log`'s long-tick rows still need
+`Debug.EnableSimulationPerfLogging`, which carries its own per-trait-tick tax
+(`PerfTickLogger.cs:36-50`). And nothing about the GPU: under `--hidden` nothing is drawn either
+way.
+
+## 2026-09-22 - Anchoring a measurement window on an OBSERVED impact works on an inert map and cannot work in a live match; the fix is to derive the tick and count impacts instead (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`demo-nuke-perf` anchors its detonation window on the first rise in `Test.GetImpactEffectCount()`,
+and is right to: its map is 448 statues and one Supply Route, so the only thing that can move that
+counter is the salvo.** Put the same rig in a two-bot match and the counter climbs every few ticks
+from ordinary combat, so the first rise after an order is almost never a warhead — it is whichever
+tank round happened to land. A window anchored there is a window pointed at nothing in particular,
+and the resulting p50 looks perfectly plausible.
+
+**THE OFFLINE DRIVER MEASURED THIS RATHER THAN THE COMMENT ASSERTING IT.** With a synthetic combat
+impact every 9 ticks, the first-rise anchor fired 22 ticks early on **all three** shots, in the arm
+where no warhead landed at all.
+
+**THE WORKING SHAPE IS: DERIVE THE TICK, AND USE THE COUNTER AS A COUNT.** The impact tick is fully
+determined by shipped geometry — `entry standoff = mapDiagonal + ApproachMargin` (and
+`TestHarness.ApproachStandoffCells`, which takes **MapSize, not Bounds**), `flight = standoff /
+Speed`, `impact = MissileDelay + PreLaunchTicks + flight`. On a 98x98 map with `Speed: 1600` and
+`MissileDelay: 60` that is **158**; the same arithmetic on `demo-nuke-perf`'s 128x128 map gives 126,
+which is the number that file's own header records — that agreement is what makes the derivation
+trustworthy. The counter is then sampled three times per shot and asked a question it *can* answer:
+did the salvo window carry more gated impacts than the flight window before it, scaled?
+
+**TWO THINGS THAT BIT WHILE BUILDING THAT CHECK, BOTH FOUND OFFLINE, EITHER OF WHICH WOULD HAVE COST
+A LAUNCH SLOT.**
+1. **One 72-tick combat sample is too noisy to subtract.** With all six warheads landing, two
+   adjacent 72-tick samples read 13 and 9 — a rise of 4 against 6 warheads, so a good salvo was
+   called a miss. The verdict is now graded: a rise **at or below zero** invalidates, a positive
+   rise short of six is a note saying the evidence is weak.
+2. **The obvious fix — sample three spans BEFORE the impact — reaches back past the order.** At
+   `impact - 216` on this schedule the shot record does not exist yet, the sample is never taken,
+   and the run dies at the closing sample on `attempt to perform arithmetic on a nil value`. The
+   **flight window** is the baseline that has neither problem: bounded by the order at one end and
+   the impact at the other, and always available.
+
+**GENERAL FORM, worth carrying past this scenario: a detector calibrated on an inert rig does not
+transfer to a populated one, and it fails SILENTLY — by pointing somewhere plausible rather than by
+erroring.** Any autotest predicate that reads a mod-wide running counter (`GetImpactEffectCount`,
+`GetActiveMissileCount`) is in this class the moment a second combatant is added to the map.
+
+## 2026-09-22 - Three small traps met while building a scenario on a fresh worktree, none of which is about the scenario (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`tools/nav-guard/nav_guard.py` IS TRACKED NON-EXECUTABLE** (mode `100644`, against
+`tools/lua-gate/lua_gate.py`'s `100755`). `./tools/nav-guard/nav_guard.py report ...` — the form
+[`DOCS/recipes/AUTOTEST.md`](../DOCS/recipes/AUTOTEST.md) §"Verify before you ask for a slot" prints
+twice — dies with `permission denied` and **exit 126**. Same family as the `engine/utility.sh` 126
+trap already in CLAUDE.md: a fast non-zero exit with no useful output is a LAUNCH failure, not a
+result. `python3 tools/nav-guard/nav_guard.py ...` works. (`make nav-guard` is unaffected; it
+invokes the interpreter itself.)
+
+**THERE IS A LUA INTERPRETER ON THIS MACHINE.** `test-escalation-full-match.lua:52` states, as the
+reason it hand-writes `math.floor(a * 100 / b)` rather than `//`, that "there is no Lua interpreter
+on the dev machines to parse with". On this macOS host there is: `/usr/local/bin/lua`, **Lua 5.5.1**.
+`lua -e 'assert(loadfile("<scenario>.lua"))'` is a free syntax check, and stubbing the `Test.*`,
+`TestHarness.*` and `Player.*` bindings makes the whole scenario **runnable offline** — which is how
+both bugs in the entry above were found without a slot. **The `//` warning still stands and is
+sharper, not weaker:** 5.5 *accepts* floor division, so a local parse would GREEN a file that Eluant
+rejects. Use the interpreter for logic, never as evidence about the dialect.
+
+**`ls -d tools/autotest/scenarios/*/ | wc -l` = 367 at this ref**, against CLAUDE.md's predicted-but-
+unobserved 320 and its 10 shipped maps. That row says to recount rather than quote, and it is right:
+the figure moved by 47 in the time it took the prediction to be written down.
 
 ## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
 
