@@ -318,22 +318,7 @@ It says losing the Route "puts them out of the match"; the shipped mechanic make
 
 ### Current user priorities — 2026-08-15 live-play batch
 
-Framing for this batch (why 63/64 are not one item, and what 65 has to do with either) is in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **63** and **66** from this batch are merged and archived to [`closed-items.md`](pipeline/archive/closed-items.md) — 66's *procurement ordering axis* dossier is still the reference for the unfinished lobby-verification arm.
-
-### 64. Coordinated combined-arms push — the first tank attacks alone
-`[PARTIALLY SHIPPED — the rendezvous is merged but SWITCHED OFF; the speed differential is untouched and is the visible half]`
-**Perceived:** the opening push looks like a formation instead of a lone vehicle. Armour leads, a transport carrying infantry and a technician follows behind it, and the infantry arrive at the front protected rather than walking up on their own.
-**More landed than "recon":** `ef608a62` publishes `PoiOffensiveBotModule.ForwardStagingAnchor` and folds it into the transport's drop-off via a new pure `RendezvousMath` — but `RendezvousWithOffensiveStaging` defaults **false** (`MountedTransportBotModule.cs:92`) and **`ai.yaml:1933`** (2026-09-02; was `:1723`, before that `:1635`, before that `:1625` — **this cite has now drifted four times, so grep the key and stop recording the line**) sets it false, so both profiles are byte-identical and this has never affected play. **The remaining work is (1) enable and measure, (2) the speed differential — infantry already walk to the same anchor from tick 3; the tank simply outruns them.** → [`items/64-combined-arms-push.md`](pipeline/items/64-combined-arms-push.md)
-
-> ✅ **UPDATE 2026-09-01 (`main @ bd8e7290`) — THE KNOWN BLOCKER IS FIXED; THE ITEM IS NOW ONE STEP, AND THAT STEP IS A RUN.** `RendezvousMaxWithdrawCells` exists (default **6**, `MountedTransportBotModule.cs:109`, consumed at `:1589`) — that is the lower bound whose absence turned a 26-cell delivery into a shuttle.
-> **It is still switched OFF — re-confirmed 2026-09-02 at `main @ 6a7e1839`.** Exactly one YAML site sets it: `ai.yaml:1933 RendezvousWithOffensiveStaging: false`, and the C# default at `MountedTransportBotModule.cs:92` is `false` too, so nothing anywhere turns it on. `ai-america.yaml` and `ai-russia.yaml` touch it nowhere, so the other twin takes the `false` C# default. **Both profiles remain byte-identical, and this has still never run in a live match.**
-> **The speed differential is confirmed untouched** — no speed-matching, lead-hold or follower gate exists in the bot modules.
-> **Net effect on dispatch: do NOT send a worker to "fix the rendezvous" — it is fixed. The next action is to flip the flag and measure**, which under the standing launch rule is the manager's to run, not a worker's.
-> **One caveat worth carrying:** `RendezvousMathTest.cs:185` carries the comment *"MEASURED, NOT REASONED — run 260815_202509, seed 1017, `RendezvousWithOffensiveStaging: true`."* So the **maths** has been measured under a hand-flipped flag; **shipped play has not.** Do not read that comment as evidence the feature has run in a match.
-
----
-
-> **2026-09-05 (`main @ bb89f9fd`): the lone tank is found and gated; the item stays open on a third mechanism.** Recon (`62778af1`) + implementation (`bb89f9fd`): the first tank was being posted ALONE as a one-unit ambush lane by `LaneAmbushBotModule` at tick 100, before the offense stager had a pool — not the 08-05 "advance singly" pick, which was measured inert and stands. Shipped: `MinUnitsPerAmbush: 2` (lane posts a pair or none) and `FreePoolMinAdvanceUnits: 2` (no lone unit ordered forward), both profiles — **`@stable` moved, re-take the baseline.** `test-push-departs-together`: gate-0 control first tank alone at t211; HEAD both tanks leave together and advance together; the midline-spread clause still fails because infantry never joins — `PartitionHeldAxes` pulls a committed axis out of the live set before `BuildFreePool`, so `StageFreePool` marches it back to the muster (6 cells per 300 ticks). **That axis↔staging beat is what remains of item 64**; the scenario ships `expected-status: fail` until it is fixed. Dossier: `items/64-combined-arms-push.md` §Recon 2026-09-05 + §measured arms.
+Framing for this batch (why 63/64 are not one item, and what 65 has to do with either) is in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **63**, **64** and **66** from this batch are merged and archived to [`closed-items.md`](pipeline/archive/closed-items.md) — **64 closed 2026-09-23** at `55df64e2` (escort UNLOAD + load ESCAPE on both twins; the speed differential it did NOT close is item **85**) — 66's *procurement ordering axis* dossier is still the reference for the unfinished lobby-verification arm.
 
 ### 40. Danger-scale rework — stop the bot treating ordinary ground as lethal
 `[stage (a) DONE ddcc5d6c; stage (b) instrument landed; stage (c) OPEN and is now the whole item]`
@@ -531,7 +516,7 @@ Closes the largest gap between what this game says it is and what it does: `supp
 >
 > User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 87 needs a ruling before code; **86 was ruled (a) army-share reserve, shipped `ef7362a7`, and is CLOSED** — `pipeline/archive/closed-items.md`. 88 is hygiene.
 >
-> Also standing, not an item: **the 260905 @stable baseline pre-dates b6207b9b** (`MissionReinforceEnabled` moved `@stable`); re-take it before the next bot comparison (item 43's record says so).
+> Also standing, not an item: **the @stable control has been re-taken twice since and the 260905 corpus is no longer it.** Current control: [`benchmarks/260923-rebaseline.md`](benchmarks/260923-rebaseline.md) (item 64, stamped `55df64e2`, 40 matches, 0 culls), which supersedes `260922-rebaseline.md` (item 86, `ef7362a7`), which superseded 260905. **Read its calibration section before quoting any win split off it:** two byte-identical copies of `@stable` split 8–2 by side on S2 there, so a split up to 8–2 in either direction carries no information at N=10.
 
 ### 84. Idle low-ammo infantry hold when the supply truck is already closing (AutoSeekSupplies gate)
 `[USER-APPROVED IN PRINCIPLE 2026-09-06 — NOT NOW]`
