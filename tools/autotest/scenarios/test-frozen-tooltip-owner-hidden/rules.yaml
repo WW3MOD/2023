@@ -44,7 +44,7 @@ PBOX:
 	# UNGATE THE SELF-SIGHT THIS SCENARIO STAGES ON. Phase 1 needs USA to see 8,16 through the
 	# building it owns, and since 70e63582 (wt/neutral-entry, 2026-09-21) a PBOX sees NOTHING
 	# while unmanned: `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded`
-	# (structures-defenses.yaml:214) re-states all ten Vision@N keys carrying
+	# (structures-defenses.yaml:215) re-states all ten Vision@N keys carrying
 	# `RequiresCondition: loaded` (defaults.yaml:156-177), so MiniYaml's key collision gates the
 	# whole ladder ^Defense supplied via ^StandardVision. Nothing garrisons this Box, so before
 	# this override every Vision@N on it is disabled and USA's ghost sits at 'shrouded' (cell

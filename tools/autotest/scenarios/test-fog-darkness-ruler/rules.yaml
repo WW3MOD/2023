@@ -34,10 +34,21 @@ World:
 # The ruler markers. PBOX is a one-cell structure with a hard silhouette, which is what
 # makes it usable as the "can I still read this as a shape" arm.
 #
-# ALL TEN VISION LAYERS ARE REMOVED. This is the load-bearing edit in the whole scenario:
-# PBOX inherits ^Defense which inherits ^StandardVision (structures-defenses.yaml:5), so a
-# stock pillbox would light its own 32-cell circle and seven of them would flatten the
-# gradient the capture exists to measure. Removal rather than a zeroed Range because
+# ALL TEN VISION LAYERS ARE REMOVED. PBOX inherits ^Defense which inherits ^StandardVision
+# (structures-defenses.yaml:5), and when this was written a stock pillbox lit its own
+# 32-cell circle, so seven of them would have flattened the gradient the capture exists to
+# measure. THAT IS NO LONGER WHY THIS IS HERE, and the difference matters to anyone reading
+# it as evidence: since 70e63582 (wt/neutral-entry, 2026-09-21) PBOX also inherits
+# ^StandardVisionWhenLoaded (structures-defenses.yaml:215), which re-states all ten Vision@N
+# keys carrying `RequiresCondition: loaded` (defaults.yaml:156-177), so MiniYaml key collision
+# gates the whole ladder and an UNMANNED pillbox reveals nothing -- not even its own cell.
+# Nothing garrisons these markers, so the removals below are now belt-and-braces rather than
+# load-bearing. They STAY: they are what keeps the instrument independent of a gate it does
+# not control, and a `-Vision@N` cannot be re-enabled by a future condition the way the gated
+# trait can. Do not cite this block as evidence that a bare PBOX lights 32 cells; audited
+# 2026-09-22, WORKSPACE/audit/260922-pbox-vision-gate.md.
+#
+# Removal rather than a zeroed Range because
 # nothing in the engine declares VisionInfo as a requirement (unlike AutoTarget, which
 # AutoTargetPriority does require and which therefore cannot be removed), and because a
 # Range of 0 paired with an inherited non-zero MinRange is a self-inconsistent trait rather
