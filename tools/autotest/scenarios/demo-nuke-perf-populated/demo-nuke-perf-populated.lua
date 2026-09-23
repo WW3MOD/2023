@@ -29,8 +29,14 @@
 -- BEFORE anything lands, opened on 80 USA ground attackers and carried p99 67 ms, max 74.75 ms and
 -- the only four over-budget ticks in the entire run; `deton1` opened 60 ticks later on ONE, with
 -- p50 6 and max 31.5. The detonation was measured by the window named for the flight, and the
--- window named for the detonation measured the silence afterwards. tools/nuke-perf/README.md
--- records those numbers, labelled for what they are.
+-- window named for the detonation measured the silence afterwards.
+--
+-- THE RE-KEYED RUN IS 260923_090904, at 5062a755, and it is VALID. It settled the derivation too:
+-- the observed impact is order + 105, i.e. the 98-tick arc plus SEVEN TICKS OF ORDER LATENCY
+-- (Test.ActivateSupportPower issues an Order; the power activates when that order is processed),
+-- stable at -7 across three shots 3300 ticks apart. The salvo span came out at 37 rather than the
+-- 36 that (4-1) * AimPointInterval predicts, on both groups. tools/nuke-perf/README.md carries the
+-- numbers under THE POPULATED-MAP READING; the mis-windowed run is not quoted anywhere any more.
 --
 -- SO THE ANCHOR IS NOW OBSERVED. Test.GetBallisticMissileImpactCount("sarmatmissile") is a running
 -- count of warheads that COMPLETED THEIR FLIGHT -- BallisticMissileFly reaching horizontalProgress
