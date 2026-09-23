@@ -1552,6 +1552,40 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return Context.World.Effects.OfType<Missile>().Count();
 		}
 
+		[Desc("Warheads of `actorType` that have COMPLETED THEIR FLIGHT and detonated at their aim " +
+			"point this run, as a running total. Pass \"\" for every ballistic-missile type at once.\n" +
+			"THIS IS THE ONLY WAY A SCENARIO CAN TIME A SUPPORT-POWER SALVO IN A LIVE MATCH. " +
+			nameof(GetActiveMissileCount) + " and the MissileTrace bindings are both wired to the " +
+			"`Missile` PROJECTILE, and MissileStrikePower delivers its warheads as ACTORS carrying " +
+			"BallisticMissile (MissileStrikePower.cs:818, world.CreateActor) -- so a six-RV Sarmat " +
+			"salvo in flight reads 0 from both of those and 6 from this. " +
+			nameof(GetImpactEffectCount) + " does rise, but it counts CreateEffectWarhead impacts: " +
+			"one 750 kt re-entry vehicle is worth roughly twenty of those, ordinary tank fire is " +
+			"worth one every few ticks, and the two are indistinguishable. This counts arrivals, " +
+			"exactly one per warhead.\n" +
+			"PASS THE TYPE. Twenty-one shipped actors carry BallisticMissile and two of them -- " +
+			"himarsmissile, iskandermissile -- are unit armaments bots fire all game, so the " +
+			"unqualified total is not attributable to anything in a real match.\n" +
+			"A missile shot down on the way in is NOT counted: it never reaches its aim point. Test " +
+			"mode only.")]
+		public int GetBallisticMissileImpactCount(string actorType = "")
+		{
+			return TestMode.IsActive ? TestMode.BallisticMissileImpactsOf(actorType) : 0;
+		}
+
+		[Desc("World tick of the most recent " + nameof(GetBallisticMissileImpactCount) + " arrival " +
+			"of `actorType` (\"\" for any type), or -1 when none has arrived.\n" +
+			"WHY THE TICK AND NOT JUST THE COUNT. A scenario polling the count each tick learns the " +
+			"arrival happened but not WHEN inside the tick, and a Lua OnTick callback runs inside " +
+			"world.Tick() (Game.cs:824) -- before or after a given actor's activities depending on " +
+			"nothing the scenario controls. This is World.WorldTick as the activity itself read it, " +
+			"so a window keyed on it is keyed on the detonation rather than on the observation. " +
+			"Test mode only.")]
+		public int GetLastBallisticMissileImpactTick(string actorType = "")
+		{
+			return TestMode.IsActive ? TestMode.LastBallisticMissileImpactTickOf(actorType) : -1;
+		}
+
 		[Desc("Switch the Phase-0 missile trace on for this run. Call from WorldLoaded, before " +
 			"anything fires — missiles already in flight are not retro-tracked. `path` is optional: " +
 			"pass one to also write the JSONL stream to disk, omit it to keep the summary records in " +

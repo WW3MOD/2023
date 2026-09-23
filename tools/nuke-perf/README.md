@@ -11,7 +11,7 @@ The third fires into a live bot-vs-bot match and reports its own readings — se
 | `tools/autotest/scenarios/demo-nuke-perf-single` | one `NukeSarmatRV`, the denominator |
 | `tools/nuke-perf/analyse.py` | reads `perf.log` + the benchmark CSVs, prints the table |
 | `tools/nuke-perf/selftest.py` | proves the parse against synthetic logs. No build, no launch |
-| `tools/autotest/scenarios/demo-nuke-perf-populated` | the same question inside a REAL two-bot match — see below |
+| `tools/autotest/scenarios/demo-nuke-perf-populated` | the same question inside a REAL two-bot match — see below, including the one reading taken so far |
 | `tools/nuke-perf/drive-populated.lua` | runs that scenario's Lua offline against stubbed bindings. No build, no launch |
 
 ---
@@ -253,15 +253,21 @@ produces an enormous log of rows reading zero. Against a 60 ms tick budget, a 1 
 `tools/autotest/scenarios/demo-nuke-perf-populated` answers the question the two rigs above
 deliberately do not: **what does a tick cost when a salvo lands in a populated late game.**
 Two `@experimental` bots play a real Skirmish match on the shipped Polar Disorder map with
-production, movement, combat and fog all running; Russia fires one six-RV Sarmat at tick
-8000 and a back-to-back pair at 9600; `tick_time` p50/p90/p99/max is recorded for eight
-windows either side of each. Asked for by `WORKSPACE/audit/260921-release-readiness.md`
-P1/P3 and Part 3 row 11, which quote *What this does not measure* below back at this file.
+production, movement, combat and fog all running; Russia fires one Sarmat salvo at tick 8000
+and a back-to-back pair once the target army has rebuilt; `tick_time` p50/p90/p99/max is
+recorded for nine windows either side of each. Asked for by
+`WORKSPACE/audit/260921-release-readiness.md` P1/P3 and Part 3 row 11, which quote *What this
+does not measure* below back at this file.
 
 ```sh
-./tools/autotest/run-test.sh --hidden --speed 4 --timeout 2400 demo-nuke-perf-populated
+./tools/autotest/run-test.sh --hidden --speed 4 --timeout 2700 demo-nuke-perf-populated
 grep -F 'NUKEPOP window' "$APPDATA/OpenRA/Logs/lua.log"
+grep -F 'NUKEPOP detonation' "$APPDATA/OpenRA/Logs/lua.log"   # where the windows were keyed
 ```
+
+**THE SALVO IS FOUR WARHEADS ON THAT MAP, NOT SIX**, and the windows are keyed on an
+**observed** arrival, not on a computed one. Both of those are corrections; the run that
+forced them is below.
 
 **IT TAKES NO `AUTOTEST_EXTRA_ARGS`, AND `Launch.Benchmark` MUST NOT BE ADDED.** Same reason
 the salvo/exchange pair above drops it, applied to the headline number rather than to the
@@ -279,7 +285,56 @@ moving army.
 
 Its Lua can be run to completion **without a launch slot**: `lua tools/nuke-perf/drive-populated.lua`
 stubs the engine bindings and exercises the windows, the statistics and the validity checks.
-Two real bugs were caught there before the first run was ever requested.
+Two real bugs were caught there before the first run was ever requested — and one was not,
+which is the more useful half of the story: the driver was synthesising its fake detonations
+at the same derived tick the scenario was looking for them at, so a stub that agreed with the
+code's assumption could not test the assumption. `SALVO_AT=` now sets the arrival offset
+independently, and `SALVO_AT=158` reproduces the geometry the first draft assumed.
+
+### The first reading, and why it is labelled rather than quoted
+
+Run `260923_084012` — the first live run — is the only populated nuke measurement that
+exists, and **every window in it is mis-keyed by 60 ticks.** The scenario computed its impact
+tick as `MissileDelay + standoff / Speed = 158`. Two of those terms were wrong:
+
+- **`MissileDelay` was never spent.** The scenario must enable the powers sandbox to reach an
+  event-tier power at all, `PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay` defaults `true`
+  (`PowersLobbyOptions.cs:168`), and `MissileStrikePower.Activate` therefore takes
+  `baseMissileDelay = 0` (`MissileStrikePower.cs:624-626`). The true offset was the flight
+  alone: **98 ticks, not 158.**
+- **The package is four warheads, not six.** For anything `NuclearGameEnders.Is()` accepts the
+  count is `DoomsdayStrike.PackageSize`, not the YAML `AimPoints`
+  (`MissileStrikePower.AimPointsFor:296-302`): `round(96*96 / 2400)` clamped to `[2,6]` = 4.
+  So the salvo spans 36 ticks, not 60.
+
+The consequence is that **the window named `flight1` measured the detonation and the window
+named `deton1` measured the aftermath.** Its own census says so without any arithmetic: USA
+held **80** ground attackers when `flight1` opened at tick 8000 and **1** when `deton1` opened
+at 8158, so ~79 attackers died inside the window the file called the quiet flight. Read that
+way, the run does give one honest number, and it is the only one anybody has:
+
+| window (as labelled) | what it actually held | p50 | p99 | max | over 60 ms | census at open |
+|---|---|---|---|---|---|---|
+| `prefire1` 7700–7999 | a populated late game, nothing incoming | 16 | 27 | **32.7** | 0 | usa 71 / rus 42 |
+| `flight1` 8000–8157 | **the detonation** | 16 | **67** | **74.75** | **4** | usa 80 / rus 41 |
+| `deton1` 8158–8558 | the aftermath, army already gone | 6 | 26 | 31.5 | 0 | usa 1 / rus 29 |
+
+**So: a four-warhead 750 kt salvo landing on ~80 + 41 ground attackers cost a worst tick of
+74.75 ms and a p99 of 67 ms, against a prefire baseline of p50 16 ms / max 32.7 ms — and it
+put four ticks over the 60 ms budget, the only four in the entire 10 493-tick run.** That is
+roughly a **2.3× worst-tick** rise over the same match with nothing incoming.
+
+Every caveat on that paragraph, stated rather than implied. The 74.75 ms tick is somewhere in
+a 158-tick window and is not attributed to a particular warhead. The p50 and p99 for
+`flight1` are diluted by the ~98 quiet ticks before the first warhead arrived, so **the p99 of
+67 ms understates the detonation's own p99** — the correctly-keyed window is 60 ticks long,
+not 158. The `deton1` and `pair` rows of that run measure a battlefield the salvo had already
+emptied and are **not** detonation costs. And nothing here is a threshold: no audit and no
+file in this directory names one.
+
+The scenario has since been re-keyed onto an observed arrival
+(`Test.GetBallisticMissileImpactCount("sarmatmissile")`), so the next run supersedes this
+table outright. Until then these are the numbers, with their label on.
 
 ## What this does not measure
 

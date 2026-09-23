@@ -7,6 +7,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -228,6 +229,69 @@ namespace OpenRA
 				ImpactEffectCount++;
 		}
 
+		// ==== BALLISTIC-MISSILE ARRIVALS, AND WHY GetImpactEffectCount CANNOT STAND IN FOR THEM ====
+		// One entry per warhead that COMPLETED ITS FLIGHT -- BallisticMissileFly reaching
+		// horizontalProgress >= 1 and killing its own actor, which is what fires the Explodes
+		// payload. It is therefore a count of DETONATIONS AT THE AIM POINT, not of impact effects:
+		// a 750 kt re-entry vehicle raises ImpactEffectCount by roughly twenty and this by exactly
+		// one, and a missile shot down on the way in raises neither.
+		//
+		// KEYED BY ACTOR TYPE BECAUSE THE UNQUALIFIED COUNT IS NOISY IN A REAL MATCH. Twenty-one
+		// shipped actors carry BallisticMissile, and two of them -- himarsmissile and
+		// iskandermissile -- are ordinary unit armaments that bots fire at each other all game. A
+		// scenario measuring a Sarmat salvo must ask for `sarmatmissile` or it will anchor on
+		// somebody's rocket artillery.
+		//
+		// NEITHER Test.GetActiveMissileCount NOR MissileTrace CAN SEE THESE. Both are wired to the
+		// `Missile` PROJECTILE (Projectiles/Missile.cs), and MissileStrikePower delivers its
+		// warheads as ACTORS -- world.CreateActor, MissileStrikePower.cs:818. A six-RV salvo in
+		// flight reads 0 from GetActiveMissileCount and 0 from GetMissileRecordCount.
+		static readonly Dictionary<string, int> BallisticMissileImpactsByType = new Dictionary<string, int>();
+		static readonly Dictionary<string, int> BallisticMissileImpactTicksByType = new Dictionary<string, int>();
+
+		/// <summary>Arrivals of every ballistic-missile type this run.</summary>
+		public static int BallisticMissileImpactCount { get; private set; }
+
+		/// <summary>World tick of the most recent arrival of any type, or -1 when none has happened.</summary>
+		public static int LastBallisticMissileImpactTick { get; private set; } = -1;
+
+		public static void CountBallisticMissileImpact(string actorType, int worldTick)
+		{
+			if (!IsActive)
+				return;
+
+			BallisticMissileImpactCount++;
+			LastBallisticMissileImpactTick = worldTick;
+
+			if (string.IsNullOrEmpty(actorType))
+				return;
+
+			BallisticMissileImpactsByType.TryGetValue(actorType, out var n);
+			BallisticMissileImpactsByType[actorType] = n + 1;
+			BallisticMissileImpactTicksByType[actorType] = worldTick;
+		}
+
+		/// <summary>Arrivals of <paramref name="actorType"/>, or of every type when it is empty.</summary>
+		public static int BallisticMissileImpactsOf(string actorType)
+		{
+			if (string.IsNullOrEmpty(actorType))
+				return BallisticMissileImpactCount;
+
+			return BallisticMissileImpactsByType.TryGetValue(actorType, out var n) ? n : 0;
+		}
+
+		/// <summary>
+		/// World tick of the most recent arrival of <paramref name="actorType"/>, or of any type when
+		/// it is empty. -1 when nothing of that type has arrived.
+		/// </summary>
+		public static int LastBallisticMissileImpactTickOf(string actorType)
+		{
+			if (string.IsNullOrEmpty(actorType))
+				return LastBallisticMissileImpactTick;
+
+			return BallisticMissileImpactTicksByType.TryGetValue(actorType, out var t) ? t : -1;
+		}
+
 		public static void Initialize(Arguments args)
 		{
 			var modeArg = args.GetValue("Test.Mode", null);
@@ -236,6 +300,10 @@ namespace OpenRA
 
 			IsActive = true;
 			ImpactEffectCount = 0;
+			BallisticMissileImpactCount = 0;
+			LastBallisticMissileImpactTick = -1;
+			BallisticMissileImpactsByType.Clear();
+			BallisticMissileImpactTicksByType.Clear();
 			Name = args.GetValue("Test.Name", "unnamed");
 			Description = args.GetValue("Test.Description", "");
 			ResultPath = args.GetValue("Test.ResultPath",

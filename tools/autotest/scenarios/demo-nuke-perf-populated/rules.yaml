@@ -9,12 +9,13 @@
 # (WORKSPACE/audit/260921-release-readiness.md, P1/P3 and Part 3 row 11) is precisely that the
 # existing rig has too many of those already.
 #
-# FOUR OVERRIDES, AND THEY ARE ALL ABOUT GETTING A SARMAT INTO RUSSIA'S HAND ON A SCHEDULE:
+# THREE OVERRIDES, AND THEY ARE ALL ABOUT GETTING A SARMAT INTO RUSSIA'S HAND ON A SCHEDULE:
 #   1. the powers sandbox, so `powers.event` exists at all
 #   2. the unlock clock suspended, so a game-ender is reachable outside Escalation
-#   3. MissileDelay 60, so three shots do not spend 90 s of wall clock on beacons
-#   4. power.sarmat priced at 1 and loading in 5 ticks, so buying it does not compete with the
+#   3. power.sarmat priced at 1 and loading in 5 ticks, so buying it does not compete with the
 #      bot's army budget or take 30 s per shot
+# There WAS a fourth -- MissileDelay 60 -- and it was removed on 2026-09-23 because override 1
+# already zeroes it. See the Player block.
 # Plus the three ordinary scenario hygiene removals every bot scenario on this map carries.
 
 World:
@@ -86,21 +87,41 @@ World:
 		Scripts: test-helpers.lua, demo-nuke-perf-populated.lua
 
 Player:
-	# TIMING ONLY, and the only geometry-adjacent line in this file. Shipped MissileDelay is 500
-	# ticks (30 s) of beacon over an empty sky before the missile is spawned at all --
-	# SpawnActorEffect holds the actor out of the world and renders nothing while it waits
-	# (SpawnActorEffect.cs:44-49). This scenario fires THREE salvos, so shipping it would add 1500
-	# ticks of pure waiting to a run that is already the most expensive thing in the scenario tree.
-	# 60 ticks costs nothing that is measured.
+	# ==== THERE IS NO MissileDelay OVERRIDE HERE, AND ITS ABSENCE IS THE 2026-09-23 CORRECTION ====
+	# This file used to carry `MissileStrikePower@Sarmat: MissileDelay: 60`, described as "timing
+	# only" and costing "nothing that is measured". IT WAS INERT, and the scenario's derived impact
+	# tick spent it anyway -- which put every detonation window 60 ticks past its own detonation in
+	# run 260923_084012 and got all three shots declared invalid by their own file.
+	#
+	# The mechanism is the PowersLobbyOptions block above. Reaching an event-tier power at all
+	# requires the powers sandbox, PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay defaults TRUE
+	# (PowersLobbyOptions.cs:168), and MissileStrikePower.Activate therefore takes
+	# `baseMissileDelay = 0` (MissileStrikePower.cs:624-626) whatever this file writes. The shipped
+	# 500 and a scenario's 60 are the same number here: zero.
+	#
+	# So the override is GONE rather than corrected to 0, on the mod's own rule that an inert number
+	# reading like a live one is worse than no number -- the same call
+	# MissileStrikePower@Sarmat's own `ChargeInterval IS GONE rather than set high` comment makes,
+	# and the same one that removed its `AimPoints: 6`. AimPointInterval is NOT dropped by the
+	# sandbox and still staggers the warheads 12 ticks apart; the scenario observes that span rather
+	# than assuming it.
+	#
+	# IF ANYONE EVER TURNS THE SANDBOX OFF HERE, the shipped 500 comes back and each salvo grows 500
+	# ticks of beacon over an empty sky. The scenario's windows would still be correct -- they are
+	# keyed on an observed arrival now -- but HardEndCap would need to grow with it.
 	#
 	# AimPointFallbackSpread IS NOT OVERRIDDEN, and that is the deliberate difference from
 	# demo-nuke-perf, which widens it to 40c0 to spread six fireballs across a 128x128 playfield.
-	# Two reasons. Bounds here are 96x96, so 40 cells from an aim point near the middle throws RVs
-	# at or past the border and the salvo stops being six loaded detonations. And the question this
-	# scenario asks is what a player pays for the SHIPPED weapon in a real match; widening the
-	# pattern would be tuning the thing being measured.
-	MissileStrikePower@Sarmat:
-		MissileDelay: 60
+	# Two reasons. Bounds here are 96x96, so 40 cells from an aim point near the middle throws
+	# warheads at or past the border and the salvo stops being four loaded detonations. And the
+	# question this scenario asks is what a player pays for the SHIPPED weapon in a real match;
+	# widening the pattern would be tuning the thing being measured.
+	#
+	# THE PACKAGE IS FOUR WARHEADS ON THIS MAP, NOT SIX. For any power NuclearGameEnders.Is()
+	# accepts the count is DoomsdayStrike.PackageSize and not the YAML AimPoints
+	# (MissileStrikePower.AimPointsFor:296-302): round(Bounds.Width * Bounds.Height /
+	# CellsPerImpact) clamped to [MinPackage, MaxPackage] = round(9216 / 2400) = 4. Nothing here
+	# changes that and nothing should -- it is a shipped property of a 96x96 map.
 
 	# THE TOURNAMENT VALUE, taken from tools/autotest/scenarios/tournament-s1-eco-*/rules.yaml so the
 	# economy this reading is taken inside is the same one every benchmark on this map uses. That
