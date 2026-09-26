@@ -513,8 +513,8 @@ namespace OpenRA.Mods.Common.Traits
 			// THE PAINTED ZONE GOES IN FIRST AND IS NOT SPECIAL AFTERWARDS. DefconWallRegion takes a
 			// cell set, so a cell contributed by two sources is one border cell either way -- there
 			// is nothing to de-duplicate and no ordering to get wrong. Like RegionCells below, these
-			// are added unconditionally including cells OUTSIDE Bounds, because a zone painted up to
-			// the map edge has to close the same seam RegionCells closes (see the note there).
+			// go in UNFILTERED HERE and any cell outside Bounds is then dropped by the region itself,
+			// so a zone painted past the playable edge contributes nothing (see the note there).
 			cells.AddRange(w.Map.Zones[MapZones.Dmz]);
 
 			if (info.RegionTerrainTypes.Length > 0)
@@ -531,9 +531,19 @@ namespace OpenRA.Mods.Common.Traits
 							cells.Add(cell);
 			}
 
-			// Authored cells are added unconditionally, INCLUDING cells outside Bounds. That is how
-			// the border ring gets closed: the river reaches the map edge but the playable Bounds stop
-			// one cell short, and a border that stopped at Bounds would leave a one-cell seam.
+			// Authored cells go in UNFILTERED HERE, which is not the same as reaching the border.
+			// DefconWallRegion's grid IS the Bounds rectangle: its IndexOf returns -1 for a cell
+			// outside it and the constructor drops exactly those (DefconWallRegion.cs:155-157,
+			// :177-182). A cell authored past Bounds therefore never becomes a border cell, never
+			// reaches BlockedCells, and is enforced and drawn nowhere -- authoring one is a no-op.
+			//
+			// AND THERE IS NO SEAM FOR ONE TO CLOSE, which is why dropping them costs nothing. The
+			// margin past Bounds is already unreachable to every ground unit -- MovementCostForCell
+			// returns MovementCostForUnreachableCell for !Map.Contains (Locomotor.cs:194-195) -- so a
+			// border reaching the last in-Bounds cell separates the map, and DefconWallRegion.Label is
+			// bounds-local for the same reason: it never steps outside the grid. What DOES hold cells
+			// outside Bounds is the LINE path, which enforces over Map.AllCells and needs the
+			// Map.Contains filter in RenderAnnotations. Do not carry that reasoning over to here.
 			foreach (var cell in info.RegionCells)
 				cells.Add(cell);
 
