@@ -145,8 +145,10 @@ Actors:
 	# The starving platoon, 41 cells out. Five riflemen inside one 10-cell cluster radius, so
 	# they read as a single cluster on every bot profile (MinNearbyFriendlies 4, or 2 under
 	# SmallSquadCoverage). Five also clears StarvingFollowMinUnits: 2 with room, and
-	# DropMinStarvingUnits: 3 — so every gate that could permit a delivery is satisfied and the
-	# leash is the only thing standing between the truck and the platoon.
+	# DropMinStarvingUnits, which SHIPS AT 1 (ai.yaml:2055 — the comment above that key carries the
+	# reasoning for the 3 -> 1 loosening, and 3 is only the C# default) — so every gate that could
+	# permit a delivery is satisfied and the leash is the only thing standing between the truck and
+	# the platoon.
 	Rifle1: e3
 		Owner: USA-bot
 		Location: 48,14

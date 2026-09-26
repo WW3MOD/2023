@@ -40,9 +40,9 @@ Categories: Test
 #
 # At shipped config a truck that HAS a cluster almost never reaches the follow path at all, because
 # the drop path takes it first and then commits absolutely:
-#   * DropAnchorAtCluster: true (ai.yaml:1792) makes the drop anchor a cell DropShortCells: 5 back
+#   * DropAnchorAtCluster: true (ai.yaml:1960) makes the drop anchor a cell DropShortCells: 5 back
 #     from the cluster the truck just picked (ClusterDropAnchor, SupplyFollowerBotModule.cs:1834).
-#   * SelectionMinStarvingUnits: 1 (ai.yaml:1661) and DropMinStarvingUnits: 1 (ai.yaml:1887) are the
+#   * SelectionMinStarvingUnits: 1 (ai.yaml:1829) and DropMinStarvingUnits: 1 (ai.yaml:2055) are the
 #     SAME number, and the drop counts starving men within 18 cells of that anchor
 #     (CountStarvingNear, SupplyFollowerBotModule.cs:2101) — a disc that always contains the cluster.
 #     So any cluster that selection admits, the drop's demand gate also admits.

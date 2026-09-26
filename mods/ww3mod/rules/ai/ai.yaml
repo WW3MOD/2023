@@ -55,8 +55,9 @@ Player:
 	#                   (SupplyTruckHuntMath.cs:219). `IdleTruckHunt: true` on a @stable-reachable
 	#                   block is INERT.
 	#                 * garrison commit-on-order — GarrisonBotModule.cs:228 feeds
-	#                   PoiGoalGuard.ShouldCommitShared (PoiGoalGuard.cs:305). `CommitGarrisonedUnits: true`
-	#                   is likewise INERT for @stable.
+	#                   CommitOnOrderMath.ShouldCommitShared (declared in PoiGoalGuard.cs:305, called
+	#                   from GarrisonBotModule.cs:135). `CommitGarrisonedUnits: true` is likewise
+	#                   INERT for @stable.
 	#               Closing these needs an engine change (split the module, or widen the comparison),
 	#               not a YAML edit. Do not "fix" them by setting the flags — that changes nothing.
 	#
