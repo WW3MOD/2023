@@ -381,6 +381,26 @@ nuke in a real late game stutters") is answered, and the answer is: a hitch, not
   Russian actors sit still and the single USA actor is a Supply Route 54 cells away. That is
   deliberate — it makes the detonation the only thing in the window — but it means the
   absolute numbers are a floor for what a live game would pay, not an estimate of it.
-- **Variance.** One run is one run, on a machine that may be building something else at the
-  time. Two runs of the same build that disagree by more than a few percent mean the machine
-  was busy, not that the code changed. Prefer comparing p50 over comparing max.
+- **Variance, and it is far bigger than "a few percent" — this bullet understated it until
+  it was measured.** Background load on this machine moves `tick_time` by about **3x**.
+  Measured 2026-09-20 between the two arms of one rig, same map, same 665 static actors,
+  **nothing detonating in either** — a YAML lint started in between:
+
+  ```
+  salvo arm     tick_time p50  8.0 ms   p95 18 ms
+  single arm    tick_time p50 23.1 ms   p95 56 ms
+  ```
+
+  Same code, same scenario, no detonation: **2.9x in p50 and 3.1x in p95, entirely from
+  contention.** So an absolute per-tick timing from this machine is comparable ONLY inside a
+  back-to-back pair taken while no build, lint or merge gate is running, and **a before/after
+  pair split across a build is not evidence of anything.**
+
+  **ATTRIBUTIONS SURVIVE THE NOISE AND ABSOLUTE TIMINGS DO NOT** — which trait or effect
+  dominates, and in what ratio to the others *in the same run*, holds up because every item in
+  a run is taxed by the same contention. Prefer them, and prefer p50 over max. (Worth knowing
+  what that buys you: on a QUIET map with nothing fired, the largest single trait in one such
+  reading was `DangerFieldLayer` — 40 hits, 1281 ms total, 85 ms max, i.e. past the 60 ms
+  budget in a single tick on an idle map. That is a lead, not a mechanism, and it is recorded
+  here only as an example of a finding the attribution column can carry and the absolute
+  column cannot.)

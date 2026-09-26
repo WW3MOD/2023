@@ -22,7 +22,19 @@ The engine wording `Actor 'player' …` comes from `ScriptActorInterface`, not
 for that actor* by its missing trait. That is the trait-gated class in
 [limitation 3](#what-this-does-not-check), which this gate cannot decide in general.
 
-What catches it is a single targeted rule, not the general mechanism: **`GetActors()` is
+A third abort, and the one that is hardest to see by reading: **a `local function` called from a line
+ABOVE its definition.** A Lua local is only in scope from its definition onward, so a body compiled
+earlier resolves the name as a GLOBAL and gets nil. It is not a scoping subtlety that bites only
+sometimes — the call fails **every time it executes**; the reason it survives is that such helpers
+usually sit on a FAILURE path. So it passes every green run and then kills the RED one:
+`Fatal Lua Error: attempt to call global 'ReportGeometry' (a nil value)`, in a scenario this gate had
+just passed (2026-09-15). `local_used_before_defined` (`lua_gate.py:406-450`, raised as an **error** at
+`:1327`) flags a call above its own local definition, reproduces the exact runtime text, and **honours
+bare `local F` forward declarations**, which are the standard idiom for mutual recursion and must not be
+flagged. It caught the live bug at the exact line and fires on **zero** of the other scenarios in the
+corpus.
+
+What catches the second one is a single targeted rule, not the general mechanism: **`GetActors()` is
 the one collection documented to contain the player actor**, so reading any trait-gated
 property off an element of it is flagged. Written a different way — a numeric `for` over a
 saved list, or the same walk through a helper — it slips past. See
@@ -157,6 +169,15 @@ mean a passing run does not prove a scenario will load.** It proves it will not 
 the two reasons above*.
 
 ## Acceptance test
+
+**The discipline this section exists to teach, not just to demonstrate: a green here is not evidence
+until you have seen this gate go red on your file.** `lua_gate.py check --scenario <substring>` scopes a
+run to one directory, so the whole RED-then-green round trip costs about two seconds and no launch —
+append a deliberate `OwnSR.NoSuchPropertyXyz`, confirm
+`[error] … no Actor property 'NoSuchPropertyXyz' exists`, then remove it and confirm OK. That converts
+*"the gate was quiet"* into *"the gate looked"*, which are different claims and the difference is the
+whole point of a static gate whose advertised failure mode is a false green. Same RED-before-green
+discipline the run harness gets; the two worked cases below are that round trip on real code.
 
 **Failure 1**, plus a `Player`-receiver case, injected into a scratch copy of
 `test-radar-only-targetable` wired through its real `rules.yaml` and `map.yaml`:

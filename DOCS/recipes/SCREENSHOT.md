@@ -79,7 +79,7 @@ The shot passes its `PassengerCount == 10` assertion and then photographs **3** 
 
 Two corollaries: a capture fired in `WorldLoaded` can land **blank**, because no frame has been rendered yet; and a run that exits promptly after a shot can lose it, which is why `Test.Pass` goes through `ExitWhenCapturesFlushed`.
 
-**AN AUTOTEST CAPTURE HAS NO RENDER PLAYER, SO IT IS NOT A PICTURE OF WHAT A PLAYER SEES.** `TestModeLogic.cs:31` sets `world.RenderPlayer = null` for every autotest with a real player slot — deliberately, so the window shows the whole map. Two things follow, and both make a capture *overstate* what is on screen:
+**AN AUTOTEST CAPTURE HAS NO RENDER PLAYER, SO IT IS NOT A PICTURE OF WHAT A PLAYER SEES.** `TestModeLogic.cs:30-31` sets `world.RenderPlayer = null` for every autotest with a real player slot — deliberately, so the window shows the whole map. **Unless you ask otherwise:** the assignment is guarded by `&& !TestMode.KeepRenderPlayer`, and `Test.KeepRenderPlayer=true` (parsed at `TestMode.cs:311`, matched against the literal `"true"` — `1` does not work) keeps the real render player, which is how a capture of anything fog- or relationship-dependent gets made. Two things follow from the default, and both make a capture *overstate* what is on screen:
 
 - **Every `ValidRelationships` gate is off.** `WithDecorationBase.ShouldRender` applies its relationship filter only inside `if (self.World.RenderPlayer != null)` (`WithDecorationBase.cs:101-105`), so enemy units happily draw decorations declared `ValidRelationships: Ally` — which is the **default** (`:44`), i.e. most pips in the mod. Marks a real player would never see appear on every unit on the map.
 - **No fog or shroud is applied.** `World.FogObscures`/`ShroudObscures` all short-circuit to `false` on a null render player (`World.cs:109-115`).
@@ -213,6 +213,119 @@ How I decide whether a screenshot shows what it should:
 - **Screenshots survive between sessions** under `~/.ww3mod-tests/screenshots/`. `run-test.sh` cleans up runs older than 7 days at the start of each test. Manual-mode runs (`manual_*`) are subject to the same cleanup window.
 - **`--minimized` autotest runs may produce blank PNGs.** macOS doesn't redraw minimized windows. Use `--background` (default) or `--visible` if screenshots matter.
 - **Window resolution varies by machine.** Acceptable for semantic evaluation, problematic for any future pixel-diff regression. The current pipeline does *not* support golden-image diffing — that's a deliberate non-goal (see the plan doc).
+
+---
+
+## Measuring a capture instead of describing it
+
+Everything above is about getting the right frame. This is about reading it. Each error below yields a
+**plausible number rather than an obvious failure**, which is why they are worth knowing before you take
+the measurement rather than after.
+
+### Sample at DEVICE pixels, not logical ones
+
+`run-test.sh --size 1280x800` yields a **2560x1600** PNG on a 2x display, and Mode 2/4 captures land at
+the full desktop resolution. Sampling a 2x buffer at logical coordinates reads the wrong pixels. **The
+tell is a set of samples that all agree:** eleven fog bands reading within 4% of each other is not
+"uniform fog", it is proof you are not sampling fog at all. **Distinct predicted bands that come back
+identical should be read as an instrument fault before they are read as a finding** — that is the single
+most useful line in this section, and it generalises past brightness to any per-region measurement.
+
+A capture may also be at a non-integer display scale, which moves the cell grid rather than the sample
+point. Measured on a 2026-09-10 frame: `Camera.Zoom = 3` against `TileSize: 24,24` predicts 72 px per
+cell, and column-wise luminance differencing put every straight edge on a **108-pixel** lattice — a 150%
+display scale. Predicted cell boundaries from the scenario's own `Camera.Position` then landed on the
+measured seams to within one pixel (1009/1225/1333/1441/1549 against 1010/1226/1334/1442/1550). **Derive
+the cell pitch from the frame before attributing a feature a size in cells:** the report that started
+that investigation described "hard axis-aligned rectangles several cells across", and the rectangles
+were **one cell each** — a per-cell decal magnified 4.5x. Every candidate explanation about which
+multi-cell terrain template produced them was answering a question the pixels had already closed.
+
+### Linearise sRGB before comparing brightness
+
+Raw byte values are gamma-encoded, so ratios taken on them read systematically **high** and will flatter
+any darkening change. Convert to linear light first. The `FogDarkness` ladder only matched prediction
+(mean error 0.045, against 0.215 for the null) once this was done.
+
+### Count an EXACT colour, and expect ~60% of the sheet's opaque pixels
+
+For "is this element highlighted / drawn at all", decode the capture to raw RGBA and **count pixels
+exactly equal to the target colour**, bucketed by each element's derived rect. Counting an exact colour
+is what makes it a measurement — antialiasing blends everything else, so any tolerance turns the count
+into an opinion. Worked rect derivation from the 2026-09-01 command-bar audit:
+`COMMAND_BAR(14,760) + button.X + icon(5,1)`, 24x24, doubled for the 2x capture.
+
+**Calibrate the expectation, or a correct count reads as a failure.** Only the fully-opaque core survives
+as the exact colour, so expect roughly **60% of the sprite sheet's opaque pixel count**, not 100%: for
+one 48x48 cell holding 936 opaque px of which 598 are alpha=255, the frame showed 550 exact plus 154
+near-colour, the antialiased rim landing *near* the value rather than on it. **A count near the total
+opaque figure is its own bug** — it means the sprite is being drawn without alpha blending.
+
+**And take the free check when the art gives you one: two elements drawing the SAME glyph must return the
+same count.** GUARD and PATROL both read exactly **604** across that audit, which is not a finding about
+the buttons — it is the internal proof that the rect mapping is right and the rendering deterministic. In
+the same frame AUTO_ENTER read **0** while PATROL read 604 *from the same source art*, confirming a
+mode-vs-momentary distinction in one frame. Look for a duplicated glyph, a mirrored pair, or a repeated
+row before trusting a per-element table.
+
+### A mockup that cannot express the failure always exonerates
+
+Before using an offline render as evidence, **check it has the degrees of freedom to show the defect
+under investigation.** `contact_sheet.py` modelled water as a half-plane — a straight vertical line — so
+it would have drawn a straight edge whatever the code did, and "the render shows a hard edge" was worth
+nothing from it. The replacement read real per-cell terrain and rendered the alpha *field* as its own
+panel, making the mechanism legible with no art in the picture at all. **A simulation structurally
+incapable of the failure mode is not a control; it is a guaranteed pass.**
+
+### Difference a control frame per cell before theorising
+
+When a scenario captures a before and an after **at the same camera and zoom**, difference them per cell
+first. On the shore-fade investigation that gave a near-uniform **-5.5 to -6.0** luminance step across
+the whole inland field, with outliers only where a tree had burned — which separates *"the change did
+this"* from *"the change made this visible"* in one step, and those two have completely different fixes.
+The quilt visible in the after-frame turned out to be the tileset's own `PickAny` variation **revealed**
+by darkening, not produced by it. Staging a matched control frame costs one `Test.Screenshot` call and is
+worth planning into any scenario whose subject is a visual change; `demo-highyield-nuke` does this
+deliberately.
+
+### A capture driver's markers must be about the thing that would be IN THE PHOTOGRAPH
+
+The most expensive shape in this pipeline, because every check passes and every check is true.
+`screenshot-editor-zones.sh` reported **PASS** with two frames of the map editor's **Tiles** tab while
+claiming to have photographed the **Zones** panel. `debug.log` really did contain `editor tool: Zones`
+and `editor zone selected: DMZ`; the scripted stroke really did cut the band; the two frames really were
+distinct and both over 120 KB. The panel under test was never on screen.
+
+**Construction, selection, state changes and command consumption all happen identically whether or not
+the widget is visible**, so every marker of that kind is evidence about the engine and none of it is
+evidence about the photograph. That driver had four such markers and they bought nothing. This is the
+outer form of the `NO SUCH VISIBLE WIDGET` trap and of the Tiles-tab trap already recorded under Mode 3
+— but one level further out, because here **nothing missed** and the frame was still of the wrong thing.
+
+**The fix that generalises: log from inside the widget's own `GetText` delegate.** `LabelWidget.Draw` is
+that delegate's only caller, and `Widget.DrawOuter` early-returns on `!IsVisible()` (`Widget.cs:500-508`),
+so a line written from there **cannot exist unless that label was rendered, with that text, in a real
+frame** — exactly the proposition a capture driver needs and cannot otherwise get without reading pixels.
+Emit a machine-readable field beside the text (`components=2`) so the driver greps a number rather than a
+Fluent string a reword would move. `MapZonesLogic.LoggedSplitText` is the worked instance.
+
+**And note which half of that run was sound.** The capture did verify the whole data path — `map.yaml` →
+`Map.Zones` → overlay → scripted stroke → undo history — because those were visible IN the frames (the
+band rendered, the hole appeared, Undo lit). Only the claim about the panel was wrong. **A driver can be
+simultaneously right about everything it photographed and wrong about what it says it photographed**, so
+grade the two claims separately.
+
+### A falloff as wide as the feature it falls off from erases the feature
+
+Not a measurement rule but a review rule for any visual change carrying a radius, and it cost a fix that
+reintroduced the exact artefact the previous fix had removed. A 2-cell shore fade was reasoned about
+against an open coastline, where a 2-cell ramp against a half-plane of water behaves as intended. It was
+deployed against **2-3 cell rivers and 4-cell fords**, where the ramp is as wide as the land it ramps
+across — so the entire crossing was held below full strength and came out as a bright unscarred band.
+**State the width of the smallest instance of the feature before choosing a falloff radius.** Check the
+metric too: Chebyshev iso-contours **are axis-aligned squares**, so a distance ramp in that metric around
+a bend unions into a rectangle whose corners sit clear of anything it was measuring from — which is how a
+fade written to soften a waterline drew straight edges five rows from the nearest water.
 
 ---
 

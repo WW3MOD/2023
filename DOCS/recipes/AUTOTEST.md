@@ -31,8 +31,31 @@ The game can be launched into a small, deterministic scenario; the verdict (pass
 ./tools/autotest/run-test.sh --visible <test>           # foreground (alias: --no-minimize)
 ./tools/autotest/run-test.sh --audio <test>             # keep sound on
 ./tools/autotest/run-test.sh --speed 8 --timeout 900 <test>   # long scenario: see below
+./tools/autotest/run-test.sh --map <shipped-map> <test>  # run a SHIPPED map on this scenario's rig
 ./tools/autotest/run-test.sh --help                     # flag list
 ```
+
+**`--map` exists because `Launch.Map` resolves by map DIRECTORY NAME as well as by UID**, and that
+second disjunct is easy to miss: `Game.LoadMap` matches
+`m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap` (`Game.cs:1222`), so
+`Launch.Map=nuclear-winter-ww3` works with no UID lookup anywhere. `run-test.sh` has always relied on
+it — it passes the scenario folder name straight through — but it also hard-requires
+`tools/autotest/scenarios/<name>` to exist, so before the flag the runner could reach every scenario and
+**no shipped map**, which is why nothing we ran had ever loaded `mods/ww3mod/maps/`. `--map` overrides
+only the `Launch.Map` value while the scenario directory keeps supplying the run rig (test name,
+description, result path, screenshot dir) — one flag instead of ten near-identical stub scenarios.
+
+**It validates the name itself (`run-test.sh:573-580`) rather than letting the engine resolve it, and
+that is not defensiveness:** `Game.LoadMap` *throws* `ArgumentException("Could not find map")` on a
+miss, so a typo in the caller would surface as a process crash and be graded `CRASH` — **a caller's
+typo reported as the very bug a smoke gate exists to detect.**
+
+**Second-order consequence worth carrying past this flag: "can the harness LOAD it" and "can the harness
+reach a VERDICT on it" are separate questions, and the second decides whether a gate is possible at
+all.** A shipped map carries no Lua, so it can never reach `Test.Pass` and a `--map` run has no route to
+a verdict on its own. `Test.SmokeTicks=<N>` plus the `SmokeTestExit` world trait (inert unless both
+`Test.Mode=true` and the arg are set) exists to close exactly that gap, and is what `make.ps1 smoke`
+runs.
 
 **Window placement & focus.** Default: **centered, ~90% × ~85%, background, muted**. "Background" means the window is visible at full size but immediately defocused so your terminal/editor keeps focus. Cmd+Tab to OpenRA brings the window forward when you want to look at it. After the game exits, focus is restored to whatever app was frontmost at launch — no random focus shuffle. If the user includes `L`, `R`, or `F` in the trigger ("AUTOTEST L", "AUTOTEST <bug> R"), pass that letter through as the first positional arg to `run-test.sh`. `L`=left half, `R`=right half, `F`=fullscreen. Pass `--minimized` to opt back into the old SDL miniaturize behavior.
 
@@ -199,6 +222,25 @@ first `print` flushes. Both states present identically — `TIMEOUT-FAIL`, empty
 **Check the last tick reached first** (`debug.log`, or any periodic trace the scenario prints). A run
 that reached a few thousand ticks was executing Lua; a run stuck near tick 0 was not.
 
+**And the third state, which is the one that produces a false alarm on a HEALTHY run: a script that
+runs perfectly and never calls `print`.** `lua.log` collects Lua `print` output and nothing else, so a
+scenario that drives cameras, timers and captures without printing once writes 0 bytes exactly like an
+unwired one. Two runs were read as failures on this — `260909_203115_p12697_demo-highyield-nuke`
+(2026-09-09), which had captured all six screenshots and exited cleanly, and `test-heli-repairs-at-pad`
+run `260905_171321`, where the script failed on its first patient, reported only that one and printed
+nothing at all. **`debug.log` is the discriminator and it is free:** scripted activity there
+(`Taking screenshot …` in scripted order, a trait's own traces) proves the timers fired. So —
+
+| `lua.log` | `debug.log` | reading |
+|---|---|---|
+| 0 bytes | silent | **inert** — the script was never wired in. `make lua-gate` settles this statically, before any launch. |
+| 0 bytes | scripted activity | the script ran and simply **does not print**. Not a finding. |
+| 0 bytes | run stopped near tick 0 | cut off — see the watchdog paragraph above. |
+
+**The tell is only ever diagnostic for scenarios that print at all**, which is a property of the
+scenario you can check by reading it. A scenario worth diagnosing later should emit a periodic trace
+for exactly this reason.
+
 **And rule the unwired case out statically instead of spending a launch on it.** `make lua-gate` —
 2 s, no build, no launch, and part of `.\make.ps1 test` — names an unwired scenario for free, before
 any game starts. That is strictly better than inferring it from an empty log afterwards: lint proves
@@ -341,6 +383,86 @@ version of this note, and the false positive it caused a scenario author to "fix
 are recorded in `WORKSPACE/DISCOVERIES.md`. See `tools/nav-guard/README.md` §Zero-footprint actors for
 the current model.
 
+**One more gate you get for free, and it is the one scenario-shaped check with no "scenarios are not
+maps to the tooling" hole:** `ScenarioLuaParsesTest` parses every `tools/autotest/scenarios/**/*.lua`
+under the engine's own Lua 5.1 runtime, so `dotnet test` catches a syntax error naming the file and
+line. Verified by injecting `local x = = 1` and watching it fail, rather than assumed. Cheap insurance
+against burning a slot on a typo.
+
+### A scenario that passes every gate a launch-barred worker may run is NOT known to load
+
+**Know what each gate READS, because the set of them has a hole exactly the shape of a field value.**
+`test-bot-damages-garrisoned-building/map.yaml` carried `Facing: East` on a placed actor. It passed
+`make lua-gate` twice, `make check`, `make all` and `dotnet test`, was committed and handed over — and
+died at map load with `OpenRA.YamlException: FieldLoader: Cannot parse 'East' into WAngle`, **exit 3**,
+before a single tick, taking the RED run queued behind it with it.
+
+| gate | what it reads of a scenario |
+|---|---|
+| `lua-gate` | `map.yaml` for STRUCTURE only — which files are declared, whether `Scripts:` sits under `World`, whether a top-level key is mis-cased. It never asks the engine to *load* an actor, so it cannot type a field value. |
+| `make check` / `dotnet test` | scenario CONTENT: not at all. (`ScenarioLuaParsesTest` parses the `.lua`, never the YAML.) |
+| `make nav-guard` | scenario-blind — baseline is `mods/ww3mod/maps` only. |
+| `./utility.sh --check-yaml ../tools/autotest/scenarios/<name>` | **the only one that types a field**, and the one a launch-barred dispatch usually forbids. |
+
+So when you hand over a scenario you could not lint, **say so, and ask the manager to lint it before
+the first launch.** The mechanism generalises past `Facing:`: a `map.yaml` value is a raw `WAngle` and
+`FieldLoader` has no name table for it, while the four compass names exist only in the *Lua* binding
+(`AngleGlobal.cs:23-38`) — which is why `Actor.Create(…, Facing = Angle.East)` in the `.lua` is correct
+and the `map.yaml` line beside it is not. Angles: [`conventions.md` §WAngle](../reference/conventions.md).
+The corpus check needs no build: `grep -rnE '^\s+(Turret)?Facing: ' tools/autotest/scenarios mods/ww3mod/maps | grep -vE ': -?[0-9]+$'`.
+
+### Geometry the gates do not check: arms that are supposed to be independent
+
+**A radius is a circle, so arms separated by ROWS are not separated.** `test-auto-capture-nearby` laid
+four arms on rows 6/12/18/26 and reasoned about x-offsets along each row, under a comment asserting
+they could not interact. They interacted at **7.81 cells** — `sqrt(5² + 6²)` — inside an 8-cell scan
+radius, so one arm's technician captured another arm's structure and the run failed blaming shipped
+code that was fine. Two compounding traps, both arithmetic and both invisible by reading:
+
+- **Measure centre to centre, not `Location` to `Location`.** A 2x2 building's `CenterPosition` sits at
+  `Location + (1.0, 1.0)` cells against a 1x1 unit's `Location + (0.5, 0.5)`, so `Location`-space
+  distances understate every unit-to-building pair by ~0.5 cells. Re-deriving the same map with the
+  offsets applied moved a second pair from 20.59 (safe) to **19.24** — inside a 20-cell Hunt radius,
+  and a latent failure the first correction would have missed. Mechanism:
+  [`conventions.md` §"`Dimensions` is a BOUNDING BOX, not the shape"](../reference/conventions.md).
+- **A walk budget needs the speed.** `^Infantry` `Mobile: Speed: 25` world units/tick against 1024
+  units/cell is **40.96 ticks per cell**, so a 20-cell approach is ~819 ticks. A sibling scenario
+  allowed 900 for the walk *plus* the capture — a ~4% margin — and failed with a verdict ("dispatched
+  at but never captured") that reads exactly like a defect in the capture activity.
+  `CaptureClearDurationTest.InfantryCoverACellInAboutFortyOneTicks` now pins that speed, so a retune
+  fails loudly instead of silently re-tightening every budget sized against it.
+
+**So: when an autotest's arms are supposed to be independent, enumerate every cross-pair mechanically
+before the run.** Both errors above were a five-line script away. The same discipline applies to a
+guard radius derived from a mechanic: `test-drone-targeting`'s confound guard was a 28-cell circle
+(28 = the verifying vision radius, correct in meaning) around a cell 30 cells from the acting unit,
+which leaves a **two-cell shell** of safe ground near the player's own Supply Route — every unit
+spawning there trips it. **Check the guard against the map before trusting it to fire only on real
+contamination.**
+
+**And adding scenery to satisfy a gate is not inert — the gate usually reads exactly the property that
+makes some other module want the thing.** Same scenario: a neutral `oilb` was added purely to make a
+hover disc POI-eligible, and `PoiMap` admits an income structure only if it carries
+`CaptureManagerInfo` — so POI-eligibility and capture-eligibility are the **same predicate**, and the
+addition handed `CaptureCoordinatorBotModule` a target. It reacted on the first scan (tick 28), sent a
+technician walking from the Supply Route toward the derrick, and that technician crossed within 28 cells
+of the cell the scenario needed left unobserved. Zeroing the economy does not contain it either. **When
+a scenario needs a POI purely for eligibility, expect the capture layer to send something at it, and
+place it where the resulting traffic cannot cross the region under measurement.** Mechanism:
+[`influence-stack.md` §"Stage F"](../reference/influence-stack.md).
+
+**And the setup can be right and still open the wrong code path.** `AutoSeekSupplies` runs two
+dispatchers that queue **different activities**: the idle seek (`INotifyIdle.TickIdle`) queues
+`SeekSuppliesAndReturn` (`AutoSeekSupplies.cs:202`, reach `SupplyHuntLeashCells: 20`), while the
+break-off arm queues `SeekSupplyProvider` (reach `ReturnWhenEmptyLeashCells: 30`) — and `FindBest`, the
+thing a re-pick scenario is testing, lives only in the second. A scenario about that leash must place
+its host in the **20 < d ≤ 30 band** or the idle seek opens the errand and the run measures an activity
+with nothing under test in it; a first cut at 11 cells passed pre-fix. The far host must additionally
+sit outside *every* dispatcher's leash from *every* cell the unit occupies including its start, which
+on a 66×34 map leaves no legal cell in any direction. **Before sizing a scenario, name which dispatcher
+you intend to open it, and check the geometry can only open that one.** The two paths:
+[`economy.md` §"Two host-discovery paths disagree about the same actor"](../reference/economy.md).
+
 **Neither gate is a substitute for a run.** They establish that the scenario is *well-formed* — the
 script loads, the names exist, the geometry is what you drew. They say nothing about whether your
 predicate measures the thing you care about, which is what the two sections below are for.
@@ -391,6 +513,37 @@ The old error ran in the LENIENT direction, which is why nothing broke while it 
 | `Test.IssueEnterTransport(passenger, transport, queued?)` | Issue a real EnterTransport order through Passenger.ResolveOrder. Use this rather than `unit.EnterTransport(t)` when the test needs the resulting RideTransport activity to be visible to target-line scans (e.g. spread / Shift-G logic). |
 | `Test.GroupScatter({actors})` | Run the Group Scatter (Shift-G) spread on the given actors. Mimics the hotkey path without needing a key press / live selection. |
 | `Test.SetZoom(scale)` | Set zoom as a multiple of the default level, for reproducible screenshots. Identical to `Camera.Zoom` below, which is ungated — prefer that unless the call site reads better as staging. |
+
+**Read `TestGlobal.cs` before reaching for a stock OpenRA binding.** A stock scripting API is a **bad
+prior in this mod** — three consecutive ones did not exist, and each failure is the same shape: a
+runtime *"does not define a property"* that kills the script at its first use, or worse a silent no-op.
+`actor.Build` exists only on an actor holding queues, and WW3MOD has no factories (the queues live on
+the player); `actor.Sell` requires `SellableInfo`, which in this mod is on **structures only**; and
+`Evacuate` is not a Lua property at all — nothing under `engine/OpenRA.Mods.Common/Scripting/` is named
+that, it is a raw order string reached from a scenario only via `TestHarness.Select` then
+`Test.PressHotkey("Evacuate")`. The mod-specific seam usually exists and is usually the intended route:
+`Test.*` carries `QueueProduction`, `PressHotkey`, `SelectActors`, `ClickOrder`, `IssueMoveOrder`,
+`IssueResupply`, `ClickProductionIcon` and ~50 more. Which stock bindings are absent and *why*:
+[`architecture.md` §"Key Lua APIs used"](../reference/architecture.md).
+
+**And grepping the scenario corpus for prior art actively misleads here.**
+`grep -rn "\.Build(" tools/autotest/scenarios/` returns four confident-looking hits — all a
+**scenario-local helper of the same name**, unrelated to either binding. Four call sites reads as an
+established idiom. **Confirm a scripting API in `engine/OpenRA.Mods.Common/Scripting/`, never by
+counting scenario hits.**
+
+**Fog IS testable, and the belief that it is not cost a structural-proof fallback.** Two independent
+reasons: `TestMode.KeepRenderPlayer` exists (`TestMode.cs:39`, parsed at `:311` from
+`Test.KeepRenderPlayer=true` — matched against the literal `"true"`, so `1` does not work) and guards
+the null-assignment at `TestModeLogic.cs:30-31`; and more fundamentally **the frozen STATE never
+depended on `RenderPlayer` at all** — `FrozenActorLayer` is a per-player trait reading the *viewer's*
+own `MapLayers`, so frozen actors have existed for the local player in every fogged autotest ever run.
+`RenderPlayer` only decides whether `World.FogObscures` answers honestly and which player's ghosts the
+mouse paths consult. Several scenarios already set the flag. Three `Test.Frozen*` bindings exist for
+reading a ghost directly — `FrozenActorState` (`TestGlobal.cs:1065`), `FrozenActorOwner` (`:1084`),
+`FrozenActorTooltipOwner` (`:1099`) — plus `FrozenClickCursor` (`:1114`), which is the one that had to
+be added: `Test.ClickCursor` builds `Target.FromActor` and so can never reach the
+`CanTargetFrozenActor` arm.
 
 ### Presentation: `Camera.*`, `Trigger.OnTick` (engine globals, NOT test-mode gated)
 
@@ -448,6 +601,10 @@ Six instances have now landed, by completely different mechanisms (the first two
 
 - **The assertion the test naturally reaches for sat UPSTREAM of the defect** (2026-08-19, `DISCOVERIES.md` same date). The unload menu's height ceiling was fixed so a tall passenger list is no longer clipped. The obvious capture assertion is the row count — and `CargoUnloadMenuLogic.Refresh` adds **every** class row to the scroll panel and only then sizes it, so the count is identical on the broken and the fixed build (24 either way). A scenario asserting `"1:24"` goes green **against the exact defect it was written for**, and the screenshot beside it reads as corroboration. What separates the builds is the **clip** height: pre-fix `Math.Min(380, …)`, post-fix `Math.Min(<screen-derived ceiling>, …)` (`CargoUnloadMenuLogic.cs:180-181`). Measured live: `rows=24 content=551 clip=551 panel=574 screen=1224` — 551 is unreachable under a 380 cap, so the number is self-controlling. **When a fix changes how much of a collection is DRAWN, every count in the widget tree is a false control** — `Children.Count`, `PassengerCount`, the group count all sit upstream of the clip and all survive the bug. Assert the geometry, or assert nothing. (`Test.GetUnloadMenuGeometry()` exists for exactly this, `Scripting/Global/TestGlobal.cs:277`.)
 
+- **The setup was never in the state under test** (2026-09-01, `wt/death-slide`). `test-husk-corner-slide` exists to catch a wreck crabbing sideways when its unit dies **mid-corner**, and staged each lane with two queued `Move` orders — east to a waypoint, then south. **Two queued Moves never produce a corner arc at all:** the first settles on the cell centre with `FromCell == ToCell` and the second turns in place, while the arc and its `ToCell` retarget live only inside `MoveFirstHalf`'s chained branch. Three of four lanes would have driven, stopped, turned, died and returned a clean green **having never cornered once** — and nothing would have contradicted it: the verdict was liveness-only and honestly green, and the screenshots show wrecks correctly settled, because on a straight leg they *are* correct. Nothing fell back to a default, no control refused to go red, no second mechanism satisfied the predicate. **A queued order boundary is a state boundary** — anything existing only *within* one activity (arc turning, carryover progress, mid-path retargeting) is destroyed by splitting the order in two, and splitting is the natural way to write the setup. Mechanism: [`conventions.md` §"Engine behaviors that surprise"](../reference/conventions.md).
+- **The harness measured a SHORTER PIPELINE than the player uses** (2026-08-20, `wt/order-fallback`). `Test.ClickOrder` was documented as resolving "the `IIssueOrder` targeter chain in descending `OrderPriority` exactly as `UnitOrderGenerator` does", and it did — except the real `OrderForUnit` ran that chain **twice**, the second pass against the terrain cell under the clicked actor, which is where "cannot attack that" becomes "walks to that". The private copy had only the first pass. So the defect was **unreachable from any scripted path in the repo**, and a scenario written against `ClickOrder` to catch it goes green on the broken build. Not a reverted default and not a rival mechanism: **a duplicated copy of the code under test, missing the branch containing the bug.** Fixed by deletion — `ClickOrder` now calls the same public `UnitOrderGenerator.OrderForUnit` the mouse path calls (`TestGlobal.cs:739-747`). **Whenever a helper's docstring says "exactly as X does", that is a claim about a copy, and a copy is only as good as the day it was written.** Prefer delegating to X; where you cannot, name in the docstring which parts of X it does *not* reproduce, because the omitted part is exactly where a bug hides from every test you write. (That helper carries a second caveat worth reading before you use it: it is the **per-unit** layer, and a real click resolves for the whole SELECTION.)
+- **The log line was named after the thing you wanted and printed something else** (2026-08-15, `wip-transport-delivers`). `[exp-transport] delivered … pax=N` printed **`task.SeatTarget`** — a target, not a count of passengers. The change under test raises `SeatTarget`, so the after-run read `pax=5` against a baseline `pax=1`: a fivefold "improvement" that is purely the inflation of the variable being reported. Both readings were internally consistent, the log line was pre-existing and trusted, and the number moved in the direction the hypothesis predicted. It also retro-invalidated three deliveries banked earlier the same day, whose real passenger counts are now unknown. **An observable named after the thing you want is not a measurement of it — `git grep` the format string and read the emit site; do not trust the field name.** Nothing else would have caught this one.
+
 What to do about it, in order of cheapness:
 
 1. **Run the control arm, and require it to FAIL.** A control that passes has falsified your test, not your hypothesis. Stop and rebuild the scenario before reading the green arm.
@@ -457,13 +614,20 @@ What to do about it, in order of cheapness:
 5. **Ask who ELSE could satisfy your predicate.** Steps 1–4 all assume the failure is that your setup did not happen. The third instance above is the other shape: the setup was fine and the assertion was *reachable by another mechanism entirely*. Before running, name every path in the sim that could make the predicate true, and confirm the one under test is the only one. On the bot this bites hardest with **position**: a great many modules move units toward the same believed front, so "unit A ended up near unit B" is almost never attributable. Prefer an observable that only the mechanism under test can produce — for a transport change, that a unit was **carried** (latch that it left the world into a `Cargo`, then measure where it reappears), or the **timing gap** between armour and infantry arrival, rather than the distance between them once both are there.
 6. **Then ask WHEN it could satisfy it.** The fourth instance is step 5 done right and still wrong: the observable genuinely was exclusive to the mechanism under test, but only during the window in which that mechanism **owned the actor**. Shared resources on this bot — carriers, squads, the free pool — are claimed, released and reclaimed by different modules across a match, so exclusivity is a property of an interval, not of an actor. Latch your measurement inside the interval and **stop it at the release** (here: freeze the peak at dismount), or you are reading someone else's later use of the same unit. Cheapest guard: emit the quantity you are asserting on from the code under test and read it back from `debug.log`, so the verdict and the mechanism are two independent observations rather than one.
 
+7. **Ask what observable proves the run ENTERED the state you are testing.** Steps 1–6 all assume the setup happened and the question is who satisfied the predicate. The husk-corner instance is neither: the setup ran, nothing else satisfied anything, and the scenario simply never reached the state. So alongside "what would have made this fail?", ask "what would I see if the run got into the situation at all?" — and assert or log it. That scenario now finds its turn at runtime by watching for the first change in step direction and prints the advance it fired on, so "did it corner" is a line in `lua.log` rather than an assumption in the author's head; its straight-leg control lane shouts if the pathfinder turns it, for the same reason in reverse.
+8. **Make the verdict self-diagnosing: print the whole board, not the first bad check.** `test-heli-repairs-at-pad` failed on the first of two patients, reported only that one and printed nothing else, so whether the leg that actually measures the fix had worked could not be read from the artefacts at all — it had to be reconstructed from cash arithmetic. Every failure string should carry the full state of every actor under test plus any purse being asserted on, and a trace should go to `lua.log` on an interval. Two related habits from the same run: **a tolerance band hides exactly this class** (that scenario's original ±15% leg would have passed while measuring income-minus-spend, permanently green and permanently meaningless — with the confound switched off, the bill can be asserted *exactly*); and **write attribution INTO the assertion**, because a scenario asserting "this structure must not change hands" cannot say WHICH unit took it, and that ambiguity cost a full round-trip when a technician six cells outside its intended arm captured the derrick an off-switch test was watching and the verdict blamed the off switch. A capture CONSUMES the captor in this mod (`ConsumedByCapture`, `EnterBehaviour: Dispose`), so `actor.IsDead` is a per-unit statement about who did the work — assert that alongside ownership.
+
 Related: a corpus-scanning guard should assert it **measured something** before it asserts it found no violations, or a rename silently converts it into a test that passes by scanning nothing. `StancePositioningFireStanceTest` does this — it asserts it resolved more than zero stance assignments first.
+
+**And a guard over source must pin the CALL SITES, not only the helper.** Three bot resolvers shipped the same map/grid round-trip mistake independently over eleven days, each written by someone who had just read the explanation — the correct guard and a comment naming the hazard sat twenty lines from a broken sibling and did not carry across, twice. **So the explanation is not the countermeasure.** What closed the class was `GridDescentGuardTest`: it walks `Traits/BotModules/**`, finds every grid-descent call site and fails unless the enclosing method tests the degenerate case over those exact variables, and it found the offender by file:line with no prior knowledge of which resolver was broken. The trap it exposes is worth more than the bug: **a pure-math test can be green, correct, and completely uninformative about shipped behaviour when the defect is that the call site does not use the seam the test covers** — `ForwardStagingMathTest`'s parity pins all passed against the broken resolver, because that resolver never called the guarded function. Carry the technique with its safeguard: an **exact-site-count assertion**, which is what stops a scan's scope silently shrinking until it polices nothing (precedent: `BotOrderGateCallerTest`).
 
 ### Two Lua traps that make a scenario lie about its own numbers
 
 Both found on 2026-08-15, both cost a run, both look completely normal on the page.
 
 **The failure message is evaluated EAGERLY, at registration.** `TestHarness.AssertWithin(deadline, fn, msg)` takes `msg` as an ordinary third argument, so Lua concatenates it **before the predicate runs even once**. Any counter interpolated into it therefore reports its **initial** value forever — usually zero. Measured: a verdict read `everCarried=0 peakPax=0` while a trace printed from inside the same closure, in the same run, read `everCarried=3 peakPax=2`. The message was not describing the run; it was describing the moment the test was registered. **Put live counters in a periodic `print` to `lua.log`, and keep the failure string static** — or you will diagnose from numbers that were never true.
+
+**There is now a third option, and it is the one to reach for: `timeoutReason` may be a FUNCTION.** `TestHarness.AssertWithin` evaluates it once, at the moment of timeout (`test-helpers.lua:160-161`, documented at `:88-95`), so the note can carry end-of-run state — position, activity chain, counters — that no string built at registration could. Every pre-existing caller passes a string and is unaffected. This matters more than it sounds: a verdict saying only "the unit never went idle" is compatible with opposite root causes, and diagnosing that by reading code instead has already produced one published wrong answer. A failure string returned *from the predicate* is still built at the moment it is returned and was never affected by the eager trap.
 
 **~~`IsDead` is true for a passenger inside a `Cargo`.~~ REFUTED BY DIRECT MEASUREMENT 2026-09-06 — it is FALSE, and the original reading was almost certainly the paragraph directly above wearing a different hat.** Run `260906_091912_p10120_test-combined-arms-rendezvous` (`main @ fc89296a`) printed each rifleman's raw flag from inside the predicate on every roll: all four read `oow/dead=false` while demonstrably aboard the carrier. The code agrees — `Actor.IsDead` is `Disposed || (health != null && health.IsDead)` (`Actor.cs:76`), and boarding calls `w.Remove(self)` (`RideTransport.cs:85`), which clears `IsInWorld` and drops the actor from the id dictionary **without disposing it or touching health** (`World.cs:404-412`). **Where the old claim came from:** it cited `peakPax=2` with `everCarried` stuck at 0, and "dropping the `IsDead` term made it read 3" — the same three numbers the eager-message paragraph above reports for its own frozen verdict (`everCarried=0 peakPax=0` in the message against `everCarried=3 peakPax=2` in the live trace). One observation, read twice, attributed to two causes; the eager message is the one the code supports. **The guidance is unchanged and still worth following**, because it is right for a different reason: latch on `not r.IsInWorld` alone when a separate clause requires the unit to **return** to the world. It is merely permissive (a corpse also latches) rather than necessary. `test-combined-arms-rendezvous` was changed to the permissive form on 2026-09-06 before this was measured; restoring the `IsDead` term there would make its `EverCarried` exact again.
 
@@ -476,6 +640,73 @@ So a no-flip sweep needs its own falsification control: **name the observable th
 Worked example, 2026-08-14 (the `PlayerResources` economy gate, `DISCOVERIES.md` same date). Thirteen graded scenarios were run with and without the gate change at identical seeds; all thirteen returned identical verdicts, and the two failures failed identically on both sides. What made that a safety result rather than a blind one was a single number: in `test-supply-safe-front-keeps-cargo`, same seed and same scenario with only the gate differing, one unit's ammo read `71/100/100/71/70` before and `71/100/100/70/70` after. **One round.** That is worthless as a behavioural finding and decisive as a control — it proves the simulation diverged, so the change was live in that scenario, so the unchanged verdict is a real statement about the assertion rather than an artefact of the change never arriving.
 
 Cheapest sources of such a control, in order: a per-tick telemetry line that already logs a quantity the change touches (`[composition] census` logs `earned`/`spent`); any incidental numeric in a failure note; or a one-line temporary trace. **If every observable in the sweep is byte-identical across the two arms, you have not shown the change is safe — you have shown it did not run.**
+
+### A before/after pair is not an experiment unless both arms carry the same explicit `--seed`
+
+`run-test.sh` defaults to a `DateTime.Now`-derived seed. It records it in `result.json`, so any run is
+reproducible *after the fact* — but two runs launched without `--seed` are **two different matches**,
+and in a long bot-vs-bot game the between-match variance on a quantity like "how long until the first
+kill" is comfortably larger than the effect a one-field rule change produces.
+
+Measured, 2026-09-20, on `test-escalation-full-match`, asking whether the DEFCON 3 border should stand
+through DEFCON 2. The unseeded pair was wrong in **both magnitude and sign**:
+
+```
+unseeded pair   wall down: first fire t5003, kill t5098   (phase  98 ticks)
+                wall up:   first fire t5076, kill t5224   (phase 224 ticks)
+                read as: the wall delays contact by 73 ticks and doubles the phase
+
+SAME SEED       wall down: first fire t5003, kill t5098   (phase  98 ticks)
+                wall up:   first fire t5003, kill t5038   (phase  38 ticks)
+                truth:     the wall delays contact by ZERO, and SHORTENS the phase
+```
+
+The 73-tick "delay" was a different opening, not a different rule. **Both runs look equally clean and
+nothing in the output distinguishes the two worlds** — which is the same property that makes the false
+green and the inert sweep above dangerous. The seed makes the two runs identical up to the tick the
+change first bites and divergent only after it, which is the whole of what a controlled comparison is.
+It costs one flag: `--seed N` (`run-test.sh:248-249`, validated `:392-403`, passed as
+`Test.RandomSeed` at `:823-825`).
+
+Three things that are not obvious:
+
+- **Take the seed from the FIRST run rather than inventing one.** The baseline usually already exists;
+  reading its recorded seed out of `result.json` and passing it to the second arm turns a finished run
+  into a control for free. Inventing a fresh seed for both arms costs an extra run of the baseline.
+- **`--seed 0` is rejected, deliberately.** The engine treats `RandomSeed == 0` as the *unset* sentinel
+  and falls back to a wall clock, so it would not reproduce while the harness reported a fixed seed and
+  the verdict stamped `"seed":0`. The runner refuses it rather than letting that through.
+- **A controlled pair buys you the SIGN and the SIZE of an effect. It does not buy you the CAUSE**, and
+  the temptation to infer one is strongest when the result surprises you. Above, *why* the phase got
+  shorter came from the order log — ten units firing at one target with the wall up against three units
+  over two targets with it down, the band narrowing each unit's valid-target set so the volley
+  concentrates. That is an inference off one volley and should be labelled as one.
+
+### A NUnit suite over the math does not cover the wiring that FEEDS it
+
+`b69681d2` shipped 15 NUnit tests over `MissileStrikeApproach` and still left four autotest scenarios
+asserting the rule it had deleted. That is not a gap in the suite, it is a **boundary** in it:
+`MissileStrikeApproach.For` is deliberately World-free, so it is *handed* the home position, the map
+size and the aim points, and every test of it therefore assumes the wiring passes the right three
+things. The code that decides which player's `HomeLocation` and whether the standoff comes from
+`MapSize` or `Bounds` is `MissileStrikePower.ApproachFor`, and nothing in `OpenRA.Test` can see it.
+**The in-game scenario is the only place that binding is exercised** — so "we have unit tests for the
+geometry" was never a reason to expect those scenarios green. When a helper is pure by design, ask what
+supplies its arguments, and put *that* in a scenario.
+
+Two riders from the same sweep:
+
+- **A degenerate layout can make a directional assertion unfalsifiable, and it looks like coverage.**
+  All four scenarios put home, aim point and entry on the same row. On that layout the shipped rule, a
+  faction constant, a per-map bearing and a fixed "always from the east" bearing all produce the same
+  entry cell, so a bearing assertion there is decoration and only the standoff *distance* can be read.
+  It cannot be fixed by choosing a better assertion — every line through home passes near home, so the
+  perpendicular deviation of an on-map edge cell is ~1 cell whatever the aim point. **The only fix is
+  to move the aim point off the launching player's row.** Verified by simulation: on the moved layout
+  an east-constant rule reads 22.8 cells off-axis and fails; on the other three it reads 0.0 and passes.
+- **When sweeping for affected scenarios, discriminate on the right property.** Here it was neither the
+  scenario name nor the missile actor but the power TYPE — the edge rule was left in place for
+  aircraft. Which power types are live: [`architecture.md`](../reference/architecture.md).
 
 ## The mirror: a RED is not evidence either, unless the branch under test is REACHABLE at shipped config
 
@@ -513,6 +744,49 @@ run surprises. **Record which kind of argument each site rests on; they are not 
 (`ReadScenarioConstant`, `:55`) specifically so the assertion cannot agree with itself — and when the file is
 missing it calls **`Assert.Ignore`, not `Assert.Fail`** (`:67`). Retiring the directory would have converted
 a passing NUnit test into a skipped one, with the suite still reading green.
+
+### Reverting a PROBABILISTIC fix is not a RED arm — compute the overlap before trusting the rerun
+
+The standard way to validate a behavioural scenario is to revert the fix and confirm it goes red. Where
+the effect depends on a random draw that is **unreliable, and the arithmetic says so before the run
+does**. In `test-forward-deploy-clears-band` the motorized annulus around the package centre is **68
+cells**, exactly **one** of which sits behind the DEFCON border. Twenty units drawing from 68 cells miss
+that one cell about **three runs in four** — so a green pre-fix run is the COMMON case and proves
+nothing at all. Two review estimates were both wrong in the same direction: the brief implied the
+overlap was reliable, and an adversarial review computed five cells (P(red) ≈ 76%) against a true one
+cell and ≈ 26%.
+
+**So a scenario over a small overlap should assert the SHAPE of the overlap, not where the dice fell:**
+68 annulus cells, one forbidden, at a named cell, 67 legal — all deterministic, and all of them move
+loudly if the advance percentage, the package radius, the band half-width or the derivation changes.
+Keep the probabilistic leg as a regression guard and put the deterministic proof in NUnit.
+
+**And the corollary for reviewers: an overlap count is cheap to compute and expensive to guess.**
+Fifteen lines of Python over the same bucket rule the engine uses (`MapGrid.CreateTilesByDistance`
+buckets a cell by `ceil(sqrt(dx² + dy²))`) settles it in a second.
+
+### A guard is code, and gets the same scrutiny as an assertion
+
+A scenario guard exists so the run cannot pass over a world that was never built — which makes it the
+one piece of the scenario whose own failure is silent by design. Both obvious spellings of one guard
+were broken, in opposite directions, and both were live in `test-forward-deploy-clears-band` before
+review caught it:
+
+- `Map.LobbyOption(id) ~= expected` **faults on every run**, so the scenario can never pass.
+- `Map.LobbyOptionOrDefault(id, expected) ~= expected` **can never fault**, because the fallback IS the
+  expected value — a guard that reads as careful and is structurally vacuous.
+
+The cause is a namespace collision that looks like nothing: `Map.LobbyOption` resolves
+**`ScriptLobbyDropdown` traits only** (`MapGlobal.cs:112-123`), a separate script-facing mechanism with
+its own trait and its own ID namespace. Every option this mod ships — game mode, starting units,
+forward deployment, the phase clocks — is declared through **`ILobbyOptions`** instead and is invisible
+to it: the miss is logged to the *Lua log*, not the verdict, and the call returns nil. Use
+**`Test.LobbyOption(id)`** (`TestGlobal.cs:2141`), which reads `Session.Global.OptionOrDefault` — the
+same call the consuming trait makes.
+
+**The general rule outlives the binding: "it only fires when something is wrong" is not a reason to
+skip verifying that it CAN fire, or that it can fail to.** Exercise a new guard against a deliberately
+broken world once, the same RED-before-green discipline an assertion gets.
 
 ## The setup you wrote is not always the setup that ran — check the subject, not the config
 
@@ -657,6 +931,167 @@ your run's window** — or grep the copy in your run dir and never the live file
 on its watchdog while the game keeps writing, so the log can be simultaneously stale at the top and
 still growing at the bottom. When a live result contradicts a solid offline result, **suspect the log
 before the code.** Full write-up in `WORKSPACE/DISCOVERIES.md`, 2026-08-15.
+
+### The `debug.log` in your run directory can be a DIFFERENT GAME'S log
+
+*(2026-09-03, `wt/capture-fix`.)* Two scenarios failed and their run directories were handed over as
+"the only evidence". Neither `debug.log` was from the run it sat in. Checked, not assumed:
+
+| check | what the run dir held | what that scenario is |
+|---|---|---|
+| max `tick=` in log | **10613** | ended at tick 701 |
+| players named | Experimental AI 1–4 | only Neutral, USA, Russia |
+| actor coords | `oilb#1299@80,78` | `Bounds: 1,1,64,32` — y=78 cannot exist |
+| mentions its own actors | **0** | `TechHoldFire`, `DerrickQuiet`, … |
+
+The sibling directory was the same shape. **Both files ended mid-line on a bare `[`** — the signature
+of copying a file another process is still appending to. This is the copy-side twin of the clearing
+race above: same global unlocked path, same absence of any run identity in the file.
+
+**Consequence: for a `--hidden` run, `result.json`'s verdict is the ONLY trustworthy artefact.**
+Screenshots are listed but never written (rendering is suspended — see
+[`conventions.md` §"`--hidden` autotest runs write NO screenshots"](../reference/conventions.md)), the
+logs may belong to someone else, and there is no third channel. **Anything you want to know afterwards
+has to be put there by the scenario itself, in the verdict string** — which is why the "print the whole
+board" and "write attribution into the assertion" habits above are not stylistic.
+
+### The instrument reads a state that LAGS the thing you just asked for
+
+Four separate runs were lost to one shape: the scenario asks the engine to do something, then measures
+too early or measures a field that is not the one it means. All four are cheap to avoid and none
+announces itself.
+
+**1. `IsIdle` is TRUE both before an order lands and after it finishes.** `Actor.IsIdle` is
+`CurrentActivity == null` (`Actor.cs:75`), and `Test.IssueMoveOrder` goes through `World.IssueOrder`, so
+the order sits in the queue and becomes an activity a tick or more later. A
+`WaitUntil(…, function() return unit.IsIdle end, …)` written to mean "wait until he has walked there"
+therefore fires on its **first poll**, before he has taken a step. It then fails silently and
+downstream: that scenario issued its attack order from the man's SPAWN cell, the order was correctly
+refused as out of arc, nothing re-issued it when he did arrive, and the verdict twenty seconds later
+re-evaluated the same question at his FINAL cell and got the opposite answer. The run reported "the
+in-cone shooter landed nothing", which is true and tells you nothing. **Wait on POSITION, not on
+activity** — poll `Location` against the target cell with a cell of slack (so a blocked exact cell
+parks the man next door instead of hanging the run), then a settle beat, then act.
+
+**2. A ticked accessor read from `WorldLoaded` returns its uninitialised default, and that default is
+usually a plausible number.** `Detectable.CurrentVisibility` is written in exactly one place —
+`ITick.Tick` (`Detectable.cs:131`) — and `Test.GetVisibilityLevel` returns it verbatim
+(`TestGlobal.cs:471-478`). `World.LoadComplete` runs every `IWorldLoaded` **before the first tick**
+(`World.cs:320-347`), so a premise check there read **0**, a value the clamp under test cannot produce
+at all (`ClampConcealment` returns 1 for any input below 1, `Detectable.cs:120-121`), and the scenario
+aborted at its own premise having never exercised the thing it was written for. The failure text named
+three numbers and invited the reading that the clamp had produced the 0.
+
+  **So learn the sentinel conventions of any `Test.*` binding you read — several have more than one
+  zero-ish return and only one of them is about the subject.** For `GetVisibilityLevel`: **-1** = no
+  `Detectable` trait, **0** = not ticked yet, **>= 1** = a real level. A scenario checking `< 0` to mean
+  "trait missing" passes happily on a 0 that means something else entirely. Any tier read must sit
+  behind a `Trigger.AfterDelay`; only per-cell map queries like `Test.GetDensity` are safe at
+  `WorldLoaded`. (Same family as the `Map.ActorsInCircle` position-bin trap above — an API answering a
+  different question depending on WHEN it is called.)
+
+  **And read what the assertion MEASURED before reading what its prose claims.** Asking whether the code
+  under test can produce that value at all settled this diagnosis in one step. A premise check that fires
+  before the state it guards exists converts a working fix into a red run, and its message will describe
+  the fix rather than the timing.
+
+**3. Three states, not two — and `Test.ConditionCount` cannot see the interesting one.** It opens with
+`if (!TestMode.IsActive || actor == null || actor.IsDead || !actor.IsInWorld) return 0;`
+(`TestGlobal.cs:1016-1017`), and `Cargo.Load` removes the passenger from the world. So **a scenario can
+never read a condition on a man inside a building or a transport, and gets a silent `0` rather than an
+error.** The specific bite is that `Passenger.CargoCondition` is granted *precisely because* he boarded,
+making the most natural "is he inside?" instrument a guaranteed false negative rather than a flaky one.
+It cost two runs and produced a contradiction that looked like a game bug: one scenario reported
+`House owner USA` — which only happens when a man boards — while simultaneously reporting
+`UsMan loaded=false`.
+
+  | state | what to ask | why |
+  |---|---|---|
+  | **inside** | the trait — `Test.IsLoadedInto(passenger, transport)` (`TestGlobal.cs:868`) reads `Cargo.Passengers`; `Test.IsAtGarrisonPort(soldier, building)` (`:989`) reads `GarrisonManager.PortStates` | true regardless of either flag |
+  | **outside** | `IsInWorld` | sound in ONE direction only: in-world-and-not-loaded really does mean standing outside |
+  | **GONE** | `IsDead` | the only state in which it means what it says — a passenger is **not** dead, so a dead-and-out-of-world actor was genuinely killed |
+
+  That last row is not pedantry. In one of those runs `RuMan.IsDead` was true while out of world, which —
+  passengers being excluded — meant he had genuinely been killed. That was the real finding hiding under
+  the instrument bug, and reading `IsDead` as "he is aboard" would have buried it. The ownership flip
+  (`DynamicOwnership`) remains the best *aggregate* proof that somebody got in, and it is the one
+  instrument that behaved correctly in every run.
+
+**4. Ask the engine for a value it chooses at runtime; do not encode your prediction in the map.**
+Three runs were lost to assuming which garrison port a man lands on. `GarrisonManager` deploys to the
+first port that confirms an in-arc, in-range target, so the winner depends on every enemy on the map, the
+range of the weapon that scans, and the port declaration order. The trap underneath all three diagnoses:
+with `Cone: 140` on four diagonal ports the cones **union to the whole circle**, so there is no bearing
+that is "behind the building" — only behind *the port this man is standing at*. Placing a shooter by
+compass direction is meaningless. **The fix that ends the class rather than the instance:** read the port
+at runtime (`Test.GarrisonPortOf`, `TestGlobal.cs:935`), derive both shooters from its yaw, and re-read it
+before the verdict so a mid-measurement port swap Skips instead of being reported as an arc result. Every
+one of those three runs would have been saved by printing the port, and the same family of instrument
+(`Test.TargetableReport`, `:961`) settled a fourth mystery in one run after three rounds of reading code.
+
+**The instrument that catches all four: PRINT THE SAME FACT AT TWO MOMENTS.**
+`CONE-SHOT … shooter cell 24,8 | canTarget=false` at order time, against
+`canTarget=true … isValidFor=True` in the verdict. Neither line alone is a diagnosis; **the DISAGREEMENT
+is**, and it names the moment the order was issued as the thing that was wrong rather than the geometry,
+the arc, or the trait. Three earlier rounds on that scenario each printed one moment and misread it.
+
+**Staging: prefer `Test.ClickOrder` over the direct-activity helpers.** `MobileProperties.EnterTransport`
+queues a `RideTransport` activity directly; `Test.ClickOrder` issues a real order through the targeter a
+player's click would use — so a staging failure is also a finding, and the returned order string gives a
+cheap setup assertion that turns a silent no-op into a named SKIP. On one tree, one map and one building
+type, the second walked a rifleman seven cells into a building and flipped its ownership while the first
+moved nobody two cells in 25 s.
+
+### Timing an event-driven scenario: anchor on what you OBSERVED, never on a duration you looked up
+
+**Do not encode a flight time. The lobby can cut it to a third, and a dozen-plus scenarios set that
+option.** `PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay` **defaults to true**
+(`PowersLobbyOptions.cs:168`), and `MissileStrikePower` then takes `baseMissileDelay = 0` (`:624-626`),
+leaving the arc alone. That is not a rare configuration — the powers sandbox is what supplies the
+`powers.event` prerequisite no faction provides, so every scenario needing a game-ender or an event-tier
+power turns it on (15 scenario `rules.yaml` files as of `5a3e4b19`; the count grows, so **recount rather
+than quoting it**: `grep -rl "PowersSandboxCheckboxEnabled: true" tools/autotest/scenarios/*/rules.yaml`).
+On a 66x34 map a B61Low measured **110 ticks** with the sandbox on against ~310 with it off.
+
+What that cost: a retiming assumed the long column, concluded a flight outlasts any compressed side
+cooldown, and built a phase around firing the victim's own warhead as an incoming one detonated. With the
+real flights the cooldown *outlasts* the flight, so the victim was still reloading and could not fire —
+`charging:43`, run dead at t382. Polling for readiness would not have saved it: the gap between the
+victim becoming ready and the escalation landing was **two ticks**.
+
+**The lesson is not "look up the flight time". It is that a scenario should not encode one at all.** The
+fix kept an event-driven watch, deleted the construction, and raised the side cooldowns so the natural
+situation holds — with each phase checking its own precondition first and reporting
+`SCENARIO SETUP: … must be raised` rather than looking like a defect in the build.
+
+**Anchor on the event, and the anchor also tightens your bound.** A support power's countdown does **not**
+run while the power is disabled: `SupportPowerInstance.Tick` pins `remainingSubTicks` back to
+`TotalTicks * 100` on every tick `instancesEnabled` is false, and returns early when `!Active`
+(`SupportPowerManager.cs:397-405`). So although the constructor sets a full interval (`:377`, `:384`) and
+an unarmed band *looks* as if it has been counting since match start — the vacuity trap a 2026-09-15
+review found in `test-nuclear-ender-level` — a band's interval really starts **at the rise**, not at match
+start. A scenario anchored on the tick the band was *seen* to leave `hidden` is anchored on the condition
+crossing from the World actor to the Player actor, so all that remains is one `ServicePendingReady` pass:
+a **~12-tick** gap is safe where a rise-anchored check needed more than `GrantRetryTicks` (30) and used
+40. **The check got stronger by being retimed, not weaker.** A scenario can then assert "the level rose
+AFTER the explosion and within `EscalationDelayTicks` of it" without knowing any flight time at all.
+
+**`Test.GetImpactEffectCount` is the instrument for that, and it is GLOBAL — which is both why it works
+and why it expires mid-scenario.** It counts `CreateEffectWarhead` impacts past the validity gates, and
+every nuclear weapon carries exactly one such warhead, so a delta on it is a detonation you did not have
+to predict. Being global, it also catches a shot from something the script never names, which makes it the
+best "nothing fired" observable there is — **in a phase where the scenario itself has ordered no shot.** It
+cannot say WHICH warhead moved it, so a scenario that fires an unwatched shot must wait for that to land
+before the next watch takes a baseline.
+
+**Hence: a per-phase observable SET, not a per-phase threshold.** A hold-fire scenario that (1) asserts
+silence, (2) issues an order to prove ordered fire is still permitted, then (3) asserts the victim does
+not retaliate cannot carry one observable set across all three — in phase 3 the impact counter, the
+shooter's ammunition and the victim's health all move *because phase 2 asked them to*. This is the
+false-RED mirror of the false-green trap: the assertion would have failed the treatment for doing exactly
+what the scenario told it to do. Write the phases as separate functions with a comment at each naming
+which quantities are legitimately moving by then — a single function taking a flag was tried first and
+reads as if the difference were a matter of strictness, which it is not.
 
 ## Gotchas
 

@@ -108,7 +108,31 @@ If the demo needs scripted enemy behavior to show off a feature (e.g., enemy att
 ./tools/autotest/run-demo.sh L demo-<name>    # left half (also R, F, C)
 ```
 
-Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the window stays visible. If the user includes `L`, `R`, or `F` in the trigger ("DEMO L", "DEMO <topic> R"), pass that letter through as the first positional arg. Exit code is `0` whether the user closes cleanly or just clicks the X — the runner doesn't check for a result file.
+Same flags as `run-test.sh`, but the demo runner injects `--no-minimize` so the window stays visible. If the user includes `L`, `R`, or `F` in the trigger ("DEMO L", "DEMO <topic> R"), pass that letter through as the first positional arg.
+
+### A demo has no verdict, so judge it by its MANIFEST and its FRAMES — never by an exit code
+
+**A correct demo produces the artefacts of a failure**, and both halves of that are worth knowing before
+you read a run:
+
+- **`run-demo.sh` delegates to `run-test.sh`, which reports `NO-RESULT (exit 3)` when no `result.json`
+  verdict was written** — printing *"The game hung, was closed by hand, or never reached an assertion."*
+  But a demo never calls `Test.Pass`/`Test.Fail` by design, so that failure branch is the **expected**
+  outcome for every correct demo, stated in the language of a hang. `run-demo.sh:56-59` now maps exit 3
+  back to 0 for exactly this reason (note the wrapper runs under `set -e`, so the call is written
+  `if ./tools/autotest/run-test.sh …; then rc=0; else rc=$?; fi` — a bare invocation would kill the
+  script before the mapping was consulted). **Any other non-zero code is still a real failure and passes
+  straight through.**
+- **`lua.log` at 0 bytes is not a finding either.** The log collects Lua `print` output only, and a demo
+  that drives cameras, timers and captures without printing once writes nothing. The discriminator is
+  `debug.log`: scripted activity there (`Taking screenshot …` in scripted order) proves the timers fired.
+  Full table of the three readings in [`AUTOTEST.md`](AUTOTEST.md#an-empty-lualog-from-a-timeout-fail-means-nothing-on-its-own).
+
+They compound, which is the dangerous part: a healthy demo run hands you a red-looking verdict **and** an
+empty log — two independent false signals pointing at the same wrong conclusion. Both artefacts are absent
+because nothing was ever going to write them. **So the acceptance evidence for a demo is its
+`manifest.json` and the frames it captured**, which is the strongest argument for putting a
+`Test.Screenshot` at the beat that matters.
 
 ## Conventions
 
