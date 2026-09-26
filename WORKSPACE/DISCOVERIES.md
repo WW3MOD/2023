@@ -2252,7 +2252,6 @@ Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests 
 
 **Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
 
-## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`) **[rejected: duplicate -- the same entry, tagged, is at L4480; this copy arrived with the 2026-09-15 commits merged upstream on 2026-09-22 and its body differs from the tagged one only trivially]**
 ## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455)
 
 **OBSERVED, three lanes differing in one variable each.** Two riflemen told from Lua to enter a
@@ -2537,7 +2536,6 @@ missing is a line whose name (`DetectionWhenLoaded`) does not contain the word i
 is a one-line addition, not a removal, and it is invisible to any check that looks for divergent
 trait VALUES: all three actors' Vision traits carry identical ranges and strengths.
 
-## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945) **[rejected: duplicate -- the same entry, tagged, is at L4340; this copy arrived with the 2026-09-15 commits merged upstream on 2026-09-22 and its body differs from the tagged one only trivially]**
 ## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
