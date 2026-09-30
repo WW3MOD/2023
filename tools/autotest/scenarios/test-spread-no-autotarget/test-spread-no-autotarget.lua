@@ -17,6 +17,13 @@
 -- Predicate: InfB walks east past x=18 (spread fired) AND InfA's column
 -- stays west of x=14 (not redistributed). Pre-fix: InfA marches east too.
 
+-- 500 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local SpreadDeadlineTicks = 500
+
 local WaypointE1 = CPos.New(20, 14)
 local WaypointE2 = CPos.New(20, 20)
 
@@ -33,7 +40,7 @@ WorldLoaded = function()
 		Test.GroupScatter({ InfA, InfB })
 	end)
 
-	TestHarness.AssertWithin(20, function()
+	TestHarness.AssertWithin(SpreadDeadlineTicks / TestHarness.TicksPerSecond, function()
 		if InfA.IsDead then
 			return "fail: InfA died — test setup broken (Foe was supposed to be HoldFire)"
 		end

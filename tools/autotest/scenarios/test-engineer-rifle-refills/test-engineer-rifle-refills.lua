@@ -169,7 +169,7 @@ WorldLoaded = function()
 		end
 
 		if rifle > 0 then
-			Test.Pass()
+			Test.Pass(summary)
 			return
 		end
 

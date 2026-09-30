@@ -121,6 +121,1690 @@ the same branch to photograph all of it and had not been run when this was writt
   shares the sprite, the `Selectable`/`DecorationBounds` (`500,700,65,-128`) and the decoration stack —
   with `-ProducibleWithLevel:` added scenario-locally, because its shipped `InitialLevels: 2` would
   otherwise put a rank chevron on one arm and not the other.
+## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
+
+Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any
+PASSING scenario had quietly become vacuous. **It had not.** All 23 scenarios that touch a pbox
+were read — lua verdict, `rules.yaml`, `map.yaml` — and the result is **UNAFFECTED 22 / BROKEN 1
+(already fixed) / VACUOUS 0 / WRONG 0**. Table and per-row citations:
+`WORKSPACE/audit/260922-pbox-vision-gate.md`.
+
+**THE REASON IT IS ONE SCENARIO IS A SINGLE LINE, AND IT GENERALISES.** `Vision.ValidRelationships`
+defaults to `PlayerRelationship.Ally` (`Vision.cs:24`, enforced in `AddCellsToPlayerMapLayer` at
+`:48-50`) and nothing in `mods/ww3mod` overrides it. Twenty of the twenty-three place their pbox
+under a player **other than the viewer**, so that pbox never contributed a cell to the reading
+player's layer — before or after the gate. A vision change to an actor can only invalidate a
+scenario that stages on the actor's OWN side seeing. That is the question to ask first next time,
+and it collapses most of the work.
+
+**THE COUNTERMEASURE GREP IS INCOMPLETE — this is the part worth carrying.** The rule this file
+recorded on 2026-09-22 was *grep `tools/autotest/scenarios/*/map.yaml` for the actor type before
+merging*, and it gives **18**, which is right for literal `: pbox` placements. Three more
+scenarios reach the same gate and are invisible to it, because they place a scenario-local CLONE
+declared in their own `rules.yaml` with `Inherits: PBOX`: `fogmarker`
+(`test-fog-darkness-ruler`), `shademarker` (`test-minimap-stance-shades`), `probebox`
+(`test-evac-refund-indicator`). All three happen to strip all ten `Vision@N`, so all three are
+immune — but that is luck the grep did not establish, and a clone written tomorrow without the
+removals would be gated silently. **Grep both sides: the map.yamls for the actor, and the
+rules.yamls for `Inherits: <ACTOR>`.** The remaining two of the 23 mention a pbox only in prose.
+
+**A STALE JUSTIFICATION IS A SECOND-ORDER CASUALTY OF A RULES CHANGE, AND IT OUTLIVES THE
+BREAKAGE.** Those same three clone scenarios each explain their `-Vision@N` block with some form
+of *"a stock pillbox would light its own 32-cell circle"*. Every one of those sentences became
+false on 2026-09-21 and none of them broke anything — the scenarios still pass, the removals are
+simply belt-and-braces now. The hazard is not the scenario, it is the next reader taking a
+confident comment with a real `file:line` beside it as evidence for a property PBOX no longer
+has. The same shape cost the better part of `cb8ce077`'s triage (point 1 of that entry: a
+correct-looking comment citing a real file:line, wrong for two reasons at once). All three
+corrected in-tree; the removals kept, because they keep each instrument independent of a gate it
+does not control.
+
+**AND THE CITE EVERYONE COPIED WAS OFF BY ONE.** `cb8ce077`, the scenario's `rules.yaml`, its
+`.lua`, this file, and the brief that commissioned the audit all cite the gate line as
+`structures-defenses.yaml:214`. It is **`:215`** — and it always was: the file is byte-identical
+from `70e63582` to `1d7ea03b` (`git log 70e63582..HEAD -- <file>` is empty) and reads `:215` at
+both ends. A wrong line number propagates faster than a wrong claim because it looks checkable;
+four copies existed within a day of the original. Corrected in all three live sites.
+
+**Verified, not assumed, that the gate really does mean "reveals nothing".** The only other
+vision ladder in PBOX's ancestry is `^BasicBuilding`'s `Vision@3/@2/@1` (`structures.yaml:14-23`),
+and all three keys are re-declared by `^StandardVision` and therefore sit inside the gated set;
+PBOX's own block (`:204-334`) and `^Defense` (`:2-23`) carry no second reveal trait. Related: an
+unmanned pbox also cannot SHOOT — its only armament is `AttackGarrisoned`, so the "AutoTarget
+needs vision" hazard is structurally unreachable for an empty box.
+
+**GTWR and HBOX: no action, and the reason is checkable.** Both were already gated before
+`70e63582` (`git show 70e63582^:…` → `:79` and `:329`), so the merge added the third and changed
+neither. 31 scenarios place a `gtwr` or an `hbox` and **not one contains a `GetVisibility` or
+`IsDetectedBy` call**, so none can be assuming either sees while unmanned.
+## 2026-09-23 - The powers sandbox silently zeroes `MissileDelay`, and a game-ender's salvo size is the MAP's, not the YAML's — two derived numbers that invalidated a whole run (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`, worked at `5954a0ff`)
+
+**THE RUN.** `260923_084012_p19451_demo-nuke-perf-populated`, the first live run of the populated
+nuke-perf scenario. It finished cleanly at tick 10493, fired 3/3 shots — and **declared all three
+of its own shots INVALID**. Every one of those verdicts was the instrument's, not the weapon's.
+The scenario computed its impact tick as `MissileDelay + standoff / Speed = 158` and opened
+`deton1` there. Two of the three terms were wrong, in the same direction, for unrelated reasons.
+
+### 1. `MissileDelay` is dropped to zero whenever the powers sandbox is on
+
+`PowersLobbyOptionsInfo.SandboxRemovesLaunchDelay` defaults **`true`**
+(`PowersLobbyOptions.cs:168`). `MissileStrikePower.Activate` reads it through
+`PowersLobbyOptionsInfo.SandboxSettingsOrNull` and takes `baseMissileDelay = 0`
+(`MissileStrikePower.cs:624-626`); `extraDelay` — `AimPointInterval * index`, the stagger between
+warheads of one salvo — is deliberately kept.
+
+**The trap is that the sandbox is not optional for this class of scenario.** An event-tier power
+declares `Prerequisites: powers.event` and nothing but the sandbox's unfiltered
+`ProvidesPrerequisite` hands that out, so ANY scenario firing a Sarmat, a Trident or a Tsar Bomba
+outside Escalation *must* enable `PowersSandboxCheckboxEnabled` — and thereby *must* have its
+`MissileDelay` zeroed. A `MissileDelay:` override in such a scenario's `rules.yaml` is inert by
+construction. This one carried `MissileDelay: 60` with a comment calling it "timing only … costs
+nothing that is measured"; both halves were true and the number was still never spent.
+
+`PreLaunchTicks` is a red herring in the same sum: it is a computed property,
+`LaunchRiseTicks > 0 ? LaunchRiseTicks + PostErectionWaitTicks : 0` (`BallisticMissile.cs:114`),
+and every arsenal missile ships `LaunchRiseTicks: 0`. It is zero, always, for a support-power
+strike. The real offset is the flight alone: `standoff / Speed`, exact because `Acceleration: 0`
+makes `BallisticMissileFly.EstimateArcTicks` return `hDist / speed` (`:84-85`). **98 ticks, not
+158.**
+
+### 2. A game-ender's warhead count is `DoomsdayStrike.PackageSize`, not `AimPoints`
+
+`MissileStrikePower.AimPointsFor` (`:296-302`) returns `info.AimPoints` **only** when
+`!NuclearGameEnders.Is(info)`; for a game-ender it returns `DoomsdayStrike.PackageSizeFor`, i.e.
+`FinalExchangePackage.SizeFor(Bounds.Width * Bounds.Height, CellsPerImpact, MinPackage,
+MaxPackage)` = `round(playableCells / 2400)` clamped to `[2, 6]`. **`Bounds`, not `MapSize`.** On a
+`1,1,96,96` map that is `round(9216 / 2400) = 4`, not the 6 the Sarmat is described by everywhere
+in prose. This already bit once — `MissileStrikePower.cs:286-291` records run `260920_140551`
+delivering 3 warheads of a package of 4 for the same reason — and the arsenal YAML's
+`AimPoints IS DELIBERATELY ABSENT` comment exists because of it. It bit again anyway, because the
+*prose* around the weapon ("six-RV Sarmat", "Six of these fly per strike") still says six and is
+correct only on the largest shipped maps.
+
+**Consequence for a scenario:** a salvo of N warheads spans `(N-1) * AimPointInterval` ticks, so
+getting N wrong gets the salvo window length wrong too — 36 ticks here, not 60.
+
+### 3. What a mis-keyed window looks like in the log, and how to spot it without re-running
+
+The two errors put `deton1` 60 ticks past its own detonation. **The window named `flight1`
+measured the detonation; the window named `deton1` measured the aftermath.** No perf number
+revealed that — the *census* did, and only because the scenario stamped one on every window:
+
+| window | census at open | p50 | p99 | max | over 60 ms |
+|---|---|---|---|---|---|
+| `prefire1` 7700–7999 | usa 71 / rus 42 | 16 | 27 | 32.7 | 0 |
+| `flight1` 8000–8157 | usa **80** / rus 41 | 16 | **67** | **74.75** | **4** |
+| `deton1` 8158–8558 | usa **1** / rus 29 | 6 | 26 | 31.5 | 0 |
+
+**79 ground attackers died inside the window the file called the quiet flight.** That is the
+signature, and it is a general one: *a census that changes across a window it should not change
+across means the window is in the wrong place.* One stamp per window is not enough to see it —
+stamp the open **and** the close.
+
+(The run was NOT a self-nuke, which was the other hypothesis. `Russia-bot` fires and `aimAt(Target)`
+takes `USA-bot`'s centroid: ground zero 75,40 with 80 USA attackers inside 48 cells. The 80 → 1 is
+the weapon working on its intended target.)
+
+### 4. Neither `Test.GetActiveMissileCount` nor `MissileTrace` can see a support-power warhead
+
+Both are wired to the **`Missile` projectile** (`Projectiles/Missile.cs:361-366, :1360`).
+`MissileStrikePower` delivers its warheads as **actors** — `world.CreateActor` at
+`MissileStrikePower.cs:818`, carrying the `BallisticMissile` trait. A four-RV Sarmat salvo in
+flight reads **0** from `GetActiveMissileCount()` and **0** from `GetMissileRecordCount()`. A
+scenario reaching for either to time a nuke gets a reading indistinguishable from "nothing was
+fired".
+
+`Test.GetImpactEffectCount` *does* move, but it counts `CreateEffectWarhead` impacts: measured at
+~20 per 750 kt warhead against ordinary tank fire at roughly one every nine ticks, and nothing in
+the number says which is which. Anchoring on it in a live match is what the scenario's own header
+had already rejected.
+
+**Fixed by adding an anchor that observes the arrival:**
+`Test.GetBallisticMissileImpactCount(actorType)` / `Test.GetLastBallisticMissileImpactTick(actorType)`,
+counted in `BallisticMissileFly`'s arrival branch (`:370`, inside the `CallFunc` that runs
+`self.Kill` — the call that fires the `Explodes` payload, so the count and the warhead go off
+together). Exactly one per warhead; a missile shot down en route is not counted because it never
+arrived. **Pass the actor type.** Twenty-one shipped actors carry `BallisticMissile` and two of
+them — `himarsmissile`, `iskandermissile` — are ordinary unit armaments both bots fire all game, so
+the unqualified total is unattributable in a real match.
+
+### 5. A stub that agrees with the code's assumption cannot test the assumption
+
+`tools/nuke-perf/drive-populated.lua` ran this scenario's full Lua offline and caught two real bugs
+before the first launch was ever requested. It did **not** catch this one — because it was
+synthesising its fake detonations at tick 8158, the same derived tick the scenario was looking for
+them at. Both sides of the test shared the error, so the arm passed.
+
+The general rule: **an offline driver must take the quantity under test as an INPUT, not inherit it
+from the code under test.** The driver now takes `SALVO_AT=` (arrival offset), `REBUILD=` (army
+regrowth rate) and observes the order tick out of the scenario's own log line rather than predicting
+it, and `SALVO_AT=158` reproduces the geometry the first draft assumed.
+
+### 6. One salvo deletes a field army, so a second shot on a fixed tick measures a different game
+
+USA: 80 attackers at the order, 1 at impact, rebuilt to 20 by tick 9600 (~14 per 1000 ticks). The
+back-to-back pair — the *more* expensive event — was fired on a fixed tick into a quarter of the
+battlefield the single shot got. Any scenario firing twice at the same target has this shape and
+should **trigger on the recovered state rather than on a tick**, and print what it settled for.
+
+**The one honest number the run still gives**, recorded in `tools/nuke-perf/README.md` with its
+label on: a four-warhead 750 kt salvo landing on ~80 + 41 ground attackers cost a worst tick of
+**74.75 ms** and a p99 of **67 ms** against a prefire baseline of p50 16 / max 32.7, and produced
+the only 4 over-budget ticks in the entire 10 493-tick run. Read as a floor: the p99 is diluted by
+the ~98 quiet ticks the mis-keyed window also contained.
+
+
+## 2026-09-22 - `tick_time` can be read from Lua WITHOUT `Launch.Benchmark`, and that matters because the benchmark flag measures a build nobody ships (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**THE INSTRUMENT AND THE TAX ARE THE SAME FLAG, AND ONLY ONE OF THEM IS WANTED.** `tools/nuke-perf`
+reads per-tick cost out of `nukeperf-tick_time.csv`, which only exists when the run is launched with
+`Launch.Benchmark`. That argument also sets `PerfHistory.Sampling` (`Game.cs:886`) — and since the
+parallel-relight lever, `TerrainLighting` refuses its parallel sweep while that flag is true
+(`TerrainLighting.cs:316-318`, the `&& !PerfHistory.Sampling` conjunct). So **every benchmarked
+`tick_time` number is taken against the SERIAL relight**, i.e. against a build the mod does not
+ship. `tools/nuke-perf/README.md` already knows this for the salvo/exchange pair — it tells you to
+drop `Launch.Benchmark` for that arm — but the general `tick_time` reading it leads with is still
+taken under the flag.
+
+**THE DATA IS THERE WITHOUT THE FLAG.** The `tick_time` `PerfSample` lives in `Game.InnerLogicTick`
+(`Game.cs:805`) and is **unconditional**: it runs on every tick whether or not anything is sampling.
+`Benchmark.Tick` does nothing cleverer than `PerfHistory.Items["tick_time"].LastValue`
+(`Benchmark.cs:31`). A Lua binding that reads the same property is the same quantity in the same
+unit, with no flag set and no sample taken. Added as `Test.GetTickTimeMs()`.
+
+**THE TWO READINGS LAG BY DIFFERENT AMOUNTS, AND THE DIFFERENCE IS ONE TICK.** `PerfHistory.Tick()`
+publishes the accumulated total and zeroes it at `Game.cs:826`; the `tick_time` sample only *adds*
+this tick's cost when its `using` block closes at `:833`. A `Trigger.OnTick` callback runs inside
+`world.Tick()` at `:824`, i.e. **before** the publish, so what Lua reads is the cost of tick **N-2**.
+`Benchmark.Tick` runs at `:834`, after both, so a **CSV row labelled N holds the cost of tick N-1**.
+Offset by 2 in a script and by 1 in a CSV; never line a Lua reading up against a CSV row on the same
+tick number.
+
+**WHAT THIS DOES NOT BUY.** Nothing about attribution — `perf.log`'s long-tick rows still need
+`Debug.EnableSimulationPerfLogging`, which carries its own per-trait-tick tax
+(`PerfTickLogger.cs:36-50`). And nothing about the GPU: under `--hidden` nothing is drawn either
+way.
+
+## 2026-09-22 - Anchoring a measurement window on an OBSERVED impact works on an inert map and cannot work in a live match; the fix is to derive the tick and count impacts instead (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`demo-nuke-perf` anchors its detonation window on the first rise in `Test.GetImpactEffectCount()`,
+and is right to: its map is 448 statues and one Supply Route, so the only thing that can move that
+counter is the salvo.** Put the same rig in a two-bot match and the counter climbs every few ticks
+from ordinary combat, so the first rise after an order is almost never a warhead — it is whichever
+tank round happened to land. A window anchored there is a window pointed at nothing in particular,
+and the resulting p50 looks perfectly plausible.
+
+**THE OFFLINE DRIVER MEASURED THIS RATHER THAN THE COMMENT ASSERTING IT.** With a synthetic combat
+impact every 9 ticks, the first-rise anchor fired 22 ticks early on **all three** shots, in the arm
+where no warhead landed at all.
+
+**THE WORKING SHAPE IS: DERIVE THE TICK, AND USE THE COUNTER AS A COUNT.** The impact tick is fully
+determined by shipped geometry — `entry standoff = mapDiagonal + ApproachMargin` (and
+`TestHarness.ApproachStandoffCells`, which takes **MapSize, not Bounds**), `flight = standoff /
+Speed`, `impact = MissileDelay + PreLaunchTicks + flight`. On a 98x98 map with `Speed: 1600` and
+`MissileDelay: 60` that is **158**; the same arithmetic on `demo-nuke-perf`'s 128x128 map gives 126,
+which is the number that file's own header records — that agreement is what makes the derivation
+trustworthy. The counter is then sampled three times per shot and asked a question it *can* answer:
+did the salvo window carry more gated impacts than the flight window before it, scaled?
+
+**TWO THINGS THAT BIT WHILE BUILDING THAT CHECK, BOTH FOUND OFFLINE, EITHER OF WHICH WOULD HAVE COST
+A LAUNCH SLOT.**
+1. **One 72-tick combat sample is too noisy to subtract.** With all six warheads landing, two
+   adjacent 72-tick samples read 13 and 9 — a rise of 4 against 6 warheads, so a good salvo was
+   called a miss. The verdict is now graded: a rise **at or below zero** invalidates, a positive
+   rise short of six is a note saying the evidence is weak.
+2. **The obvious fix — sample three spans BEFORE the impact — reaches back past the order.** At
+   `impact - 216` on this schedule the shot record does not exist yet, the sample is never taken,
+   and the run dies at the closing sample on `attempt to perform arithmetic on a nil value`. The
+   **flight window** is the baseline that has neither problem: bounded by the order at one end and
+   the impact at the other, and always available.
+
+**GENERAL FORM, worth carrying past this scenario: a detector calibrated on an inert rig does not
+transfer to a populated one, and it fails SILENTLY — by pointing somewhere plausible rather than by
+erroring.** Any autotest predicate that reads a mod-wide running counter (`GetImpactEffectCount`,
+`GetActiveMissileCount`) is in this class the moment a second combatant is added to the map.
+
+## 2026-09-22 - Three small traps met while building a scenario on a fresh worktree, none of which is about the scenario (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+
+**`tools/nav-guard/nav_guard.py` IS TRACKED NON-EXECUTABLE** (mode `100644`, against
+`tools/lua-gate/lua_gate.py`'s `100755`). `./tools/nav-guard/nav_guard.py report ...` — the form
+[`DOCS/recipes/AUTOTEST.md`](../DOCS/recipes/AUTOTEST.md) §"Verify before you ask for a slot" prints
+twice — dies with `permission denied` and **exit 126**. Same family as the `engine/utility.sh` 126
+trap already in CLAUDE.md: a fast non-zero exit with no useful output is a LAUNCH failure, not a
+result. `python3 tools/nav-guard/nav_guard.py ...` works. (`make nav-guard` is unaffected; it
+invokes the interpreter itself.)
+
+**THERE IS A LUA INTERPRETER ON THIS MACHINE.** `test-escalation-full-match.lua:52` states, as the
+reason it hand-writes `math.floor(a * 100 / b)` rather than `//`, that "there is no Lua interpreter
+on the dev machines to parse with". On this macOS host there is: `/usr/local/bin/lua`, **Lua 5.5.1**.
+`lua -e 'assert(loadfile("<scenario>.lua"))'` is a free syntax check, and stubbing the `Test.*`,
+`TestHarness.*` and `Player.*` bindings makes the whole scenario **runnable offline** — which is how
+both bugs in the entry above were found without a slot. **The `//` warning still stands and is
+sharper, not weaker:** 5.5 *accepts* floor division, so a local parse would GREEN a file that Eluant
+rejects. Use the interpreter for logic, never as evidence about the dialect.
+
+**`ls -d tools/autotest/scenarios/*/ | wc -l` = 367 at this ref**, against CLAUDE.md's predicted-but-
+unobserved 320 and its 10 shipped maps. That row says to recount rather than quote, and it is right:
+the figure moved by 47 in the time it took the prediction to be written down.
+
+## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
+
+**THE STALE CLAIM AND WHY IT SURVIVED THREE RECONCILIATIONS.** `WORKSPACE/HOTBOARD.md:18` and
+`audit/260921-release-readiness.md` (Part 3 row 10, defect S2) both describe the second saved-game
+restore leak as *"located, named, NOT fixed, and not re-measured since 08-13"*, carrying the
+divergence fingerprint from `dc8e0abf`: net frame 711 / world tick 2130, actor `4712 at.america`,
+`Mobile.Facing` 256 (recording) vs 118 (replay), `AttackFrontal.IsAiming` replay-only. **It was
+fixed at `61546a51` on 2026-08-16, an ancestor of `main` (`git merge-base --is-ancestor` → yes),
+and re-measured five times that day** — `test-savegame-resume-riverzeta` green at four seeds
+(`-324877760`, `1017`, `-777333`, `20260816`) and `test-savegame-resume-riverzeta-human` green in
+the human-vs-bot layout (`a06adaf4`, merge `19e3b26e`).
+
+**The mechanism of the staleness is worth more than the correction.** The HOTBOARD line pins the
+defect to `Activities/Move/AttackMoveActivity.cs` — halt at `:195-196`, `GroupDetectedBy` at
+`:236` → `CanBeViewedByPlayer` at `:247`/`:260` — and says those cites were *"re-checked at
+`554895ba` and still good"*. They are still good. **That file is the READER of the leaked state,
+not the leaker**, and the fix landed in `LaneAmbushBotModule.cs` + `AutoTarget.cs`. So
+`git log -- AttackMoveActivity.cs` is empty after the fix **by construction**, and re-verifying
+the cites confirms only that the reading site still reads. **When a bug is filed at the site where
+the symptom is OBSERVED, a cite re-check at that site can never detect the fix** — the citation
+freshness and the defect's liveness are independent facts, and the line's own phrasing
+("cites re-checked … and still good. Still live on `@stable`.") reads as though the first clause
+supports the second.
+
+**THE CAUSAL CHAIN, stated because it explains the 256-vs-118 pair exactly and because HOTBOARD
+says the cause was deliberately never named.** It was named four days later. `LaneAmbushBotModule`
+granted `enable-ambush-tactics` with `ec.GrantCondition(u, this)` directly from a bot tick. Not an
+order ⇒ `GameSave` never records it; `ModularBot.BotTick` early-returns while
+`World.IsLoadingGameSave` (`ModularBot.cs:241`, `:339`) ⇒ the restored life never grants it. The
+gate is read by SYNCED code — `AttackMoveActivity.cs:189-206`, the Stage-2 halt-before-contact.
+Recording: gate present → `haltedForAmbush` → the unit stops and holds its heading. Replay: gate
+absent → the engage branch → `QueueChild(ab.GetAttackActivity(...))` → the unit turns to aim.
+**That is `Mobile.Facing` 256 vs 118 with `AttackFrontal.IsAiming` on one side only, and it is a
+live multiplayer desync rather than a saved-game bug** — bot logic runs host-only
+(`Player.cs:224-232`), so the host halted a unit and no other client did. The restore was only the
+cheapest instrument for seeing it.
+
+**A `git log -S` ON THE SYMPTOM FILE IS THE WRONG QUERY FOR A DESYNC.** The pipeline README's rule
+is grep the BEHAVIOUR, not the defect. For a divergence the behaviour is the *write* that escaped
+replication, and it is almost never in the file where the divergence was measured — the measuring
+site is chosen by the instrument (whatever the sync report happened to dump), not by the code. Ask
+instead: what state does the diverging branch read, and who writes it?
+
+### The instrument that was missing, and what it can and cannot see
+
+The audit calls for *"a scenario that saves at a pinned tick and reloads, asserting `Mobile.Facing`
+parity on the named actor — agent-doable and never authored"*. **Two thirds of that already ship.**
+`tools/autotest/scenarios/test-savegame-resume-riverzeta` saves at tick 3000 and reloads in one
+process via `GameSaveRoundTripProbe` (`Traits/World/GameSaveRoundTripProbe.cs`), and parity is
+checked by the engine's own sync hash — `GameSave.RestoreOrders` replays the recorded
+`lastSyncPacket` (`GameSave.cs:262-263`) and `OrderManager.ReceiveSync` (`:202-211`) compares —
+which covers `Mobile.Facing` **and every other `[Sync]` field**, strictly more than one assertion on
+one actor. The genuine gap is diagnostic, not detective: the probe verdicts on *did the restored
+world resume*, so it goes red identically for every member of the class and names nothing. Naming
+the actor previously took hand-applied patches archived outside the repo
+(`~/ww3-savegame-verify-artifacts/*.patch`).
+
+**What this branch adds is the STATIC half the investigation explicitly asked for and nobody
+authored** (DISCOVERIES 2026-08-16: *"How to actually bound this class: a STATIC audit, not a
+dynamic sweep"*). `engine/OpenRA.Test/BotOrderedMutationTest.cs` scans the IL of **86 bot-layer
+types** (every `IBotTick` implementer, plus the `*Math` / `*Tactics` / `*Gate` / `*Guard` /
+`*Blackboard` helpers those modules actually mention) for six direct writes to synced state:
+`Actor.GrantCondition` / `RevokeCondition` / `QueueActivity` / `CancelActivity` and
+`ExternalCondition.GrantCondition` / `TryRevokeCondition`. **12,668 call tokens resolved; zero
+offences on `main` today** — so the class really is closed, by reading rather than by a green run.
+It takes under a second and needs no launch, where the dynamic instrument costs 4-6 minutes.
+
+**THE SCAN FOUND A HOLE IN ITSELF, AND THAT IS THE REUSABLE PART.** A call scan proves the two
+halves of an ordered mutation still call each other's methods. It cannot see whether they still
+agree on the **wire name**. Renaming the order string on the receiving side only —
+`AutoTarget.cs:619`, `"SetAmbushGate"` → `"SetAmbushGateXX"` — left all three tests green while the
+gate became permanently unreachable: the order is issued, matched by nothing, dropped, and the
+ambush halt stops happening **with nothing logged anywhere**. That is the same inert-but-valid
+failure family `tools/lua-gate/README.md` §"The second failure class" catalogues, arriving through
+C# instead of YAML. Closed by adding `IlScan.ScanStringLiterals` (ldstr, `0x72`, resolved through
+`Module.ResolveString`) and asserting both halves name the same literal; the sabotage now fails with
+the literals it *did* find listed (`SetUnitStance, SetEngagementStance, SetCohesion,
+SetResupplyBehavior, SetAmbushGateXX`), which points straight at the typo. **Generalise: whenever a
+mechanism is split across an issuer and a resolver joined by a string, a structural test that checks
+only the call graph is checking the half that cannot break silently.**
+
+**AND THE STANDING LIMIT, restated so no green here is over-read.** The 2026-08-16 investigation
+bounded *bot mutates → synced reads* and left the reverse open: **synced code reading state that
+only bot ticks refresh.** No detector exists for that shape, this fixture is not one, and a green
+run here says nothing about it.
+## 2026-09-22 - `DefaultCash: 0` does not "freeze the force under test" on a scenario with a carrier — it silently starves the offensive free pool below its own advance floor, and the scenario that recorded this blamed the wrong override
+
+`test-combined-arms-rendezvous`'s `rules.yaml` carried this from its creation (`ef608a62`,
+2026-08-15) until `4d3801de` (2026-09-22) — five weeks, untouched in between. It is the kind of
+note that costs a later reader a run:
+
+> "An earlier revision of this file also removed SpawnStartingUnits / CrateSpawner /
+> ConquestVictoryConditions **and forced DefaultCash to 0** to freeze the force under test; that
+> run never produced a verdict at all, so the extra overrides are not worth the risk."
+
+The conclusion (revert to 7500) was right; the attribution was wrong, and the wrong attribution is
+what makes it dangerous — it points the next person at the spawn/crate/victory traits, which were
+never the problem. **The cause is arithmetic and is visible without running anything.**
+
+At cash 0 the placed actors are the whole force. Of this scenario's six USA actors, exactly **one**
+reaches `PoiOffensiveBotModule`'s free pool:
+
+| actor | why it is not in the pool |
+|---|---|
+| `bradley` | listed in `PoiOffensiveBotModule.ExcludeUnitTypes` (`ai.yaml`) |
+| `e3.america` x4 | `MountedTransportBotModule.PassengerTypes`, withheld by `TransportStandoffEnabled` for as long as an empty carrier wants them |
+| `abrams` | **the pool** |
+
+Against `EarlyMinAxisSize: 2` and `FreePoolMinAdvanceUnits: 2`, a pool of one forms no axis
+(`DesiredAxisCount` returns 0) and is separately barred from advancing (`hold-under-min`). The tank
+never leaves its start cell, so a clause of the form "the unit has advanced N cells" is never
+satisfied and the run times out **having measured nothing** — reported as `tank advanced 0/8`, which
+reads to a hurried reader as a failed rendezvous rather than a staging that never held.
+
+**THE GENERAL SHAPE, and it is not specific to this scenario.** On any bot scenario that also
+contains a transport, `DefaultCash: 0` subtracts *more* than the purchased army: every
+`PassengerTypes` infantry in the placed force is withheld too, so the free pool is
+`placed − carriers − passengers`, which is very often 0 or 1. **Before setting cash to 0, count that
+subtraction against `EarlyMinAxisSize` and `FreePoolMinAdvanceUnits`.** The fix here was one more
+non-passenger, non-carrier combat actor — two is the floor, so two is placed.
+
+**AND VERIFY THE PREMISE AT RUNTIME RATHER THAN IN A COMMENT.** `test-ambush-lane-share` sets its
+floors to 40 so no axis can form and then reads the floor back through
+`Test.GetBotOffenseAdvanceFloor`, SKIPping if the override did not merge. The inverse guard is just
+as cheap and was added here: read `Test.GetBotOffenseFreePool` and SKIP with both numbers if the
+pool never reaches the floor. A timeout cannot say why it timed out; a SKIP naming `free=` and
+`floor=` sends the next person to the staging instead of to the mechanism.
+
+## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it
+
+Measured, `test-combined-arms-rendezvous` run `260922_203626` (commit `b333834e`). The new escape
+fired exactly as designed — `[exp-transport] depart ... aboard=4 target=5 still-coming=1
+reason=EscortInContact grace=100 tick=378`, 94 ticks earlier than the `reason=Full` at t472 the same
+geometry produced the run before. **And the carrier did not move.**
+
+```
+t378  depart reason=EscortInContact aboard=4 still-coming=1
+      carrier bradley@8,18 ... pax=4 task=True
+      carrier bradley@8,18 ... pax=5 task=True      <- the straggler boarded
+t478  delivery-move-reissued carrier=bradley@8,18 drop=32,10
+      carrier bradley@10,18 activity=Move pax=5     <- first movement, 100 ticks after departing
+```
+
+`lua.log` agrees: `carrier=8,18` at t100, t200, t300, t400 **and t500**.
+
+**THE MECHANISM IS ALREADY WRITTEN DOWN TWICE IN THE SAME FILE**, which is what makes this worth
+recording — the information needed to predict it was in front of whoever added the valve:
+* `MountedTransportBotModuleInfo.FillBeforeDeparture`'s own `[Desc]`: a carrier that leaves early
+  leaves the rest "chasing it (**they then hold cargo reservations that keep the carrier Locked**; see
+  `Cargo.LockForPickup`)".
+* the Delivering idle-recovery comment, from the other end: "a passenger arriving after departure
+  calls `Cargo.ReserveSpace`, whose `LockForPickup` does **`self.CancelActivity()` on the CARRIER** —
+  killing the delivery move outright. **FillBeforeDeparture also removes the usual cause** (it does
+  not leave stragglers walking toward a departed carrier)".
+
+So `FillBeforeDeparture` was not only a fix for half-empty loads; it was *also* the thing suppressing
+the move-cancel, and any escape from it re-opens the second defect while solving the first. **Net
+effect measured: the valve saved 94 ticks and then lost 100.** A flag that moves `@stable` and is
+exactly counter-productive is the third instance of the same trap in this item, after
+`RendezvousWithOffensiveStaging` and `InfantryEscortHoldEnabled`.
+
+**The fix is to stand the stragglers down at departure** — `Stop` to every reserved/top-up passenger
+still in-world (out-of-world means *aboard*), plus a ledger release, sorted by ActorID because issuing
+ORDERS over a HashSet is order-dependent in a way the ledger release next to it is not. Scoped to the
+escape reason alone so no other departure path drifts. **It costs a passenger** — in this run the
+fifth boarded after departure and would now be left behind — which is the trade the "timely over full"
+doctrine call explicitly accepts, and it should be stated rather than discovered.
+
+**GENERAL RULE.** Before adding an escape from a wait, list what the WAIT was incidentally protecting.
+A wait state in a system with reservations is rarely only about the thing it is named for.
+
+## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else
+
+Measured in `260922_200826`: `task-created` t72, `depart ... reason=Full` t472. **400 ticks loading**,
+with `pax-waiting ... activity=RideTransport cells-to-carrier=1` the whole way and `aboard` stepping
+0 / 2 / 2 / 2 / 3 / 4 / 5. `MinPassengersPerLoad` (2) was satisfied at **t172**, three hundred ticks
+before the carrier moved. Its escort had stopped at `21,16` at t400 and died at t624 with the carrier
+still four cells short.
+
+**Both existing bounds are blind to this, and it is worth being precise about why, because each looks
+like it should have caught it:**
+* `BoardingStallTicks` (250) measures `ticksSinceProgress` — a **lack** of progress. Progress kept
+  occurring (`since-progress=0` at t322, t372), so it never armed. A load that fills steadily but
+  slowly is invisible to a stall bound by construction.
+* `LoadingTimeoutTicks` (1500) is the hard bound, and at three times the length of the entire episode
+  it is a bound on pathology, not on tempo.
+
+Neither reads anything about the **world outside the carrier**. That is the actual gap: the transport
+decides how long to wait using only its own hold and its own clocks, and never asks whether the force
+it is loading for still needs the delivery to arrive at all.
+
+**THE SHAPE OF THE FIX, per the project's "gradient over hard transitions" rule: a bounded ESCAPE, not
+a replacement.** `FillBeforeDeparture` stays true and stays the default — the 2026-08-15 half-empty
+departure fix is a real fix and reverting it would re-open a measured defect. What is added is one
+exit priced on the bad state: leave early only when *all* of a deliverable load
+(`MinPassengersPerLoad`), an escort already past the muster ring
+(`PoiOffensiveBotModule.ForwardEscortCell` non-null — the same seam the escort unload reads, not a
+second notion of "forward"), and a grace long enough for the fill to have had its chance
+(`EscortLoadGraceTicks`, default **0 = disabled**) hold together.
+
+**Two placement rules fell out of writing it and both are generalisable:**
+1. **Put the escape AFTER the unconditional releases, not before.** `Full` and `NobodyElseComing`
+   depart on the same tick anyway and are truer descriptions of *why*. Letting the escape win there
+   would make the log claim a load was cut short when it was not, and a reader could no longer
+   distinguish a rescued departure from an ordinary one.
+2. **Exclude the capture ferry outright.** A ferry's spare seats exist precisely to be filled
+   (`CaptureFerryEscortSeats`), and `test-ferry-fills-seats` asserts peak pax >= 2 on that leg — an
+   early bolt with the technician alone is the exact regression that scenario exists to catch.
+
+**And a test-authoring trap, paid for once here.** A "this flag is inert" assertion must keep every
+*other* input inside its normal band. The first cut asserted `Wait` with `ticksLoading: 9999` against
+a `LoadingTimeoutTicks` of 1500, and failed with `But was: Timeout` — correct engine behaviour,
+reported as a failure of the feature under test. An inertness test that trips a different mechanism is
+testing that mechanism.
+
+## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers
+
+Measured, `test-combined-arms-rendezvous`, worktree @ `288d3db9`. Verdict FAIL, tank dead t624 at
+`21,16`. The `lua.log` positional roll is the thing to read first, and it refutes the reading every
+prior status block in this item carried:
+
+```
+tick=100  tank=8,16   carrier=8,18
+tick=200  tank=11,16  carrier=8,18
+tick=300  tank=18,16  carrier=8,18
+tick=400  tank=21,16  carrier=8,18
+tick=500  tank=21,16  carrier=8,18
+tick=600  tank=21,16  carrier=15,18
+```
+
+**The tank reached `21,16` at t400 and never moved again** — `[husk-settle] travel=(0,0)`, a stationary
+vehicle, 224 ticks later. It is not a lead element running away from its escort; it is a lead element
+that stopped at the point of contact and lost a fight alone. "The lone tank walks 22 cells forward to
+die" is true about the WALK and false about the DEATH.
+
+**The ferry's 400-tick load is the other half, and the passengers were ADJACENT the whole time.**
+`task-created` t72, `depart ... reason=Full` t472. In between: `aboard` 0 (t122) -> 2 (t172) -> 2 -> 2
+-> 3 (t322) -> 4 (t372) -> 5 (t472), with `closest=1` and `pax-waiting ... activity=RideTransport
+cells-to-carrier=1` throughout. `FillBeforeDeparture: true` holds for all 5 seats; `MinPassengersPerLoad`
+is 2 and was met at t172, **300 ticks earlier**. The carrier therefore left the Supply Route 72 ticks
+AFTER its escort had already stopped moving, and was still 4 cells short when the escort died.
+
+**WHY THE ESCORT HOLD NEVER FIRED — two causes, confirmed, compounding to leave zero overlap.**
+Neither is the one I would have bet on:
+
+| eval | branch | carrier state |
+|---|---|---|
+| t112 | `axis-new` + `order` — CommitAndOrder RAN | Loading (`aboard=0`) |
+| t212 | `hold ... commitScore=` + `reinforce-held` — **frozen** | Loading |
+| t312 | `hold` + `reinforce-held` — **frozen** | Loading |
+| t412 | `fires` + `order` — CommitAndOrder RAN | Loading (`aboard=4`) |
+| t472 | — | **`depart` -> Delivering** |
+| t512 | `hold` + `reinforce-held` — **frozen** | Delivering |
+| t612 | `hold` + `reinforce-held` — **frozen** | Delivering |
+
+1. **`CommitAndOrder` ran at 2 of 6 evals.** At the other four the axis was mission-`Committed` and
+   `PartitionHeldAxes` skipped the method entirely. **Placing a hold before `ApplyMissionCommitment`
+   protects it from freezing ITSELF; it does nothing about an axis already frozen by a commitment
+   stamped on an EARLIER eval's assault order.** The prep/sync holds' comments describe the first
+   hazard and are silent on the second, so the file reads as a stronger guarantee than it gives.
+2. **The carrier entered `Delivering` at t472 — after the last eval that entered `CommitAndOrder`.**
+   At both reachable evals it was `Loading`, which a Delivering/Unloading-only publication excludes by
+   design. The exclusion is still right (a `Loading` carrier may time out and never depart), but it
+   means the gate is blind for the whole window in which the gap actually opens.
+
+**A third defect is the gate's own key, and it is the generalisable one: an offensive axis's CENTROID
+is not where its fighting is.** Axes absorb reinforcements at the rear (`reinforce-held` joined 2, 3,
+1, 2 -> 12 units), so the centroid is dragged back toward the Supply Route while the lead runs ahead:
+at t412 `[exp-offense] order ... units=9 distToTarget=54` against a target at `58,4` puts the centroid
+around x=5 **while the tank stood at 21,16**. Any gate comparing an external actor to `AxisCentroidCell`
+is comparing it to the rear of the formation. The fix is to publish the LEAD
+(`PoiOffensiveBotModule.ForwardEscortCell`), max-by-distance-from-rally with a lowest-ActorID tie-break.
+
+**CONSEQUENCE FOR THE INSTRUMENT: clause (b) was unreachable for a reason no pacing change can fix.**
+The delivery's objective was `drop=32,10`, **eleven cells past** where the armour stood and died. The
+carrier unloads only within `DropOffArrivalRadius` of that cell, so the riflemen were never going to be
+set down near the tank whatever either of them did. The unload SITE, not the departure discipline, is
+what gates "riflemen set down within 7 cells of the tank".
+
+## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate
+
+The measured symptom (run `260922_193617`) is that nothing paces armour against the infantry it is
+supposed to arrive with: the abrams reached `22,16` and died at t621 while the carrier was at `15,15`
+with all four riflemen still aboard. A grouped `AttackMove` goes through `CohesionMoveModifier`,
+which rewrites each subject's destination cell and **carries no speed term at all**.
+
+**The hold slot and the template already exist.** `PoiOffensiveBotModule.CommitAndOrder` is a hold
+LADDER, and `TryOrderHold(bot, axis, units, centroid, alreadyHolding, out holdCell)`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/PoiOffensiveBotModule.cs:5312`) is a general primitive
+with the passability fallback, the `RepathThresholdCells` dedup and a deterministic lowest-ActorID
+representative already in it. It has three callers — `OrderPrepHold` (`:5348`), `OrderSyncHold`
+(`:5361`), `OrderConvergeHold` (`:5482`). **A fourth is ~15 lines.** The converge hold
+(`:3946-3999`) is the closest template: a gate predicate, a bound, an order, and a reconciliation
+that clears the flag and `HasOrdered` so the assault re-issues.
+
+**PLACEMENT IS LOAD-BEARING AND THE FILE SAYS SO.** A hold must return **without** stamping
+`ApplyMissionCommitment` and must sit **before** it (`:3903`): an axis marked `Committed` is frozen
+out by `PartitionHeldAxes`, which skips `CommitAndOrder` entirely, so a holding axis would never
+re-reach its own release gate and its bound would be a dead knob. That is review FIX 4's recorded
+defect, and the prep/sync holds both carry the comment.
+
+**The cross-module seam was already there.** `PoiOffensiveBotModule` already resolves the transport
+module live at `:2594` (`TraitsImplementing<MountedTransportBotModule>().FirstOrDefault(m =>
+!m.IsTraitDisabled)` — twinned, so `TraitOrDefault` throws). So "does the offense know about the
+carriers" needed no new plumbing, only a published read: `MountedTransportBotModule.LoadedDeliveryCells`,
+the mirror of the `ForwardStagingAnchor` the transport already reads off offense. Cells cross the
+seam, never decisions.
+
+**THE NON-OBVIOUS SAFETY PROPERTY, and it is stronger than the deadlock argument it replaces.** The
+worry with gating armour on a carrier is the cycle *"axis waits for carrier, carrier waits for a
+frontline only the axis could create"*. It cannot arise, for two independent reasons, and the second
+is the useful one: **a carrier with no resolvable destination never becomes something such a gate can
+see.** `MountedTransportBotModule` returns at its `no-task reason=no-drop-cell` exit
+(`MountedTransportBotModule.cs:1482-1494`) **before** any `CarrierTask` is constructed, so that
+carrier never enters `Delivering` and never appears in `LoadedDeliveryCells`. A gate keyed on
+*Delivering/Unloading with a non-empty hold* therefore cannot wait on a carrier that has nowhere to
+go — including the `DeliverBeforeContact: false` profile (`wip-transport-delivers`' RED arm), which
+is the case that looks most dangerous and is in fact the safest. Waiting on `Loading` instead would
+lose this property outright, because a `Loading` carrier may time out and never depart.
+
+**A per-axis eval budget is the wrong bound here, and the dossier says why.** 100% of axis retires
+are `reason=dropped` (`ai.yaml`, the axis-churn note), so a counter carried on the `Axis` is
+refreshed every time an axis is dropped and re-formed — which is most often **at the opening**, which
+is exactly where an escort hold lives. A bound that resets with the thing it bounds is not a bound.
+The established alternative is in the same file: `StoodOffForTransport`'s player-level tick valve
+(`:2605-2618`), which releases on expiry and **keeps the record** so the release is one-way rather
+than a hold/advance duty cycle.
+
+**What this does NOT address, stated because the item's name over-promises.** Pacing an axis against
+a CARRIER does nothing for infantry that WALK. `test-push-departs-together` has no carrier at all
+(deliberately — `map.yaml:69-78`), so any carrier-keyed gate is inert there and its d2 clause stays
+red: d2 is a speed clause between an abrams (`Speed: 90`) and a rifleman (`Speed: 25`), and only a
+throttle or a speed-split lead-hold can move it. That remains item 64's separate, unbuilt half.
+
+## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") IS MEASURED-INERT AND DOES NOT SHIP: the 2026-08-19 withdraw bound rejects the anchor in the only state that reaches it
+
+**MEASURED, and the flip was reverted on the strength of it.** Run `260922_193617`
+(`test-combined-arms-rendezvous`, flag ON on both twins, worktree @ `cf3b70f3`): **zero
+`[exp-transport] rendezvous` lines** in the whole run — that line is written only when the resolved
+cell differs from the fallback (`MountedTransportBotModule.cs`, `ResolveRendezvous`), so its absence
+is the proof. The verdict was the unchanged `"the bot's tank died before the rendezvous could be
+judged (tick=621; tank last seen at 22,16, SR is 6,16; ... rifle-1..4=oow/dead=false(rode))"`.
+
+**WHICH of the three predicted gates was live is now settled, and it was not the one I led with.**
+`anchorsrc` read `gradient` x6, `none` x6, `fallback` x1 — so an anchor WAS published for most of
+the run and the "null by design" path (reason 2 below) did **not** apply on this map. **Reason 3 —
+`RendezvousMaxWithdrawCells = 6` — is the live gate.** Reason 2 remains true as written for the
+descent-stalled case (`anchorsrc=fallback`/`none`, 7 of 13 samples here) and is what makes the
+feature unreliable rather than merely bounded; but on this geometry the bound alone is sufficient to
+explain the inertness. The general claim survives; the ranking in it was wrong.
+
+**Do not re-flip this without changing the bound.** A flip labelled "moves `@stable`" that moves
+nothing still forces an ai-bench re-baseline, which is a real cost for no behaviour.
+
+
+Flipping `mods/ww3mod/rules/ai/ai.yaml` `RendezvousWithOffensiveStaging: false -> true` on both
+`MountedTransportBotModule` twins is what `WORKSPACE/audit/260921-release-readiness.md:287`
+(package 8) asks for, and the audit's line numbers resolve exactly at its own SHA `cf25edbe`
+(`:2258` = the `@poi`/stable twin, `:2353` = the `@experimental` twin). The flag is correctly
+identified. **It is also measured-inert by code reading, for three independent reasons, and the
+scenario the audit names to measure it cannot see it at all.**
+
+**1. `test-push-departs-together` has no carrier, so the flag is unreachable there.**
+The scenario creates 2 `abrams` + 4 `e3.america` from Lua and sets `DefaultCash: 0`
+(`rules.yaml`), and its `map.yaml:69-78` says the absence of a carrier is deliberate
+("NO CARRIER, AND THAT IS NOT AN OVERSIGHT"). With no owned `bradley`/`bmp2`/`m113`,
+`MountedTransportBotModule`'s scan returns at
+`engine/OpenRA.Mods.Common/Traits/BotModules/MountedTransportBotModule.cs:1384-1385`
+(`if (candidates.Count == 0) return;`) **before** `PickDropOffCell` is ever called. So no
+drop cell is resolved, `ResolveRendezvous` never runs, and no number this scenario prints can
+move on this flip. **The audit's "`test-push-departs-together` RED->GREEN" pairing is wrong.**
+
+**2. The only state that reaches the rendezvous is the one where the anchor it needs is null.**
+`ResolveRendezvous` has exactly one caller: `PreContactStagingCell`
+(`MountedTransportBotModule.cs:1753`), itself reached only via `StageForwardOrGiveUp` when
+`PickDropOffCellUnclamped` found no frontline cell -- i.e. **pre-contact only**. In that state
+`PoiOffensiveBotModule.ResolveStagingAnchor` returns null when the frontier descent stalls on the
+SR's grid cell (`PoiOffensiveBotModule.cs:2657-2667`), and the fallback cell `StageFreePool`
+substitutes is a deliberate **local**, never the module field:
+
+```
+PoiOffensiveBotModule.cs:2946-2950
+// LOCAL, never the module field. `stagingAnchor` is shared state ... writing the fallback into it
+// would leak this method's decision into every later consumer in the same eval and is precisely
+// the second variable this change must not introduce.
+var effectiveAnchor = stagingAnchor;
+```
+
+`ForwardStagingAnchor => stagingAnchor` (`:1335`) publishes the RAW field, so it stays null on the
+fallback path. `RendezvousMath.ResolveDropOff(enabled: true, hasAnchor: false, ...)` returns the
+caller's lerp unchanged -- the identity path. **Measured, twice:** `[exp-clog] ... anchor=14,16
+anchorsrc=fallback` (run `260905_183118`) and `... sr=6,16 anchor=12,16 anchorsrc=fallback`
+(item-64 dossier, 09-05). `anchorsrc=fallback` is emitted iff `onFallback` is true
+(`:2992-2995`), which is true iff `stagingAnchor` was null.
+
+**3. Where an anchor IS published, the 6-cell withdraw bound rejects it -- by design.**
+`RendezvousMaxAdvanceCells = 6` and `RendezvousMaxWithdrawCells = 6`
+(`MountedTransportBotModule.cs:100,109`), neither overridden in `ai.yaml`, so the acceptance band
+is `[fallbackReach-6, fallbackReach+6]`. On `test-combined-arms-rendezvous`'s geometry (own SR
+`6,16`, enemy SR `58,4`, `PreContactStagingPct: 50`) the lerp is `(32,10)` and
+`fallbackReach = Chebyshev = 26`, so an anchor must sit **20-32 cells** from the SR to be
+accepted. The offensive muster sits at `StagingFallbackCells: 6` (`ai.yaml:759`/`:3176`), i.e.
+**6 cells** -- rejected. This is the two-sided bound working exactly as specified: it is the fix
+for run `260815_202509`, NUnit-pinned as `AnchorParkedOnOurOwnSupplyRoute_IsRejected`
+(`engine/OpenRA.Test/OpenRA.Mods.Common/RendezvousMathTest.cs:183-203`) on this same
+`6,16 / 7,17 / 32,10` geometry.
+
+**THE STRUCTURAL POINT, and it is why no flag value fixes this.** The feature's intent ("drop the
+infantry where the armour is mustering") and the bound's intent ("do not drop near our own SR")
+are in **direct conflict at the opening**, because at the opening the armour's muster IS near the
+SR -- 6 cells out against a 26-cell lerp. The 2026-08-19 bound did not merely remove a blocker; it
+made the pre-contact case, which is the only case `DeliverBeforeContact` exists to serve,
+permanently unreachable. `ai.yaml`'s own comment already contains the premise ("before contact the
+frontier descent has nothing to descend toward, so the anchor sits on the Supply Route and is
+ALWAYS behind the lerp") without drawing the conclusion.
+
+**What delivering item 64's combined-arms half would actually take** (NOT done here; each is a
+behavioural change on a trait both profiles carry, owed its own measured run):
+1. publish the *effective* staging anchor (gradient or fallback) on a **new** property -- not by
+   writing it into `stagingAnchor`, which `:2946-2950` forbids in terms; and
+2. a doctrine ruling on the withdraw bound, since accepting a 6-cell anchor against a 26-cell lerp
+   is definitionally the 1-cell-shuttle shape the bound exists to reject. A ratio, a pre-contact
+   exemption and a "clamp toward the anchor rather than adopt it" are all candidates, and all are
+   doctrine, not tuning.
+
+**The residual "lone tank" the audit row describes is a different defect.** Per
+`WORKSPACE/pipeline/items/86-ambush-lane-opening-share.md:219-238`, after item 86 the residual is
+the OFFENSE AXIS forming at `EarlyMinAxisSize: 2` and being ordered 53 cells out while
+reinforcements join behind it -- item 64's missing **lead-hold**, which is not built in any bot
+module. `test-push-departs-together`'s own `expected-status` says so: *"DELETE THIS FILE when a
+lead-hold ... lands and d1/d2 can be met."*
+
+## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
+
+`test-frozen-tooltip-owner-hidden` passed on 2026-09-21 21:59 and failed on main @ `ef7362a7`
+with `SETUP -- after 161 ticks USA's ghost of its OWN Box reads state 'shrouded'
+(cell visibility 0), never 'live'`. Nothing in the tooltip/hotkey/bot merges everyone suspected
+touched vision. The cause is one added inherit line, four merges earlier than the window the
+triage brief assumed:
+
+```
+mods/ww3mod/rules/ingame/structures-defenses.yaml:215
+PBOX:
+	Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded   # added by 70e63582 (wt/neutral-entry)
+```
+
+`^StandardVisionWhenLoaded` (`mods/ww3mod/rules/defaults.yaml:156-177`) inherits
+`^StandardVision` and re-states all ten `Vision@N` keys carrying nothing but
+`RequiresCondition: loaded`. By MiniYaml key collision that gates the entire ladder `^Defense`
+supplied at `structures-defenses.yaml:5`. **An UNMANNED pbox now reveals nothing at all,
+including its own cell.** The gate is correct (GTWR and HBOX were always gated; PBOX was the
+outlier) and was not the bug. The scenario staged on the old behaviour: its Box is an ungarrisoned
+USA-owned pbox and phase 1 waits for USA to see it.
+
+### Three things worth carrying
+
+**1. The failing scenario's own explanation of its premise was wrong, and had been from the
+start.** Both `map.yaml` and the phase-1 fail text cited `^BasicBuilding`'s ladder
+(`structures.yaml:14-23`, strength 3 out to 1c0). That ladder never lit this cell. `^Defense`
+inherits `^Building` FIRST and `^StandardVision` SECOND (`structures-defenses.yaml:3-5`), and
+`^StandardVision` re-declares the keys `Vision@3/@2/@1` at 22-32c0 (`defaults.yaml:143-154`) --
+so the later inherit OVERWRITES `^BasicBuilding`'s three short rungs outright. The rung that
+actually lit 8,16 was `Vision@10` (strength 10, 0..4c0), which is why the green log reads
+`vis=10`, not `vis=3`. A correct-looking comment citing a real file:line was wrong for two
+different reasons at once, and reading it first cost the better part of the triage. Corrected
+in-tree.
+
+**2. No gate catches this class, and none of the obvious ones would have.** `make nav-guard` is
+scenario-blind (baseline is `mods/ww3mod/maps` only). `lua-gate` checks inert-but-valid shapes,
+not staging premises. Lint would pass: `Vision` with `RequiresCondition: loaded` is perfectly
+well-formed YAML naming a condition `Cargo.LoadedCondition` really grants. The scenario is
+*valid*; it is merely *vacuous*. The only thing that finds it is running it, and the only thing
+that would have flagged it at authoring time is a grep for `: pbox` across
+`tools/autotest/scenarios/*/map.yaml` -- **18 scenarios place one**, which is cheap enough to be
+the actual rule: *when you change a shared actor template, grep the scenario map.yamls for that
+actor type before merging.*
+
+**3. Blast radius was exactly ONE scenario, and the cross-check is worth repeating.** Of the 39
+distinct failures in the 260922 main suite, three place a pbox. The other two
+(`test-supplyroute-exempt-from-fog`, `test-unscouted-building-hidden`) fail on an unrelated
+`FrozenUnderFog.IsVisible` short-circuit -- they assert on an ENEMY pbox being wrongly visible,
+not on self-sight, so the gate does not reach them. The sister scenario
+`test-frozen-owner-snapshot` uses a pbox too and still passes: its USA sees the cell through a
+Scout at 5,16, never through the building.
+
+### Side observation, unexplained and NOT chased
+
+`[danger] reference ground=` (`DangerFieldLayer.cs:443`) is **map-dependent**, not tree-constant:
+across ~340 runs on 2026-09-22 it reads `2748 / ground-types=92/460 / min=21` for most scenarios
+and `2797 / 90/460 / min=171` for others, and the split does not follow the checkout. Both values
+occur in the same worktree on the same day. This is expected in principle (`w.Map.Rules` includes
+map overrides), but it makes the line **useless as a build fingerprint** -- which is exactly what
+it was being used for during this triage before the pattern showed up. Do not read a change in
+that line as evidence the engine changed.
+
+### And the triage lesson that actually cost the time
+
+The brief located the green run at worktree ref `a5366487` and the delta at 13 engine files. The
+green run is timestamped 2026-09-21T20:00Z; `a5366487` was committed 2026-09-22T02:10. **The run
+predates the commit by six hours.** The worktree was at `e6732446`, whose main base is
+`1160a531` (2026-09-21 15:22) -- not `d69e6883` (20:50). The true window was **15 merges, not 5**,
+and the cause sat in `70e63582`, four merges outside the assumed one. When a run dir is offered as
+a code reference, check the run's timestamp against the commit's `%cI` before diffing.
+## 2026-09-22 - A SCENARIO CANNOT RE-ROLE A SHIPPED UNIT: `AIUnitRole` in a scenario's `rules.yaml` is lint-visible, because `CheckUnitRoleTable` runs over EVERY map's resolved ruleset
+
+`5f8fed03` kept a staged casualty out of the bot's offensive pool by writing
+
+```
+abrams:
+	AIUnitRole:
+		Role: Logistics
+```
+
+into `tools/autotest/scenarios/test-experimental-engineer-repairs/rules.yaml`. The mechanism was
+right — nothing in the engine recruits `UnitRole.Logistics` — and the reasoning in the file was
+sound. **The prediction attached to it was not.** That worker's report said the change "would most
+likely still pass lint". What the gate actually said, one line above the baseline floor (Errors: 23
+vs 22):
+
+```
+NEW: test-experimental-engineer-repairs | CheckUnitRoleTable: `abrams` derived role Logistics, expected MainBattle.
+```
+
+It reached `origin/main` (`e8d61097`) only because a chained merge script pushed over the red.
+
+### The generalisable fact: map rules are not a private namespace as far as lint is concerned
+
+`CheckYaml` runs **every** `ILintRulesPass` against **every** map's resolved ruleset, not only against
+`modData.DefaultRules` — `CheckYamlCommand`/`CheckYaml.cs:103` walks the map list and `:137` sets the
+error scope to the map's package folder, which is where the `test-…` prefix in the message comes
+from. `CheckUnitRoleTable` then pins a table of key units by name (`CheckUnitRoleTable.cs:31-108`,
+`abrams` at `:34`) and asserts each one's **derived** role in the loop at `:134-145`. A scenario that
+overrides a pinned actor's role therefore fails the pin *for that map*, and the pin is right to fail:
+its whole purpose (see the file header) is to catch a YAML edit that silently reclassifies a key
+combat unit. Nothing about a map being a test map makes `abrams` a logistics unit.
+
+Only the **set-equality** half of that lint is gated on `ReferenceEquals(rules, modData.DefaultRules)`
+(`:175`). The name-pin loop, the troop-carrier checks and `CheckCategory` are not — so "it is only a
+scenario" buys nothing for any of them.
+
+### The fix pattern: re-role a scenario-local CLONE, never the shipped actor
+
+```
+casualtyabrams:
+	Inherits: abrams
+	RenderSprites:
+		Image: abrams
+	AIUnitRole:
+		Role: Logistics
+	-Buildable:
+```
+
+and stage the clone from `map.yaml`. The exclusion is identical (same trait, same value, same four
+role-mode pools) and the shipped unit keeps its classification, so the lint has nothing to say.
+Precedent already in tree: `pauperabrams` (`test-evac-refund-indicator/rules.yaml:63`) and the
+humvee/m113/abrams families in `test-burn-compare/rules.yaml`.
+
+**The clone form fixes a second, quieter defect that had nothing to do with lint.** Overriding the
+TYPE re-roles every instance — including the `abrams` and `E3.america` the bot BUYS during the run —
+so the scenario had also emptied the offensive module's own pools of the units it was supposed to go
+on fielding, while a comment three lines above claimed production was unaffected. A clone touches
+only what `map.yaml` places.
+
+**Two lines are mandatory on any such clone and both have cost a run before.** `RenderSprites: Image:`
+— sprites resolve by ACTOR NAME and not through `Inherits`, so the engine dies at world load with
+"Image `<clone>` does not have any sequences defined", and no static gate catches it because the
+sequence set is not resolved until world load. And `-Buildable:` — an inherited `Buildable` would put
+a Logistics-roled tank in the live production queue for the whole run.
+
+**One asymmetry worth carrying:** a mis-cased top-level KEY in map rules silently overrides nothing,
+but a mis-cased `Inherits:` VALUE is loud — `MiniYaml.cs:461-464` throws `Parent type ... not found`
+at load. `abrams` is lowercase (`vehicles-america.yaml:464`); `E3.america` has a capital E3
+(`infantry-america.yaml:18`). The clone form converts the silent failure mode into the loud one.
+
+## 2026-09-22 - A bot module ordered a unit ONTO the actor it was sent to service, and no gate could see it (`EngineerOperatorBotModule`, `main @ ef7362a7`)
+
+`test-experimental-engineer-repairs` passed on 2026-09-21 (run `260921_213228`) and failed on
+2026-09-22 (run `260922_063223`). **It was not a regression.** The two runs differ in RNG seed, not
+in any code that reaches this mechanism, and the defect the failing run exposed is present in the
+passing run's own log.
+
+### The generalisable finding: a terrain-only clamp cannot express "park NEXT TO"
+
+`EngineerOperatorBotModule.IssuePark` took the repair anchor as `repair.Location` — the casualty's
+**own cell** — and ran it through `BotTerrain.TryNearestStandable`
+(`engine/OpenRA.Mods.Common/Traits/BotModules/EngineerOperatorBotModule.cs:634`). That clamp tests
+**terrain only** and says so in its own docs (`BotTerrain.cs`, `EngineRelocationCells`): the ground
+under a tank is ordinary ground, so it returned the same cell unchanged. The engineer was then
+ordered to `Move` into the body of the thing he was sent to repair.
+
+**Nothing downstream rescues it, and this is the part worth carrying.** The engine's own relocation
+(`Mobile.NearestMoveableCell`) tests `CanEnterCell(..., BlockedByActor.Immovable)` — and a **mobile**
+blocker is not `Immovable`, so the destination is not relocated either. Both the bot's clamp and the
+engine's clamp accept a cell occupied by a vehicle. The unqueued `Move` then stalls the engineer
+beside the casualty, **outside** `Repair`'s one-cell reach, for the whole `OrderSettleTicks` (200)
+window. Measured: ordered `cell=22,16` onto the casualty at `22,16`; engineer sat at `24,16` from
+t100 to t300 without moving; health delta 0.
+
+The module's own `[Desc]` says "PARKED within one cell of the thing he is servicing". **The code and
+the Desc disagreed, and the prose is what everyone read.**
+
+**Rule: when a module's anchor is a live ACTOR rather than a centroid, the terrain clamp is the wrong
+tool — the destination has to come off an adjacency ring filtered by `Mobile.CanEnterCell` AND
+`Mobile.CanStayInCell` (a transit-only cell can be entered and not held, and a parking employment has
+to stand still while its armament fires).** `FiresStandoffMath.NearestPassableCell` and
+`BotTerrain.TryNearestStandable` both answer a terrain question only. Fixed in
+`EngineerTaskingMath.ParkCandidateOffsets` + `EngineerOperatorBotModule.RepairParkAnchor`.
+
+### Why the passing run passed, and why that is the more useful half
+
+Not because the mechanism worked. The bot **drafted its own casualty into an offensive axis** —
+`abrams` resolves to `UnitRole.MainBattle` and `PoiOffensiveBotModule`'s free pool accepts exactly
+`MainBattle || IndirectFire` (`PoiOffensiveBotModule.cs:3230`) — and drove it at the enemy Supply
+Route. In `260921_213228` the casualty crossed **onto the engineer's own cell** at t100 while
+transiting east; at range 0 the repair armament fired once (+280 hp, 1%), and the deferred verdict
+read `hp > startHealth` and passed. In `260922_063223` the axis formed 52 ticks later and the
+casualty left from `22,16` instead, reaching 38 cells away.
+
+**The tell was in both logs and in neither verdict:** `[engineer] ... repair cell=` tracks the
+casualty east in each (`24,16 -> 36,16 -> 47,14 -> 56,6`, converging on the enemy SR at `60,4`).
+
+**Rule: a scenario that stages a COMBAT-ROLE actor as passive furniture is measuring a race against
+its own bot.** The scenario had carefully eliminated the confounder it thought of (no enemy is ever
+observed, so the higher-priority BREACH employment cannot fire) and was defeated by its own casualty
+being a legal recruit. The mod's own exclusion mechanism is the cheap fix and it closes all four
+pools at once: `AIUnitRole: Role: Logistics` — the same trait that keeps `^E6` parked
+(`infantry.yaml:1913-1914`) and the reason this module had to exist. Grepped, not assumed: nothing
+recruits `Logistics` (`UnitRole.Logistics` appears only in `CheckUnitRoleTable` and
+`UnitRoleResolverTest`), and the role filter is shared by `PoiOffensiveBotModule`,
+`LayeredDefenceBotModule`, `PoiGarrisonBotModule` and `LaneAmbushBotModule`.
+
+### The failure text was confidently, specifically wrong — and it is a repeatable shape
+
+The scenario chose between its two failure branches on the **final** distance alone, and printed:
+
+> "the engineer NEVER WALKED: ... He was not employed at all — the module did not order him, or it
+> did not recognise him. Check that map.yaml places `e6.america` and not a bare `e6`"
+
+against a log showing the module ordering him **every cycle** and a casualty 38 cells downrange. The
+engineer had also started 4 cells away and ended 24 — **the number in the same sentence contradicted
+the sentence**.
+
+**Rule: an end-of-run distance cannot distinguish "never arrived" from "arrived and was left
+behind", so do not let it select a failure message. Track the CLOSEST approach and the subject's
+drift from where it was staged.** The passing run ended at dist 21 having been at 0; the failing run
+ended at dist 24 having never been closer than 2. A single final number reads those as the same run.
+
+### No gate on this repo could have caught either half
+
+`make all`, `make check`, `dotnet test`, `make lua-gate` and `--check-yaml` are all green across
+this defect, and `make smoke` would be too: the World constructs, the map ticks, the module runs and
+logs, every order is issued and accepted. **The only instrument that can see "the bot did the wrong
+useful-looking thing" is a verdict scenario — which is exactly why a verdict scenario that passes on
+a coin flip is worse than none.** Its two recorded runs are one pass and one fail at different
+wall-clock seeds (`run-test.sh:770` seeds from the clock unless `--seed` is given); with n=2 there
+was no way to tell that apart from a regression, and the brief that triaged it as one was reasonable.
+
+**Rule: before bisecting a scenario flip, check whether the two runs share a seed.** If they do not,
+the code delta is a hypothesis and the two logs are the evidence — diff the logs first.
+
+## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`)
+
+One `tournament-s1-eco-river-zeta` match, `--seeds 1 --max-wall-secs 600`, full 7,500-tick clock,
+`time_limit`, USA-bot (`experimental`) 86,633 vs Russia-bot (`stable`) 53,215. Every figure below
+was re-derived from `match_1_debug.log` in this worktree; the exact greps are given because two of
+the manager's readout strings do not exist in the log as written.
+
+### The precondition clause is met on both halves, for both sides
+
+The 2026-08-14 clause requires `[composition] census` showing **`earned>0` AND a non-zero `truk`
+term** before any delivery evidence is read.
+
+| | first `earned>0` | first NON-ZERO `truk` | peak `truk` | last census (tick 7480) |
+|---|---|---|---|---|
+| USA-bot | tick 80 (`earned=100`) | **tick 5760** (`truk=1+0`) | 7 @ tick 6720 | `earned=78420 trucks-desired=6 held-first-truck=True truk=7+0` |
+| Russia-bot | tick 80 (`earned=100`) | **tick 4640** (`truk=1+0`) | 3 @ tick 5720 | `earned=55454 trucks-desired=3 held-first-truck=True truk=3+0` |
+
+**Trap, and it would have manufactured a false "instrument failure".** The FIRST census line
+carrying a `truk=` term reads **`truk=0+0`** — USA at tick 5680, Russia at tick 4560. The term is
+present one census (40 ticks) before the truck is. `grep -F 'truk='` answers *"is the term
+printed"*, not *"does a truck exist"*; the clause says **non-zero**, so the `inWorld+inCargo` pair
+has to be parsed and summed. Counting lines containing `truk=` gives 120 (USA 46 / Russia 74) —
+the figure the manager reported — but two of those 120 are zero rows.
+
+Census cadence: 374 lines = **187 per side, every 40 ticks**, tick 40 → 7480. `[supply] scan` is
+every 150 ticks (`ScanInterval: 150`, 50 scans per player over 7,500 ticks).
+
+### Deliveries — the bar itself
+
+```
+grep -F -c '[supply] drop truck='   # 5  dispatches, every line ends 'new'
+grep -F -c '[supply] crate-placed'  # 4  deliveries
+grep -F -c 'never-arrived'          # 1  refusal
+```
+
+| truck | owner | dispatched after tick | outcome | after tick |
+|---|---|---|---|---|
+| 4801 | Russia-bot (stable) | 4640 | `crate-placed` supplycache **750** @ 65,31 | 5240 |
+| 4807 | Russia-bot (stable) | 5080 | `crate-placed` supplycache **750** @ 60,31 | 5600 |
+| 4832 | USA-bot (experimental) | 5840 | `crate-placed` supplycache **710** @ 32,42 | 6200 |
+| 4842 | USA-bot (experimental) | 6000 | `crate-refused reason=never-arrived` ordered=27,33 tol=2c | 6200 |
+| 4837 | USA-bot (experimental) | 6120 | `crate-placed` supplycache **710** @ 32,43 | 6560 |
+
+Event ticks are bracketed by interleaving the untimestamped `[supply]` lines against the
+tick-stamped census stream, so each is accurate to the 40-tick census window `(t, t+40]`.
+
+**The accounting closes exactly and leaves nothing open: 4 placed + 1 refused = 5 dispatched.**
+Zero errands were still in flight at the clock, and zero trucks were re-dispatched without having
+placed a crate. Contrast the ×10 re-baseline, where 28 of 78 (36%) were unresolved at the limit and
+18 (23%) were re-dispatched without a crate.
+
+**Delivery ratio = `crate-placed` ÷ dispatches = 4/5 = 80.0%.** Comparable to the **41.0%** (32/78)
+of the 2026-09-06 ×10 re-baseline, which the dossier verified is computed the same way (all its
+`[supply] drop` lines end `new`, so the denominator is fresh dispatches). Because nothing was
+unresolved tonight, 80.0% is also directly comparable to that batch's resolved-only **64%**
+(32/50). **NOT comparable to the 15.0% at `c9626273`** — the dossier flags that figure's definition
+as an unverified HYPOTHESIS and its tournament config as unrecorded anywhere in the repo. N=5 is a
+direction, not a rate.
+
+### `[supply] truck=` DOES carry per-scan positions — the ×10 read-out was wrong about this
+
+Bar run 2 concluded *"these logs carry no per-tick truck positions, so the reversal count cannot be
+computed from them"*. Per-**tick** is right; per-**scan** is wrong. Every `[supply] truck=` line is
+`truck=<id>@<x>,<y>`, one sample per truck per 150-tick scan, and that is enough for a
+monotonicity reading. Collapsing consecutive duplicates:
+
+| truck | x-travel | reversals, dispatch → crate |
+|---|---|---|
+| 4801 | 95 → 89 → 81 → 74 → **65** → 68 | **0** |
+| 4807 | 95 → 84 → 74 → 69 → 61 → **60** → 64 | **0** |
+| 4832 | 6 → 17 → 29 → **32** → 30 | **0** |
+| 4837 | 8 → 18 → 21 → 25 → **32** → 31 | **0** |
+| 4842 | 2 → 11 → 15 → 14 → 20 → 27 → 32 → 37 (parked 10 scans) | 2 — *never arrived* |
+
+**All four deliveries are strictly monotone in x from dispatch to crate.** The single reversal at
+the tail of each successful trace is the post-drop egress — the truck turning round after unloading,
+which is the second half of the wanted behaviour, not oscillation. The user's verbatim complaint is
+*"going back and forth, not committing"*; on this evidence the four committed trucks did not go back
+and forth at all.
+
+**Honest limit of the instrument:** sampling is per scan, so a reversal with a period shorter than
+150 ticks is invisible. Observed per-scan x-deltas are 5–12 cells, so a full round trip hidden
+inside one scan is bounded at roughly ±4 cells. Multi-scan cluster churn — the mechanism §2 of the
+dossier identified — is exactly what this reading does cover.
+
+### Decline histogram, and a grep string that does not exist
+
+```
+grep -F '[supply] drop-declined' match_1_debug.log | grep -oE 'reason=[A-Za-z-]+' | sort | uniq -c
+#  14 reason=Covered
+#  12 reason=NoDemand      (26 total)
+grep -F '[supply] hunt-declined' match_1_debug.log | grep -oE 'reason=[a-zA-Z-]+' | sort | uniq -c
+#  19 reason=no-demand-in-leash
+```
+
+**`drop-declined reason=` is not a contiguous substring anywhere in the log** — the line is
+`drop-declined truck=<id>@<x>,<y> reason=<R>`, with the truck field between the two halves. The
+counts the manager reported (Covered 14, NoDemand 12) are right; the grep as quoted returns 0, and
+`-F` does not save it because the fault is the interleaved field, not bracket expansion. **`Covered`
+(53.8%) overtakes `NoDemand` (46.2%) tonight**, inverting the ×10 batch's NoDemand 55.2% / Covered
+41.4%. `LowLoad` and `NoAnchor` never fire.
+
+`[supply] init` confirms the shipped bypass on both bots: `ignore-danger=True`, `evac=False`,
+`drop=True` (`hunt=True` USA / `False` Russia). Cluster stickiness is live: 75 truck-scan lines
+carry `held=`, 34 of them holding a cluster (`held=4691` ×26, `held=4696` ×8), 41 `held=<none>`.
+
+### Harness lessons
+
+**1. `--max-wall-secs 600` is mandatory for this config on this host, and the default would have
+produced a textbook false negative.** `run-tournament.sh:157-167` auto-computes
+`TIME_LIMIT_SECS * 4 / SpeedMultiplier` = `300 * 4 / 8` = **150s**. The match needed **337s** of
+game execution (started 02:12:15, last `debug.log` write 02:17:52; whole batch 02:11:26 → 02:17:53 =
+387s). The comment at `:149-151` is explicit that it budgets the full multiplier even though "worst
+case the actual speed-up is less" — and this host achieved 7,500 ticks in 337s ≈ 22 ticks/s against
+a requested 8× of a 40 ms timestep, i.e. **~1.1× wall, not 8×**. At 150s the watchdog kills at
+roughly tick **3,340 (45% of the clock)**. **The first truck of the match exists at tick 4,640.**
+So the default cap does not merely truncate the match — it terminates it *before a single truck is
+ever bought*, and the run reads as "no truck was ever purchased" = instrument failure. That is
+precisely the false negative the 2026-08-14 precondition clause was written to catch, arriving
+through the watchdog rather than through the economy.
+
+**2. Census is present from tick 40**, so the precondition is checkable within the first second of
+simulated time — there is no warm-up window to wait out before deciding a run is instrumented.
+
+**3. The supply phase lives in the last 38% of a 5-minute clock.** First truck tick 4,640 (62% in),
+first delivery ~5,250 (70%), last delivery ~6,570 (88%). A 300s config barely admits the subsystem
+under test; the sibling 720s config would sample several times as many dispatches.
+
+## 2026-09-22 - Three harness/readout traps on the item-56 acceptance-bar run, one of which INVERTED the diagnosis (`main @ d69e6883`, run dir `tools/autotest/tournament-results/260922_0124_tournament-s1-eco-river-zeta`)
+
+All three were hit inside one 150-second tournament attempt. The third is the one worth carrying
+furthest: it is not a harness bug at all, and it made a healthy instrument read as a dead one.
+
+### 1. `grep -c '[composition] census'` returns 0 on a log that contains 116 of them
+
+**This is a shell/BRE trap, not a missing log line, and it produced a confident wrong verdict.**
+In a POSIX basic regular expression `[composition]` is a **bracket expression**: it matches exactly
+one character from the set `{c,o,m,p,s,i,t,n}`, and the `]` is consumed as the expression's
+**terminator**, not as a literal. So the pattern actually searched for is *"one of those eight
+characters, immediately followed by `` census``"* — and the real log line has `]` in that position,
+which is not in the set. Zero matches, exit 1, and the natural reading is "the emitter never fired".
+
+```
+grep -c  '[composition] census' match_1_debug.log   # -> 0     WRONG
+grep -cF '[composition] census' match_1_debug.log   # -> 116   RIGHT
+```
+
+**Use `grep -F` (or `grep -c '\[composition\] census'`) for every bracketed log tag in this repo** —
+`[supply]`, `[composition]`, `[exp-capture]`, `[danger]`, `[Tournament]` and the rest are all
+vulnerable, and `[supply]` is the worst case because `]` is again the character that decides it.
+The failure is silent and always in the same direction: **it under-counts to zero**, so it
+manufactures "the feature is not instrumented" out of a fully instrumented run.
+
+This is the same family as the zero-byte-log and exit-127 traps already in `CLAUDE.md`: *an
+absence of output is a claim that has to be verified, not a result.* Here the absence was an
+artifact of the question, not a property of the log.
+
+### 2. The six S1/S2 ladder scenarios ship no `tournament.yaml`, so `--config` is mandatory
+
+`run-tournament.sh:139` falls back to `<scenario>/tournament.yaml` when `--config` is omitted, and
+`:142-145` then exits **3** with `Error: tournament config not found` **before launching anything**.
+`tournament-s1-eco-river-zeta` contains only `tournament-eco-5min.yaml`; the same holds for the other
+ladder scenarios. Only the legacy `tournament-arena-*` / `-parity-*` / `-capture-*` scenarios carry a
+plain `tournament.yaml`.
+
+Already documented in `WORKSPACE/ai-bench/RUNBOOK-260905.md` §4 — recorded here because it was hit
+again from outside that runbook, which is evidence the knowledge is not reachable from where people
+actually start. **Exit 3 here is a launch failure: nothing ran and nothing was proven.**
+
+### 3. An ABSOLUTE `--result-dir` splits the run across two directories and the match writes nothing
+
+`run-tournament.sh` uses `${RESULT_DIR}` two different ways and they only agree when it is relative:
+
+| Line | Expression | With `--result-dir /tmp/x` |
+|---|---|---|
+| `:174` | `mkdir -p "${RESULT_DIR}"` | creates `/tmp/x` |
+| `:180` | `"${RESULT_DIR}/batch.meta.json"` | writes `/tmp/x/batch.meta.json` |
+| `:262` | `"${REPO_ROOT}/${RESULT_DIR}/match_${i}.json"` | `<repo>//tmp/x/match_1.json` |
+| `:263` | `"${REPO_ROOT}/${RESULT_DIR}/match_${i}.log"` | `<repo>//tmp/x/match_1.log` |
+| `:355` | `cp "${DEBUG_LOG}" "${REPO_ROOT}/${RESULT_DIR}/..."` | same prefixed path |
+
+The `${REPO_ROOT}/` prefix at `:262-263` is correct for the *default* relative dir (the script `cd`s
+to the repo root at `:46-47`, and the engine runs with `cwd=engine/`, so the comment at `:260-261` is
+right about why the absolute form is needed). It is simply not idempotent: prefixing an
+already-absolute path yields `<repo>//tmp/x`, whose parent was never created. The subshell's
+`> "${MATCH_LOG}"` redirect then fails, the subshell dies immediately, and the watchdog reports
+**"Game exited without writing verdict"** — which looks like an engine crash rather than a path bug.
+
+**Use a repo-relative `--result-dir`** (the default shape,
+`tools/autotest/tournament-results/<name>`). The one-line fix would be to make `:262-263`/`:355`
+absolutise conditionally rather than unconditionally, but that is a harness change and is not taken
+here.
+
+### Bonus, same run: the 150 s default wall-clock cap is derived from a speed-up the machine need not achieve
+
+`run-tournament.sh:157-166` computes `MAX_WALL_SECS = TimeLimitSeconds * 4 / SpeedMultiplier`
+= `300 * 4 / 8` = **150 s**, i.e. it budgets the **full** 8× multiplier and then allows 4× slack on
+top. The comment at `:155-156` already concedes "worst case (rendering bottleneck) the actual
+speed-up is less than the multiplier; we still budget the full mult for the watchdog."
+
+On this macOS host the multiplier **was** applied — `match_1.watcher.log` line 1 reads
+`WorldLoaded: speed multiplier 8x — Timestep 40 → 5 ms/tick` — but the sim delivered **2,337 ticks
+in ~150 s ≈ 15.6 ticks/s**, against the 200 ticks/s the 5 ms timestep asks for and the ~200 ticks/s
+`RUNBOOK-260905.md` §8 records on the Windows baseline (7,500 ticks in ~37.5 s). The match was
+culled at **31 % of its 7,500-tick clock**.
+
+**The discriminator between "config never applied" and "machine could not keep up" is that watcher
+line**, and it is worth knowing by name: if `SpeedMultiplier` had failed to reach the engine, the
+`effectiveMultiplier > 1` branch at `BotVsBotMatchWatcher.cs:187-194` would not have run and the line
+would be **absent entirely**. Its presence proves `Test.TournamentConfig` was loaded, parsed, and
+applied. `OPENRA_WINDOW_HIDDEN=1` is not implicated either — it is read only by
+`Sdl2PlatformWindow.cs:233` to create the window unmapped, and touches no timestep.
+
+`RUNBOOK-260905.md` §5 already passes `--max-wall-secs 300` explicitly for exactly this reason
+("deliberately far above the natural match length so the watchdog never culls a match early — a
+culled match breaks the paired model"). **On a macOS host that is still too low: budget ~900 s for a
+7,500-tick S1 match.** A culled match is not a negative result; for item 56 specifically it is an
+instrument failure, because the trucks are bought in the back half of the clock.
+## 2026-09-22 - The 16.667 flip broke exactly one class of script, and the class is not "scenarios with deadlines" - it is "scenarios that convert seconds through the HARNESS" (`wt/tick-rate`, base `main @ d69e6883`)
+
+The full suite at `wt/tick-rate @ e6732446` returned Pass 198 / Fail 39 / Skip 21 / Error 1 over 259
+scenarios. Static triage called **13 tick-caused**, 32 pre-existing, 15 unexplained; the re-run at
+`b4747687` settled it at **7 tick-caused, 1 flaky, 5 real findings**. Row-by-row evidence in
+`WORKSPACE/audit/260922-tick16-suite-triage.md`. What generalises:
+
+**THE STATIC TRIAGE WAS RIGHT ABOUT THE CLASS AND WRONG ABOUT SIX OF THIRTEEN MEMBERS, AND THAT
+RATIO IS THE POINT.** "Exposed to the harness converter" AND "failed on its own `timeoutReason`"
+are jointly NECESSARY for a tick casualty and nowhere near SUFFICIENT: a shrunken deadline and a
+broken behaviour produce the same verdict string, and no amount of reading separates them. The
+re-run is what separates them, and it took one run each. **Restoring an authored budget is a
+diagnostic, not a fix** — it is cheap, information-preserving, and converts an ambiguous red into
+either a green or a finding. Budget the run; do not try to reason the answer out.
+
+**ONE PASS IS NOT EVIDENCE THAT THE FIX CAUSED IT — CHECK THE RECORDED TICK AGAINST THE OLD
+BUDGET.** `test-spread-no-autotarget` went green after the restoration and looked like a
+vindication. It passed at **tick 228** against a shrunken budget of **333**: it would have passed
+without the fix, and its earlier red was seed sensitivity, not the flip. The `AssertWithin` note
+("predicate true at tick N of M") makes this a one-line arithmetic check, and it is worth doing on
+every green claimed for a timing fix. Two of the seven confirmed casualties are proven this way in
+the other direction — 261 of 350 against a shrunken 233, and 1819 of 2250 against 1500.
+
+**A TIMEOUT AT THE *RESTORED* BUDGET IS A STRONGER RESULT THAN A MERITS-FAILURE.** Two of the five
+survivors (`test-tunguska-missile-standoff`, `test-crate-force-attack`) timed out again after being
+given back exactly the window their authors validated against — so the budget was never the cause,
+and the behaviour has ~30 s to do something it never does. Distinguishing them costs nothing: a
+predicate failure is recorded with its `fail: ` prefix intact, a `timeoutReason` is not.
+
+**WHEN A BUDGET CHANGE MOVES THE NUMBERS BUT NOT THE VERDICT, THE BUDGET IS EXONERATED.**
+`test-wgm-tree-density-ladder` classified all seven of its rungs identically at 133 and at 200
+ticks; the extra ticks only bought each *firing* lane one more round. A lane that fires does so
+early and a lane that denies still denies — so the decision is not time-dependent, and the
+non-monotonic ladder (3t and 4t deny, 5t and 6t fire) is a real defect. The inverse pattern is
+`test-case01-forest-ambush`, where the restoration visibly changed the measurement (damage
+256 → 461, a defender death at tick 2398, outside the flip's 1500-tick window) and still did not
+move the verdict — because the trend ran the wrong way. **Ask which direction the extra time
+pushed the outcome**, not merely whether it changed anything.
+
+**A VERDICT GATED ON POSITION CANNOT BE RESCUED BY TIME, HOWEVER TIMING-SHAPED THE RED LOOKS.**
+`test-truck-halts-to-serve` failed pre-fix on a timeout and post-fix on "the truck drove past".
+Its fail branch triggers on the truck's x-coordinate, not on the deadline, so once the truck passes
+the line the verdict is sealed whatever budget remains. The restoration did not fix it and could
+not have; what it did was let the run reach the behaviour under test at all.
+
+**THERE ARE TWO SECONDS->TICKS CONVERTERS AND ONLY ONE OF THEM MOVED.** `DateTime.Seconds(n)` is the
+ENGINE converter (`DateTimeGlobal.cs:52-55` -> `TickTime.TicksForSeconds`); it was corrected on
+2026-09-19 and this branch does not touch it. `TestHarness.AssertWithin/AssertAfter/ScreenshotAfter`
+and `* TestHarness.TicksPerSecond` are the HARNESS converter, and only that one changed. **A scenario
+timing exclusively on `DateTime.Seconds` or on raw tick literals is structurally immune to the flip
+and cannot be a casualty of it** - which decided eight of the thirty-nine failures on a grep, with no
+run and no reasoning about behaviour. This is the cheapest discriminator in the whole triage and it
+should be the first thing anyone reaches for the next time a rate moves.
+
+**THE SECOND DISCRIMINATOR IS WHICH STRING WROTE THE VERDICT.** `AssertWithin` fails with either the
+predicate's own `fail: ...` (returned on the merits, deadline irrelevant) or with its `timeoutReason`
+(deadline expired). Matching the recorded note against the scenario source separates them with no
+judgement involved: **a `fail:` verdict cannot have been caused by a shorter window.** Eleven of the
+thirteen confirmed casualties are exact `timeoutReason` matches.
+
+**THE CASUALTY THAT DOES NOT GO RED IS A BUDGET GATING A `Test.Skip`.** Two of the thirteen
+(`test-garrison-ownership-flip-evacuation`, `test-garrison-port-arc-highpriority`) reported SKIP, not
+FAIL, because the shrunken budget was a *precondition* - "one or both houses never became USA-owned
+within 20s, so the garrison never formed and **nothing under test was reached**". A skip reads as
+benign in a batch summary. **When a rate moves, audit the skips as carefully as the fails**; a budget
+that gates a skip needs the same care as one that gates a verdict.
+
+**A SETTLE-THEN-MEASURE SCENARIO FAILS FOR A DIFFERENT REASON THAN A TIMEOUT DOES.**
+`test-bot-defcon-wall` opened its sample window at `(RUN_SECONDS - HOLD_WINDOW_SECONDS) * TicksPerSecond`.
+Shrinking both terms moved the window's OPEN from tick 1250 to tick 833 - into the stretch where the
+army is still walking to the border - so it measured approach drift and called it hold drift. The
+window did not expire early; it *started* early. Scaling a phase boundary is not the same failure as
+scaling a deadline, and it does not announce itself as a timeout.
+
+**THE FIX SHAPE, AND WHY NOT A RE-TUNE.** Every budget is now stated in TICKS - the unit it was
+authored and validated in - and converted through the harness, which is the idiom `test-helpers.lua`
+already prescribes for new scenarios. That round-trips exactly under the 1e-9 epsilon (verified: 21
+budgets, 0 mismatches) and is rate-independent, so the next timestep change costs nothing. No
+deadline was hand-tuned to 16.667 and no assertion changed strength. Two lossy idioms were fixed on
+the way past: `math.floor(seconds * TicksPerSecond)` has no epsilon and loses a tick on most budgets
+(`TestHarness.TicksForSeconds` is the correct call), and `ticks / tps * tps` is not guaranteed to
+return the same integer - take the tick constant directly.
+
+**A PREDICTION WRITTEN IN-TREE WAS RIGHT ONCE AND WRONG ONCE, AND THE WRONG ONE IS THE INSTRUCTIVE
+ONE.** The branch pre-emptively annotated its two predicted casualties.
+`test-tunguska-missile-standoff:25-28` ("if this scenario starts timing out, that is the reason") was
+right that it would time out and **wrong that the flip was why**: restoring the authored 500-tick
+budget left it failing on the same string, so the prediction named the symptom and misattributed the
+cause. It is now filed as a behaviour defect. `test-depot-vacate-phantom:66-73` ("If this starts
+timing out, re-derive it rather than widening it blindly") was **wrong about the cause while right
+about the symptom**: it did time out, but on the 300 s WALL CLOCK, because
+`TestHarness.Screenshot("2-vacated", ...)` sits inside its per-tick `AssertWithin` predicate with no
+latch and wrote 98 identical PNGs. That loop is rate-independent, and the flip made it *less* likely
+to bite by cutting the budget 1875 -> 1250 ticks, i.e. fewer iterations. **A prediction that names
+the right scenario is not evidence about the mechanism** - the run directory is, and in this case
+`debug.log` settled it in one line where the annotation had misdirected.
+
+**WALL-CLOCK TIMEOUTS ARE NOT TICK-BUDGET TIMEOUTS, and a full-suite batch is where they appear.**
+`TicksPerSecond` is a Lua constant; it changes tick budgets and touches engine pacing not at all.
+`test-escalation-full-match` budgets entirely in raw ticks (`DEADLINE = 24000`) and so cannot be a
+casualty - yet it timed out, reaching `tick=8431` of 24000 before run-test.sh's 300 s watchdog fired,
+having PASSED solo pre-flip on 2026-09-15 at `stop=deadline tick=24001`. The variable is throughput
+on a machine running 259 scenarios back to back, not the rate.
+
+**THE SILENT HALF IS STILL OUT THERE AND IS DELIBERATELY UNFIXED.** The branch warned that the worse
+casualty is a scenario that keeps PASSING while an inner budget becomes unreachable. Four scenarios
+that passed this batch carry the same shrunken idiom: `test-wgm-deny-thru-5-trees:15`,
+`test-wgm-accuracy-moving:27`, `test-wgm-target-dies-midflight:33`, `test-wgm-no-fall-short:29`.
+Their windows are a third shorter than authored and they may be passing without enforcing. Left
+untouched on purpose - editing a passing scenario's budget with no run to compare against is an
+unmeasured behavioural change, and a green proves nothing about which of its assertions still fire.
+## 2026-09-22 - Two chrome buttons may carry the same `Key:` and the winner is decided by CHILD ORDER, reversed — and a DISABLED button still claims the key (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Settling the `O` collision (`WaypointMode` vs `ProductionTypePowers`, both WW3MOD's own, the only
+duplicate across 209 definitions). The question "which one actually fires?" looked like it needed a
+capture. It does not — it is decided by three lines of engine code and one ordering fact.
+
+- **`Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks `Children` in REVERSE and returns on
+  the first handler that claims the key.** So of two visible buttons sharing a key, **the one
+  declared LATER in the chrome file wins** — the opposite of the reading order, and the opposite of
+  `TestModeScreenshots.FindVisible`, which walks the same tree FORWARD. Two traversals of one tree
+  with opposite precedence is a genuine trap: a scripted click and a real keypress do not resolve
+  ambiguity the same way.
+- **A DISABLED button still claims it.** `ButtonWidget.HandleKeyPress` (`:155-170`) tests only
+  `Key.IsActivatedBy` and `IsVisible()` (via the outer walk); when `IsDisabled()` it plays the
+  disabled sound and **still returns `true`**. So a greyed-out button silently eats the key from
+  everything below it. Only `IsVisible()` can release it.
+- Applied here: under `Container@PLAYER_WIDGETS` in `chrome/ingame-player.yaml`,
+  `Container@SIDEBAR_PRODUCTION` is child index **24** and `Container@COMMAND_BAR` is index **15**,
+  so the production tab takes `O` and the command bar's `QUEUE_ORDERS` button has been
+  keyboard-dead since `746c592c` gave it a key. Nothing surfaced that: the tooltip still advertises
+  the button, and the only place the clash was visible was the settings panel nobody opened.
+
+**The reusable rule: a `Key:` on a chrome button is not scoped to its panel.** It is claimed by
+whichever visible widget the reverse walk reaches first, anywhere in the tree. That is the same
+mechanism that made eleven per-slot garrison hotkeys undesirable in this branch (a visible
+`EJECT_PORT` bound to `1` would eat control-group 1), and it means **a new `Key:` must be checked
+against every definition the mod loads, not against the file it is added in** — `mod.yaml:281-290`
+loads nine, and a clash needs only overlapping `Contexts`.
+
+Cheap detector, no build and no launch: parse the nine files, normalise `<KEY> <Mods…>` to
+`(key, frozenset(mods))`, and report any pair with equal value and intersecting `Contexts`. That is
+exactly `HotkeyManager.GetFirstDuplicate` (`HotkeyManager.cs:91-103`). It found this one and, after
+the fix, reports zero.
+
+## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Both found from run `manual_hotkeys_260922_011140`, the first capture of the Settings → Hotkeys
+panel this project has taken.
+
+**1. The description column is 198px, right-aligned, and unclipped.** Derived entirely from
+authored numbers: `SETTINGS_PANEL` 900 wide (`settings.yaml:11`) → `PANEL_TEMPLATE`
+`PARENT_WIDTH - 190 - 20` = 690 → `Container@TEMPLATE` `(PARENT_WIDTH - 24) / 2 - 10` = 323 (it is a
+**two-column** grid, which is the part that surprises) → `Label@FUNCTION` `PARENT_WIDTH - 120 - 5` =
+**198**. `Align: Right` with no scissor on the path, so an over-long label is drawn *leftwards* out
+of its own container and across the neighbouring column. There is no tooltip fallback:
+`WidgetUtils.TruncateButtonToTooltip` is applied to the `HOTKEY` button, never to this label.
+
+Measured all 210 shipped descriptions in FreeSans 14 (`Regular` via `ChromeMetrics TextFont`),
+including the `:` that `BindHotkeyPref` appends. **Eight overflowed. All eight were WW3MOD's own —
+not one upstream description did**, which says the 198px budget is a real constraint upstream
+writes to and we had simply never been shown. Worst was 328px, 130px over. All eight shortened;
+widest in the mod is now 177px. **Three of the eight had been added the previous day**, by me, in
+the same branch that first made this panel worth looking at — the column was never checked because
+nothing had ever displayed these strings.
+
+**Rule worth carrying: a hotkey `Description:` has a hard budget of ~198px in FreeSans 14, which is
+about 30 characters of mixed case.** Anything longer silently damages the row beside it.
+
+**2. A `ScrollPanelWidget` cannot be driven, so a capture sees ~11 rows and no more.**
+`HOTKEY_LIST` is 395px tall at 30+5 per row. The cmd-file verbs at this SHA were
+screenshot/click/hover/zone-paint/zone-erase/quit — `click` needs an `OnClick`, and neither
+`ScrollPanelWidget` nor `TextFieldWidget` has one, so there was **no way to photograph any row
+below the eleventh**. The second shot came back byte-identical to the first (794,825 B both) and
+the section the branch existed to add was never in frame.
+
+Fixed by adding a **`type <widget-id> <text>`** verb to `TestModeScreenshots.cs`: it sets the
+widget's `Text` property by reflection and then invokes its `OnTextEdited` field. **Invoking the
+callback is the whole point** — consumers hang their real work off it (`HotkeysSettingsLogic`
+rebuilds its entire list there), so setting `Text` alone would change the glyphs in the box and
+filter nothing, photographing an unfiltered list under a filtered caption. Requiring an
+`OnTextEdited` field is also what keeps the verb off the wrong widget: several widgets expose a
+writable `Text`, only a text field carries that callback, so a typo'd id reports a miss instead of
+quietly relabelling a button. **Scrolling is still unreachable** — this buys filtering only.
+
+**A duplicate frame is a signal, not noise.** Two byte-identical PNGs mean the state did not change
+between them, which for a driver taking deliberately different shots is a failure. `run-test`-style
+size checks cannot see it (both frames were a healthy 794 KB). `screenshot-hotkeys.sh` now counts
+distinct md5s and fails the run when it is short.
+
+## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+From run `manual_hotkeys_260922_005942`, a driver written the day before. Both `click` commands
+missed; both screenshots came out as **1,024,258-byte, byte-identical** pictures of the Esc menu
+with the target button plainly on screen. Every instinct — and the first two hypotheses raised off
+the frames — said the widget ids must be wrong.
+
+**They were not. `debug.log` ordering settles it, and nothing else does.**
+`external click: SETTINGS → NO SUCH VISIBLE WIDGET` sits **above** the sprite loads,
+`Scenario selection`, `[danger] reference`, `DEFCON wall region` and `Sync reports disabled` — all
+world-construction lines. The blind `sleep 20` expired mid-load, so there was no player HUD, no
+`MenuButtonsChromeLogic` and no `INGAME_MENU`. The second click landed one line *after*
+`Sync reports disabled` and missed by a hair. **A frame at t≈26s showing the menu is not evidence
+about t=20s** — that inference is the whole trap, and it points the fix at the ids.
+
+The ids were correct and checkable without launching: `IngameMenuLogic.AddButton:331` assigns
+`button.Id = id` from the bare string in `ingame-menu.yaml:5`'s `Buttons:` list (no prefix, no
+composition), and `PollCommands` `.Trim()`s the verb argument
+(`TestModeScreenshots.cs:219`).
+
+**Three things to carry:**
+
+- **`NO SUCH VISIBLE WIDGET` is ambiguous.** `ClickWidget` (`TestModeScreenshots.cs:282-294`)
+  returns false both when `FindVisible` found nothing **and** when it found the widget but could not
+  read a non-null public `OnClick` field off it, and `:227` logs the identical string for both. A
+  widget that is on screen and simply has no click handler reports as absent.
+- **`HOTKEYS_PANEL` is the id of two different widgets.** `SettingsLogic` sets `tab.Id = id`
+  (`:178`) on the tab button and `container.Id = panel.Key` (`:90`) on the panel container — the
+  same string. `FindVisible` walks `Children` **forward** and returns the first match (note
+  `Widget.HandleKeyPressOuter` walks them in **reverse**, so a real keypress and a scripted click do
+  not resolve ambiguity the same way). Today the tab wins because `SETTINGS_TAB_CONTAINER` precedes
+  `PANEL_CONTAINER` in `settings.yaml` and the container is `IsVisible`-gated on being active. A
+  reorder would silently turn this into an infinite retry against a widget with no `OnClick`.
+- **`send`-style "the command was consumed" is not "the command did something".** The existing
+  `send` helper in these drivers waits for `PollCommands` to delete the cmd file, which happens
+  whether or not the click found anything — so a missed click looks exactly like a hit and the run
+  goes on to capture. The fix that generalises is to retry against the **dispatch log line** rather
+  than a clock, which makes the precondition itself the wait. `screenshot-hotkeys.sh` now does this
+  (`click_until`); `screenshot-infopanel.sh` and `screenshot-editor-zones.sh` still use blind
+  sleeps and have the same latent failure — **not audited, not changed here.**
+
+Same family as the launcher-127 and zero-byte-log traps in `CLAUDE.md`, with one addition that is
+worse than either: those produce an obviously empty artifact, whereas this produces a large,
+well-formed PNG of the wrong screen. **File size cannot detect it** — SCREENSHOT.md's "the tell for
+a blank frame is file size" is true and does not apply. What detects it is the dispatch line, and
+secondarily that the two frames were byte-identical.
+
+## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`)
+
+Found re-deriving audit `260921-release-readiness.md` §2.5 **I1** ("There is no hotkey list a player
+can read", evidence: "`chrome/` inventory — no help/keys panel"). **I1 is wrong as stated.**
+`mod.yaml:208` loads `common|chrome/settings-hotkeys.yaml`, `common|chrome/settings.yaml:9` declares
+`HOTKEYS_PANEL: Hotkeys` in `SettingsLogic`'s tab list, and `IngameMenuLogic.CreateSettingsButton`
+(`:480-493`) is created unconditionally from `ingame-menu.yaml:5`'s `Buttons:` line. So Esc →
+Settings → Hotkeys has always enumerated the bindings, with each one read **live** from
+`modData.Hotkeys[hd.Name].GetValue().DisplayString()` (`HotkeysSettingsLogic.cs:73`) — a rebind
+cannot make it stale. The real I1 is a *discoverability* gap: nothing in the game points at it.
+
+**The defect underneath is different and is the one worth carrying.**
+
+- **A hotkey exists to the player only if its `Types:` appear in a `HotkeyGroups:` entry in
+  `settings-hotkeys.yaml`.** `HotkeysSettingsLogic.InitHotkeyList` (`:183-214`) iterates the
+  **groups**, not the definitions, and selects `hd.Types.Overlaps(typesInGroup)`. A definition whose
+  type matches no group is never cloned into the list: it cannot be read and cannot be rebound,
+  however well it works in a match. The chrome file is the registration.
+- **Nine WW3MOD keys were in exactly that state, and this is all of R5.** `84a1ee69` ("Add Cohesion
+  and Resupply Behavior stance bars") introduced three new types — `EngagementStance`,
+  `CohesionStance`, `ResupplyBehavior` — in `engine/mods/common/hotkeys/game.yaml` and did not touch
+  `settings-hotkeys.yaml`, which `git log` shows has only ever been written by upstream merges. The
+  nine (`Ctrl+Alt+A/D/F`, `Ctrl+Alt+1-6`) are all **bound and working** — `ingame-player.yaml:637-817`
+  wires each to a command-bar button — so R5's own column header, "unbound hotkey declarations", is a
+  misnomer; its verdict text, "9 declarations, none player-reachable", is exact. Unbound-by-default is
+  a separate and much larger set: **21** definitions ship with no key, 20 of them `SupportPowerNN` and
+  `StatisticsGraph`/`StatisticsArmyGraph`/`RemoveFromControlGroup`, plus `PowerDown`, whose key is
+  commented out in place (`ww3mod|hotkeys.yaml`, `PowerDown: # X`).
+- **Grouping is a display filter, not a registration, and that makes the hole quieter.**
+  `HotkeyManager` computes `HasDuplicates` over every definition regardless (`HotkeyManager.cs:43`,
+  `GetFirstDuplicate` `:91-103`: equal value **and** overlapping `Contexts`). But the red that flag
+  drives is painted on a remap button (`HotkeysSettingsLogic.cs:80-83`) that an ungrouped definition
+  never gets, so a clash involving one of the nine could not be seen by anyone.
+
+**Two things that fell out of the same sweep, both pre-existing:**
+
+- **`O` is double-bound in the Player context.** `WaypointMode: O` (`common|hotkeys/game.yaml:187`,
+  `Types: OrderGenerator`) and `ProductionTypePowers: O` (`ww3mod|hotkeys.yaml:20`, `Types:
+  Production`) share `Contexts: Player`, which is precisely `GetFirstDuplicate`'s predicate — this is
+  the **only** such collision across all 198 definitions the mod loaded at `d69e6883`. Both buttons
+  are visible at once in a match and `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks children
+  in reverse and returns on the first claim, so one of the two is dead. Which one is a draw-order
+  question this pass did not settle, and no capture was taken. Filed as a bug, not fixed here.
+- **`K` is the last free unmodified letter in the Player context.** Counted over all nine files
+  `mod.yaml:281-290` loads: every other letter A–Z is taken. This corroborates
+  `ww3mod|hotkeys.yaml`'s own comment ("J and K are the only unbound letters left") and is why the
+  eleven garrison/cargo buttons of §2.6 **U3** were given named-but-unbound definitions rather than
+  defaults — eleven defaults would have to be modifier chords or thefts.
+
+**Why a `Key:` on one of those eleven could not simply reuse a taken key.** `HandleKeyPressOuter` is
+gated on `IsVisible()` **only**, and children are walked in reverse with the first `true` winning. A
+visible `EJECT_PORT_0` bound to `1` would silently swallow control-group 1 for as long as a garrison
+is selected — a conflict with no symptom a player could trace. Panel-scoped keys are not scoped.
+
+**Also noticed, not acted on:** `ingame-info-howtoplay.yaml:96-101` tells the player Supply Routes
+are "indestructible". `CLAUDE.md` is emphatic that they are **untargetable, not indestructible**
+(`structures.yaml:347-348` `TargetTypes: NoAutoTarget`; the `Armor: Type: Indestructable` at `:368`
+is inert), and the distinction is exactly what decides whether a bypass such as `VaporizeWarhead`
+reaches one. Whether player-facing copy should carry that nuance is a call for the user, so the line
+is left alone and flagged here.
+## 2026-09-21 - Two of the release audit's three production-tooltip findings were already fixed, one by three weeks; the live one is a single alpha value in the art (`wt/tooltip-legibility`, base `main @ d69e6883`)
+
+Found auditing package 3 of `WORKSPACE/audit/260921-release-readiness.md`, which asked for three
+defects to be fixed. **Only one of the three is live at `d69e6883`.** The audit rows have been
+annotated in place.
+
+- **U1 (§2.6), "the production tooltip is not opaque" — HOLDS, and is now measured rather than
+  observed.** `Background@PRODUCTION_TOOLTIP` drew on the `dialog4` chrome collection, whose centre
+  tile (`uibits/dialog.png` 518,393 52x52) is `(0,0,0,**159**)` — uniform across all 2704 pixels, so
+  **38% of whatever is behind the panel came through it**. The 2026-08-30 report reasoned this from
+  width arithmetic and said so; the number is the direct reading. The geometry it also describes is
+  real and is NOT the bug: the panel is *supposed* to overlap the sidebar.
+
+- **I3 (§2.5), "tooltips leak internal identifiers — `5.56mm.DMR`, `TankRound.Abrams`,
+  `HIMARSTargeter`" — DOES NOT HOLD. Fixed on 2026-09-03 in `5965d955`**, eighteen days before the
+  audit was written. `AmmoPoolInfo.FormatWeaponLabel` renders every key, and
+  `engine/OpenRA.Test/OpenRA.Mods.Common/AmmoPoolTest.cs` asserts all three of the audit's own
+  examples by name. A census of all 124 buildables finds **48 distinct pool headings and not one raw
+  identifier**. The audit's severity note, "SHOULD-FIX, one character", appears to have been carried
+  forward from an older list rather than re-derived — which is the failure mode CLAUDE.md's queue
+  rule already warns about ("read the file, not the commit message").
+
+- **"Single-pool units get no ammo total" — DOES NOT HOLD, twice over.** Every pool has always
+  emitted its own `Ammo: N rounds` row, and the cross-pool `Full refill` total stopped being gated
+  on `pools.Length >= 2` on 2026-08-30 in `0d7663ab`. Census: **0 of 79 pool-carrying buildables
+  draw no ammo row**, and none can — `SupplyValue` defaults to `1`, so the `SupplyValue > 0`
+  suppression branch needs an explicit `SupplyValue: 0` that no shipped pool sets.
+
+**The transferable part is not about tooltips.** Two of three findings in a curated release audit
+were stale by weeks, and both were stale in the same direction: *the defect had been fixed and the
+row had not been re-derived*. One `git log -S` on the symbol named in the evidence column settles
+either one in seconds. Treat an audit's evidence column as a pointer to re-read, not as a reading.
+
+**And a second-order one, about the measuring apparatus.** The first version of the census above
+reported a real-looking defect — `A10.Airstrike` rendering two identical `30MM A10 + HELLFIRE`
+subheads over different ammo counts. It was an artifact of the census script, which **replaced**
+inherited trait nodes instead of merging them child-by-child as MiniYaml does, so the actor's
+`AmmoPool@1: Ammo: 40` override erased the parent's `Name:` and `Armaments:`. With the merge
+corrected the actor is entirely correct. A bespoke YAML reader that does not implement inheritance
+the way the engine does will manufacture defects in exactly the actors that override one field, and
+those are the interesting ones. Validate the reader against something the engine already asserts
+before believing anything it says — this one reproduces all 17 `FormatWeaponLabel` NUnit
+expectations exactly.
+
+## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
+
+Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
+(`weapons-missiles.yaml`), which zeroed six armour classes, named one the ruleset does not define
+(`Brick`) and omitted three it does (`Kevlar`, `Unarmored`, `Indestructable`).
+
+**The omitted-key rule itself is already curated** — `conventions.md` §"`Versus`: an OMITTED armor
+class is FULL damage" has it with the citation (`Warheads/DamageWarhead.cs:105`, the
+`Versus.ContainsKey` filter). Nothing new there, and no promotion is owed for it. What is new is that
+**the obvious repair is booby-trapped, and the trap is documented one section further down where an
+auditor fixing the table is not looking.**
+
+- The live effect was real and sizeable: `Kevlar` is `^Soldier`'s armour, **67 concrete actors inherit
+  `^Soldier` transitively**, infantry set no `Armor.Thickness` so `ApplyPenetration` is skipped
+  entirely, and `^Infantry` is `HP: 200` — so the "harmless" spotter dealt **50, a flat 25% of a
+  soldier's health, per shot**, to the entire combat-infantry roster, while genuinely doing 0 to the
+  civilians whose armour the table *does* list. Selective in exactly the direction that survives
+  eyeballing.
+- **But completing the table is not available as a fix.** `ArmorInfo.ProvideTooltipDescription`
+  (`Traits/Armor.cs:73`) gates a unit's Armour tooltip row on whether **any** `DamageWarhead` in the
+  whole ruleset names the type. Naming `Kevlar` here *at any value, including 0* flips **every
+  infantry tooltip in the game** from "None" to "Kevlar" — contradicting the 28 shipped unit
+  descriptions that read "- No armor" and which `conventions.md:400` already ruled are the
+  mechanically correct half. So the damage bug and the UI are coupled through the key set, and the
+  repair that reads as obviously right is a game-wide visible regression.
+- **`Damage: 0` decouples them.** It is also the honest statement of what the warhead is: a dummy
+  trigger so the launcher has something to fire, real payload the spawned `IskanderMissile` actor
+  (`vehicles-russia.yaml:1068-1071`), damage done by `IskanderExplosion`. Zero damage is harmless
+  against all nine classes without naming any new one.
+
+**Generalisable rule: when a `Versus` table is wrong, ask whether the defect is in the table's VALUES
+or in its KEY SET before editing it. A value is local; a key is global.** `Damage: 0`,
+`DamagePercent: 0`, or dropping the warhead are the levers that do not touch the key set.
+
+**Two residues, both disclosed rather than fixed:**
+
+1. `DangerFieldLayer.WarheadIsHarmless` inspects only `Versus`, never `Damage`, so it still returns
+   false for both targeters — which *was* a correct verdict and is now a **fail-open false positive**.
+   Correcting it means reading `Damage`/`DamagePercent` in the danger kernel, which moves bot belief
+   and breaks replay byte-identity against every earlier baseline (influence-stack invariant). Not
+   desk work. Noted inline at the method.
+2. **No lint anywhere validates a `Versus` key.** `CheckUnknownWeaponFields` descends exactly one
+   level into a warhead — it checks the warhead's own child node names against the warhead type's
+   fields (`Lint/CheckUnknownWeaponFields.cs:100-105`) — so `Versus` passes as a real field and its
+   children are never examined, and no other file under `Lint/` mentions `Versus`. An invented or
+   misspelt armour class is accepted by `make test`, `--check-yaml` and the Windows merge gate alike;
+   the only symptom is a weapon quietly doing full damage. Promoted into `conventions.md` §402 with
+   the citation.
+
+**Census re-run at `eacc1cff` (needs no build):** 42 `Versus:` tables under
+`mods/ww3mod/rules/weapons/`. This was the **only** table naming an undefined class and the **only**
+all-zero table — so both defects were singletons, not a pattern. The other **41** tables are non-zero
+balance tables that omit `None/Wood/Kevlar/Unarmored/Indestructable` as a consistent group (nuke
+thermal/blast and shockwave warheads listing only `Concrete/Light/Medium/Heavy`); those omissions are
+live full-damage-to-infantry by the same rule, but they are plausibly intended and are item 32
+sign-off territory. `Brick` has now left the union entirely; `Kevlar`, `Unarmored` and
+`Indestructable` remain in zero tables, so `conventions.md`'s standing claim that no warhead
+discriminates infantry damage by armour class still holds.
+## 2026-09-22 - A scenario whose two arms produce the same outcome is not a control: construct the state under test, do not hope the opening supplies it (`test-ambush-lane-share`)
+
+Four runs of `test-combined-arms-rendezvous` were spent trying to judge PIPELINE item 86 with it. It cannot,
+and the reason generalises to any bot-behaviour scenario.
+
+**THE SYMPTOM.** Reserve ON (`260922_012732`) and reserve OFF (`260922_012930`) produced the **same verdict,
+the same failure text and the same outcome**. Not because the fix does not work — the ON arm shows
+`[exp-ambush] reserve allow=0 … waived=none lanes=0` at every eval and the ledger never shows `by=ambush` —
+but because in the OFF arm the lane *also* posted nothing: offense had already absorbed the whole free pool
+into an axis before the lane's first eval (`[exp-ledger] free=4` at t189 → axis, so `free=0` at t200).
+**The opening never contained the state the feature governs, so neither arm could exercise it.**
+
+**THE RULE: a RED arm must be able to fail DIFFERENTLY, and on a bot map that usually means CONSTRUCTING the
+state rather than waiting for it.** The failing assumption here was that a small opening army would naturally
+leave units uncommitted at the lane's eval. It does not, and *which* module gets them first turns on a
+`world.LocalRandom` eval stagger. The new scenario's `rules.yaml` lifts the offensive module's axis floor
+above any unit count the opening can reach, so `DesiredAxisCount` returns 0, no axis forms, and offense
+provably holds its units under its own advance floor for the whole window. The state under test is then a
+property of the scenario, not of a race.
+
+**CONSTRUCTING IT CREATES A NEW FAILURE MODE, AND THE SCAFFOLD MUST CHECK ITSELF.** A `rules.yaml` override
+that stops merging — a renamed trait, a changed `@suffix`, MiniYaml's case-sensitive top-level merge — is
+**silent**, and the scenario then measures the shipped default and goes GREEN having proved nothing. The fix
+is to read the overridden value back at runtime and **SKIP rather than PASS** unless it is what was asked for
+(`Test.GetBotOffenseAdvanceFloor` must equal 40). Any scenario that constructs its state through a rules
+override needs this; without it the override is exactly the "the override isn't taking effect" trap with a
+green tick on top.
+
+**AND A SECOND GUARD: a PASS must prove the feature was ASKED the question.** "Nothing happened" passes
+trivially when the module is disabled, when no lane is viable, or when the units died early. The scenario
+requires having observed offense holding a pool `>= MinUnitsPerAmbush` **and** `<= its floor`, and SKIPs
+otherwise. **`-1` from a binding is information, not zero** — "offense has not evaluated yet" must not read
+as "offense has no floor".
+
+**MEASURING "A MODULE DID NOT ACT" NEEDS A LEDGER READ, NOT A POSITION READ.** No bot module logs which
+ACTOR it sent where (`LayeredDefenceBotModule.cs:545` says so outright), and an un-recruited unit at the
+Supply Route is indistinguishable by position from an idle one, a garrisoned one, or one a held axis is
+sitting on. Three runs were lost to inferring it from a tank's survival — and the tank turned out to belong
+to a different module. The three new test-mode bindings (`Test.GetBotLedgerHeld` / `GetBotOffenseFreePool` /
+`GetBotOffenseAdvanceFloor`) return the *same numbers the feature itself decides on*, so the verdict cannot
+drift away from the mechanism.
+
+**`make lua-gate` CAN RED-TEST A SCENARIO YOU CANNOT LAUNCH.** It resolves every `Test.*` call against the
+C# bindings. Sabotaging one call (`Test.GetBotLedgerHeldXYZ`) made it name the exact file and line and exit
+2; restoring made it clean. On a machine where launches are serialised and expensive, that is a real
+RED-before-green on the scaffold, available in seconds and with no slot.
+
+## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229)
+
+The item-86 reserve below shipped with an axis waiver and it did not bind on its first measured run. The
+failure is worth more than the fix.
+
+**WHAT HAPPENED.** `AmbushLaneMath.ReserveAllowance` waived the reserve whenever an offensive axis was live,
+reasoning that `ForwardStagingMath.FreePoolMayAdvance` waives the staging floor on exactly that term, so the
+two gates should agree. At t118 offense formed an axis **out of its entire two-unit free pool**
+(`[exp-offense] axis-new … order units=2` then `reeval pool=2 free=0 … axes=1`). At t200 the ambush lane read
+that snapshot, hit the waiver, and recruited unbounded — the very behaviour the reserve exists to stop.
+
+**THE GENERALISABLE ERROR: borrowing a predicate without re-deriving what it ANSWERS.** The two gates consume
+the same three numbers and ask different questions. `FreePoolMayAdvance` asks *"may this late arrival walk to
+the muster ALONE?"* — and a live axis answers yes, because the arrival is joining a body. The reserve asks
+*"does offense have units to SPARE?"* — and a live axis is evidence **against**, because an axis has
+**consumed** units. Sharing the inputs made the two look like the same test. **When you reuse another gate's
+terms, restate the question in your own words first; if the sentences differ, the waivers do not transfer.**
+
+**THE OBVIOUS NARROWING ALSO FAILS, which is why the term was deleted rather than shrunk.** "Waive only for an
+axis at or above the axis floor" is the repair that suggests itself. That axis held exactly 2 units and
+`EarlyMinAxisSize` is 2 (`ai.yaml:380`), so it passes every below-the-floor test. Pinned as a test
+(`NarrowingTheWaiverByAxisSizeWouldNotHaveFixedTheMeasuredRun`) because the repair will suggest itself again.
+
+**A SECOND BUG IN THE SAME SNAPSHOT: "publish on every call, last wins" recorded the POST-claim pool.**
+`BuildFreePool` runs three times per offense eval. Publishing at the end of each meant the recorded count was
+taken *after* axis formation: 0 at t118, while `[exp-ledger]` printed `free=2` the same tick. **The rule now
+is to publish on the same pass the diagnostic census rides**, so the number a consumer decides on is
+byte-equal to the number a human reads in the log. Two values for "the free pool" in one tick, one in a log
+line and one in a decision, is a defect generator — the log will exonerate the code that is wrong.
+
+**AND A LOGGING RULE PAID FOR IN A RUN: log the DECISION, not the exception.** The reserve line printed only
+when the reserve bound, so the eval where it was waived printed **nothing**, and the waiver had to be
+reconstructed from three other modules' lines across two runs. An absent diagnostic must mean "there was no
+decision to take", never "a decision was taken and not recorded". The line now prints on every eval where a
+lane wanted units, carrying `waived=<clause>`.
+
+**SEPARATELY, AND IT INVALIDATED THE MEASUREMENT: the tank in `test-combined-arms-rendezvous` is OFFENSE's,
+not the lane's.** The 09-21 acceptance criterion ("only a tank death at ~20,14 is an item-86 regression") was
+an unverified inference. `[composition] census tick=80` shows the only two combat units in the world are the
+abrams and one `ar.america` — the exact `pool=2` the t118 axis took whole — and the tank moves `8,16@t100 →
+11,16@t200` while the lane still reads `lanes=0`. With `AxisCommitmentTicks: 250` the lane could not have
+taken it. **The scenario's VERDICT cannot gate item 86; only its log lines can.** Generalisable: an
+acceptance criterion that names a specific ACTOR needs the ownership derived from the census before the run,
+not assumed from the direction it walked.
+
+## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`)
+
+PIPELINE item 86, ruling (a). Recorded because the SHAPE generalises past this fix.
+
+**The defect is not a bug in either module.** In run `260906_091912` the bot had three eligible units.
+`LaneAmbushBotModule` took two of them (the army's only MBT among them) and posted them 40% of the way to
+the enemy SR; `PoiOffensiveBotModule` then read `[exp-staging] hold-under-min pool=1 min=2` and correctly
+refused to advance the single unit it had left. **Both gates did exactly what they were written to do.**
+The lane's posting cleared `MinUnitsPerAmbush: 2`; offense's hold cleared `FreePoolMinAdvanceUnits: 2`. The
+army was split below the threshold *both halves needed*, and the tank walked to `20,14` alone and died at
+t585.
+
+**The generalisable rule: a per-consumer minimum is not a share.** `MinUnitsPerAmbush` (item 64) asks *"is
+this lane big enough?"* — a question entirely internal to the lane. It cannot ask *"is what I am leaving
+behind big enough?"*, and no number of local floors composes into a global one. Whenever two modules draw
+from one pool and each carries its own floor, the floors are **jointly unsatisfiable on a small pool** and
+the failure looks like correct behaviour in both logs. Look for this wherever the `PoiGoalGuard` ledger
+arbitrates: the ledger stops two modules owning the same unit, it does not stop them between them starving
+a third thing.
+
+**The fix reads the other module's own numbers, and that is the part to copy.**
+`AmbushLaneMath.ReserveAllowance` is decided on `PoiOffensiveBotModule.TryGetFreePoolSnapshot`'s published
+free-pool count and axis state plus `EffectiveFreePoolMinAdvanceUnits` — the *same three terms*
+`ForwardStagingMath.FreePoolMayAdvance` is decided on. That is what makes the two gates agree rather than
+merely both exist: a floor of 0 and a live axis waive the reserve **because they waive the floor**. A
+private re-derivation of "how many units does offense have" would have needed its own maintenance and would
+have drifted the first time the offense pool's predicate changed.
+
+**Why a published snapshot and not a live call (the trap worth knowing).**
+`PoiOffensiveBotModule.BuildFreePool()` looks pure and is not: it calls `PruneStandoffMemory()` and, through
+`StoodOffForTransport`, **writes `standoffSince[a] = tick`** — it latches the transport standoff clock at
+the tick of whoever calls it. A consumer calling it to "just count" would start offense's standoff clocks on
+the *consumer's* cadence, and would additionally re-emit the once-per-tick `[exp-ledger]` census at a
+foreign tick. **Before reading another module's pool, check the counting function for writes.** Publishing a
+snapshot from inside the existing computation costs nothing and has no such reach.
+
+**Two imprecisions, both bounded, both vanishing exactly where the item lives** — recorded because the
+argument, not the numbers, is what makes the design defensible. (1) The snapshot is published on offense's
+`ReevaluateInterval` (100), so a consumer on a different cadence reads a number up to one interval old;
+offense's `TraitEnabled` stagger is a `LocalRandom` draw, so the phase offset varies per match. (2)
+`BuildFreePool` runs three times per offense eval and the last wins, while the floor test consumes the
+second — they differ by whatever an axis claimed in between. **At the opening no axis can form at all**
+(`DesiredAxisCount` returns 0 below `EarlyMinAxisSize` — item 64's premise), so nothing is claimed between
+the calls and all three counts are equal, and the pool is small enough that a 100-tick-old count and a live
+one give the same verdict against a floor of 2.
+
+Code: `LaneAmbushBotModule.cs` (`OffenseFloorReserveEnabled`, `ResolveReserveAllowance`,
+`AmbushLaneMath.ReserveAllowance`), `PoiOffensiveBotModule.cs` (`TryGetFreePoolSnapshot`,
+`EffectiveFreePoolMinAdvanceUnits`), `ai.yaml:1093` / `:3227`.
 
 ## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
 
@@ -172,6 +1856,74 @@ false correction.
 exactly at `70e63582`. Weighting the nine unit-anchored maps' raid rows by sample size (n = 7170)
 gives own/opponent/flank = **14.36 / 70.37 / 15.27**, against the recorded 14.4 / 70.4 / 15.3.
 Medians do **not** recombine that way and were bounded, not re-derived.
+## 2026-09-21 - `TestHarness.AssertWithin` passed with NO note and TERMINALLY, so any scenario that latched a flag and deferred its verdict reported a green it never earned (`wt/assertwithin-audit`, base `main @ 70e63582`)
+
+`AssertWithin`'s poller called `Test.Pass()` -- **no argument** -- the instant its predicate returned
+`true` (`mods/ww3mod/scripts/test-helpers.lua`, the `check` closure). `Test.Pass` is terminal:
+`TestGlobal.ExitWhenCapturesFlushed` writes `result.json` and exits the game
+(`TestGlobal.cs:73-86` -> `TestMode.WriteResult`, `TestMode.cs:339`).
+
+So a scenario of the shape
+
+```lua
+if <thing happened> then Reported = true; Trigger.AfterDelay(2, Verdict) end
+...
+TestHarness.AssertWithin(40, function() return Reported end, ...)
+```
+
+**never runs `Verdict`.** AssertWithin polls every tick and wins the race by however many ticks the
+handoff deferred -- 27 in the observed case. `result.json` reads `"status":"pass","notes":""`, has
+no `screenshots` key, no PNG reaches disk, and not one assertion has executed. A test that cannot
+fail, reported as a test that passed.
+
+**Observed twice in one day**, both in `test-himars-church-vs-block`: runs `260921_174913` and
+`260921_175314`. Both were read as green and one was nearly banked as evidence for a tuning claim.
+
+### THE RULE
+
+> A predicate handed to `AssertWithin` must **never become true** in a scenario that has its own
+> deferred verdict.
+
+`AssertWithin` is safe in exactly two shapes: a **pure watchdog** whose predicate is always false
+(used only for its timeout), or the **sole verdict authority**, where nothing is scheduled to run
+after the predicate goes true. A scenario that must judge *after* a latch open-codes its deadline in
+a `Trigger.OnTick` poller (`test-himars-church-vs-block` @ `4e9f7b24`), or calls `Test.Pass(note)`
+from **inside** the predicate and then `return false`.
+
+### THE COUNT, and why the obvious grep overstates it
+
+127 scenario scripts call the helper; 45 of those also carry their own payload verdict (at
+`61d0c1f8`; 128/46 at `70e63582`). **That 45 is a loose upper bound** -- the grep cannot see whether
+a predicate ever returns a truthy value, so it matches every safe watchdog too. Reading all 46:
+**1 YES, 4 watchdog-only, 41 NO**. The single YES is the scenario that produced the two false
+GREENs. Full table: `WORKSPACE/audit/260921-assertwithin-false-green.md`.
+
+Note the grep that reproduces those figures uses `TestHarness.AssertWithin(` **with the paren** --
+it selects calls. A bare `grep -l AssertWithin` matches 164 files, 36 of which only mention it in
+prose.
+
+### THE DETECTOR IS NOT THE FIX, and cannot be
+
+`AssertWithin` now passes a note, and `run-test.sh` reports a new outcome **`PASS-EMPTY`** when a
+`pass` verdict carries `"notes":""` (graded `EMPTY` by `expected-status.sh`, counted and listed
+separately by `run-batch.sh`, declarable as `pass-empty` with a required reason). That makes an
+empty-note green visible.
+
+**But it cannot catch this bug class.** Once the helper writes a note, a himars-shaped false GREEN
+passes *with* a non-empty note and the tripwire never fires. The race is a static property of the
+script, invisible to a runner that only reads the verdict. What the tripwire catches is the adjacent
+and also-real problem -- a green that states nothing -- which turns out to be the shipped behaviour
+of 33 further scenarios that call a bare `Test.Pass()`.
+
+### THE GENERALISATION
+
+**Any helper that can write a terminal verdict is a second verdict authority, and two verdict
+authorities in one scenario is a race the quiet side always wins.** The same shape is already on
+record one level down: `Test.Pass` is not idempotent, last-call-wins, which
+`test-autotarget-preempt-air` hit on 2026-08-12 when a returned `true` erased a note the predicate
+had just written (its PITFALL block at :123-128 is the first diagnosis of this in the tree). The
+countermeasure is structural, not documentary: **one verdict authority per scenario**, and if a
+helper might reach `Test.Pass`, the scenario must not also schedule one.
 
 ## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
 
@@ -618,7 +2370,6 @@ Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests 
 
 **Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
 
-## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`)
 ## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455)
 
 **OBSERVED, three lanes differing in one variable each.** Two riflemen told from Lua to enter a
@@ -903,7 +2654,6 @@ missing is a line whose name (`DetectionWhenLoaded`) does not contain the word i
 is a one-line addition, not a removal, and it is invisible to any check that looks for divergent
 trait VALUES: all three actors' Vision traits carry identical ranges and strengths.
 
-## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945)
 ## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
@@ -1091,7 +2841,7 @@ that one is about the SR actor's top-left LOCATION cell being at x=0, whereas it
 is `CenterOfCell(HomeLocation)` exactly (the `(-1,-1)` placement offset and a 3x3's `(+1,+1)`
 CenterOffset cancel) and is safely in Bounds. All 26 spawns across the eight bordered maps that
 have any label cleanly; the script reports none unlabelled.
-## 2026-09-20 - A capture driver's evidence has to come from the thing that would be IN THE PHOTOGRAPH (`wt/dmz-zones`, base `main @ 20ae9548`) **[rejected: right claim, wrong home -- this is capture-driver method and belongs in `DOCS/recipes/SCREENSHOT.md`, which this pass did not open]**
+## 2026-09-20 - A capture driver's evidence has to come from the thing that would be IN THE PHOTOGRAPH (`wt/dmz-zones`, base `main @ 20ae9548`) **[rejected: right claim, wrong home -- this is capture-driver method and belongs in `DOCS/recipes/SCREENSHOT.md`, which this pass did not open; filed 2026-09-26 -> `SCREENSHOT.md` §"A capture driver's markers must be about the thing that would be IN THE PHOTOGRAPH"]**
 
 **Symptom.** `tools/autotest/screenshot-editor-zones.sh` reported **PASS** with two frames of the
 map editor's **Tiles** tab, while claiming to have photographed the **Zones** panel. Every check it
@@ -1345,7 +3095,7 @@ describe the guarded path, and none of them is where the value actually comes fr
 Unlock to "No wait" -- one dropdown, default Skirmish, no sandbox -- buys and fires a Sarmat that
 would have silently lost its thermal radiation, all ten fire warheads, its EMP and all five
 suppression warheads.
-## 2026-09-20 - On a QUIET map with nothing fired, the most expensive single trait is `DangerFieldLayer` — and this machine's `tick_time` varies 3x with background load, so only back-to-back pairs compare (`wt/nuke-perf`, base `main @ 20ae9548`) **[rejected: a dated single-machine measurement. The `DangerFieldLayer` figure is a lead to chase (WORKSPACE), not a mechanism, and the "only back-to-back pairs compare" caveat is benchmarking practice for `DOCS/recipes/`]**
+## 2026-09-20 - On a QUIET map with nothing fired, the most expensive single trait is `DangerFieldLayer` — and this machine's `tick_time` varies 3x with background load, so only back-to-back pairs compare (`wt/nuke-perf`, base `main @ 20ae9548`) **[rejected: a dated single-machine measurement. The `DangerFieldLayer` figure is a lead to chase (WORKSPACE), not a mechanism, and the "only back-to-back pairs compare" caveat is benchmarking practice for `DOCS/recipes/`; filed 2026-09-26 -> `tools/nuke-perf/README.md` §"What this does not measure" (the 2.9x/3.1x contention figures replace an understated "a few percent"; the attributions-survive-noise rule carries the DangerFieldLayer reading as its example)]**
 
 **Measured, not modelled.** Two runs of the nuke perf rig in which the salvo never fired, so both
 are pure EMPTY-MAP baselines: 128x128, 665 static actors, no production, no bots, no combat,
@@ -1808,7 +3558,7 @@ something wrong.
 `SpawnForwardDeployment` is silent except the missing-unit-group one. A scenario that counts a
 population should count the witness that the producer ran at all.
 
-## 2026-09-19 - `Map.LobbyOption` cannot see an `ILobbyOptions` option, and a scenario guard written against it can only ever fault (`wt/fwd-deploy-band`, base `main @ 201df112`) **[rejected: scenario-guard authoring, `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-19 - `Map.LobbyOption` cannot see an `ILobbyOptions` option, and a scenario guard written against it can only ever fault (`wt/fwd-deploy-band`, base `main @ 201df112`) **[rejected: scenario-guard authoring, `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"A guard is code, and gets the same scrutiny as an assertion"; cites re-read at `MapGlobal.cs:112-123` and `Test.LobbyOption` at `TestGlobal.cs:2141`]**
 
 `Map.LobbyOption(id)` resolves **`ScriptLobbyDropdown` traits only** (`MapGlobal.cs:112-120`) — a
 separate, script-facing mechanism with its own trait and its own ID namespace. Every option this mod
@@ -1851,7 +3601,7 @@ plausible story. And **a "this can't happen on a real map" claim in a comment is
 sweep**: the sweep is what turned a wrong rationale into a correct one, and the wrong rationale had
 already been written down twice (once by review, once by me) before anyone measured it.
 
-## 2026-09-19 - Reverting a probabilistic fix is not a RED arm: measure the overlap before trusting the rerun (`wt/fwd-deploy-band`, base `main @ 201df112`) **[rejected: right claim, wrong home -- `DOCS/recipes/AUTOTEST.md` material on validating a behavioural scenario]**
+## 2026-09-19 - Reverting a probabilistic fix is not a RED arm: measure the overlap before trusting the rerun (`wt/fwd-deploy-band`, base `main @ 201df112`) **[rejected: right claim, wrong home -- `DOCS/recipes/AUTOTEST.md` material on validating a behavioural scenario; filed 2026-09-26 -> `AUTOTEST.md` §"Reverting a PROBABILISTIC fix is not a RED arm — compute the overlap before trusting the rerun"]**
 
 The standard way to validate a behavioural scenario is to revert the fix and confirm it goes red. For
 `test-forward-deploy-clears-band` that is **unreliable, and the arithmetic says so before the run
@@ -1907,7 +3657,7 @@ one side in a scenario can carry starting units**, and a scenario that wants bot
 have them. A `Bot:` on a map player does not help: that player is still `Playable: False`. This is also
 why every existing scenario carries `-SpawnStartingUnits:` — without it the harness's own Observer
 slot, being `Playable`, is handed a `supplyroute` from `StartingUnits@none`.
-## 2026-09-19 - The powers-sandbox lobby option makes every missile strike land in a THIRD of the time its MissileDelay implies, and TWELVE autotest scenarios set it (`wt/escalation-optouts`, base `main @ c3825714`) **[rejected: scenario-timing guidance plus a count of a growing directory; `DOCS/recipes/AUTOTEST.md` material. Its own lesson is that a scenario should not encode a flight time at all]**
+## 2026-09-19 - The powers-sandbox lobby option makes every missile strike land in a THIRD of the time its MissileDelay implies, and TWELVE autotest scenarios set it (`wt/escalation-optouts`, base `main @ c3825714`) **[rejected: scenario-timing guidance plus a count of a growing directory; `DOCS/recipes/AUTOTEST.md` material. Its own lesson is that a scenario should not encode a flight time at all; filed 2026-09-26 -> `AUTOTEST.md` §"Timing an event-driven scenario" (recounted: 15 scenarios at `5a3e4b19`, and the recount instruction carried rather than the number); `MissileStrikePower.cs:515` has drifted to `:624-626`]**
 
 Sizing a scenario's timing against `MissileStrikePowerInfo.MissileDelay` is wrong wherever
 `PowersSandboxCheckboxEnabled: true`, and that is not a rare configuration: the option is what
@@ -1948,7 +3698,7 @@ The fix kept the event-driven watch, deleted the construction, and raised the si
 natural situation holds -- with each phase checking its own precondition first and reporting
 `SCENARIO SETUP: ... must be raised` rather than looking like a defect in the build.
 
-## 2026-09-19 - A support power's `charging:` clock starts when its BAND CONDITION arrives, which is what lets an event-driven scenario read a grant tightly (`wt/escalation-optouts`, base `main @ c3825714`) **[rejected: scenario-timing method, `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-19 - A support power's `charging:` clock starts when its BAND CONDITION arrives, which is what lets an event-driven scenario read a grant tightly (`wt/escalation-optouts`, base `main @ c3825714`) **[rejected: scenario-timing method, `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"Timing an event-driven scenario"; cites re-read at `SupportPowerManager.cs:377`/`:384`/`:397-405`]**
 
 Three Escalation scenarios opted out of the shipped impact-deferred level-up
 (`EscalationDelayTicks: -1`) because their phase schedules fired and then read the victim's level
@@ -2058,7 +3808,7 @@ that is true of the GAME and false of a test that enumerates the neighbourhood. 
 `ScarEdgeVariantTest.EveryTierIsReachableFromTheShoreFadeThisLayerConfigures` passed with a threshold
 of 0.75, which no cell that can actually draw ever reaches. Exclude the boundary cell.
 
-## 2026-09-20 - An A/B between two UNSEEDED autotest runs manufactured an effect the same size as the one being measured (`wt/escalation-review`, base `main @ 91ebded4`) **[rejected: right claim, wrong home -- seed discipline for before/after runs is `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-20 - An A/B between two UNSEEDED autotest runs manufactured an effect the same size as the one being measured (`wt/escalation-review`, base `main @ 91ebded4`) **[rejected: right claim, wrong home -- seed discipline for before/after runs is `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"A before/after pair is not an experiment unless both arms carry the same `--seed`"]**
 
 A design question — should the DEFCON 3 border keep standing through DEFCON 2? — was put to the
 autotest harness as a before/after on `test-escalation-full-match`. Both runs passed, both produced
@@ -2356,7 +4106,7 @@ is downstream of "did the thing under test run?", and only the second has a chea
 Answer it explicitly, before the run and after it, or the gate will eventually report a broken
 toolchain as a broken product.
 
-## 2026-09-19 - `Launch.Map` resolves by map DIRECTORY NAME as well as UID, which is what makes a shipped map runnable by the autotest harness (`wt/smoke-gates`, base `main @ 64185a89`) **[rejected: harness detail whose consumer is `run-test.sh --map`; `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-19 - `Launch.Map` resolves by map DIRECTORY NAME as well as UID, which is what makes a shipped map runnable by the autotest harness (`wt/smoke-gates`, base `main @ 64185a89`) **[rejected: harness detail whose consumer is `run-test.sh --map`; `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"Quick reference" (the `--map` note, including can-load vs can-reach-a-verdict); `Game.cs:1218` has drifted to `:1222`]**
 
 `Game.LoadMap` (`engine/OpenRA.Game/Game.cs:1218`) is
 `MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap)`.
@@ -2380,7 +4130,7 @@ Second-order consequence worth carrying: a shipped map carries no Lua, so it can
 arg are set) exists to close. **"Can the harness load it" and "can the harness reach a verdict on
 it" are separate questions, and the second is the one that decides whether a gate is possible.**
 
-## 2026-09-19 - The same line of C# is correct or fatal depending on WHICH ACTOR the trait sits on, at a signal ratio of 0 in 57 (`wt/smoke-gates`, base `main @ 64185a89`) **[rejected: already recorded and, better, already ENFORCED -- `CLAUDE.md` documents `worldactor-gate` and `tools/worldactor-gate/README.md` carries the lifecycle and the three matcher details]**
+## 2026-09-19 - The same line of C# is correct or fatal depending on WHICH ACTOR the trait sits on, at a signal ratio of 0 in 57 (`wt/smoke-gates`, base `main @ 64185a89`) **[rejected: already recorded and, better, already ENFORCED -- `CLAUDE.md` documents `worldactor-gate` and `tools/worldactor-gate/README.md` carries the lifecycle and the three matcher details; confirmed present in `tools/worldactor-gate/README.md` §"The discriminator is the actor, not the idiom", §"What is in scope" (the 0-in-57 measurement) and §"Negative fixtures" (all three matcher details)]**
 
 `self.World.WorldActor.Trait<Foo>()` inside `INotifyCreated.Created` is **correct** on
 `DefconCasualtyObserver` (`[TraitLocation(SystemActors.Player)]`) and **crashed every match** on
@@ -2487,7 +4237,7 @@ DEFCON 2, and then drives the level to 1 to see whether a latch was banked. That
 exist and is the obvious next item here. **Do not read the existing pair's green as coverage of the
 persistence case.**
 
-## 2026-09-19 - `Test.GetImpactEffectCount` is GLOBAL, so it is a valid "nothing fired" observable only in a phase where the scenario itself has ordered no shot (`wt/defcon-scenarios`) **[rejected: per-phase observable design, `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-19 - `Test.GetImpactEffectCount` is GLOBAL, so it is a valid "nothing fired" observable only in a phase where the scenario itself has ordered no shot (`wt/defcon-scenarios`) **[rejected: per-phase observable design, `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"Timing an event-driven scenario: anchor on what you OBSERVED, never on a duration you looked up"]**
 
 It is the best of the four observables for a hold-fire window precisely because it is global: it
 catches a shot from something the script never names. That is also what makes it wrong the moment
@@ -2702,7 +4452,7 @@ It is approximately right for the foot class (6843 here) and flatly wrong for ev
 was already separated before anything was authored. A connectivity number without a locomotor beside
 it is not a fact about the map.
 
-## 2026-09-15 - `IsIdle` is TRUE both before an order lands and after it finishes, so it cannot mean "has arrived" (`wt/civ-garrison`, run 260915_204319) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. `Actor.IsIdle => CurrentActivity == null` (`engine/OpenRA.Game/Actor.cs:75`) is verified, but this heading carries NO BODY in the file (the body under the 2026-09-15 `Cargo` heading below is in fact this entry's text -- the two were transposed by an earlier tagging pass), and its whole consequence is scenario-authoring: wait on POSITION, not on activity. Left transposed rather than moved, per the heading-line-tags-only rule]**
+## 2026-09-15 - `IsIdle` is TRUE both before an order lands and after it finishes, so it cannot mean "has arrived" (`wt/civ-garrison`, run 260915_204319) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. `Actor.IsIdle => CurrentActivity == null` (`engine/OpenRA.Game/Actor.cs:75`) is verified, but this heading carries NO BODY in the file (the body under the 2026-09-15 `Cargo` heading below is in fact this entry's text -- the two were transposed by an earlier tagging pass), and its whole consequence is scenario-authoring: wait on POSITION, not on activity. Left transposed rather than moved, per the heading-line-tags-only rule; filed 2026-09-26 -> `AUTOTEST.md` §"The instrument reads a state that LAGS the thing you just asked for" item 1 (filed from the transposed body below; heading left in place)]**
 ## 2026-09-15 - An integer-percentage `IDamageModifier` cannot express a damage FLOOR, so "indestructible" garrison buildings stalled ~100 HP above their rubble state and could never reach it (`wt/garrison-followups`, run 260915_184945) **[promoted -> `architecture.md` §"`GarrisonProtection`'s damage curve" and §"The death path", both REWRITTEN (an integer-percentage `IDamageModifier` cannot express a FLOOR: it truncates to 0 once `(HP-1)*100 < damage`, and no integer percentage fixes it -- the only representable outcomes are a permanent stall and a fatal overshoot. `IDamageFloor` + `Health.ApplyDamageToHp` (`Health.cs:207-210`) clamp the HP instead, and `AttackInfo.Damage` deliberately still carries what the attacker aimed). Two pre-existing bank statements were contradicted by the code and are corrected in the same commit. NOT promoted: the run-260915_184945 walkthrough]**
 
 **THE ARITHMETIC.** `GarrisonManager.Indestructible` held a building at 1 HP by returning
@@ -2738,7 +4488,7 @@ fires one shot. It needs a *sequence*, at the shipped HP and the shipped warhead
 sweeps damage sizes finds it instantly (`GarrisonClampReachabilityTest`), and one that checks a single
 representative value does not, because the rule works for small hits and fails for large ones.
 
-## 2026-09-15 - `lua-gate` cannot see a FieldLoader parse error in `map.yaml`, so a scenario can pass every static gate available to a launch-barred worker and still throw at load (`wt/garrison-followups`) **[promoted, in part -> `conventions.md` §WAngle (the four compass names exist only in `AngleGlobal.cs:23-37`; `FieldLoader.ParseWAngle` (`:250-253`) has no name table, so a `map.yaml` `Facing: East` throws at load -- and the same word is correct in the scenario's `.lua` next to it). NOT promoted: what each gate does and does not read, which is `DOCS/recipes/AUTOTEST.md` and `tools/lua-gate/README.md` material, and the 335-file corpus count]**
+## 2026-09-15 - `lua-gate` cannot see a FieldLoader parse error in `map.yaml`, so a scenario can pass every static gate available to a launch-barred worker and still throw at load (`wt/garrison-followups`) **[promoted, in part -> `conventions.md` §WAngle (the four compass names exist only in `AngleGlobal.cs:23-37`; `FieldLoader.ParseWAngle` (`:250-253`) has no name table, so a `map.yaml` `Facing: East` throws at load -- and the same word is correct in the scenario's `.lua` next to it). NOT promoted: what each gate does and does not read, which is `DOCS/recipes/AUTOTEST.md` and `tools/lua-gate/README.md` material, and the 335-file corpus count; filed 2026-09-26 -> `AUTOTEST.md` §"A scenario that passes every gate a launch-barred worker may run is NOT known to load" (the per-gate table); the lua-gate half is that table's first row]**
 
 **THE INSTANCE.** `test-bot-damages-garrisoned-building/map.yaml` carried `Facing: East` on a placed
 actor. The scenario passed `make lua-gate` twice, `make check`, `make all` and `dotnet test`, was
@@ -2833,7 +4583,7 @@ clamp, not something the auto-target change created — it was simply unreachabl
 nothing but a force-fire could get the building down there. Relevant to the "rubble" reframing the
 user gave on 2026-09-01: the terminal-damaged-but-standing state currently has **less** occupant
 attrition than the state just above it, not more.
-## 2026-09-15 - A Cargo passenger reads `IsDead == true`, and `Test.ConditionCount` returns 0 for any dead-or-out-of-world actor -- so the condition granted BECAUSE a man boarded is the one condition you cannot observe (`wt/civ-garrison`, runs 260915_175730 and 260915_175947) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. Its BODY is the `IsIdle` text belonging to the bare 2026-09-15 heading above (transposed by an earlier pass); either way the content is scenario instrumentation -- wait on position not activity, print the same fact at two moments -- not an engine mechanism]**
+## 2026-09-15 - A Cargo passenger reads `IsDead == true`, and `Test.ConditionCount` returns 0 for any dead-or-out-of-world actor -- so the condition granted BECAUSE a man boarded is the one condition you cannot observe (`wt/civ-garrison`, runs 260915_175730 and 260915_175947) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. Its BODY is the `IsIdle` text belonging to the bare 2026-09-15 heading above (transposed by an earlier pass); either way the content is scenario instrumentation -- wait on position not activity, print the same fact at two moments -- not an engine mechanism; filed 2026-09-26 -> `AUTOTEST.md` §"The instrument reads a state that LAGS…" items 1 and 3 — its transposed `IsIdle` body is filed as item 1, left transposed in place]**
 
 **THE PREDICATE READS THE SAME FOR TWO OPPOSITE STATES.** `Test.IssueMoveOrder` goes through `World.IssueOrder`, so the order sits in the order queue and only becomes an activity a tick or more later; `Actor.IsIdle` is `CurrentActivity == null`. Between issuing a move and the order resolving, the actor is idle *because it has not started*. A `WaitUntil(..., function() return unit.IsIdle end, ...)` written to mean "wait until he has walked there" therefore fires on its FIRST POLL, before he has taken a step.
 
@@ -2843,7 +4593,7 @@ attrition than the state just above it, not more.
 
 **WAIT ON THE THING YOU ACTUALLY WANT.** Position, not activity: poll `Location` against the target cell (with a cell of slack, so a blocked exact cell parks the man next door instead of hanging the run), then a settle beat, then act. This is the same shape as the `AtPort`-before-`w.Add` race two rounds earlier — `PortStates[i].DeployedSoldier` is assigned synchronously while the man is added to the world in a frame-end task — and as the `claimedOwner` fix in the engine: **the state you are polling lags the thing you just asked for.** When a test asks the engine to do something and then measures the result, the gap between the request and the state is where the test breaks.
 
-## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md` for the "ask the engine for a value it chooses at runtime rather than encoding your prediction in the map" rule, and `tools/lua-gate/README.md` for `local_used_before_defined`. The three per-round garrison-port diagnoses are an authoring record]**
+## 2026-09-15 - Three runs lost to ASSUMING WHICH GARRISON PORT A MAN LANDS ON, and a lua-gate blind spot that let a nil-global call reach a live run (`wt/civ-garrison`) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md` for the "ask the engine for a value it chooses at runtime rather than encoding your prediction in the map" rule, and `tools/lua-gate/README.md` for `local_used_before_defined`. The three per-round garrison-port diagnoses are an authoring record; filed 2026-09-26 -> `AUTOTEST.md` §"The instrument reads a state that LAGS…" item 4 (ask the engine at runtime) and `tools/lua-gate/README.md` intro (the third abort: `local_used_before_defined`, `lua_gate.py:406-450`, error at `:1327`)]**
 
 **THE PORT IS NOT A PROPERTY OF THE MAP, AND A SCENARIO THAT ASSUMES IT IS MEASURING SOMETHING ELSE.** `GarrisonManager` deploys a man to the first port that confirms an in-arc, in-range target (`ScanForTarget` arc-filters before scoring), so which port wins depends on every enemy on the map, the range of the weapon that scans, and the port declaration order. Three separate failures, all the same mistake, none of them the engine's fault:
 
@@ -2857,7 +4607,7 @@ attrition than the state just above it, not more.
 
 **THE GATE BLIND SPOT, now closed.** A Lua local is only in scope from its definition onward, so a function referenced ABOVE its `local function` line compiles to a global lookup and is nil at runtime. It fails every time it executes — but the offender here sat on a FAILURE path, so it survived every green run and killed the RED one: `Fatal Lua Error: attempt to call global 'ReportGeometry' (a nil value)`, in a scenario lua-gate had just passed. `lua_gate.py` now has `local_used_before_defined`, which flags a call at a line above its local definition (honouring bare `local F` forward declarations). It reproduces the exact failure text, caught the live bug at the exact line, and fires on **zero** of the other ~320 scenarios.
 
-## 2026-09-15 - `Test.ConditionCount` returns 0 for any OUT-OF-WORLD actor, so the condition granted BECAUSE a man boarded is the one condition you cannot observe (`wt/civ-garrison`, runs 260915_175730 and 260915_175947) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. `Test.ConditionCount`'s `!actor.IsInWorld` early-out and the three-states rule (inside: ask the trait; outside: `IsInWorld`; GONE: `IsDead`) are test-binding contracts. The entry's own same-day correction is already recorded in-tree at `AUTOTEST.md:352`]**
+## 2026-09-15 - `Test.ConditionCount` returns 0 for any OUT-OF-WORLD actor, so the condition granted BECAUSE a man boarded is the one condition you cannot observe (`wt/civ-garrison`, runs 260915_175730 and 260915_175947) **[rejected: wrong home -- `DOCS/recipes/AUTOTEST.md`. `Test.ConditionCount`'s `!actor.IsInWorld` early-out and the three-states rule (inside: ask the trait; outside: `IsInWorld`; GONE: `IsDead`) are test-binding contracts. The entry's own same-day correction is already recorded in-tree at `AUTOTEST.md:352`; filed 2026-09-26 -> `AUTOTEST.md` §"The instrument reads a state that LAGS the thing you just asked for" item 3 (three-states table); early-out re-read at `TestGlobal.cs:1016-1017`]**
 
 > **CORRECTED SAME DAY.** The first version of this entry blamed the trap on a Cargo passenger reading `IsDead == true`. **That is false and was already refuted in-tree** — `DOCS/recipes/AUTOTEST.md:352` records a direct measurement from 2026-09-06 showing passengers read `oow/dead=false`, because `Health.IsDead` is `HP <= 0` and `w.Remove` clears `IsInWorld` without disposing or touching health. I cited that very file as the source for the opposite claim without reading the line. The trap below is real; only its cause was wrong, and `!IsInWorld` alone is enough to produce it.
 
@@ -3010,7 +4760,7 @@ Pre-registered ruling at that value, written before the run and not moved after 
 
 **AND THE EXCHANGE RATE IS NOT A MULTIPLIER TO TUNE.** `ScoreCandidate` is `worth = revealedStaleSquares + intelSquares` then `worth*1000 - poiDistanceCells` — one currency, 1:1, deliberately. `Score_IntelIsInTheSameCurrencyAsRevealedArea` pins that exact rate, and it exists because the SHIPPED predecessor was `revealed*1000 + contactBonus` with `contactBonus: 2000` — worth two squares against a term reaching ~841, configured and typechecking and unable to change a decision. Re-introducing a coefficient between the two terms re-introduces the inter-unit conversion that test was written to make unrepeatable.
 
-## 2026-09-15 - `lua-gate` could only ever check a scenario's Lua if that Lua sat IN the scenario folder, so a body shared from `mods/ww3mod/scripts` was loaded by the engine and checked by nothing — and the "can this test reach a verdict?" check did not fail on it, it silently never ran (`wt/drone-lost-track`, base `main @ 0a94c684`) **[rejected: wrong home -- `tools/lua-gate/README.md`. The finding is that gate's own input enumeration (coverage defined by WHERE a file sits rather than by WHAT the system loads, and `check_verdict_reachable` skipping rather than reporting). The general rule -- before trusting a gate over a change that MOVED something, read how it enumerates its inputs -- is already the standing form of `conventions.md` §"Scenarios are NOT maps to SOME tooling"]**
+## 2026-09-15 - `lua-gate` could only ever check a scenario's Lua if that Lua sat IN the scenario folder, so a body shared from `mods/ww3mod/scripts` was loaded by the engine and checked by nothing — and the "can this test reach a verdict?" check did not fail on it, it silently never ran (`wt/drone-lost-track`, base `main @ 0a94c684`) **[rejected: wrong home -- `tools/lua-gate/README.md`. The finding is that gate's own input enumeration (coverage defined by WHERE a file sits rather than by WHAT the system loads, and `check_verdict_reachable` skipping rather than reporting). The general rule -- before trusting a gate over a change that MOVED something, read how it enumerates its inputs -- is already the standing form of `conventions.md` §"Scenarios are NOT maps to SOME tooling"; confirmed present in `tools/lua-gate/README.md` §"Where the API surface comes from" (both halves: the shared-body scan and `check_verdict_reachable` skipping rather than failing, both pinned by selftest)]**
 
 **THE SHAPE.** `run_check` reached `check_file` — the whole binding-resolution scanner — only from a loop over `luas`, the `.lua` files found by `os.listdir` on the scenario directory. A script the scenario DECLARES but that resolves to `mods/ww3mod/scripts` was opened for one purpose only: harvesting the globals it defines, so other files' references to them would resolve. Its own references were never checked. The gate then printed its usual closing line — `OK — every reference resolves` — having resolved none of that file. This is the tool's own advertised failure mode (a false green) wearing the tool's uniform, and `lua-gate/README.md` is explicit that a scenario the engine loads and never runs "is never what anyone wanted".
 
@@ -3182,7 +4932,7 @@ Both are unconditional given that (selection, hovered actor) pair, and both leav
 
 **THE REFUSED ORDER WAS SILENT FOR A REASON WORTH GENERALISING: CURSOR FEEDBACK KEYED ON THE DESTINATION SAYS NOTHING ABOUT THE ROUTE.** `Mobile`'s `MoveOrderTargeter` already painted `move-blocked` over cells *inside* the band — `Wall` is in no locomotor's `TerrainSpeeds`, so `MovementCostForCell` returns `MovementCostForUnreachableCell` (`Mobile.cs:1240-1243`) — so the one case a player rarely clicks was covered. The case they actually click, a perfectly legal cell on the *far* side, got an ordinary cursor, an accepted order, and a unit that then never moved, because the refusal happened in the pathfinder where nothing reports. Aircraft had had the matching refusal since the wall landed (`Aircraft.ResolveOrder`, decision 07 layer 1) and ground had not. **When a rule forbids a REGION rather than a CELL, destination-cell validity is the wrong predicate for feedback — check the rule, not the reachability of the click.**
 
-## 2026-09-10 - A one-cell wall band seals a VERTICAL line and nothing else, and the feature's only worked example was vertical (`wt/defcon-wall-live`, base `main @ 174059fe`) **[rejected: already covered -- `architecture.md` §"`DefconWall`: THREE region sources" carries the shipped `HalfWidth: 1024`, the `sqrt(2)/2` diagonal-leak floor it clears, the shortest-path/min-cut duality and the Chebyshev fairness rule, and `tools/nav-guard/README.md` already predicted the `CustomTerrain` blindness this entry walked into. The 131-combination measurement and the one-worked-example concealment lesson are an authoring record]**
+## 2026-09-10 - A one-cell wall band seals a VERTICAL line and nothing else, and the feature's only worked example was vertical (`wt/defcon-wall-live`, base `main @ 174059fe`) **[rejected: already covered -- `architecture.md` §"`DefconWall`: THREE region sources" carries the shipped `HalfWidth: 1024`, the `sqrt(2)/2` diagonal-leak floor it clears, the shortest-path/min-cut duality and the Chebyshev fairness rule, and `tools/nav-guard/README.md` already predicted the `CustomTerrain` blindness this entry walked into. The 131-combination measurement and the one-worked-example concealment lesson are an authoring record; filed 2026-09-26 -> `tools/nav-guard/README.md` §"What this tool would still miss" item 3, which was a PREDICTION and is now live: `DefconWall.RaiseWall` writes `Map.CustomTerrain` (`DefconWall.cs:190-195`, `:248-249`, `:293`), so the item is rewritten and points at `defcon_wall_audit.py`]**
 
 **THE DEFCON 3 DIVIDING WALL WAS DRAWN CORRECTLY, WAS VISIBLE, AND DIVIDED NOTHING, AT EVERY ANGLE EXCEPT THE ONE IT HAD EVER BEEN TESTED AT.** `DefconWallInfo.HalfWidth` shipped at `512` — "a band one cell wide, centred on the line". On an axis-aligned line that is exactly right: a vertical line at cell x=44 bands column 44, and the survivors at 43 and 45 are two apart, so no 8-connected step joins them. **On any other angle the banded cells form a staircase that touches only at its corners, and a diagonal step goes straight between two of them.** Measured over all ten shipped maps at the derived lines, `HalfWidth: 512` leaked on **131 map/locomotor combinations** — every ground locomotor on every map — with the giveaway being per-side largest components that came back *identical* (`halves=4529/4529`), the signature of one component spanning both halves rather than two halves.
 
@@ -3202,7 +4952,7 @@ Both are unconditional given that (selection, hovered actor) pair, and both leav
 
 **So the rule is not "distrust the exit code" — it is "do not put a gate command in a pipeline."** Redirect to a file and read the file, which preserves `$LASTEXITCODE`; a pipe does not. Run `make.ps1` through PowerShell, unpiped, and quote the exit code you actually saw. Belt and braces, still worth doing: verify a build by an artefact in its own output — a `-> ...dll` line for the assembly you changed. This sits alongside `conventions.md` §"`make.ps1 all` can silently NO-OP after a checkout", and alongside the zero-byte-log trap recorded for `utility.sh` (exit 126, diagnostics on stderr only) — **three unrelated commands in this repo now fail in a way that reads as success or as "still working"; assume a fourth exists.**
 
-## 2026-09-10 - The shore fade was drawing the rectangles it was written to remove, and the reported "rectangles several cells across" were SINGLE CELLS (`wt/scar-water-edge`, base `main @ ebbde15d`) **[rejected: not reference -- a render investigation for one feature, plus method. Verified but not banked: the 108px-lattice measurement, the Chebyshev iso-contour shape and the per-cell control-frame differencing are all specific to `ShoreFadeCells`, and the transferable lines ("a falloff whose width is comparable to the feature it falls off from erases it"; "a mockup that cannot express the failure always exonerates") are method rather than engine mechanism. `DOCS/recipes/SCREENSHOT.md` is the home if one is wanted]**
+## 2026-09-10 - The shore fade was drawing the rectangles it was written to remove, and the reported "rectangles several cells across" were SINGLE CELLS (`wt/scar-water-edge`, base `main @ ebbde15d`) **[rejected: not reference -- a render investigation for one feature, plus method. Verified but not banked: the 108px-lattice measurement, the Chebyshev iso-contour shape and the per-cell control-frame differencing are all specific to `ShoreFadeCells`, and the transferable lines ("a falloff whose width is comparable to the feature it falls off from erases it"; "a mockup that cannot express the failure always exonerates") are method rather than engine mechanism. `DOCS/recipes/SCREENSHOT.md` is the home if one is wanted; filed 2026-09-26 -> `SCREENSHOT.md` §"Sample at DEVICE pixels, not logical ones" (the 108px-lattice derivation), §"Difference a control frame per cell before theorising", §"A mockup that cannot express the failure always exonerates" and §"A falloff as wide as the feature it falls off from erases the feature"]**
 
 **THE ARTEFACT WAS MEASURED BEFORE IT WAS EXPLAINED, AND THE MEASUREMENT IS WHAT KILLED THE OBVIOUS ANSWER.** The report was "where the scar meets water it ends in hard axis-aligned rectangles several cells across". The candidate causes all concerned the *terrain gate* — multi-cell axis-aligned templates refusing a smudge, which is the standing 2026-09-09 diagnosis and is true of Rock/Cliffs/River. It was not this. Column- and row-wise luminance differencing on the reported frame put every straight edge on a **108-pixel lattice**, and `Camera.Zoom = 3` against `TileSize: 24,24` is 72 — the frame was captured at a **150% display scale**, so one cell is 108 screen pixels. Predicted cell boundaries from the scenario's own `Camera.Position` (cell 72,51 → x = 1226 + 108k) land on the measured seams at 1009/1225/1333/1441/1549 against predicted 1010/1226/1334/1442/1550. **The "rectangles several cells across" are one cell each.** A per-cell decal magnified 4.5x reads as a block, and any argument about which multi-cell template produced it was answering a question the pixels had already closed.
 
@@ -3447,7 +5197,7 @@ Two things follow that the original paragraph got wrong. **`Atomic` has no bug w
 
 **And the pre-existing test gap this landed on.** `NuclearYieldTest.NoSmudgeRadiusCrossesTheTileSearchCeiling` iterated a hard-coded `{ "Atomic", "AtomicHighYield" }` while the `AllNukes` list sitting 700 lines above it exists, carrying a comment explaining that this exact hard-coding had already shipped a defect once. The twelve arsenal weapons were checked by nothing. Now scans `AllNukes`, and also asserts no annulus is inverted and that the bands of a scar tile exactly — a gap leaves an unpainted ring and an overlap double-paints one, and neither throws.
 
-## 2026-09-07 - A geometry change with a NUnit suite still broke four autotests, because the pure-math tests are handed the values the wiring gets wrong; and every shipped support power is now a `MissileStrikePower` (`wt/geometry-tests`, base `main @ 4bb7d44c`) **[promoted, in part -> `architecture.md` §"Every live support power is a `MissileStrikePower`, and it reveals its own target area before it lands" (all `AirstrikePower@` blocks commented out; the discriminator when sweeping is the power TYPE). NOT promoted, wrong home: the World-free-fixture boundary and the degenerate-row "a directional assertion can be unfalsifiable and look like coverage" lesson belong in `DOCS/recipes/AUTOTEST.md`; the stale demo captions are a tracker item]**
+## 2026-09-07 - A geometry change with a NUnit suite still broke four autotests, because the pure-math tests are handed the values the wiring gets wrong; and every shipped support power is now a `MissileStrikePower` (`wt/geometry-tests`, base `main @ 4bb7d44c`) **[promoted, in part -> `architecture.md` §"Every live support power is a `MissileStrikePower`, and it reveals its own target area before it lands" (all `AirstrikePower@` blocks commented out; the discriminator when sweeping is the power TYPE). NOT promoted, wrong home: the World-free-fixture boundary and the degenerate-row "a directional assertion can be unfalsifiable and look like coverage" lesson belong in `DOCS/recipes/AUTOTEST.md`; the stale demo captions are a tracker item; filed 2026-09-26 -> `AUTOTEST.md` §"A NUnit suite over the math does not cover the wiring that FEEDS it" (the World-free-fixture boundary and the degenerate-row unfalsifiability lesson)]**
 
 **`b69681d2` shipped 15 NUnit tests over `MissileStrikeApproach` and still left four autotest scenarios asserting the deleted rule.** That is not a gap in the NUnit suite, it is a boundary in it: `MissileStrikeApproach.For` is deliberately World-free, so it is HANDED the home position, the map size and the aim points. Every test of it therefore assumes the wiring passes the right three things. `MissileStrikePower.ApproachFor` is the code that decides which player's `HomeLocation` and whether the standoff comes from `MapSize` or `Bounds`, and nothing in `OpenRA.Test` can see it. **The in-game scenario is the only place that binding is exercised** — which is exactly why the four scenarios matter and why "we have unit tests for the geometry" was not a reason to expect them green.
 
@@ -3607,7 +5357,7 @@ Rows are `y=68` white/normal, `y=85` grey/disabled, `y=102` gold/alert. **Verifi
 - **A null attacker also suppresses the husk, by accident.** `attackingPlayer = e.Attacker?.Owner` and the spawn is gated on `attackingPlayer != null`, so `Kill(null, ...)` silently leaves no husk. Do not build on this: it is emergent rather than intended, and it costs the kill its attribution in `PlayerStatistics`.
 
 **And the reason to kill rather than `Dispose()` at all, which was the tempting shortcut:** `Dispose` suppresses every remains-producing trait by construction, in one line, with no interface and no engine edits. It also suppresses `PlayerStatistics`, `GivesExperience`, `GivesBounty`, `ActorLostNotification` and `UnitLifecycleLogger`, so a nuke that vaporised fifty units would move neither player's ledger by a single credit. **Fail toward too much debris, never toward a broken ledger** - a leftover wreck is a visible cosmetic bug that someone will report, while a silently uncounted kill is neither.
-## 2026-09-06 - A scenario can be SILENTLY INERT: it loads, renders, logs nothing and does nothing, and every existing gate passes it. Six mechanisms, all reachable from `Map`'s optional-file handling (`wt/scenario-audit`, base `main @ 6e5721ae`) **[promoted, in part -> `conventions.md` §"MiniYaml's indent arithmetic is not `leading_whitespace / 4`" (a tab is one level and does not reset the space counter; a leftover 1–3 spaces is discarded; and a structural checker's empty result reads exactly like a clean one). NOT promoted, wrong home: the six inert-scenario mechanisms and the gate that checks them are `tools/lua-gate/README.md` §"The second failure class", which already carries them, plus `conventions.md` §"Maps must declare `Rules: rules.yaml`" and §"The override isn't taking effect" cause 2 for mechanisms 1, 2 and 5; the selftest and stale-pin notes are tool-maintenance records]**
+## 2026-09-06 - A scenario can be SILENTLY INERT: it loads, renders, logs nothing and does nothing, and every existing gate passes it. Six mechanisms, all reachable from `Map`'s optional-file handling (`wt/scenario-audit`, base `main @ 6e5721ae`) **[promoted, in part -> `conventions.md` §"MiniYaml's indent arithmetic is not `leading_whitespace / 4`" (a tab is one level and does not reset the space counter; a leftover 1–3 spaces is discarded; and a structural checker's empty result reads exactly like a clean one). NOT promoted, wrong home: the six inert-scenario mechanisms and the gate that checks them are `tools/lua-gate/README.md` §"The second failure class", which already carries them, plus `conventions.md` §"Maps must declare `Rules: rules.yaml`" and §"The override isn't taking effect" cause 2 for mechanisms 1, 2 and 5; the selftest and stale-pin notes are tool-maintenance records; confirmed present in `tools/lua-gate/README.md` §"The second failure class: a scenario that is SILENTLY INERT" (all six mechanisms, the gate, and the write-the-acceptance-test-even-when-it-finds-nothing note)]**
 
 **This is the third instance found in one day, so it is worth stating as a class rather than a bug.** The class is: *the engine accepts the scenario, lint passes, `--check-yaml` passes, the map draws — and the scenario's own content was never read.* It is strictly worse than a malformed scenario, because a malformed one stops the run and an inert one produces a green map and a zero-byte Lua log that reads exactly like a slow start. All three of today's incidents were diagnosed by hand, twice after a launch slot had already been spent.
 
@@ -3956,7 +5706,7 @@ gate ... the only hits are prose comments"*).
 FASTEST member arrives is a measurement of the speed ratio, not of coordination, and it degrades linearly with
 distance. Any "how far apart were they" clause needs to say which of the two it intends, and if it intends
 coordination it has to be read at a moment neither element chooses alone.
-## 2026-09-06 - A scenario can be RED BY CONFIGURATION, and the fix inverts its failure mode: the danger-gated supply test now risks a FALSE PASS the clauses cannot see (`wt/safe-front`, base `main @ 9cb423d4`) **[promoted, in part -> `DOCS/recipes/AUTOTEST.md` §"The mirror: a RED is not evidence either"]** — findings 1, 2, 3, 4 and 6 are promoted; the gate reproduces verbatim at `SupplyFollowerBotModule.cs:1662` and the two flags at `ai/ai.yaml:1895` / `:1689`. Finding 6 is the sharpest and is promoted in full: `SupplyDriftClauseTest.ReadScenarioConstant` (`:55`) calls **`Assert.Ignore`** on a missing scenario file (`:67`), so deleting a scenario silently converts a passing NUnit test into a skipped one. Finding 5 (the sign of `FindSafeFollowPosition` on an enemy-free map) is promoted with the `wt/safe-front-close` entry, which measured it. **Finding 7 is REPORTED, NOT FIXED: `ai/ai.yaml:1670` and `:1692` still quote `DropMinStarvingUnits` as 3 against a shipped 1 (`:1927`)** — this pass was documentation-only and did not edit mod YAML.
+## 2026-09-06 - A scenario can be RED BY CONFIGURATION, and the fix inverts its failure mode: the danger-gated supply test now risks a FALSE PASS the clauses cannot see (`wt/safe-front`, base `main @ 9cb423d4`) **[promoted, in part -> `DOCS/recipes/AUTOTEST.md` §"The mirror: a RED is not evidence either"; confirmed present 2026-09-26 in `AUTOTEST.md` §"The mirror: a RED is not evidence either, unless the branch under test is REACHABLE at shipped config" — re-read at `5a3e4b19`, all four promoted halves intact]** — findings 1, 2, 3, 4 and 6 are promoted; the gate reproduces verbatim at `SupplyFollowerBotModule.cs:1662` and the two flags at `ai/ai.yaml:1895` / `:1689`. Finding 6 is the sharpest and is promoted in full: `SupplyDriftClauseTest.ReadScenarioConstant` (`:55`) calls **`Assert.Ignore`** on a missing scenario file (`:67`), so deleting a scenario silently converts a passing NUnit test into a skipped one. Finding 5 (the sign of `FindSafeFollowPosition` on an enemy-free map) is promoted with the `wt/safe-front-close` entry, which measured it. **Finding 7 is REPORTED, NOT FIXED: `ai/ai.yaml:1670` and `:1692` still quote `DropMinStarvingUnits` as 3 against a shipped 1 (`:1927`)** — this pass was documentation-only and did not edit mod YAML.
 
 Read-only analysis plus a scenario re-spec; **no run** (worker was gate-barred from launching). Discharges item 56 recon §5(a).
 
@@ -5036,7 +6786,7 @@ built can get rank 1") look like a 20 percent deviation. Derive the number in th
 constant the scenario actually runs, and prefer running the SHIPPED configuration over a staged one
 that makes the schedule land on round numbers.
 
-## 2026-09-03 — A stock OpenRA scripting binding is a BAD PRIOR in this mod; read `TestGlobal.cs` first (`wt/rank-scenario-fix`, `main @ 50526b80`) **[promoted -> `architecture.md` §"Key Lua APIs used" (the three stock bindings that do not exist here and WHY each is absent -- no factories, `Sellable` on structures only, `Evacuate` is an order string not a binding; that grepping scenarios for prior art returns a same-named local helper and reads as an established idiom; and BOTH silent `Test.QueueProduction` traps, the void return on no enabled queue and the `ToLowerInvariant` keys of `Rules.Actors`, the latter folded in from the `wt/alt-attackmove` entry). NOT promoted: the `ProductionFromMapEdge` dual-notification note, superseded in substance by `conventions.md` §"Engine behaviors that surprise" where `Trigger.OnProduction` is now the recommended latch, and the `ScenarioLuaParsesTest` / `AssertWithin` notes, which are recipe material for `AUTOTEST.md`]**
+## 2026-09-03 — A stock OpenRA scripting binding is a BAD PRIOR in this mod; read `TestGlobal.cs` first (`wt/rank-scenario-fix`, `main @ 50526b80`) **[promoted -> `architecture.md` §"Key Lua APIs used" (the three stock bindings that do not exist here and WHY each is absent -- no factories, `Sellable` on structures only, `Evacuate` is an order string not a binding; that grepping scenarios for prior art returns a same-named local helper and reads as an established idiom; and BOTH silent `Test.QueueProduction` traps, the void return on no enabled queue and the `ToLowerInvariant` keys of `Rules.Actors`, the latter folded in from the `wt/alt-attackmove` entry). NOT promoted: the `ProductionFromMapEdge` dual-notification note, superseded in substance by `conventions.md` §"Engine behaviors that surprise" where `Trigger.OnProduction` is now the recommended latch, and the `ScenarioLuaParsesTest` / `AssertWithin` notes, which are recipe material for `AUTOTEST.md`; filed 2026-09-26 -> `AUTOTEST.md`: the `AssertWithin` `timeoutReason`-may-be-a-FUNCTION remedy into §"Two Lua traps that make a scenario lie about its own numbers" (`test-helpers.lua:88-95`, `:160-161`), `ScenarioLuaParsesTest` into §"Verify before you ask for a slot", and the read-`TestGlobal.cs`-first / do-not-grep-scenarios-for-prior-art rules into §"`Test.*` (engine global…)"]**
 
 `test-rank-accumulation` died on its first order with *"Actor 'supplyroute' does not define a
 property 'Build'"* — before a single assertion ran. Fixing that revealed the same shape twice more.
@@ -5315,7 +7065,7 @@ the `Height: 17` the chrome templates declare (`tooltips.yaml:304-316`).
 Full write-up with the option costings: `WORKSPACE/recon-armour-facings.md`.
 Mockup: `WORKSPACE/mockups/armour-facing-diagram.html`.
 
-## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`) **[rejected: wrong home -- harness evidence-handling, belongs in `DOCS/recipes/AUTOTEST.md`. The durable rule (for a `--hidden` run `result.json`'s verdict is the only trustworthy artefact, so write attribution INTO the assertion and print the whole board rather than returning on the first bad check) is recipe material, and the adjacent fact that `--hidden` writes no screenshots while `result.json` lists them is already in `conventions.md` §"`--hidden` autotest runs write NO screenshots"]**
+## 2026-09-03 — The `debug.log` copied into an autotest run directory can be a DIFFERENT game's log (`wt/capture-fix`, `main @ cb68ce61`) **[rejected: wrong home -- harness evidence-handling, belongs in `DOCS/recipes/AUTOTEST.md`. The durable rule (for a `--hidden` run `result.json`'s verdict is the only trustworthy artefact, so write attribution INTO the assertion and print the whole board rather than returning on the first bad check) is recipe material, and the adjacent fact that `--hidden` writes no screenshots while `result.json` lists them is already in `conventions.md` §"`--hidden` autotest runs write NO screenshots"; filed 2026-09-26 -> `AUTOTEST.md` §"The `debug.log` in your run directory can be a DIFFERENT GAME'S log"]**
 
 Two scenarios failed and the run directories were handed over as *"the only evidence"*. Neither
 `debug.log` was from the run it sat in. Checked, not assumed:
@@ -5346,7 +7096,7 @@ about who did the work — assert that alongside ownership. And have every failu
 board rather than returning on the first bad check, because "one arm broke" and "nothing ran" are
 different diagnoses that a single-line verdict otherwise cannot distinguish.
 
-## 2026-09-03 — A radius is a circle: autotest arms separated by ROWS are not separated (`wt/capture-fix`, `main @ cb68ce61`) **[rejected: wrong home -- this is autotest scenario-authoring method and belongs in `DOCS/recipes/AUTOTEST.md` (enumerate every cross-pair mechanically before a run; size a walk budget from the speed, 40.96 ticks/cell at `Speed: 25`). The one engine-geometry half -- that a building's `CenterPosition` is the centre of its Dimensions box, so `Location`-space distances understate -- is promoted with the `wt/visibility-impl` entry, `conventions.md` §"`Dimensions` is a BOUNDING BOX, not the shape", which carries the same mechanism with its own worked case]**
+## 2026-09-03 — A radius is a circle: autotest arms separated by ROWS are not separated (`wt/capture-fix`, `main @ cb68ce61`) **[rejected: wrong home -- this is autotest scenario-authoring method and belongs in `DOCS/recipes/AUTOTEST.md` (enumerate every cross-pair mechanically before a run; size a walk budget from the speed, 40.96 ticks/cell at `Speed: 25`). The one engine-geometry half -- that a building's `CenterPosition` is the centre of its Dimensions box, so `Location`-space distances understate -- is promoted with the `wt/visibility-impl` entry, `conventions.md` §"`Dimensions` is a BOUNDING BOX, not the shape", which carries the same mechanism with its own worked case; filed 2026-09-26 -> `AUTOTEST.md` §"Geometry the gates do not check: arms that are supposed to be independent"]**
 
 `test-auto-capture-nearby` laid four independent arms on rows 6/12/18/26 and reasoned about
 x-offsets along each row, under a comment asserting they could not interact. They interacted at
@@ -6811,7 +8561,7 @@ garrisonable and carry `GarrisonProtection`, but they descend from `^Defense` an
 and silently misses those three. There are **four** definition sites for anything garrison-wide, not
 one. `GarrisonBailDisabledTest` asserts that count directly, so adding a fifth garrison building
 fails a test rather than quietly inheriting a vehicle default.
-## 2026-09-01 — `make check` FAILS IN STRATA, so the error list it prints is a floor and never a total (`main @ 9ef205c5`)
+## 2026-09-01 — `make check` FAILS IN STRATA, so the error list it prints is a floor and never a total (`main @ 9ef205c5`) **[promoted -> `conventions.md` §"A green analyzer gate means what the TARGET GRAPH reaches" (the three-strata recipe, the RCS1226 and SA1612 name traps, the load-bearing split literal). Cites corrected in that section: `Makefile:191`->`:226`, `Makefile:211`/`make.ps1:165`->`:230`/`:359`]**
 
 Found while making `check` green from a long-red pristine `main`. The count you measure first is
 not the count you have to fix, and the reason is structural rather than incidental.
@@ -7722,7 +9472,7 @@ Also, on method: **sabotage-to-verify-RED must be run against a COMMITTED tree.*
 were worthless because `git checkout -- <file>` reverted uncommitted fixes along with the sabotage, so
 both runs were really measuring `main`. The tell was a failure naming the wrong method.
 
-## 2026-09-01 — the command-bar highlight, measured: exact-amber pixel counts per button across seven frames (`wt/cmdbar-audit`) **[rejected: not reference -- a dated, single-machine measurement.** Seven per-frame pixel counts at one capture density on one display; the README's "if a statement will be false in a month, it is in the wrong folder" applies directly. **Wrong home for the durable half:** the METHOD (decode to raw RGBA, count pixels EXACTLY equal to the highlight colour so antialiasing cannot blend into the count, bucket by each button's derived rect, and expect ~60% of the sheet's opaque count rather than 100%) is capture-evaluation material and belongs in `DOCS/recipes/SCREENSHOT.md`. The GUARD/PATROL-both-read-604 trick -- two buttons drawing the same glyph give you a free check that the rect mapping is right -- is the part worth carrying there]**
+## 2026-09-01 — the command-bar highlight, measured: exact-amber pixel counts per button across seven frames (`wt/cmdbar-audit`) **[rejected: not reference -- a dated, single-machine measurement.** Seven per-frame pixel counts at one capture density on one display; the README's "if a statement will be false in a month, it is in the wrong folder" applies directly. **Wrong home for the durable half:** the METHOD (decode to raw RGBA, count pixels EXACTLY equal to the highlight colour so antialiasing cannot blend into the count, bucket by each button's derived rect, and expect ~60% of the sheet's opaque count rather than 100%) is capture-evaluation material and belongs in `DOCS/recipes/SCREENSHOT.md`. The GUARD/PATROL-both-read-604 trick -- two buttons drawing the same glyph give you a free check that the rect mapping is right -- is the part worth carrying there; filed 2026-09-26 -> `SCREENSHOT.md` §"Count an EXACT colour, and expect ~60% of the sheet's opaque pixels", including the GUARD/PATROL-both-read-604 free check]**
 
 First actual measurement of this bar rather than an eyeball. Method is reusable for any chrome claim:
 decode the capture to raw RGBA, count pixels exactly equal to the highlight colour, and bucket them by
@@ -7804,7 +9554,7 @@ of, not a flattening of a gradient. **Also worth knowing when reasoning about ca
 `ChromeProvider` to `Image2x` (`ChromeProvider.cs:120`), so captures sample `glyphs-2x.png`, never
 `glyphs.png` — chrome art edited for a screenshot must be edited at 2x or the capture will not show it.
 
-## 2026-09-01 — `FrozenActor.Owner` has TWO exceptions, not one, and "fog cannot be tested" was false — the real gap was one missing binding (`wt/fog-truth`, `main @ 3f25f4d3`) **[promoted, in part -> `architecture.md` §"Fog visibility" -- FOLDED WITH the `wt/fog-snapshot` entry above into ONE section, per §"One home per fact", since both describe the same mechanism. Carried: `Owner` is written only by `RefreshState` and `OnOwnerChanged` refreshes the OLD OWNER'S INDEX ONLY, so a third party's ghost never moves on a capture. **Both of this entry's supporting arguments are dead and were NOT carried** -- the "last link in a chain" reasoning is circular (the entry above says why), and the GPS exception cannot fire (no `GpsPower` in `mods/`, re-verified at `a21583fd`); the promoted text uses the false-FRIENDLY argument instead, and records the per-field `refreshTooltipOwner` split that has since shipped. The SCOPE paragraph -- `FrozenUnderFog` is the only `ICreatesFrozenActors` implementor, `Requires<BuildingInfo>` at `:21`, unstripped, so every building has a ghost and no non-building does -- was ALREADY banked in that section; **its cite had drifted and is corrected in this pass** (`^BasicBuilding` grants it at `ingame/structures.yaml:80`, not `:60`). NOT promoted: §2's harness findings and the three `Test.Frozen*` bindings (they do exist, `TestGlobal.cs:1025`, `:1044`, `:1074`) -- harness-coverage material whose home is `DOCS/recipes/AUTOTEST.md`, not the bank; and the unestablished `HasRenderables`-off-screen question, which needs a run]**
+## 2026-09-01 — `FrozenActor.Owner` has TWO exceptions, not one, and "fog cannot be tested" was false — the real gap was one missing binding (`wt/fog-truth`, `main @ 3f25f4d3`) **[promoted, in part -> `architecture.md` §"Fog visibility" -- FOLDED WITH the `wt/fog-snapshot` entry above into ONE section, per §"One home per fact", since both describe the same mechanism. Carried: `Owner` is written only by `RefreshState` and `OnOwnerChanged` refreshes the OLD OWNER'S INDEX ONLY, so a third party's ghost never moves on a capture. **Both of this entry's supporting arguments are dead and were NOT carried** -- the "last link in a chain" reasoning is circular (the entry above says why), and the GPS exception cannot fire (no `GpsPower` in `mods/`, re-verified at `a21583fd`); the promoted text uses the false-FRIENDLY argument instead, and records the per-field `refreshTooltipOwner` split that has since shipped. The SCOPE paragraph -- `FrozenUnderFog` is the only `ICreatesFrozenActors` implementor, `Requires<BuildingInfo>` at `:21`, unstripped, so every building has a ghost and no non-building does -- was ALREADY banked in that section; **its cite had drifted and is corrected in this pass** (`^BasicBuilding` grants it at `ingame/structures.yaml:80`, not `:60`). NOT promoted: §2's harness findings and the three `Test.Frozen*` bindings (they do exist, `TestGlobal.cs:1025`, `:1044`, `:1074`) -- harness-coverage material whose home is `DOCS/recipes/AUTOTEST.md`, not the bank; and the unestablished `HasRenderables`-off-screen question, which needs a run; filed 2026-09-26 -> `AUTOTEST.md` §"`Test.*` (engine global…)" (fog IS testable: `TestMode.KeepRenderPlayer` at `TestMode.cs:39`/`:311` guarding `TestModeLogic.cs:30-31`, the frozen state never depending on RenderPlayer, and all four `Test.Frozen*` bindings with current cites) and `SCREENSHOT.md` Mode 1, whose RenderPlayer paragraph is corrected to name the guard]**
 
 Read off code and pinned in a scenario; **the scenario has never been run** — no launch was taken.
 The C# builds clean and `dotnet test` is green (2081 passed), which is the whole of the evidence.
@@ -8217,7 +9967,7 @@ the ring out of play" is a weaker objection here than it sounds.
 is argued to work from its presence in-tree, its clean lint status and its git history
 (`dc59e418`), not from a run. Anyone acting on this should still run that scenario once before
 replicating the pattern across 11 maps.
-## 2026-09-01 — `oilb` is on the Polar Disorder AND River Zeta cordon rings, and it is an oil derrick: the "pure scenery" classification that cleared those families was a regex, and it is wrong (`wt/cordon-rest`) **[rejected: already covered.** The classification lesson is banked at `tools/nav-guard/README.md` §"Classify by the TRAIT CHAIN, never by the type name" and §"Resolve the FOOTPRINT, never the Location", which carries the `oilb` worked example -- the 2026-09-02 pass rejected the sibling `wt/harness-truth` entry below on the same ground. `Map.Contains` consulting `Bounds` rather than `MapSize` is banked at `architecture.md` §"The black band at a map edge" and `conventions.md` §"A ground unit CANNOT path off the map". **One corollary WAS added** to the former in this pass, because it is the operational consequence that cost the work: an inset leaves a multi-cell actor straddling the boundary with only its in-bounds cells standable, which matters when the actor is a capture target rather than scenery. NOT promoted: the per-map derrick and ring tables and the connectivity diff, which are authoring records; the re-measurement was not repeated here, since it needs a `nav_guard.py` run]**
+## 2026-09-01 — `oilb` is on the Polar Disorder AND River Zeta cordon rings, and it is an oil derrick: the "pure scenery" classification that cleared those families was a regex, and it is wrong (`wt/cordon-rest`) **[rejected: already covered.** The classification lesson is banked at `tools/nav-guard/README.md` §"Classify by the TRAIT CHAIN, never by the type name" and §"Resolve the FOOTPRINT, never the Location", which carries the `oilb` worked example -- the 2026-09-02 pass rejected the sibling `wt/harness-truth` entry below on the same ground. `Map.Contains` consulting `Bounds` rather than `MapSize` is banked at `architecture.md` §"The black band at a map edge" and `conventions.md` §"A ground unit CANNOT path off the map". **One corollary WAS added** to the former in this pass, because it is the operational consequence that cost the work: an inset leaves a multi-cell actor straddling the boundary with only its in-bounds cells standable, which matters when the actor is a capture target rather than scenery. NOT promoted: the per-map derrick and ring tables and the connectivity diff, which are authoring records; the re-measurement was not repeated here, since it needs a `nav_guard.py` run; confirmed present in `tools/nav-guard/README.md` §"Classify by the TRAIT CHAIN, never by the type name" and §"Resolve the FOOTPRINT, never the Location"]**
 
 **The survey entry above bins `oilb` inside River Zeta's "287 scenery" and calls Polar Disorder's ring
 "**all** scenery". Both are wrong, and it is the same error: the classification was a name regex, never a
@@ -8812,7 +10562,7 @@ target 42.4 cells away.
 armament any actor on it carries, not by the weapon you think is doing the work — and by the
 Euclidean distance, not the chessboard one a map-editor eye measures.
 
-## 2026-09-01 — Which dispatcher opens a resupply errand decides which ACTIVITY runs, and only one of the two contains `FindBest` (`wt/launch-prep`) **[promoted, in part -> `economy.md` §"Two host-discovery paths disagree about the same actor" (the two dispatchers queue DIFFERENT activities and `FindBest`/re-pick lives only in `SeekSupplyProvider`); verified at `a21583fd`, and the entry's `AmmoPool.cs:931` has drifted to `:1067`. NOT promoted: the 20<d<=30 band sizing and the 66x34-map geometry, which are scenario authoring -> `DOCS/recipes/AUTOTEST.md`]**
+## 2026-09-01 — Which dispatcher opens a resupply errand decides which ACTIVITY runs, and only one of the two contains `FindBest` (`wt/launch-prep`) **[promoted, in part -> `economy.md` §"Two host-discovery paths disagree about the same actor" (the two dispatchers queue DIFFERENT activities and `FindBest`/re-pick lives only in `SeekSupplyProvider`); verified at `a21583fd`, and the entry's `AmmoPool.cs:931` has drifted to `:1067`. NOT promoted: the 20<d<=30 band sizing and the 66x34-map geometry, which are scenario authoring -> `DOCS/recipes/AUTOTEST.md`; filed 2026-09-26 -> `AUTOTEST.md` §"Geometry the gates do not check…" (the band-sizing rule: name which dispatcher you intend to open the errand and check the geometry can only open that one)]**
 
 Static, no launch. This is the constraint that sizes `test-repick-leash-refuses-far-host`, and
 getting it wrong yields a scenario that passes against a build with the leash ripped out.
@@ -8904,7 +10654,7 @@ above were within three lines of a paragraph already open.
    that finds a doc wrong should say so and stop; the standing fix-on-sight licence is for claims you
    have re-derived, not for claims you have merely failed to confirm.**
 
-## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`) **[promoted, in part -> `architecture.md` §"The black band at a map edge" (the `CheckMapCordon` lint, re-read at `Lint/CheckMapCordon.cs:20-21`, which is WHY every shipped map is `Bounds: 1,1,W-2,H-2` rather than coincidence). NOT promoted: the 63 = 40+6+17 census and the paydown costing, which are a worklist (`WORKSPACE/`); the nav-guard scope fact, already in `CLAUDE.md` and `tools/nav-guard/README.md`]**
+## 2026-09-01 — The cordon debt is 63 maps but only THREE prices, and the expensive tier is 17 benchmark maps with an income POI on the outer ring (`wt/tooling-truth`) **[promoted, in part -> `architecture.md` §"The black band at a map edge" (the `CheckMapCordon` lint, re-read at `Lint/CheckMapCordon.cs:20-21`, which is WHY every shipped map is `Bounds: 1,1,W-2,H-2` rather than coincidence). NOT promoted: the 63 = 40+6+17 census and the paydown costing, which are a worklist (`WORKSPACE/`); the nav-guard scope fact, already in `CLAUDE.md` and `tools/nav-guard/README.md`; confirmed present: the nav-guard scope fact is in `tools/nav-guard/README.md` §"What this tool would still miss" item 8 and in `CLAUDE.md`]**
 
 Costing, not a fix — the paydown is the user's call. Every count below was taken statically from
 `map.yaml`; no run, no launch.
@@ -8954,7 +10704,7 @@ argument-passing branch. Unverified on Windows like the rest of that file — fi
 replacement comment spells `PATH` instead of bracketing it. Keep redirect, pipe and escape characters
 out of `.cmd` comments; the file now greps clean for them.
 
-## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (the durable half: a queued order boundary is a state boundary -- two queued `Move`s never produce a corner arc, because the first settles with `FromCell == ToCell` and the second turns in place (`Move.cs:213-216`), while the arc and its `ToCell` retarget live only in `MoveFirstHalf`'s chained branch `:709-722`, both re-read at `a21583fd`). NOT promoted: the "what observable proves the run entered the state I am testing?" rule -- wrong home, and the entry itself aims it at `DOCS/recipes/AUTOTEST.md` §"A green run is not evidence"]**
+## 2026-09-01 — A scenario must be shown to reach the STATE it tests, not merely to run and return a verdict (`wt/death-slide`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (the durable half: a queued order boundary is a state boundary -- two queued `Move`s never produce a corner arc, because the first settles with `FromCell == ToCell` and the second turns in place (`Move.cs:213-216`), while the arc and its `ToCell` retarget live only in `MoveFirstHalf`'s chained branch `:709-722`, both re-read at `a21583fd`). NOT promoted: the "what observable proves the run entered the state I am testing?" rule -- wrong home, and the entry itself aims it at `DOCS/recipes/AUTOTEST.md` §"A green run is not evidence"; filed 2026-09-26 -> `AUTOTEST.md` §"A green run is not evidence…" as a sixth instance, plus step 7 of that section's action list]**
 
 Fourth instance in one day of a single shape: **work that passes its own check without exercising the
 thing it claims to check.** The other three were an inert drone contact bonus whose test asserted
@@ -9071,7 +10821,7 @@ A log tag that names the wrong module costs you a run, because the natural respo
 string.** A tag is a label someone typed, not a namespace the compiler checks, and there is nothing in
 the build that can notice it has drifted from the module it sits in.
 
-## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`) **[promoted, in part -> `influence-stack.md` §"Stage F" (the mechanism: `PoiMap` admits an income structure as a POI only if it carries `CaptureManagerInfo` (`PoiMap.cs:223`, exact at `a21583fd`), so POI-eligibility and capture-eligibility are the SAME predicate and adding scenery to satisfy the gate creates a capture target). NOT promoted: the priority-floor-request-bypasses-the-bank claim, not verified this pass; and the 28-cell guard geometry, which is scenario authoring -> `DOCS/recipes/AUTOTEST.md`]**
+## 2026-09-01 — The actor you add to satisfy a POI gate is, by construction, a magnet that summons a unit across your map (`wt/drone-targeting`) **[promoted, in part -> `influence-stack.md` §"Stage F" (the mechanism: `PoiMap` admits an income structure as a POI only if it carries `CaptureManagerInfo` (`PoiMap.cs:223`, exact at `a21583fd`), so POI-eligibility and capture-eligibility are the SAME predicate and adding scenery to satisfy the gate creates a capture target). NOT promoted: the priority-floor-request-bypasses-the-bank claim, not verified this pass; and the 28-cell guard geometry, which is scenario authoring -> `DOCS/recipes/AUTOTEST.md`; filed 2026-09-26 -> `AUTOTEST.md` §"Geometry the gates do not check…" (both halves: scenery added for a gate is not inert, and a mechanic-derived guard radius must be checked against the map)]**
 
 The direct sequel to the entry below, and the sharper half: fixing the POI gate **created** the
 contamination it was meant to unblock, and the two are the same property seen twice.
@@ -10926,7 +12676,7 @@ NOT IMPLEMENTED. Deciding between deleting it and implementing it is a balance c
 is what makes a universal reset safe; if a weapon is ever authored where `Burst` means "rounds in the
 pod", it will need an opt-out.
 
-## 2026-08-24 — the medic ping-pong is FIXED on the automatic path; what is actually broken is triage, notice radius and danger (medic scenarios, `wt/medic-scenarios`, base `main @ 96f47c47`)
+## 2026-08-24 — the medic ping-pong is FIXED on the automatic path; what is actually broken is triage, notice radius and danger (medic scenarios, `wt/medic-scenarios`, base `main @ 96f47c47`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (triage is acquisition-time only; the ordered-vs-automatic divergence; `FindBestTarget` skips `a == self`). NOT promoted: the six scenario results, the seeds, the 250-tick and 2%-HP measurements and the heal-flash pixel decode -- dated measurements, not mechanism; the flash trait itself is already in `conventions.md` §"A change believed made..." instance 1]**
 
 Six scenarios run live against `96f47c47`. The headline is a negative result that closes a
 long-running suspicion, and it is worth more than the bugs below it.
@@ -11014,7 +12764,7 @@ commented out at `weapons-other.yaml:352`, no `MedicVoice` heal line), so the wh
 time. Capture runs go at 1×. And with no PIL or ImageMagick on this machine, `sips` crops but cannot
 measure — a ~60-line zlib PNG decoder answered the question that eyeballing could not.
 
-## 2026-08-23 — a click resolves to ONE targeter and the target LINE is drawn from the move, so both halves of the order plumbing can advertise something the game is not doing (medic order lock, `wt/medic-order`, base `main @ 7f6e6460`)
+## 2026-08-23 — a click resolves to ONE targeter and the target LINE is drawn from the move, so both halves of the order plumbing can advertise something the game is not doing (medic order lock, `wt/medic-order`, base `main @ 7f6e6460`) **[promoted -> `conventions.md` §"A right-click resolves through an `OrderPriority` contest" as three added consequences: a broad high-priority targeter disables every lower `TargetOverridesSelection`; cursor and click resolve by different rules and can disagree; a target LINE is drawn from the top-level MOVE node and never from an attack child]**
 
 Two findings from making an explicit heal order stick. Both are general to the order system; the medic
 is just where they became visible.
@@ -11061,7 +12811,7 @@ The same reasoning applies to every other `AttackMoveActivity` user: a unit atta
 draws to the waypoint while engaging a target off to one side. Defensible for attack-move, which names
 a destination. Not defensible for a heal order, which names a person.
 
-## 2026-08-23 — healing is DAMAGE WITH THE SIGN FLIPPED, and the sign decides which half of the modifier stack applies (medic numbers audit, read-only, `main @ 7f6e6460`)
+## 2026-08-23 — healing is DAMAGE WITH THE SIGN FLIPPED, and the sign decides which half of the modifier stack applies (medic numbers audit, read-only, `main @ 7f6e6460`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (healing is negative damage and `Health.cs:221` partitions the modifier stack by sign -- victim-side skipped, firer-side applied; and `AimingDelay` 15 on every target switch). Already covered: the `BurstMultiplier` zero at `Burst: 1` (`architecture.md` §Suppression, with the sharper conclusion that it does not stop firing) and the `ChangesHealth` bleed families (`conventions.md`). NOT promoted: the heal-vs-burn rate table and the `Duration 30 < BurstWait 50` legibility flag]**
 
 Substituting the mod's real numbers into the heal path, per conventions.md §"A change believed made,
 documented as made, and inert". Every infantry actor in the mod is **200 MaxHP** — `HP: 200` at
@@ -11131,7 +12881,7 @@ gap between heal impacts is `BurstWait: 50`. `defaults.yaml:23-24` does not set 
 so the "being treated" pip is lit 30 ticks and dark 20 between every pulse** — the exact failure the
 field documents. Flagged, not fixed; it is a legibility call and belongs with the medic-experience work.
 
-## 2026-08-23 — a medic re-ranks his patients while WALKING and never while TREATING, so triage is an acquisition-time decision only (medic behaviour audit, read-only, `main @ 7f6e6460`)
+## 2026-08-23 — a medic re-ranks his patients while WALKING and never while TREATING, so triage is an acquisition-time decision only (medic behaviour audit, read-only, `main @ 7f6e6460`) **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise", merged with the 2026-08-24 medic entry (`SelectPatient` unreachable while treating, so triage is acquisition-time only). NOT promoted: the wounded-medic compounding table and the green-test critique, which are branch findings; the heal-silence census is recipe material]**
 
 Companion to the numbers audit above; this half is control, autonomy and legibility.
 
@@ -11186,7 +12936,7 @@ engineer's `Repair` (`:356`). There is no notification, no EVA line, and `MedicV
 (`voices.yaml:31-37`) has no `Heal`/`Attack` entry — only Select/Action/Die. Every channel telling
 the player treatment is happening is visual.
 
-## 2026-08-22 — an actor's armour class is TWO independent facts, and four shipped units disagree with themselves (wt/small-arms-ladder)
+## 2026-08-22 — an actor's armour class is TWO independent facts, and four shipped units disagree with themselves (wt/small-arms-ladder) **[promoted, in part -> `conventions.md` §"An armour class is a TARGET TYPE" (an actor's armour class is TWO independent facts, nothing validates that they agree, so "which vehicles are Light?" has two answers). NOT promoted: the four-actor disagreement table, a dated per-actor census]**
 
 Branch `wt/small-arms-ladder`, base `main @ 9f5a7bc0`. Implementing the small-arms ladder
 (USER RULING: *"9mm should not work on any vehicles I think, 556 and 762 should work on light, but not
@@ -11253,7 +13003,7 @@ actors exist" — it briefly produced the conclusion that the mod has no Medium 
 when it has nine. Use explicit alternation on the literal text, and sanity-check a census that returns
 empty against a `grep -c` of the same corpus.
 
-## 2026-08-22 — "is this a team game?" is not answerable at the Supply Route, and the freeze message asked it anyway (wt/sr-message)
+## 2026-08-22 — "is this a team game?" is not answerable at the Supply Route, and the freeze message asked it anyway (wt/sr-message) **[rejected: already covered -- `supply-route.md` §"Contestation to zero ends the match" carries the whole finding, including the rule to gate on the SAME expression that decides passive-versus-defeated rather than on a re-derived "is this a team game?", `HasRescuer`, and the income-wording correction]**
 
 Branch `wt/sr-message`, base `main @ cc0775b1`. User report: in a free-for-all, the combat log read
 `"Experimental AI 4 has lost their Supply Route! Production and income frozen."` and then, on the very
@@ -11309,7 +13059,7 @@ passive player sits `Undefined` forever while `AwardDecidedSurvivors` refuses to
 same file's `mo == null` guard (`:651`) silently skips a player with no `MissionObjectives`, which
 would strand them the same way.
 
-## 2026-08-22 — the Logistics Centre already rearmed soldiers and already had a bar; what was missing was the PRICE, and a truck→Centre order shadowed by a higher-priority targeter
+## 2026-08-22 — the Logistics Centre already rearmed soldiers and already had a bar; what was missing was the PRICE, and a truck→Centre order shadowed by a higher-priority targeter **[rejected: superseded -- the entry's central finding is that `ProximityExternalCondition@ReplenishSoldiers` rearmed soldiers free of charge. That trait was deleted 2026-08-27; at `ef4ab359` the removal and its reasoning are recorded in place at `structures.yaml:596-600`, and the metered aura arm that replaced it is already documented in `economy.md` §"What rearms what" (corrected there 2026-09-05)]**
 
 Branch `wt/lc-supplies`, base `main @ 7afb0b63`. Dispatched to "make the Logistics Centre rearm
 soldiers and show a supplies bar like the truck". **Both were already true.** Recording this because
@@ -11370,7 +13120,7 @@ crates, and a truck can park on the Centre's `=` corner and drop one 1448 units 
 stating because the two were close enough to look deliberate, and `CustomSellValue.cs:51` is the only
 reader.
 
-## 2026-08-22 — ground-cover census: a "flat actor" flag is only as good as the number of occupancy indices it is applied to, and there are three
+## 2026-08-22 — ground-cover census: a "flat actor" flag is only as good as the number of occupancy indices it is applied to, and there are three **[promoted, in part -> `conventions.md` §"Footprint characters decide where a unit may STOP" (the THIRD index, `ActorMap.FreeSubCell`, which cannot filter a FullCell occupant out of its RESULT -- `ActorMap.cs:348`, predicate overload `:315`; the `SubCell` enum reading backwards, `TraitsInterfaces.cs:335`; a partial sweep is worse than none; widening one free-cell test makes a neighbouring one newly reachable). NOT promoted: the fixed-sites list, the deliberate-exceptions list and the two unproven sites -- a branch worklist]**
 
 Branch `wt/ground-cover-sweep`, base `main @ 0c15c6bc`. Following the LCCV deploy fix, I audited every
 "is this cell free" test in `OpenRA.Mods.Common` + `OpenRA.Mods.Cnc` (the two assemblies `mod.yaml:170`
@@ -12140,7 +13890,7 @@ expressing tick-domain quantities (burst delays, reload times, projectile flight
 polling with `Trigger.AfterDelay(1, ...)`** — that is immune to the constant being wrong and to
 whatever game speed a run happens to use.
 
-## 2026-08-20 — a harness helper that "does what the real path does" had quietly dropped one step, and that step was the whole bug
+## 2026-08-20 — a harness helper that "does what the real path does" had quietly dropped one step, and that step was the whole bug **[rejected: wrong home -> `DOCS/recipes/AUTOTEST.md`. The mechanism half -- `OrderForUnit` walks the targeter chain TWICE, the second pass against the terrain cell -- is already in `conventions.md` §"A right-click resolves through an `OrderPriority` contest"; what is left is the harness lesson that `Test.Issue*` bypasses the order generator entirely, so a scenario written against it goes green on a broken build; filed 2026-09-26 -> `AUTOTEST.md` §"A green run is not evidence…" as a new instance (a duplicated copy of the code under test, missing the branch containing the bug); the fix is verified shipped at `TestGlobal.cs:739-747`]**
 
 Branch `wt/order-fallback`. `Test.ClickOrder` is documented as resolving "the IIssueOrder targeter
 chain in descending OrderPriority exactly as UnitOrderGenerator does", and it did — except
@@ -12166,7 +13916,7 @@ day it was written.** Prefer delegating to X. Where you cannot, the docstring sh
 of X it does *not* reproduce, because the omitted part is exactly where a bug can hide from every
 test you write.
 
-## 2026-08-20 — a tier of 0 from `Test.GetVisibilityLevel` means "has not ticked yet", and it reads exactly like a broken clamp
+## 2026-08-20 — a tier of 0 from `Test.GetVisibilityLevel` means "has not ticked yet", and it reads exactly like a broken clamp **[rejected: wrong home -> `DOCS/recipes/AUTOTEST.md`. This is a scenario-authoring trap (reading a ticked accessor from `WorldLoaded`, which `World.LoadComplete` runs before the first tick) and a sentinel-value convention for `Test.*` bindings; it belongs with the harness recipes, not in the engine reference; filed 2026-09-26 -> `AUTOTEST.md` §"The instrument reads a state that LAGS the thing you just asked for" item 2 (the three zero-ish returns, and read what the assertion MEASURED before its prose)]**
 
 Branch `wt/invisibility-fix`. A new scenario asserting the concealment ceiling failed with
 *"Ghost is on concealment tier 0, expected 9"*. The note went on to reason about tier 10 and about a
@@ -12906,7 +14656,7 @@ already bitten once (`Convert.ToHexString`, `WORKSPACE/bugs/discovered.md:6-28`)
 is guarded by **a comment only** — no `#pragma`, no `SuppressMessage` — while `engine/.editorconfig` sets
 `CA2021.severity = warning`. It will hard-fail `make check` the day the SDK moves off the 6.0 pin.
 
-## 2026-08-17 — THE LIVE INFANTRY COUNT IS ~2.4x THE OFFLINE REPLAY'S, SO BOTH `…FloorPer: 10` CLIFFS CLEAR COMFORTABLY — AND THE TRUCK FLOOR'S THIRD STEP IS UNREACHABLE
+## 2026-08-17 — THE LIVE INFANTRY COUNT IS ~2.4x THE OFFLINE REPLAY'S, SO BOTH `…FloorPer: 10` CLIFFS CLEAR COMFORTABLY — AND THE TRUCK FLOOR'S THIRD STEP IS UNREACHABLE **[rejected: not reference -- a first live census measurement (three seeds, one scenario) whose own headline is a ratio between a live run and an offline replay. The instrument facts it carries (the census ships on; a census line naming a player proves that player ran the experimental module) are already reflected in `architecture.md` §AI production]**
 
 Branch `wt/composition-census`. First live measurement of the `[composition]` census; **no archived run in
 `tools/autotest/tournament-results` contains one**, because the instrument postdates all of them.
@@ -13300,7 +15050,7 @@ means the metric does not merely tolerate the sea — **it prefers it**. Any "pi
 built on an occupancy-derived field has this bias and needs the terrain test in the *candidate filter*, not as
 a post-hoc clamp.
 
-## 2026-08-17 — THE BOT IS RICH FOR 60 CYCLES AND POOR FOR THE REST; "20,000 STARTING CASH" IS NOT THE ECONOMY IT PLAYS IN
+## 2026-08-17 — THE BOT IS RICH FOR 60 CYCLES AND POOR FOR THE REST; "20,000 STARTING CASH" IS NOT THE ECONOMY IT PLAYS IN **[promoted, in part -> `economy.md` §"Where cash comes from" (PassiveIncome 100/50t against FeedbackTime 30 is ~60 credits per build cycle, so a 1000-cost unit is ~17 cycles of the bot's entire income -- the endowment is not the rate, and a claim of the form "never unaffordable against 20,000 starting cash" is about the opening only). NOT promoted: the 38/200 banking measurement, which is one configuration on one economy]**
 
 **Claim retired:** *"a 1000-cost truck against 20,000 starting cash is never unaffordable, so
 `SupplyPrecedenceStallCycles` cannot fire in a default lobby game"*
@@ -13344,7 +15094,7 @@ arbitrate). Income sweep at cash 20,000: 0 and 30 → no benefit, **60 (shipped)
 An economy with no renewable income and a fixed opening pot spends most of a match near zero, and any predicate
 gated on affordability will look inert to anyone who checks it at t=0.
 
-## 2026-08-17 — `--floor-per` AND `SupplyTruckFloorPer` ARE DIFFERENT KNOBS, AND SWEEPING THE FIRST LOOKS LIKE A WEAK RESPONSE FROM THE SECOND
+## 2026-08-17 — `--floor-per` AND `SupplyTruckFloorPer` ARE DIFFERENT KNOBS, AND SWEEPING THE FIRST LOOKS LIKE A WEAK RESPONSE FROM THE SECOND **[rejected: wrong home -> `DOCS/recipes/BALANCE.md` / the `--composition-plan` tool docs. Two sweep flags being different knobs is instrument documentation, and the entry's own sweep figures are explicitly not a mandate to re-tune; filed 2026-09-26 -> `BALANCE.md` §"The third instrument: `--composition-plan`" and its §"`--floor-per` and `--supply-floor-per` are DIFFERENT KNOBS…"; flags re-verified at `DumpCompositionPlanCommand.cs:156`/`:162`]**
 
 `--composition-plan --floor-per N` rewrites **`UnitFloorPer`**, which drives `ChooseBelowFloor` (the medic).
 The truck's standing floor is a **separate field**, `SupplyTruckFloorPer`, read directly by the demand
@@ -13522,7 +15272,7 @@ lets an error message carry file:line detail on later lines without churning the
 path can only **remove** entries (`LINT_BASELINE_PRUNE=true`), never add — and a fixed entry **fails** the run
 until it is pruned, so the number cannot sit still while the code improves.
 
-## 2026-08-17 — THE PHANTOM-ANCHOR CLASS IS CLOSED, AND WHAT CLOSED IT WAS A SOURCE SCAN, NOT A THIRD FIX
+## 2026-08-17 — THE PHANTOM-ANCHOR CLASS IS CLOSED, AND WHAT CLOSED IT WAS A SOURCE SCAN, NOT A THIRD FIX **[rejected: wrong home -> `tools/` gate documentation. The durable output of this entry is `GridDescentGuardTest` itself -- a static gate that walks `Traits/BotModules/**` and fails a missing degenerate-descent check -- and the finding is that prose failed three times where the gate succeeded. That belongs with the gate, not in the engine reference; filed 2026-09-26 -> `AUTOTEST.md` §"A green run is not evidence…", the corpus-scanning-guard paragraph. NOTE the tag names "tools/ gate documentation" and no such doc exists — `GridDescentGuardTest` is an NUnit source scan, so it is filed with the corpus-scan rule the recipe already carries (pin the CALL SITES, not the helper; keep an exact-site-count assertion)]**
 
 Three bot resolvers shipped the same map/grid round-trip mistake independently over eleven days. The third
 (`CaptureCoordinatorBotModule.ResolveReserveAnchor`) had **no degenerate-descent guard of any kind** and was
@@ -14262,7 +16012,7 @@ whose engine had exited days before.
 
 The failure presents as `--wait` timing out, i.e. as *the game ignoring the request*, not as a
 wrong-file bug — which is why it survived. Fixed at `b3944d24` by selecting on mtime instead.
-## 2026-08-16 — VISIBILITY HYPOTHESIS REFUTED. The second leak is the SAME defect class as the first: a bot module grants a condition DIRECTLY instead of issuing an order — and the same method issues an order correctly one line later
+## 2026-08-16 — VISIBILITY HYPOTHESIS REFUTED. The second leak is the SAME defect class as the first: a bot module grants a condition DIRECTLY instead of issuing an order — and the same method issues an order correctly one line later **[promoted -> `architecture.md` §"A bot module that mutates world state DIRECTLY desyncs saves and replays" (one method, two mutations, only the unordered one diverges; a `World.SyncHash()` sweep is structurally blind to condition grants and activity-queue writes, so a clean sweep is not evidence of absence; bound the class statically instead)]**
 
 One run, pinned seed `-324877760`, instrumenting all three inputs to the halt decision at once (scanned target, ambush gate condition count, `GroupDetectedBy`) so a single run could not come back ambiguous. Instrument archived: `~/ww3-savegame-verify-artifacts/leak2-visibility-instrumentation.patch`.
 
@@ -14273,7 +16023,7 @@ One run, pinned seed `-324877760`, instrumenting all three inputs to the halt de
 - **`@stable` is affected.** The module's own header (`:40-51`) records that `LaneAmbushBotModule@stable` runs "at full @experimental parity, so @stable DOES instantiate it, commit to the PoiGoalGuard ledger, **grant the condition**, and issue orders from here." Humans / Normal / Rush / Turtle never instantiate it.
 - **SECOND CORRECTION to my "class is closed" claim, and it is now demonstrably wrong twice over.** The whole-match sweep compared `World.SyncHash()` around each bot tick. It cannot see an **activity-queue** write (flagged last time) and it cannot see a **condition grant** either — a granted condition changes no `[Sync]`-marked field at the moment of granting; the effect only surfaces later when a gate reads it. That sweep returning zero across a whole match is therefore **not** evidence that the class is closed. It was the strongest evidence I had and it was structurally incapable of finding this leak. *General lesson: an instrument that watches a hash can only see mutations that reach the hash. Before citing a clean sweep as proof of absence, ask what the mutation would have had to touch to be visible to it.*
 - **How to actually bound this class: a STATIC audit, not a dynamic sweep.** Grep bot modules for direct world-state mutation — `GrantCondition` / `RevokeCondition`, `QueueActivity` / `CancelActivity`, direct trait-field writes — and require each to be an issued order. That is enumerable by reading; the dynamic instrument provably is not.
-## 2026-08-16 — the eject-rally desync has a THIRD site, in plain UI code; and an `Order` can carry an N-element route only through `TargetString`
+## 2026-08-16 — the eject-rally desync has a THIRD site, in plain UI code; and an `Order` can carry an N-element route only through `TargetString` **[promoted, in part -> `architecture.md` §"A bot module that mutates world state DIRECTLY desyncs saves and replays" (auditing `IOrderGenerator` implementations is the wrong net: the invariant is no client-local write to state simulation reads, and `Widgets/Logic/**` mutates traits just as freely). NOT promoted: the `Order`-cannot-carry-an-N-element-route analysis, which is a design record for one unbuilt feature]**
 
 Found in `wt/order-desync` while fixing the two generators, against `main @ 3bf234a6`.
 
@@ -14312,7 +16062,7 @@ actors reject all orders. Consequence of routing Patrol through an order: a unit
 client-local `QueueActivity` bypassed the check entirely. Bypassing the order system bypasses every
 guard built on it — `ValidateOrder`'s ownership check included.
 
-## 2026-08-16 — the RA content installer DOES fire on a clean machine; it reaches the player through a WW3MOD-only fallback in `BlankLoadScreen`, not through `IFileSystemExternalContent`
+## 2026-08-16 — the RA content installer DOES fire on a clean machine; it reaches the player through a WW3MOD-only fallback in `BlankLoadScreen`, not through `IFileSystemExternalContent` **[promoted -> `architecture.md` §"Asset pipeline", merged with the entry above (the installer DOES fire on a clean machine, through a WW3MOD-authored fallback further down `BlankLoadScreen` rather than through the `IFileSystemExternalContent` gate -- reading the gate and stopping at it produces a confident wrong negative)]**
 
 Found in `wt/packaging` against `main @ 43d55ace`. Corrects finding B of
 `WORKSPACE/audit/260816-install-packaging.md`, and confirmed independently by a manager launch
@@ -14371,7 +16121,7 @@ that variable's copy loop lands them.
 `ContentInstallerFileSystemLoader`, as the audit's "shortest path" item 2 recommends. It is
 unnecessary, and it would move a working path onto an untested one.
 
-## 2026-08-16 — RA content is loaded lazily at runtime, so missing content is a crash-on-first-shot, not a degraded-visuals story
+## 2026-08-16 — RA content is loaded lazily at runtime, so missing content is a crash-on-first-shot, not a degraded-visuals story **[promoted -> `architecture.md` §"Asset pipeline", merged with the installer entry below (RA content is lazily loaded, so missing content is a crash-on-first-shot inside `Sound.LoadSound` from `Armament.FireBarrel`, and there is no partial-content mode worth shipping)]**
 
 Observed by the manager on macOS while a game was running with the content directory renamed away:
 `DirectoryNotFoundException` on `sounds.mix` inside `Sound.LoadSound`, called from
@@ -14383,7 +16133,7 @@ is the only thing standing between a stranger and a crash the first time any wea
 `base`'s TestFiles do include `^SupportDir|Content/ra/v2/sounds.mix`. Weakening `Required:` to get
 past the installer faster would trade a clear install prompt for an unexplained mid-match crash.
 
-## 2026-08-16 — an overload pair can disagree about SESSION LIFECYCLE, and the compiler will never tell you: `LoadShellMap()` reused the live session that `LoadShellMap(uid)` reset
+## 2026-08-16 — an overload pair can disagree about SESSION LIFECYCLE, and the compiler will never tell you: `LoadShellMap()` reused the live session that `LoadShellMap(uid)` reset **[promoted -> `architecture.md` §"An overload pair can disagree about SESSION LIFECYCLE" (overloads that differ in what they do to shared mutable state rather than in what they compute are indistinguishable at the call site; the violation surfaced one world-load later inside upstream code that had done nothing wrong)]**
 
 Found while fixing the `ClientInSlot` crash to desktop (`WORKSPACE/audit/260816-crash-clientinslot.md`),
 on `main @ 43d55ace` in `wt/shellmap`.
@@ -14595,7 +16345,7 @@ the weapon at all; it is on the shooter, contributed by a trait the actor inheri
 `FirepowerMultiplier` also renders no differently at 0 than at 100: tracers, muzzle flash, impact piffs
 and sound all play normally, so the gun looks like it is working right up to the health bar.
 
-## 2026-08-15 — the transport's seats were lost to the ORDER GATE, not to the recruiter: the offensive's 100-tick beat re-arms a 120-tick dwell suppression forever, and standing infantry off closes it 1 → 5
+## 2026-08-15 — the transport's seats were lost to the ORDER GATE, not to the recruiter: the offensive's 100-tick beat re-arms a 120-tick dwell suppression forever, and standing infantry off closes it 1 → 5 **[promoted -> `architecture.md` §"A damping window shorter than the PERIOD of whatever keeps refreshing it is not a damping window, it is a permanent lock" (`ReorderDwellTicks` 120 against `ReevaluateInterval` 100, re-read at `ef4ab359`; `OrderArbitrationMath.DwellBlocks:340-347`; and the note that the dwell's own comment records it was chosen to EXCEED the re-decision period, which is the property that produces the lock). NOT promoted: the before/after seat counts and log excerpts]**
 
 The user complaint is "the tank attacks alone while the infantry walk behind it". The established
 diagnosis was that `PoiOffensiveBotModule.StageFreePool` recruits armed infantry from tick 3 and walks
@@ -14678,7 +16428,7 @@ The tell is cheap and worth checking every time: **the copy is byte-identical in
 recorded before launching.** Copy unconditionally and stop the poller the moment the runner returns
 (`tools/autotest/poll-copy-logs.sh`).
 
-## 2026-08-15 — a real signature can carry a wrong inference: the *available* explanation is not the *demonstrated* one
+## 2026-08-15 — a real signature can carry a wrong inference: the *available* explanation is not the *demonstrated* one **[promoted, in part -> `conventions.md` §"Detectors worth running before you believe a mechanism works" (when instrumenting to test a hypothesis, count every exit on the path, not just the one you suspect). NOT promoted: the narrative of the falsified hypothesis itself]**
 
 Worth keeping as stated, because the reasoning failed in a way that looked like good reasoning.
 
@@ -14704,7 +16454,7 @@ every exit on the path, not just the one you suspect.** A counter on the suspect
 zero and leaves a falsified prediction with no answer — same run cost, none of the information.
 Counting all three turned a wrong guess into the finding of the day.
 
-## 2026-08-15 — bot transports leave half empty because the DEPARTURE test reads the MINIMUM while the BOARDING loop orders up to CAPACITY; and the stragglers then pin the carrier's lock
+## 2026-08-15 — bot transports leave half empty because the DEPARTURE test reads the MINIMUM while the BOARDING loop orders up to CAPACITY; and the stragglers then pin the carrier's lock **[promoted -> `architecture.md` §"A departure test that reads the MINIMUM while the boarding loop orders up to CAPACITY" (the straggler's ARRIVAL strands the carrier, because `Cargo.LockForPickup` cancels the CARRIER's activity and `ReleaseLock` waits for zero reserved weight, with no timeout on either state -- a vehicle and its passengers silently removed with no death and no log line; and a fuller-load wait needs three releases, only two of which are functions of elapsed time)]**
 
 Found on `wt/transport-loading` while making the capture ferry carry soldiers.
 
@@ -16082,7 +17832,7 @@ Reproducible, not a one-off: six earlier `reference` lines in the pre-run log ca
 - The prior `66,834` live-log median (taken while the cadence bug was live) is superseded and should not be quoted; the current equivalents are 27,919 / 94,010 per side.
 - Log hygiene: `debug.log` is **rotated at game start** (observed 9,594,254 → 162,780 bytes), so a byte-offset tail captured before launch is invalid. Re-read the whole file after the run.
 
-## 2026-08-09 — a documentation quarantine has two halves, and only one of them was liftable when the branch merged
+## 2026-08-09 — a documentation quarantine has two halves, and only one of them was liftable when the branch merged **[promoted, in part -> `influence-stack.md` §Stage B (field-side versus crossing: a derived unit moves the unverifiable part from thirteen constants into one denominator, which is a large improvement and zero progress on calibration). NOT promoted: the re-derived per-type intensities and the executed ranking, which are a dated census of a ruleset that moves]**
 
 Lifting the danger-field quarantine over `DOCS/bots/` after `auto/danger-scale` landed (`6fc1cfff` → `1092573d` → `c69835eb`, reconciled `5642d931`; worked at `main @ af36e686`). Documentation-only pass — no code touched, nothing run.
 
@@ -16105,7 +17855,7 @@ From `auto/nav-guard` (base `af36e686`), building `tools/nav-guard/` — a stati
 - **The shipped `tagged` rule changes no connectivity metric on any map, and the reason is a property of the maps, not of the rule.** It is not inert: it denies exactly the 13 diagonal steps between river-zeta's 13 corner-to-corner trap pairs (25 traps, matching `dd3430a8`'s count). But all 13 gaps already hold a `barb` actor and **no locomotor lists `barbedwire` under `Passes`**, so every denied step ran between cells no vehicle could occupy. So "the shipped fix is connectivity-safe" proves nothing about the rule in general — lay traps diagonally on open ground and it will cut reachability. **When a guard reports zero delta for a change that should have had one, check whether pre-existing state is masking it before recording the change as safe.**
 - **`Locomotor` consults `Passes` and never `Crushes` when deciding whether a cell is enterable** (`IsBlockedBy`, `Locomotor.cs:434-444` — `Info.PassableClasses` only). A crush class with no matching pass class is inert for pathfinding: the unit can never enter the cell, so it never crushes what is in it. Affected ww3mod locomotors are listed in `WORKSPACE/bugs/discovered.md`.
 
-## 2026-08-09 — the danger field's INPUT was a mis-modelled fire cycle, and the int overflow everyone (including me) reported as the bug was only its loudest symptom
+## 2026-08-09 — the danger field's INPUT was a mis-modelled fire cycle, and the int overflow everyone (including me) reported as the bug was only its loudest symptom **[promoted, in part -> `influence-stack.md` §Stage B (`WeaponThroughput` mis-modelled the fire cycle, and the error was two-sided because ~90% of weapons pace with `BurstWait` and never set `ReloadDelay`; the overflow was a symptom, not the cause; a fix that re-derives a calibration must land BEFORE anything fitted to the old one; test at the magnitudes the system runs at, and a fixture rewritten to real numbers of a WRONG formula is worse than an illustrative one). NOT promoted: the rename/lint enforcement record and the stalled-search and logging-coverage asides, which are branch findings]**
 
 From `auto/danger-scale` (base `910507c1`), implementing `WORKSPACE/recon/260809-truck-loop-from-live-log.md`. The recon's diagnosis — `EvacDangerThreshold: 60` is an RA-scale constant under a field reading orders of magnitude higher — was directionally right. Writing the regression test at real WW3MOD magnitudes then exposed an int overflow underneath it. **Review then found that the overflow was itself downstream of a third, deeper defect, and the correct order of repair is the whole lesson of this entry.**
 
@@ -16121,7 +17871,7 @@ From `auto/danger-scale` (base `910507c1`), implementing `WORKSPACE/recon/260809
 - **A DETERMINISTIC search that its caller must re-validate will stall FOREVER, not intermittently — and the guard being present is what disguises it.** `ForwardStagingMath.StagingCell` descends a frontier gradient; `SupplyFollowerBotModule.ResolveDropAnchor` then rejects the result if the mover cannot stand on it. That guard is correct and was working. But the walk is deterministic over a field that changes every 25 ticks, so a rejected cell is not a one-scan miss: it re-derives the identical unreachable cell every scan and the caller rejects it every scan. In the user's log this ran **24 consecutive scans (~2.4 min)** on cell `33,31` with drop-and-leave dark throughout. **Terrain also actively attracts the walk**: unstamped water and cliff carry no danger stamp, so they read 0 — maximally safe — and a danger-guarded descent steers *toward* them. The fix is to give the walk the same passability predicate the caller uses, over the same representative cell, so it cannot return a cell its caller is obliged to reject. **General form: when a producer is deterministic and its consumer validates the output, "reject and retry next scan" is not a retry — it is an infinite loop with a heartbeat. The validation has to be pushed into the producer, or the producer needs a fallback.**
 - **"It self-gates to a no-op when logging is off, so this is free" is a claim about COST that reads as a claim about COVERAGE.** `ModularBot.ReportGateSuppressions` wrote only to `UnitLifecycleLogger`, which requires `Test.Mode` plus a separate JSONL path and never touches `debug.log`. So the order damper merged the previous day could not be observed in a real match at all, and an analysis of an ordinary play log could not distinguish "the gate suppressed nothing" from "the gate cannot report" — **opposite conclusions that produce an identical log.** Its early-out also skipped `ResetSuppressions()`, so with logging off the counters accumulated for the whole match and the first `Test.Mode` window would have reported a match-long total as one window's worth. When auditing whether a shipped lever works, first check that its instrumentation is reachable from the configuration it actually ships in.
 
-## 2026-08-08 — pick a damper by asking WHICH TRANSITION IS IRREVERSIBLE, not by copying the nearest existing one; and "value band vs dwell" is only a real choice when the signal is a scalar at all
+## 2026-08-08 — pick a damper by asking WHICH TRANSITION IS IRREVERSIBLE, not by copying the nearest existing one; and "value band vs dwell" is only a real choice when the signal is a scalar at all **[promoted, in part -> `conventions.md` §"A loop with no FIXED POINT cannot be damped" (choose a damper's asymmetry from the cost of each error and re-derive it per site; "value band vs dwell" is only a real choice when the signal is a scalar at all; check a comment asserting irreversibility against the GATE; check each pin can go RED before counting it). NOT promoted: the amplitude-ranking record and the `git checkout` mishap, which is a personal-workflow note]**
 
 From `auto/truck-churn` (base `a77cac90`), acting on `WORKSPACE/recon/260808-order-churn-census.md` §3.2/§3.3.
 
@@ -16201,7 +17951,7 @@ Occasioned by the live 2026-08-08 report ("a group flanking to capture a side de
 - **SAFETY IS HANDED OFF, NOT PRESERVED UNCONDITIONALLY — the first draft's "safety is unaffected" was too strong.** `PartitionHeldAxes:1786-1787` does release a held axis on a losing force ratio, but **release ≠ retreat**: `CombatRetreatMath.ShouldReleaseHeld` (`:116-120`) uses a bare `LosingBeyond` with no sustain window, while `axis.Retreat` needs `RetreatSustainEvals: 2` consecutive losing evals. In that gap a losing axis re-enters `CommitAndOrder`, fails the retreat gate, and meets an exhausted posture gate that waves it through — **~2 evals (~200 ticks) pressing with no posture brake.** Bounded, and `NoReinforceLostFights` blocks top-up once Retreating. The real safety argument is different and stronger: exhausting posture **moves the decision to a better sensor** — the retreat gate compares the axis's own health-weighted build value against believed enemy COST within `ForceRatioRadiusCells` of its centroid (`:3572-3620`), a strictly more local and better-scaled read than posture's whole-column presence COUNTS.
 - **NOT VERIFIED — needs a live run, and until one is done treat (A)/(B)/(C) as open.** Which mechanism the user actually saw; whether 3 is the right budget vs 1 or 6; whether committing a flank axis converts into captured side POIs or feeds it piecemeal into a defended derrick. Instrumentation shipped on this branch for exactly this: `[exp-posture] hold|override` at the gate (target + `TargetId`, centroid, `sectorOwn`/`sectorEnemy`/floor, `evals/max`) — **consecutive** hold lines with a static centroid and `sectorOwn` never crossing the floor ⇒ (A); **alternating** lines with a moving centroid crossing the floor ⇒ (B) — plus `[exp-offense] axis-new` and an extended `retire` line (both carrying `TargetId`, retire also `postureEvals`/`committed`), whose pairing exposes short axis lifetimes and budget refunds ⇒ (C). Without the create/retire pair a refund is invisible and (C) cannot be detected at all.
 
-## 2026-08-08 — when two agents re-decide about each other on independent cadences, no damping fixes it; make ONE OF THEM STOP MOVING. A static destination converts a control problem into an arrival problem
+## 2026-08-08 — when two agents re-decide about each other on independent cadences, no damping fixes it; make ONE OF THEM STOP MOVING. A static destination converts a control problem into an arrival problem **[promoted -> `conventions.md` §"A loop with no FIXED POINT cannot be damped" (does the loop have a fixed point at all; make the destination actor-independent and stationary; keep memory on the DESTINATION not the DECISION; several independent responsive terms, and ask how long each response TAKES relative to the decision cadence; a re-issue dedup disables the retries the design relied on). NOT promoted: the per-site fix record]**
 
 Building drop-and-leave (`auto/supply-drop`) after three review rounds of damping the supply-truck evac loop failed to remove the visible dithering. The general lesson is about the *shape* of the fix, not about trucks.
 
@@ -16228,7 +17978,7 @@ Found by adversarial review of the drop-and-leave errand, where the follow-on wa
 - **Belief-field descents are a rich source of unreachable cells and must be passability-tested by their CALLER.** `ForwardStagingMath.StagingCell` guards grid bounds and believed danger and has no terrain awareness by design (it is pure math). Worse, `ControlField.GridCellToMapCell` returns ONE fixed cell of each coarse block — at `CellSize: 2`, the odd/odd cell — so the result is not merely coarse but *arbitrarily* placed within its block, and water, cliff or off-playable-bounds are all ordinary outcomes of a 20–40 step walk. `PoiOffensiveBotModule` already grant-tests its anchor for exactly this reason and does so on **both** of its return paths (fresh candidate and hysteresis-held), so downstream code need not know which path produced the cell — copy that discipline, including the held-anchor re-test.
 - **Where the two lines of defence differ, and why you want both.** Testing the anchor before adopting it prevents dispatch; the arrival check catches a cell that became unreachable *after* issue. Only the second one holds when the world changes mid-errand.
 
-## 2026-08-08 — dropping supply converts a mobile self-preserving asset into a static capturable one; that is the real cost of drop-and-leave, and it is not visible in the supply arithmetic
+## 2026-08-08 — dropping supply converts a mobile self-preserving asset into a static capturable one; that is the real cost of drop-and-leave, and it is not visible in the supply arithmetic **[rejected: already covered -- `economy.md` §SUPPLYCACHE carries the whole trade-off: `ProximityCapturable`, no `NoAutoTarget` so enemies engage it unprompted, HP 5000 / Light armor, and the truck-collection order that is the only reclaim path]**
 
 Recorded rather than fixed, because it is a disclosed design trade and the standoff distance is the lever that manages it.
 
@@ -16236,7 +17986,7 @@ Recorded rather than fixed, because it is a disclosed design trade and the stand
 - **So the standoff is not a comfort setting, it is the whole risk control**, and it trades against the pull side's reach: the crate must stay inside `AutoSeekSupplies`' 20-cell selection leash of the soldiers it was dropped for, or they cannot select it at all. Forward enough to be useful, far enough back not to be a gift — with no reclaim path, since crate → truck does not exist in this codebase.
 - **The supply arithmetic hides this.** `SupplyCreditValue` is 750 on both the truck and the crate, so value looks conserved across the drop and only the 250 chassis appears to be at stake. That accounting is correct and incomplete: it prices the supply, not the *survivability* of the supply.
 
-## 2026-08-08 — the WW3MOD supply truck ALREADY had a one-shot lifecycle; nobody had written it down, so design discussion silently assumed a shuttle
+## 2026-08-08 — the WW3MOD supply truck ALREADY had a one-shot lifecycle; nobody had written it down, so design discussion silently assumed a shuttle **[rejected: superseded -- the entry's load-bearing premise is that `LOGISTICSCENTER` is `Prerequisites: ~disabled` and reachable only by capture, so "drive back and restock" is the uncommon case. `economy.md` records that reading as a mistake corrected 2026-08-17: an LC is fielded by deploying an `LCCV`, and both the LC lifecycle and the truck/cache value conservation are already documented there]**
 
 Establishing the post-drop lifecycle for drop-and-leave. The answer turned on facts about the economy that are not written anywhere in `DOCS/reference/`, and getting them wrong would have produced either a truck that sells itself at the map edge after every delivery or one that drives to a building that does not exist.
 
@@ -16272,7 +18022,7 @@ Found while gating supply-truck cluster selection on believed danger (`auto/supp
 - **De-aliasing RAISES readings, which can quietly promote a "fallback" branch into the main path — check what your gate's pass rate becomes.** `max` lifts every cell to at least its control-block baseline, and that baseline alone stacks past 40 against a gate at 45. So near any contested frontier the "comfortable" set is often empty *before a single weapon is counted*, and the relief-valve branch is not a rare corner case — it is the ordinary in-contact path, firing precisely when a cluster is in a firefight, i.e. when resupply matters most. That matters because a branch you believe is rare gets written with weaker invariants: here the valve returns an *ungated* danger reading, and feeding it to a gate that assumed gated input relatched the whole bug (below). **After changing how a field is sampled, re-derive which side of each threshold the typical reading now falls on.**
 - **Worth auditing:** any other `GroundDanger(...) >= someThreshold` / `<= someThreshold` on a single cell. `PoiOffensiveBotModule`'s `BelievedDangerFactor` buckets (mild 40 / hostile 120, `:188/:192`) and `GroundDangerNav`'s `GroundDangerSafeThreshold` early-out are single-cell threshold reads on the same field; they were not touched here and their exposure has not been measured. **Two independent reasons to distrust them**, and an audit should treat them separately: the sampling is parity-noisy (this entry), and the threshold VALUES do not mean what they look like because the field's per-cell step near a contact dwarfs them (the contour entry above).
 
-## 2026-08-07 — supply-truck oscillation (`auto/supply-dwell`): a damper alone would NOT have fixed it — the loop was open, because the input that drove the decision could not respond to the action it caused
+## 2026-08-07 — supply-truck oscillation (`auto/supply-dwell`): a damper alone would NOT have fixed it — the loop was open, because the input that drove the decision could not respond to the action it caused **[promoted, in part -> `conventions.md` §"A loop with no FIXED POINT cannot be damped" (a dwell can only damp a CLOSED loop -- name the term that does not respond to the action; and a suite exercising only the zero value of the term whose non-zero behaviour is the bug proves nothing about it). NOT promoted: the per-fix review narrative and the veto/relief-valve design record]**
 
 Fixing the "trucks drive part-way forward, get ordered back to the SR, repeat" symptom. The brief framed it as a missing dwell (as in `31409790`'s infantry `RetreatDamperMath`). A dwell was necessary but is **not sufficient**, and the reason generalises to every believed-field consumer.
 
@@ -18730,7 +20480,7 @@ The one material result was **`river-zeta`**: a hedge/tree-walled crop field at 
 
 Method limits worth knowing before trusting the numbers elsewhere: it does not model Lua/scenario-spawned actors, `CustomTerrain` bridges, or trees whose footprint changes when they die into husks.
 
-## 2026-08-08 — review of the diagonal-squeeze rule: the HPF must stay permissive for ADMISSIBILITY, not merely for safety; and two bypasses that only a review found
+## 2026-08-08 — review of the diagonal-squeeze rule: the HPF must stay permissive for ADMISSIBILITY, not merely for safety; and two bypasses that only a review found **[rejected: wrong home -- an adversarial code review of one pathfinding change (admissibility of the abstract graph, `GetAdjacentCell`'s two outputs, the `CellBlocksCorner`/`CanMoveFreelyInto` agreement premise). It is a design record for `b164a312`+`5e192075` and belongs with that work or in a movement-subsystem doc; nothing in it is a standalone mechanism a reader would come to the bank for; LEFT 2026-09-26 by the recipes pass: the tag names no recipe and no tool README — it asks for "that work or a movement-subsystem doc", both outside this pass's write set]**
 
 Follow-up to the two entries above, from an adversarial review of `b164a312` + `5e192075`. The both-shoulders pruning argument was checked exhaustively against all nine `DirectedNeighbors` entries with **zero counterexamples**, and the either-shoulders counterfactual was confirmed hostile. Three things are worth keeping.
 
@@ -18742,7 +20492,7 @@ Follow-up to the two entries above, from an adversarial review of `b164a312` + `
 
 **Modelling note, recorded rather than fixed:** `walker` (a bipedal mech inheriting `^Vehicle`) is full-cell, so it is denied the corner. Defensible, but it is a *modelling judgement riding on an occupancy flag* rather than a fact derived from the unit — the one place the `SharesCell` criterion resolves a question it was not really asked.
 
-## 2026-08-08 — [SUPERSEDED same day, see the re-scope entry below] the diagonal-squeeze rule is off for supply traffic and on for everything else, because `ignoreActor` disables it path-wide
+## 2026-08-08 — [SUPERSEDED same day, see the re-scope entry below] the diagonal-squeeze rule is off for supply traffic and on for everything else, because `ignoreActor` disables it path-wide **[rejected: superseded -- the blanket `ignoreActor` bail this entry is about was narrowed to `ignoreActor.Info.HasTraitInfo<BlocksDiagonalSqueezeInfo>()`, verified at `ef4ab359`: `Traits/World/Locomotor.cs:271`. The supply-traffic asymmetry it describes no longer exists. The entry already carries the author's own supersession note; this tag records the code check behind it]**
 
 > **[SUPERSEDED 2026-08-08. The blanket `ignoreActor` bail described here was narrowed to `ignoreActor.Info.HasTraitInfo<BlocksDiagonalSqueezeInfo>()` when the rule was re-scoped, so the supply-loop asymmetry below **no longer exists** — supply trucks now respect tank traps like everything else. The five-site enumeration and the reasoning about why `ignoreActor` matters at all are still accurate and still worth reading; only the conclusion about supply traffic is dead.]**
 
@@ -18815,7 +20565,7 @@ It asks whether **`nextCell`** is blocked. A diagonal squeeze's blockage is in t
 
 **Why the autotest did not catch it:** the scenario's `Squeezer` starts far enough away that its `BlockedByActor.None` path runs *through* a trap cell, which trips the `:297` escape by the ordinary `CanEnterCell` route and terminates cleanly. The lane passes for a reason unrelated to the loop — a good reminder that a green behavioural test pins the outcome it asserts, not the mechanism you believe produces it.
 
-## 2026-08-09 — "a host is named" is not "a host exists": the aircraft readiness gates were asking the rules a question only the world can answer
+## 2026-08-09 — "a host is named" is not "a host exists": the aircraft readiness gates were asking the rules a question only the world can answer **[promoted -> `architecture.md` §"A host is NAMED is not a host EXISTS" (the airbase/helipad carry an unsatisfiable BUILD prerequisite rather than a disabled trait, so every trait on them is live; the mod DOES have a rearm host, reachable by capture rather than construction; an always-empty `ChooseResupplier` drops the activity into a non-terminating idle flight; and commitment must not be keyed off host existence, because capturing one would make the aircraft less willing to fight)]**
 
 Found while verifying `DOCS/bots/06-inherited-misfits.md` rank 2. The audit's headline held, but its shorthand was wrong twice, and both corrections matter more than the headline.
 
@@ -19355,7 +21105,7 @@ Asked as an approval question and **denied**. Verbatim: *"The crew is supposed t
 - **Binding consequence for `test-evac-suite`:** every phase must assert **who got out**, never **who is still alive**. Post-ejection survival is not a property the game guarantees, so any survivor-count assertion is a coin flip that no threshold can stabilise — the 12 → 8 → 6 walk of 2026-05-09 was three attempts at exactly that. Phases were reshaped accordingly (`3faebb01`, follow-ups).
 - Noted without reopening: the user said "burn *sometimes*" while the mechanism is "always, eventually". If that gap matters it will surface as a gameplay observation rather than as a test failure.
 
-## 2026-08-13 — removing an over-eager terminator exposes every downstream path it was accidentally protecting you from
+## 2026-08-13 — removing an over-eager terminator exposes every downstream path it was accidentally protecting you from **[promoted -> `conventions.md` §"Detectors worth running before you believe a mechanism works" (removing an over-eager terminator exposes every downstream path it was accidentally protecting you from, so expect "this is new since your change" to be literally true and still not mean the change was wrong; enumerate what ran AFTER the terminator, statically; and read the raw stream, not the derived counter). The missile instances themselves are already in `missiles.md` §I2b and §7]**
 
 Found fixing the missile reacquisition regression (branch `wt/missile-no-reacquire`, off `801d14d9`). The user reported a Javelin looping around a target it had missed, "new since your recent work on it". Nothing in the recent work added a loop — `1ec6f17c` only changed a distance metric. The general lesson is the one worth carrying, because this is the second instance in the same file.
 
@@ -19465,7 +21215,7 @@ Follow-on from the recon entry directly above. Fixed on `wt/econ-gate` off `main
 
 ---
 
-## 2026-08-15 — A standing floor with no denominator is not a minimum, it is an opening buy order
+## 2026-08-15 — A standing floor with no denominator is not a minimum, it is an opening buy order **[promoted -> `architecture.md` §"A standing floor with NO denominator is not a minimum, it is an opening buy order" (`ChooseBelowFloor` pre-empts the argmax, the ceiling and every demand gate; at t=0 every floor is maximally unmet at the moment its need is lowest, so a bare floor GUARANTEES an opening support buy; demote the flat value to a cap, zero denominator means zero floor, count pending in the numerator and not in the denominator). NOT promoted: the live before/after opening table and the attrition sweep. The "clear the log before the run" rule is recipe material -> `DOCS/recipes/AUTOTEST.md`; confirmed present in `AUTOTEST.md` §"Clear `debug.log` before the run, or you may be reading the previous run's world", which already records this same incident]**
 
 **User report:** *"All experimental bots start by building two medics... building two medics as the first priority is BAD because at the start we need lots of soldiers... the medics can come a bit later when they are actually needed."* Second instance of one defect; two supply trucks at t=0 (PIPELINE 57(a)) was the first.
 
@@ -19513,7 +21263,7 @@ Two full runs were spent chasing a non-existent hang before the missing line was
 
 Discovered while building `test-combined-arms-rendezvous` (PIPELINE 34/35 neighbourhood).
 
-## 2026-08-15 — the `transportModuleResolved` latch is BENIGN on `@experimental`, which removes one of item 35's two candidate causes; and armed transports are recruited as gun platforms
+## 2026-08-15 — the `transportModuleResolved` latch is BENIGN on `@experimental`, which removes one of item 35's two candidate causes; and armed transports are recruited as gun platforms **[promoted, in part -> `architecture.md` §"Armed transports are recruited as GUN PLATFORMS", merged with the entry below (armed IFVs are staged forward as gun platforms; it is not a lock conflict, because carrier selection deliberately does not require `IsIdle`). NOT promoted: the `transportModuleResolved` latch finding, which is a per-item elimination for PIPELINE 35]**
 
 Both findings come from the combined-arms recon and belong to **PIPELINE item 35** ("find out why the shipped, enabled derrick ferry does not visibly fire"), not to the rendezvous work they were found during.
 
@@ -19529,7 +21279,7 @@ This is a plausible mechanism behind the user's "most technicians walk while som
 
 Left unfixed on purpose: excluding armed transports from the offensive free pool edges onto unit-role/composition ground owned by `wt/build-order`, and it trades combat power for lift. Item 35's call, not this branch's.
 
-## 2026-08-15 — bot infantry walk to the front because the OFFENSIVE recruits them, not because the ferry failed: `StageFreePool` marches armed infantry to the same anchor as the armour
+## 2026-08-15 — bot infantry walk to the front because the OFFENSIVE recruits them, not because the ferry failed: `StageFreePool` marches armed infantry to the same anchor as the armour **[promoted -> `architecture.md` §"Armed transports are recruited as GUN PLATFORMS" (`IsEligibleCombatUnit` has no `Cargo` exclusion, so `StageFreePool` walks armed infantry to the anchor one order each from tick 3 -- fixing a ferry cannot stop it; and proximity is therefore an invalid observable for any ferry change)]**
 
 Found while trying to build a control for the combined-arms rendezvous, and it reframes the user-facing complaint ("most technicians are still just walking all the way there").
 
@@ -19543,7 +21293,7 @@ Two smaller traps in the same neighbourhood, both of which produce `passengers-e
 - **`e1.*` is not a configured passenger type.** `MountedTransportBotModule.PassengerTypes` (`mods/ww3mod/rules/ai/ai.yaml:1483`/`:1516`) lists `e3/ar/at/sn/tl/medi/e2/mt/aa/e4` — **`e1` is absent from both twins**, so a scenario that places `e1` infantry next to a carrier gets a ferry that never loads and logs only `passengers-eligible=0`.
 - `StageFreePool` does **not** commit to the goal-guard ledger (only axis assignment at `:1921`/`:2818` and bombard at `:3568` do), so staged-but-unassigned infantry DO remain eligible passengers. Staging and ferrying genuinely compete for the same bodies rather than one locking the other out.
 
-## 2026-08-15 — `e1.*` is absent from `PassengerTypes` because **E1 does not exist in WW3MOD**; the real gap is that a mixed infantry+technician load is not expressible
+## 2026-08-15 — `e1.*` is absent from `PassengerTypes` because **E1 does not exist in WW3MOD**; the real gap is that a mixed infantry+technician load is not expressible **[promoted, in part -> `architecture.md` §"Armed transports are recruited as GUN PLATFORMS" (a type's absence from `PassengerTypes` can be deliberate and load-bearing -- the technician is excluded because capture ferrying is a directed call path, so a mixed infantry+technician load is not expressible by any path today; and the composition census is not carried-blind). NOT promoted: the E1 roster finding, which is an actor-specific ruling]**
 
 Investigated as a candidate user-visible lever after `e1.america` infantry were found to be un-ferriable. **The lever does not exist**, and that is the finding.
 
@@ -19557,7 +21307,7 @@ Investigated as a candidate user-visible lever after `e1.america` infantry were 
 
 Incidentally cleared while checking the procurement-collision risk: the `[composition]` census is **not** carried-blind — it counts `inWorld+inCargo` and says so in its own format string (`UnitBuilderBotModule.cs:581`), and `OwnedUnitsIncludingCarried()` (`:686-705`) walks `Cargo` for the resupply predicates, covering transports and garrison shelters in one pass without double-counting. So passenger-list changes in general do not distort what the procurement layer sees.
 
-## 2026-08-15 — the combined-arms rendezvous is PLUMBING, not a shipped fix: merged, inert, and behaviourally unproven
+## 2026-08-15 — the combined-arms rendezvous is PLUMBING, not a shipped fix: merged, inert, and behaviourally unproven **[rejected: not reference -- a status record that a merged feature is switched off, unproven and necessary-but-not-sufficient. Tracker material; its observable-design half (arrival MODE and arrival TIMING, because proximity cannot isolate a ferry) is promoted with the `StageFreePool` entry into `architecture.md` §"Armed transports are recruited as GUN PLATFORMS"]**
 
 Recording this explicitly so "merged" is never later read as "working".
 
@@ -19575,7 +21325,7 @@ Recording this explicitly so "merged" is never later read as "working".
 
 ---
 
-## 2026-08-15 — Procurement had no precedence axis; and three claims from the first cut of this work are RETRACTED here
+## 2026-08-15 — Procurement had no precedence axis; and three claims from the first cut of this work are RETRACTED here **[promoted, in part -> `architecture.md` §"One treasury, several `UnitBuilderBotModule` instances" (three live instances of one trait spending one balance; a hold inside `ChooseByDeficit` misses the siblings; enumerate every scope a shared resource spans; a cycle-count cap destroys savings rather than delaying a purchase; a progress predicate protects against a stall and not a drain; `SupplyStarvingThresholdPerMille` and `HuntStarvingThresholdPerMille` are different fields on different traits). NOT promoted: the tick traces, the three retractions as narrative, and the per-seed cash figures]**
 
 **User ruling:** *"Soldiers out of ammo are useless. That should be the first priority to solve at all times."* The system had two axes — a per-mille share of army VALUE, and a fleet SIZE — and **neither can say "this one comes first."** That missing axis is real and is what this work adds. Three of the surrounding claims, however, were wrong, and adversarial review caught all three. They are corrected here rather than quietly edited, because two of them were already written into YAML comments where they would have misdirected the next reader.
 
@@ -19645,7 +21395,7 @@ Russia's spell ran **27 cycles** to the purchase; USA's **27** (unchanged). Late
 
 **Also unverified, unchanged:** whether a bought truck then *delivers* (PIPELINE item 56, untouched), and whether any of this reproduces in the user's own lobby games rather than tournament map-players on a 6-minute arena.
 
-## 2026-08-15 — Topping up a loading transport: the lever works, and the constraint bounds it to almost nothing
+## 2026-08-15 — Topping up a loading transport: the lever works, and the constraint bounds it to almost nothing **[rejected: not reference -- a paired-run measurement whose only clean comparison is a null result, plus the instrument correction that made it readable. Already covered: `DefaultCash: 0` stopping production and not Supply Route reinforcements is in `economy.md` §"Where cash comes from". The "an observable named after the thing you want is not a measurement of it" rule is recipe material -> `DOCS/recipes/AUTOTEST.md`; filed 2026-09-26 -> `AUTOTEST.md` §"A green run is not evidence…" as a new instance (an observable named after the thing you want is not a measurement of it — git grep the format string, not the field name)]**
 
 Paired runs on `wip-transport-delivers`, **seed 1017**, same binary, one bool differing
 (`TopUpDuringLoading`): baseline `260815_191433_p77467`, after `260815_192247_p79585`.
@@ -20212,7 +21962,7 @@ be inert.
 
 ---
 
-## 2026-08-19 — The `hotkey-description-*` fluent block is inert for every mod in the tree; and WW3MOD has no player-issuable "take cover" (found on `wt/command-bar`)
+## 2026-08-19 — The `hotkey-description-*` fluent block is inert for every mod in the tree; and WW3MOD has no player-issuable "take cover" (found on `wt/command-bar`) **[rejected: wrong home -> `DOCS/recipes/` or the command-bar audit under `WORKSPACE/audit/`. The live finding (the `hotkey-description-*` fluent block is dead for every hotkey in the repo, `HotkeyDefinition.Description` being loaded verbatim from yaml) is UI-config material, and the entry's own framing is a re-verification of two stale PIPELINE items; LEFT 2026-09-26 by the recipes pass: no recipe covers hotkey/fluent configuration, and the tag's alternative home `WORKSPACE/audit/` is outside this pass's write set. Needs a ruling on whether it gets a home at all]**
 
 Three findings from re-verifying PIPELINE items 60 and 61 against `main @ 815804f1`. **Both items were
 already implemented** — `746c592c` ("commandbar: add an Evacuate button, and give every command a visible
@@ -20260,7 +22010,7 @@ nothing when clicked. It is a vestige of a system this mod deleted. Implementing
 orderable behaviour layered on top of the automatic one, which is a **gameplay** change, not the chrome fix
 its presence in the command bar suggests.
 
-## 2026-08-19 — The 6-cell drift allowance does NOT transfer to the safe-front scenario; 1 cell is derivable from the map's aura geometry
+## 2026-08-19 — The 6-cell drift allowance does NOT transfer to the safe-front scenario; 1 cell is derivable from the map's aura geometry **[rejected: not reference -- a per-scenario tuning ruling (which drift allowance transfers between two named autotest scenarios). Tracker/recipe material; the durable half, that a tolerance licensed by one behaviour must not be copied to a scenario that forbids that behaviour, is a one-off note rather than a mechanism]**
 
 Recorded because a queued next-step said to copy `test-supply-under-danger`'s peak-drift clause into
 `test-supply-safe-front-keeps-cargo` at "allowance **6 cells** (5-cell crate walk + 1 tolerance)", and
@@ -20925,7 +22675,7 @@ nothing about where units appear or how they walk in.
 Incidental: `Map.ChooseClosestEdgeCell` (`Map.cs:1745-1758`) uses bare `Bounds.Right`/`Bounds.Bottom`
 (exclusive) rather than `-1`, so the legacy no-`SpawnArea` path *can* name a ring cell, unlike the primary
 path. Not exercised by the shipped maps; logged, not fixed.
-## 2026-08-22 — Cell occupancy is TWO parallel indexes, and `GroundCover` only taught one of them
+## 2026-08-22 — Cell occupancy is TWO parallel indexes, and `GroundCover` only taught one of them **[promoted, in part -> `conventions.md` §"Footprint characters decide where a unit may STOP" (`Transforms.CanDeploy` tests a footprint CENTRED on the vehicle and consults neither prerequisites nor buildable area). Already covered: the TWO parallel indexes and the transit-only/`CanStayInCell` result, both promoted 2026-09-05 into that same section]**
 
 Chasing "the logistics center vehicle can no longer deploy on fields". Root cause is a gap in
 `73996d96`, not a regression after it — and the shape of the gap generalises.
@@ -20981,7 +22731,7 @@ three all 3x3 `=+= +++ =+=` with five transit-only cells each. `SUPPLYROUTE` is 
 player owns and clusters units around, which makes it the first place to look for an idle-bounce
 via `Mobile.OnBecomingIdle` (`Mobile.cs:941-948`).
 
-## 2026-08-22 — `RequiresForceFire` silently gags AUTO-target too, so `InitialStanceAI: FireAtWill` beside it was always inert
+## 2026-08-22 — `RequiresForceFire` silently gags AUTO-target too, so `InitialStanceAI: FireAtWill` beside it was always inert **[promoted -> `conventions.md` §"Engine behaviors that surprise" (`RequiresForceFire` is an armament-level gate that silently gags AUTO-target, `AttackBase.cs:504` with `AutoTarget.cs:1507`/`:1737` passing `forceAttack: false`; so a permissive `InitialStanceAI` beside it describes a behaviour the actor does not have). Cites corrected from `:460`/`:1408`/`:1622`]**
 
 Branch `wt/launcher-rightclick`. `RequiresForceFire` reads like a *player-input* rule ("this armament
 needs Ctrl+Alt"), and that is how the two launchers were configured: `iskander`
@@ -21000,7 +22750,7 @@ disables autonomous fire as completely as `HoldFire` does.** Any actor pairing i
 `InitialStanceAI` is describing a behaviour it does not have. When removing it, the stance beside it
 has to be re-decided in the same edit, or bot behaviour changes as an invisible side effect.
 
-## 2026-08-22 — A weapon's `MinRange` is not consulted at order time; the attack ACTIVITY enforces it by pathing back out
+## 2026-08-22 — A weapon's `MinRange` is not consulted at order time; the attack ACTIVITY enforces it by pathing back out **[promoted -> `missiles.md` §"A `MinRange` is not consulted at ORDER time" (the targeter tests `MaxRange` only; the activity enforces by pathing out of the annulus; an IMMOBILE min-range actor is the configuration that really stalls)]**
 
 Same branch, found while working out what a right-click on a too-close target does now that the
 launchers accept one. `AttackOrderTargeter`'s `CanTargetActor`/`CanTargetLocation` test **`MaxRange`
@@ -21021,7 +22771,7 @@ Worth knowing before "fixing" a min-range unit that appears to walk the wrong wa
 the designed behaviour, and it already ships on every plain-right-clickable min-range unit
 (`GradRockets` `MinRange: 12c0`, `60mm_Mortar` `8c0` — neither carries `RequiresForceFire`).
 
-## 2026-08-22 — The bot fires-EV stance gate only ever touches `IndirectFireKind.Rocket`, which is decided by salvo `Burst >= 8`
+## 2026-08-22 — The bot fires-EV stance gate only ever touches `IndirectFireKind.Rocket`, which is decided by salvo `Burst >= 8` **[promoted, in part -> `architecture.md` §"An EV stance gate keyed on `IndirectFireKind.Rocket` is keyed on salvo SIZE" (the floor is 8, so a no-`Burst` launcher classifies Tube and the gate never reaches it). NOT promoted: the two ruled-out stance writers, which are a branch worklist]**
 
 Same branch, checking whether a bot module would overwrite a stance set in YAML.
 `PoiOffensiveBotModule`'s EV gate is the only thing that writes `HoldFire`/`FireAtWill` onto artillery
@@ -21042,7 +22792,7 @@ defaults never reach bot units at all; and `LaneAmbushBotModule` recruits `UnitR
 (`LaneAmbushBotModule.cs:580`) but gates first on `CanHostAmbush`, which demands a non-empty
 `AmbushTacticsCondition` (`:591-596`) — present on `^AutoTarget` (`defaults.yaml:344`) but **not** on
 the separate `^AutoTargetGround*` base (`defaults.yaml:590-597`), which is what both launchers inherit.
-## 2026-08-22 — the airborne target-type vocabulary: `Air`, `Helicopter`, and the armour-qualified `AirLight`/`AirMedium`/`AirHeavy`
+## 2026-08-22 — the airborne target-type vocabulary: `Air`, `Helicopter`, and the armour-qualified `AirLight`/`AirMedium`/`AirHeavy` **[promoted -> `conventions.md` §"Weapon `ValidTargets`: `Air` superset `Helicopter`" (the four selectors with the canonical table deep-linked to `aircraft.yaml:33-56` rather than duplicated; `Helicopter` is armour-blind; `InvalidTargets: Air` does not exclude `AirLight`; an `InvalidTargets` entry that only fired because of a leak is load-bearing in reverse; reachability is not damage). Cite corrected in that section: `aircraft.yaml:218-219`->`:225-227`]**
 
 Branch `wt/air-armour-classes`. USER RULING: *"Riflemen should be able to shoot at helicopters that
 they are able to penetrate their armor. For example a littlebird can be shot, but not an attack
@@ -21103,7 +22853,7 @@ plain `Light` via `Targetable@Armor`. So a parked helicopter is *less* vulnerabl
 flying one — backwards. Untouched by any of this work and unchanged by it. Correcting it means letting
 rifles engage light *ground vehicles* too, which is a balance decision the user has not made.
 
-## 2026-08-22 — the beyond-map fog: the cordon ring is opaque in a match, but the strip PAST `MapSize` is not
+## 2026-08-22 — the beyond-map fog: the cordon ring is opaque in a match, but the strip PAST `MapSize` is not **[promoted, in part -> `architecture.md` §"The RENDERER and the SIMULATION disagree about the one-cell ring on purpose" (folded on merge into the section a sibling slice promoted there the same day) (the shellmap nuke button refutes "opaque where RenderPlayer is null"; both fog passes now anchor on `MapSize`) + `missiles.md` §9b.3 (the cloud's altitude is render-only `ZOffset`, so no Z test can partition it from a tree even in principle) + `README.md` §"Four shapes" (a row asserting what a commit DID must be filled from its diff). NOT promoted, at the entry's own instruction: the brighter-than-terrain negative, which it labels a code-reading argument never reconciled with the screenshot; nor the per-map ring actor counts]**
 
 Follow-up investigation to `bc22c9d6` / `12e0addd`. No code changed; this records what was measured.
 
@@ -21330,7 +23080,7 @@ over the one-cell ring, and the ring is already opaque from shroud in every conf
 above). The dependency is worth naming: if anything ever makes ring cells resolve to nonzero
 visibility, this becomes a visible change rather than a tidy-up.
 
-## 2026-08-22 — The map-edge black band is a MATCH bug, not a shellmap bug, and `bc22c9d6` only fixed the shellmap
+## 2026-08-22 — The map-edge black band is a MATCH bug, not a shellmap bug, and `bc22c9d6` only fixed the shellmap **[rejected: not reference -- four pixel captures at one framing on one map edge, with the entry's own "not verified" list. Its one durable line, that a uniformly black cell is not the same as a cell that is not drawn, is promoted with the two entries below into `architecture.md` §"The RENDERER and the SIMULATION disagree about the one-cell ring on purpose" (folded on merge into the section a sibling slice promoted there the same day)]**
 
 Measured on River Zeta's right edge (`MapSize: 98,82`, `Bounds: 1,1,96,80`, so the ring column is
 `x=97` and carries 74 authored actors — 47 `v17`, 14 `rice`, 13 trees). Four captures at identical
@@ -21374,7 +23124,7 @@ cell has an actor sprite, so it tracks sprite pixels rather than terrain. Not ex
 which is the same branch, but it is not literally a shellmap frame. And only the right edge was
 measured; the other three are assumed symmetric on the strength of the `Bounds` arithmetic alone.
 
-## 2026-08-22 — `MapLayers.GetVisibility` is NOT render-only, and `MapLayers.Disabled` is never set: the map-edge ring fix as scoped cannot be built
+## 2026-08-22 — `MapLayers.GetVisibility` is NOT render-only, and `MapLayers.Disabled` is never set: the map-edge ring fix as scoped cannot be built **[promoted, in part -> `architecture.md` §"The RENDERER and the SIMULATION disagree about the one-cell ring on purpose" (folded on merge into the section a sibling slice promoted there the same day) (`GetVisibility` feeds the SIM through `FrozenActorLayer` -- cite corrected `:176`->`:190`; `ExploreAll` iterates Bounds-derived `ProjectedCells` so ring cells are never explored; the four-gates rule). **NOT promoted, superseded at `ef4ab359`:** finding 2, that `MapLayers.Disabled` is never assigned and the branch is dead -- `Traits/World/DoomsdayStrike.cs:1486` sets it. Also superseded: the quoted lobby label, now "The terrain starts revealed..." at `player.yaml:1070`. The supersession is recorded in the bank so the dead-code reasoning cannot be reused]**
 
 Investigation only — **no code changed**. This is the caller census that was made a precondition for
 fixing the black ring at `MapLayers.GetVisibility` (`engine/OpenRA.Game/Traits/Player/MapLayers.cs:659-693`),
@@ -21435,7 +23185,7 @@ because the layer it reads is still all zeros and the renderer is still never to
 to move the data path, not the last read of it — and moving the data path is what crosses into
 `FrozenActorLayer` and the simulation.
 
-## 2026-08-22 — the map-edge ring, fixed render-only: four Bounds gates, and why only one of them is the renderer's to move
+## 2026-08-22 — the map-edge ring, fixed render-only: four Bounds gates, and why only one of them is the renderer's to move **[promoted -> `architecture.md` §"The RENDERER and the SIMULATION disagree about the one-cell ring on purpose" (folded on merge into the section a sibling slice promoted there the same day) (the renderer owns two of the four gates; the `OnShroudChanged` notification gap, which would have defeated a correct sprite choice; the clamp is the identity inside `Bounds` so there is no explored-vs-fogged seam). NOT promoted: the 3px sliver, unexplained and measured at one framing]**
 
 Follow-up to the census entry above, which established that `MapLayers.GetVisibility` feeds the
 simulation and must not be touched. Fix landed in `ShroudRenderer` instead (`b4f0db94`).
@@ -21493,7 +23243,7 @@ against `SUPPLYROUTE`, which does). So today's map content would not in fact hav
 the predicate applies to every cell on every map, not that a particular map ships a frozen ring actor —
 but it does mean the sim risk was latent rather than live.
 
-## 2026-08-23 — target selection had NO health term at all; the only health mechanism is a hard skip that abandons
+## 2026-08-23 — target selection had NO health term at all; the only health mechanism is a hard skip that abandons **[promoted, in part -> `conventions.md` §"Engine behaviors that surprise" (the `HealthPreferencePenalty` term, `AutoTarget.cs:237`/`:1591-1592`, and that before it there was NO health term in the scoring loop). Break-off's hard-skip sites were already covered in that section -- and its cites were re-derived here and corrected: `:1458`->`:1546`, `:1467-1468`->`:1555-1556`, `:1450-1457`->`:1538-1545`, `:1453`->`:1636-1637`, `:1692`/`:1591`->`:1712`, `AttackFollow.cs:182-185`/`:208-209`->`:194-197`/`:228-229`, `AttackBase.cs:672`->`:716`, `Attack.cs:217`->`:218-219`. NOTE the entry's "three sites" is now FOUR]**
 
 Census run before implementing a user ruling that units "should prioritize healthy units". The ruling's
 brief assumed `AutoTargetInfo.BreakOffCondition` was unset and warned it off as the wrong lever. **It is
@@ -21548,7 +23298,7 @@ The band this earns its keep in is **25-50%**: above the critical fence, so stil
 once the infantry fire/movement gates move from 25% to 50% — disarmed and stationary. A harmless unit is
 exactly what a healthy one should outrank. Pinned values at scale 100: 60% HP reads as 1.4x its range,
 40% as 1.6x, and full health as exactly 0 penalty.
-## 2026-08-23 — Decoration blink timing: two mechanisms, only one was ever fixed
+## 2026-08-23 — Decoration blink timing: two mechanisms, only one was ever fixed **[promoted, in part -> `conventions.md` §Timestep, merged with the entry above (`PlayFetchIndex` is the seam and its lambda runs once per WORLD tick, so stateful accumulation is safe there; `ChangeTick` is silently ignored by a fetched index). NOT promoted: the two-site census and the three-ways-out design menu, both superseded by the shipped ramp]**
 
 ### The census: exactly two decorations in the whole mod are game-speed dependent
 
@@ -21644,7 +23394,7 @@ and an index fetched from wall-clock cannot honour it. Harmless today — the mo
 on `nuke_large` (`sequences/sequences-ingame.yaml:236`), an explosion, not a decoration — but a future
 animated decoration using `ChangeTick` would lose its per-frame timing with no error.
 
-## 2026-08-23 — The blink now accelerates, and the constant that caused all of this
+## 2026-08-23 — The blink now accelerates, and the constant that caused all of this **[promoted, in part -> `conventions.md` §Timestep (do not fix the 40 -- three sim consumers via `RenderSprites` ITick; the ramp belongs to the SEQUENCE and why; absolute-time re-phasing; the 2xTimestep floor; the continuity-at-one-sample-point test lesson). NOT promoted: the ramp table, which is live tuning]**
 
 ### `Animation.cs:125` is the systemic tick-rate error, stated out loud, in the engine
 
@@ -21732,7 +23482,7 @@ cycle: a 240ms floor at `strategical`'s 120ms `Timestep`**. The ramp bottoms out
 reaches it only in the last few percent of health. Below that the blink would alias rather than speed
 up. Going finer requires moving the frame computation to the render path, which re-inherits the
 statelessness constraint and therefore the discontinuity problem.
-## 2026-08-23 — Critical band moved to 50%; and WW3MOD has no health bar at all
+## 2026-08-23 — Critical band moved to 50%; and WW3MOD has no health bar at all **[promoted -> `architecture.md` §"Combat feedback" (the damage pip is the ONLY health indicator, so pip-vs-bar disagreement cannot happen; no green frame; the pulse is red<->dark-red; shift a ladder by SEQUENCE because `critical-damage` is `BreakOffCondition`'s token; the panic and speed gates must share a band). NOT promoted: the decoded frame RGB table and the .shp canvas sizes]**
 
 Branch `wt/critical-band`. User ruling: *"All units when they are critical (50%, flashing health pip)
 should be disabled from firing and moving"* and *"soldiers have a dot, vehicles have a bar, they should
@@ -21825,7 +23575,7 @@ sequence names alone, so this change composes with it cleanly: that branch owns 
 this one owns which band pulses. `d83551fb` (target priority) added a `HealthPreferenceScale` scoring term
 and did not touch `BreakOffCondition`, whose default is still `critical-damage` at `AutoTarget.cs:244`.
 
-## 2026-08-24 — the follow layer decides where the medic's notice radius is standing
+## 2026-08-24 — the follow layer decides where the medic's notice radius is standing **[promoted -> `conventions.md` §"Engine behaviors that surprise" as "the FOLLOW layer decides where the heal scan is standing" (two-layer autonomy, tier-before-margin, one predicate asked of the healer). Cites corrected: `infantry.yaml:2216`/`:2249` -> `:2328`/`:2361`]**
 
 ### A casualty outside the notice radius was never a candidate, not merely outranked
 
@@ -23214,7 +24964,7 @@ comment has been corrected in place — the same mistake is easy to make again f
 
 ---
 
-## 2026-08-30 — A widget's backing FIELD and the delegate that reads it can disagree, and the engine consults the DELEGATE
+## 2026-08-30 — A widget's backing FIELD and the delegate that reads it can disagree, and the engine consults the DELEGATE **[promoted, in part -> `architecture.md` §"Widget / chrome authoring gotchas" (the copy-ctor that omits the FIELD as well, giving the two-step trap; and read the DELEGATE from outside, because a field-walking harness is a measurement bug). The general family, all three widget instances and the runtime-assignment cause were already covered there -- rejected: already covered]**
 
 Four instances of one pattern surfaced today. It was first written up as a *cloning* trap, and that
 framing is too narrow: the fourth involves no clone at all. The general rule:
@@ -23298,7 +25048,7 @@ visible on screen.
 
 ---
 
-## 2026-08-30 — A `[FluentReference]` field carrying a raw non-key string CANNOT fail `make test`, because Fluent misses are Warnings and the gate keys on Errors
+## 2026-08-30 — A `[FluentReference]` field carrying a raw non-key string CANNOT fail `make test`, because Fluent misses are Warnings and the gate keys on Errors **[promoted -> `conventions.md` §"A green analyzer gate..." as the rule that NO lint warning can fail `make test` (`CheckYaml.cs:33-43`, `:124`), with the Fluent instance as its worked case. NOT promoted: the 1,644 count, a dated whole-mod measurement]**
 
 Raised as a worry about two hidden config labels (`Label@MIN_TOP_INSET: Text: 30` and
 `Label@CATEGORY_FILTER: Text: Common`), both of which put a raw non-key string into
@@ -23530,7 +25280,7 @@ worth 3.7× less. Perceptual separation is therefore markedly worse than the lig
 from how far apart the colours look. Biasing the ramp centre above 0.5, or varying saturation as
 well as lightness, would fix it locally in `Shade`.
 
-## 2026-09-01 — Two measurement errors that both produce confident, wrong brightness readings from a capture (`wt/milestone-note`) **[rejected: wrong home -- both are capture-measurement method (sample at DEVICE pixels, not logical ones; linearise sRGB before comparing brightness) and belong in `DOCS/recipes/SCREENSHOT.md`, which this pass did not open. Neither is a claim about the engine. The tell recorded with the first one -- distinct predicted bands coming back identical should be read as an instrument fault before it is read as a finding -- is the best line here and should travel with it]**
+## 2026-09-01 — Two measurement errors that both produce confident, wrong brightness readings from a capture (`wt/milestone-note`) **[rejected: wrong home -- both are capture-measurement method (sample at DEVICE pixels, not logical ones; linearise sRGB before comparing brightness) and belong in `DOCS/recipes/SCREENSHOT.md`, which this pass did not open. Neither is a claim about the engine. The tell recorded with the first one -- distinct predicted bands coming back identical should be read as an instrument fault before it is read as a finding -- is the best line here and should travel with it; filed 2026-09-26 -> `SCREENSHOT.md` §"Sample at DEVICE pixels, not logical ones" (with the identical-bands-are-an-instrument-fault tell leading it) and §"Linearise sRGB before comparing brightness"]**
 
 Both were made and corrected while measuring the `FogDarkness` ladder. They are recorded because
 they are silent — each yields a plausible number rather than an obvious failure.
@@ -23770,7 +25520,7 @@ record entry cells. RED = the old key, asserted by the specific text "entry cell
 not merely by a failing count. Shipped maps separate the two behaviours by 3 of 5 at best and would
 be the weaker instrument, the same reason `test-sr-entry-cell` holds `d` where the band is 5 wide.
 
-## 2026-09-02 — Fixing the `Take(count)` sibling: `.Distinct()` is load-bearing, and "a superset can only improve" is WRONG (`wt/edge-siblings`, `main @ 77e1ad09`) **[promoted -> `architecture.md` §"Edge-cell selection: `CVec.Length` is a FLOORED sqrt" (merged with the measurement entry below: the dead sibling deleted rather than fixed, `.Distinct()` load-bearing because `AllEdgeCells` emits each corner TWICE and exact sorting makes the collision MORE likely not less, and the refuted superset argument -- `Take(n)` is a fixed budget so the corrected sort reorders and the new set is not a superset, measured at 2 of 30 spawn points regressing, bounded at exactly 1.000 cells). The sweep totals are carried with their date and scope named. NOT promoted: the `lua_gate.py check --scenario` RED-before-green method note, which is tool-README material (`tools/lua-gate/README.md`)]**
+## 2026-09-02 — Fixing the `Take(count)` sibling: `.Distinct()` is load-bearing, and "a superset can only improve" is WRONG (`wt/edge-siblings`, `main @ 77e1ad09`) **[promoted -> `architecture.md` §"Edge-cell selection: `CVec.Length` is a FLOORED sqrt" (merged with the measurement entry below: the dead sibling deleted rather than fixed, `.Distinct()` load-bearing because `AllEdgeCells` emits each corner TWICE and exact sorting makes the collision MORE likely not less, and the refuted superset argument -- `Take(n)` is a fixed budget so the corrected sort reorders and the new set is not a superset, measured at 2 of 30 spawn points regressing, bounded at exactly 1.000 cells). The sweep totals are carried with their date and scope named. NOT promoted: the `lua_gate.py check --scenario` RED-before-green method note, which is tool-README material (`tools/lua-gate/README.md`); filed 2026-09-26 -> `tools/lua-gate/README.md` §"Acceptance test", which demonstrated the RED-before-green round trip without stating it as a rule; the rule and the `check --scenario` recipe now open that section]**
 
 Implementation follow-up to the measurement entry above. Three things came out of building it that the
 measurement did not predict, and one of them refuted my own stated reasoning.
@@ -24763,7 +26513,7 @@ The **tooltip** path is one YAML line short of working, which is worth knowing b
 `:26` and `:2740` both refer to unit builders "keyed `@america.normal` / `@russia.normal`". **Those keys do not exist** — the only `UnitBuilderBotModule@` keys are `russia.fixedwing`, `russia.heli`, `experimental.russia.heli`, `america.fixedwing`, `america.heli`, `experimental.america.heli`. `:2740` also calls it "the four unit builders" when the `enable-ai-stable` ones number two (both `fixedwing` blocks are `enable-ai-any`, shared by both profiles). Comment-only; no behaviour depends on it. Left unfixed to keep this branch to one concern.
 
 
-## 2026-09-05 — The aircraft repair fix is CONFIRMED by run `260905_171321`, which reported FAIL: reading a verdict that measured the wrong thing **[rejected: already covered — `economy.md` §"`PassiveIncome` is ON by default, and it silently poisons any before/after cash assertion" carries the defaults, the commented-out-reads-as-off trap and the `PassiveIncomeDropdownLocked` requirement, and §"Aircraft were the other half of the repair fix" carries the `^Airborne` `PercentageStep` resolution. The verdict-reading lessons (a tolerance band would have hidden it; a verdict naming one actor is not self-diagnosing; the 0-byte `lua.log` tell is only diagnostic for scenarios that print at all) are `DOCS/recipes/AUTOTEST.md` material]**
+## 2026-09-05 — The aircraft repair fix is CONFIRMED by run `260905_171321`, which reported FAIL: reading a verdict that measured the wrong thing **[rejected: already covered — `economy.md` §"`PassiveIncome` is ON by default, and it silently poisons any before/after cash assertion" carries the defaults, the commented-out-reads-as-off trap and the `PassiveIncomeDropdownLocked` requirement, and §"Aircraft were the other half of the repair fix" carries the `^Airborne` `PercentageStep` resolution. The verdict-reading lessons (a tolerance band would have hidden it; a verdict naming one actor is not self-diagnosing; the 0-byte `lua.log` tell is only diagnostic for scenarios that print at all) are `DOCS/recipes/AUTOTEST.md` material; filed 2026-09-26 -> `AUTOTEST.md` §"A green run is not evidence" step 8 (print the whole board; a tolerance band hides this class; write attribution into the assertion) and §"An empty `lua.log`…" (the script-that-never-prints row)]**
 
 `test-heli-repairs-at-pad` came back **fail** — *"Plane never healed to full: 480/800 HP (60 %) 1000
 ticks after being sent to its pad, alt=2560, player billed -1496"* — and the fix it was testing was
@@ -24837,7 +26587,7 @@ VTOL branch and `^Aircraft` takes the non-VTOL approach circuit. Filed at
 `WORKSPACE/bugs/discovered.md` [2026-09-05] rather than diagnosed here, and the leg was removed so a
 green repair gate does not depend on an open fixed-wing question.
 
-## 2026-09-06 — NEVER reuse a tournament result dir while a killed runner's match may still be alive: the settings backup is per-DIR, and the dir ends up looking complete (`wt/bench-record`, `main @ 9cb423d4`) **[promoted, in part -> `DOCS/recipes/AUTOTEST.md` §"A result dir that two runners wrote does not look wrong"]** — mechanism verified at `run-tournament.sh`: `SETTINGS_BACKUP` derived from `RESULT_DIR` alone (`:276-277`), restored under the `[ -f ]` guard (`:347-348`), `set -e` at `:44`. Promoted: the aliasing, the TOCTOU, the "passes every completeness check" consequence, the 0-byte `match_N_debug.log` tell, and rules 1, 2 and 4. **Not promoted:** the incident narrative, the byte-for-byte rerun comparison and the proposed `$$`-suffix fix — a recording of one night, and an unimplemented change. Note the bank has no tournament-harness doc; this landed in the autotest recipe because that is where the sibling 0-byte-log tell already lives.
+## 2026-09-06 — NEVER reuse a tournament result dir while a killed runner's match may still be alive: the settings backup is per-DIR, and the dir ends up looking complete (`wt/bench-record`, `main @ 9cb423d4`) **[promoted, in part -> `DOCS/recipes/AUTOTEST.md` §"A result dir that two runners wrote does not look wrong"; confirmed present 2026-09-26 in `AUTOTEST.md` §"A result dir that two runners wrote does not look wrong — and `debug.log` is the only physical tell" — re-read at `5a3e4b19`]** — mechanism verified at `run-tournament.sh`: `SETTINGS_BACKUP` derived from `RESULT_DIR` alone (`:276-277`), restored under the `[ -f ]` guard (`:347-348`), `set -e` at `:44`. Promoted: the aliasing, the TOCTOU, the "passes every completeness check" consequence, the 0-byte `match_N_debug.log` tell, and rules 1, 2 and 4. **Not promoted:** the incident narrative, the byte-for-byte rerun comparison and the proposed `$$`-suffix fix — a recording of one night, and an unimplemented change. Note the bank has no tournament-harness doc; this landed in the autotest recipe because that is where the sibling 0-byte-log tell already lives.
 
 Found while recording the item-43 re-baseline. Batch 1 of that ladder
 (`tools/autotest/tournament-results/260905_rebaseline_s1_cal`) died at match 5 with
@@ -25077,7 +26827,7 @@ Re-sample the already-rendered frame at an offset instead of straight through. T
 **The generalisable lesson is about how to search.** "Heat haze" appears nowhere in this engine and neither does "distortion", "refraction" or "shimmer" — grepping the feature's own vocabulary returns nothing and would have justified writing it from scratch. What found it was grepping for the MECHANISM (`texelFetch`, `WorldTexture`, `PostProcess`) instead of for the effect. A rendering primitive is almost always named after its first consumer, so the thing you want is filed under something else's name; `LightInterpolation` in this same branch is a curve library named after lights, and `ChronoVortexRenderer` is a localized screen-space distortion named after a chrono vortex.
 
 **One trap if you write another pass.** `Shader.SetVec` resolves the name through `uniformCache[name]`, a dictionary built from the program's ACTIVE uniforms (`Shader.cs:119`, `:198`). A uniform the GLSL compiler eliminates because nothing reads it is not a warning — it is a `KeyNotFoundException` at the first draw. Deleting a term from a shader means deleting its `SetVec` in the same edit.
-## 2026-09-06 — Scaling one weapon into another by a single factor destroys the only thing that made them different: thermal grows as Y^0.41 and blast as Y^0.33, and they CROSS at ~437 kt (`wt/nuke-yield`, base `main @ 1aea05dd`) **[rejected: wrong home — this is weapon-ladder balance reasoning whose homes are `DOCS/recipes/BALANCE.md` and the weapon-file headers that carry the laws. The transferable half (two effects of one cause that scale with DIFFERENT exponents must not be retuned by a single factor, because the retune deletes a sign change rather than approximating it) is carried at `conventions.md` §"Every quantity checked against its own law, and nothing checking the RELATIONSHIP between them"]**
+## 2026-09-06 — Scaling one weapon into another by a single factor destroys the only thing that made them different: thermal grows as Y^0.41 and blast as Y^0.33, and they CROSS at ~437 kt (`wt/nuke-yield`, base `main @ 1aea05dd`) **[rejected: wrong home — this is weapon-ladder balance reasoning whose homes are `DOCS/recipes/BALANCE.md` and the weapon-file headers that carry the laws. The transferable half (two effects of one cause that scale with DIFFERENT exponents must not be retuned by a single factor, because the retune deletes a sign change rather than approximating it) is carried at `conventions.md` §"Every quantity checked against its own law, and nothing checking the RELATIONSHIP between them"; filed 2026-09-26 -> `BALANCE.md` §"Two effects of one cause that scale with DIFFERENT exponents must not be retuned by one factor"]**
 
 `AtomicHighYield` was built by multiplying every one of `Atomic`'s radii by `40^(1/3) = 3.4` — one factor, applied to blast, thermal, fire, EMP, suppression and smudge alike, and documented as the Hopkinson-Cranz cube-root law. The cube root is right *for blast*. It is wrong for everything else on that list, and the error is not a percentage: **it removes a sign change.**
 
@@ -25087,7 +26837,7 @@ Thermal-radiation radius scales as roughly `Y^0.41` and blast radius as `Y^0.33`
 
 **How to spot the same mistake elsewhere in this repo.** Look for a comment that names ONE scaling factor and then a table of radii that all move by it. `weapons-superweapons.yaml` had exactly that, written out as a six-row table, and it read as unusually rigorous — which is why nobody questioned it for as long as they did. The tell is not sloppiness, it is a *single* factor applied across effects that are physically unlike each other.
 
-## 2026-09-06 — Two numbers picked years apart for feel landed 1.6% from the same iso-pressure contour: use an independent second point to VALIDATE a derived scale, never to fit it (`wt/nuke-yield`, base `main @ 1aea05dd`) **[rejected: not reference — a derivation record for one weapon ladder, with figures that are true of this arsenal at this scale and of nothing else. The method it exists for (derive a law from published data, anchor it on ONE thing in the mod, then TEST it against a SECOND thing that was never consulted; fitting to both teaches you nothing) is carried at `conventions.md` §"Every quantity checked against its own law". Home for the arithmetic: `DOCS/recipes/BALANCE.md`]**
+## 2026-09-06 — Two numbers picked years apart for feel landed 1.6% from the same iso-pressure contour: use an independent second point to VALIDATE a derived scale, never to fit it (`wt/nuke-yield`, base `main @ 1aea05dd`) **[rejected: not reference — a derivation record for one weapon ladder, with figures that are true of this arsenal at this scale and of nothing else. The method it exists for (derive a law from published data, anchor it on ONE thing in the mod, then TEST it against a SECOND thing that was never consulted; fitting to both teaches you nothing) is carried at `conventions.md` §"Every quantity checked against its own law". Home for the arithmetic: `DOCS/recipes/BALANCE.md`; filed 2026-09-26 -> `BALANCE.md` §"Anchor on ONE thing, then VALIDATE against a SECOND that was never consulted"]**
 
 The mod carries two distance scales on purpose: weapon RANGES use a fourth-root compression (`cells ~= 18 * km^0.23`) and BLAST extents use a near-linear 160 m/cell anchored on the Abrams gun. The question when rebuilding the nukes was whether 160 m/cell is real or merely convenient, and the answer came from arithmetic that was never fitted to it.
 
@@ -25115,7 +26865,7 @@ Every test then iterated `new[] { "Atomic", "AtomicHighYield" }` inline. A hard-
 
 **The tell to look for.** `--check-yaml` catches a field that does not exist. Nothing catches a field that is ABSENT and defaults to the old behaviour. `StartRadius` unset and `StartRadius: 0` reach the engine identically, so a new weapon authored from a pre-fix template inherits the pre-fix physics with no diagnostic anywhere — no lint error, no failing test, no log line. Any field added to fix a defect has this property by construction, because its default has to be the old behaviour for the default path to stay bit-identical. **When you add such a field, the test that pins it has to assert on a list derived from the files, or on a list whose staleness is itself an assertion — not on the two names in front of you.** The fix here was `AllNukes`, one table of ten, plus an explicit `Assert.That(startRadius, Is.GreaterThan(0))` so that "defaulted to a point source" fails loudly rather than reading as an unset field nobody looks at.
 
-## 2026-09-07 — Decaying toward a target in TIME does not put the transition at a RADIUS, and if the radius is what you meant, two weapons will disagree about where it is (`wt/shockwave-phases`, base `main @ c92aa5a8`) **[rejected: not reference — a modelling ruling for one weapon family, and the numbers in it are that family's. The durable rule (when a physical model has a transition POINT, make the point the parameter; a rate that happens to put the transition in the right place is the same information one integration away from being checkable, and becomes per-weapon tuning the moment a second weapon needs it) is carried at `conventions.md` §"Every quantity checked against its own law". Home: `DOCS/recipes/BALANCE.md`]**
+## 2026-09-07 — Decaying toward a target in TIME does not put the transition at a RADIUS, and if the radius is what you meant, two weapons will disagree about where it is (`wt/shockwave-phases`, base `main @ c92aa5a8`) **[rejected: not reference — a modelling ruling for one weapon family, and the numbers in it are that family's. The durable rule (when a physical model has a transition POINT, make the point the parameter; a rate that happens to put the transition in the right place is the same information one integration away from being checkable, and becomes per-weapon tuning the moment a second weapon needs it) is carried at `conventions.md` §"Every quantity checked against its own law". Home: `DOCS/recipes/BALANCE.md`; filed 2026-09-26 -> `BALANCE.md` §"When a model has a transition POINT, make the point the parameter"]**
 
 The supersonic phase decayed its excess speed geometrically per tick: `excess *= SpeedDecayPercent / 100`. Each weapon carried its own constant, derived so the front hit Mach 2 where its own overpressure law puts 51 psi — 61 for `Atomic`, 96 for `AtomicHighYield`, and the ratio of the two decay times was itself the cube-root-of-yield scaling, which made the pair look thoroughly principled.
 
@@ -25172,7 +26922,7 @@ This is the SECOND band in which the same mistake was made and the second time i
 
 **The generalisable shape, and it is the dangerous half:** a comment that reads as a *derivation* ("the cap is X, therefore we do Y") is trusted the way a derivation is, but only the "therefore we do Y" half is verifiable from the file -- Y is right there in the YAML. The premise sits in engine code nobody re-reads. A curated-docs rule of "fix verifiably-wrong statements on sight" does not help when the statement is only wrong somewhere else. **When a comment justifies a workaround by naming an engine limit, the limit is the thing to check, and checking it is one grep.** The tell here was available without any code at all: the workaround was described as buying size, and its own arithmetic bought 5%.
 
-## 2026-09-08 - Borrowing another band's exponent works until the range gets long enough to expose it, and then it is fixed by hand at the ends where nobody plots the whole ladder (`wt/cloud-law`, base `main @ 7e5364b7`) **[promoted, in part -> `conventions.md` §"Every quantity checked against its own law" (assert MONOTONICITY across the sorted ladder as well as each value against the law — they are different assertions, they fail on different bugs, and only the monotonicity one catches a hand-tuned exception that inverts the order, without needing to know the law). NOT promoted: the cloud-law refit and the per-weapon `ScalePercent` values, which are `DOCS/recipes/BALANCE.md` material]**
+## 2026-09-08 - Borrowing another band's exponent works until the range gets long enough to expose it, and then it is fixed by hand at the ends where nobody plots the whole ladder (`wt/cloud-law`, base `main @ 7e5364b7`) **[promoted, in part -> `conventions.md` §"Every quantity checked against its own law" (assert MONOTONICITY across the sorted ladder as well as each value against the law — they are different assertions, they fail on different bugs, and only the monotonicity one catches a hand-tuned exception that inverts the order, without needing to know the law). NOT promoted: the cloud-law refit and the per-weapon `ScalePercent` values, which are `DOCS/recipes/BALANCE.md` material; filed 2026-09-26 -> `BALANCE.md` §"An exponent that is right for quantity A is not evidence for quantity B" and §"So assert MONOTONICITY across the sorted ladder as well as each value against the law"]**
 
 The mushroom cloud's `ScalePercent` used the FIREBALL's `Y^0.40`. Over 0.3 kt to 50 Mt -- 166,667x of yield -- that is 123x of sprite, which anchored at `Atomic`'s 300 puts Tsar Bomba at ScalePercent 6561: a cloud 848 cells wide, more than six times the largest shipped map. So the two biggest weapons were pulled off the curve individually, each with its own sensible-sounding local reason (`AtomicHighYield` capped at 700, "a fair early cap for a megaton-class burst"; Tsar Bomba capped at 1600 plus the phantom ring above). Each cap is defensible read alone. Sorted by yield they read 1277, 1542, **700**, 1600 -- and the 6 Mt weapon drew a smaller cloud than the 1.2 Mt one.
 
@@ -25301,7 +27051,7 @@ It does not. `mods/ww3mod/rules/ingame/aircraft-america.yaml` defines them as **
 
 **Also settled while here, and this was the actual question:** aircraft in the `air` starting-units packages **cannot** be placed over water. `AircraftInfo.CanEnterCell` gates on `LandableTerrainTypes` (`engine/OpenRA.Mods.Common/Traits/Air/Aircraft.cs:225-227`) before any blocking-actor test, and every actor in both `air` packages resolves to `Clear, Rough, Road, Beach` — `littlebird`/`HELI`/`TRAN` via `aircraft-america.yaml:151` or the shared `^Helicopter` at `aircraft.yaml:196`, `HIND`/`HALO` via `^Helicopter` with no override. Water is in none of them. Two aircraft templates DO have empty landable sets — `^Drone` (`aircraft.yaml:372`, `None`) and `quadcopterdrone` (`:437`, empty) — so those can enter no cell at all; neither appears in any starting-units package.
 
-## 2026-09-09 — A demo run reports NO-RESULT even when it worked, and a 0-byte lua.log does not always mean the script never ran **[rejected: wrong home -- `DOCS/recipes/DEMO.md` (a correct demo has no verdict by design, so `run-demo.sh`'s NO-RESULT branch is its EXPECTED outcome: judge a demo by its manifest and frames) and `DOCS/recipes/AUTOTEST.md` (a 0-byte `lua.log` plus scripted activity in `debug.log` means the script simply does not print; the inert case is 0-byte lua.log AND a silent debug.log). Both are harness operating procedure, and the `Map.cs:102-107` / `CheckLuaScript.cs:21-23` half is already in `CLAUDE.md`]**
+## 2026-09-09 — A demo run reports NO-RESULT even when it worked, and a 0-byte lua.log does not always mean the script never ran **[rejected: wrong home -- `DOCS/recipes/DEMO.md` (a correct demo has no verdict by design, so `run-demo.sh`'s NO-RESULT branch is its EXPECTED outcome: judge a demo by its manifest and frames) and `DOCS/recipes/AUTOTEST.md` (a 0-byte `lua.log` plus scripted activity in `debug.log` means the script simply does not print; the inert case is 0-byte lua.log AND a silent debug.log). Both are harness operating procedure, and the `Map.cs:102-107` / `CheckLuaScript.cs:21-23` half is already in `CLAUDE.md`; filed 2026-09-26 -> `DEMO.md` §"A demo has no verdict, so judge it by its MANIFEST and its FRAMES" (NOTE: `run-demo.sh:56-59` now maps exit 3 to 0, so the entry's finding 1 is fixed in-tree and is filed as the current contract) and `AUTOTEST.md` §"An empty `lua.log` from a TIMEOUT-FAIL means nothing on its own" (the three-reading table)]**
 
 Two false alarms from one run, `260909_203115_p12697_demo-highyield-nuke` at `main @ 93b94fa0`. Both look exactly like the documented failures they are not.
 
@@ -25550,7 +27300,7 @@ It does not. `LobbyOptionsLogic` assigns `dropdown.GetTooltipDesc = () => ddDesc
 
 **A GRANT PATH THAT SETS `prereqsAvailable` CANNOT LEAK INTO THE BUY TAB IN ESCALATION, AND THAT IS CONSTRUCTION RATHER THAN CARE.** `SupportPowerProductionQueue` filters on `Purchasable`, which is `bank.CanPurchase(Permitted)`, and `SupportPowerInstance`'s constructor builds the bank DISABLED for any nuclear power in Escalation (`SupportPowerManager.cs:289-296`). So the same flag that makes a cameo READY can never make one BUYABLE there. Worth knowing before adding a guard for it: the guard would be dead code, and outside Escalation no exchange grant path runs at all.
 
-## 2026-09-15 — Per-faction bot PROCUREMENT config is not in `ai.yaml`, so the "is this item already done?" grep the routing table mandates has a silent false-negative shape — and it hid a slice that was fully shipped but had never once been measured (`wt/sf-procurement`, base `main @ 0a94c684`) **[rejected: wrong home -- `WORKSPACE/pipeline/README.md` §"Working rules". The finding is a done-check methodology: grep the DIRECTORY `mods/ww3mod/rules/ai/` rather than `ai.yaml`, because the per-faction `UnitBuilderBotModule` twins and therefore the whole procurement surface live in `ai-america.yaml`/`ai-russia.yaml`; and the third state a config grep cannot see is SHIPPED-AND-NEVER-EXERCISED, so the second grep -- over `tools/autotest/scenarios/` -- is the one that decides scope. Verified at `a21583fd` and squarely a queue-item rule rather than an engine mechanism]**
+## 2026-09-15 — Per-faction bot PROCUREMENT config is not in `ai.yaml`, so the "is this item already done?" grep the routing table mandates has a silent false-negative shape — and it hid a slice that was fully shipped but had never once been measured (`wt/sf-procurement`, base `main @ 0a94c684`) **[rejected: wrong home -- `WORKSPACE/pipeline/README.md` §"Working rules". The finding is a done-check methodology: grep the DIRECTORY `mods/ww3mod/rules/ai/` rather than `ai.yaml`, because the per-faction `UnitBuilderBotModule` twins and therefore the whole procurement surface live in `ai-america.yaml`/`ai-russia.yaml`; and the third state a config grep cannot see is SHIPPED-AND-NEVER-EXERCISED, so the second grep -- over `tools/autotest/scenarios/` -- is the one that decides scope. Verified at `a21583fd` and squarely a queue-item rule rather than an engine mechanism; filed 2026-09-26 -> `WORKSPACE/pipeline/README.md` §"Working rules"; NOTE at `5a3e4b19` `ai.yaml` DOES carry `UnitsToBuild` for the heli/fixedwing twins, so the filed text says a single-file grep is unpredictable rather than uniformly blind]**
 
 **THE INSTANCE.** A backlog item read "Add sf.america/sf.russia to UnitsToBuild + UnitFloors: 1 + UnitLimits: 2 on the @experimental twins and STOP". Its own done-check was `grep -n "sf\.\(america\|russia\)" mods/ww3mod/rules/ai/ai.yaml`, which returns **nothing** — exit 1, no output. The work was nevertheless shipped in full, on both twins, at `8845f711` ("Buy Special Forces on the @experimental twins (floor lane, delayed 3000)"), and had already been propagated to `@stable` at the 2026-09-02 promotion (`3318d5c7`). The correct grep drops the filename: `grep -rn "sf\.america" mods/ww3mod/rules/ai/` returns ten hits per faction.
 
@@ -25657,7 +27407,7 @@ Relative-after-`cd` sidesteps all three at once and needs no `cygpath`, which is
 
 ## 2026-09-19 — `--hidden` autotest runs write NO screenshots, while result.json still lists them **[promoted -> `conventions.md` §"`--hidden` autotest runs write NO screenshots", with its unverified half labelled as unverified]**
 Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-field-swallows-nuke`: the run reported `PASS (3 screenshot(s))`, `result.json` and `manifest.json` both listed three PNG paths with `captured_at` timestamps, and the run directory contained **no PNG at all** (only debug.log, lua.log, manifest.json, result.json). The identical run with `--background` wrote all three files. `--hidden` never maps a window (`SDL_WINDOW_HIDDEN`, run-test.sh:17), so the framebuffer grab has nothing to read; the harness records the capture as successful anyway. Consequence: CLAUDE.md's "prefer `--hidden`" is right for assertion scenarios and WRONG for any scenario whose answer is a frame — use `--background` (the default) for captures, and treat a result.json that lists screenshots as a claim, not evidence, until `ls` shows the files. DOCS/recipes/SCREENSHOT.md:214 already warns that `--minimized` can give blank PNGs on macOS; this is the Windows sibling, one step worse (no file rather than a blank one). Leading hypothesis for the harness half: the screenshot writer swallows the failure of an unmapped surface and still appends the manifest entry — unverified; confirm by reading the TestMode screenshot path in the engine.
-## 2026-09-19 — A pixel font renders 1-bit through FreeType with no engine change, and Pillow's FreeType will lie to you about whether it did (`wt/cameo-captions`, base `main @ 442859aa`) **[rejected: font-tooling for `tools/cameo`; the corrections it makes to `tools/cameo/README.md` and to this file were applied in place at the time]**
+## 2026-09-19 — A pixel font renders 1-bit through FreeType with no engine change, and Pillow's FreeType will lie to you about whether it did (`wt/cameo-captions`, base `main @ 442859aa`) **[rejected: font-tooling for `tools/cameo`; the corrections it makes to `tools/cameo/README.md` and to this file were applied in place at the time; confirmed present in `tools/cameo/README.md` (the FreeType-antialiases-edges rule, `unitsPerEm = ppem * 2^k`, and the corrected baked-lettering measurement)]**
 
 **THE ACCEPTANCE RULE WAS PER-PIXEL, WHICH IS WHAT MADE THE MEASURING TOOL MATTER MORE THAN THE FONT.** The sidebar drew cameo captions in FreeSansBold at 7px, and a vector face at 7px has no fully opaque pixel — `FT_RENDER_MODE_NORMAL` returns 8-bit coverage, `SpriteFont.cs:285-293` copies that byte into all four channels, so the caption is a grey, partly transparent stipple rather than the solid white the baked lettering beside it is. Over the solid black caption band you cannot see this; with the band off you can.
 
@@ -25678,7 +27428,7 @@ Observed at main @ 442859aa running `./tools/autotest/run-test.sh --hidden test-
 **`power.*` PROXIES ARE BUILDABLE ACTORS, so the PRODUCTION palette already draws runtime captions.** It is natural to read `CameoCaption` as a support-power-bin feature — the yields live on `SupportPower` traits in `player.yaml` and `ingame/nuclear-arsenal.yaml`. But `rules/powers.yaml` also sets `Buildable: CameoCaption:` on the sixteen `power.*` buy proxies, which appear in the Powers build tab. So a change to `ProductionPalette`'s `CaptionFont` is player-visible TODAY, before any unit gets a caption. The roster is **116** buildable actors with a cameo (not the 115 in the backlog) across **94** distinct art files.
 
 
-## 2026-09-19 — `^EngineDir` means two DIFFERENT directories in a dev checkout and in an installer, which is the whole of the v0.1.0 no-main-menu bug (`wt/packaged-mounts`, base `main @ 64185a89`) **[rejected: superseded by enforcement rather than by prose -- `mount-gate` now models the packaged root and runs inside `.\make.ps1 test`, and `tools/mount-gate/README.md` carries the mechanism and the acceptance test]**
+## 2026-09-19 — `^EngineDir` means two DIFFERENT directories in a dev checkout and in an installer, which is the whole of the v0.1.0 no-main-menu bug (`wt/packaged-mounts`, base `main @ 64185a89`) **[rejected: superseded by enforcement rather than by prose -- `mount-gate` now models the packaged root and runs inside `.\make.ps1 test`, and `tools/mount-gate/README.md` carries the mechanism and the acceptance test; confirmed present in `tools/mount-gate/README.md` §"Why this exists" (the two-EngineDir table), §"The regression test" (historical manifest vs current artifact) and §"The one asymmetry worth knowing"]**
 
 **THE FACT THE BUG RESTS ON.** `Platform.EngineDir` defaults to `Platform.BinDir` (`engine/OpenRA.Game/Platform.cs:247-260`) and is only something else when a launcher passes `Engine.EngineDir`. `launch-game.sh:46` passes `Engine.EngineDir=".."`, and `OverrideEngineDir` resolves a relative value against **BinDir, not the working directory** (`Platform.cs:270-272`), so in the dev checkout EngineDir is `engine/bin/../` = `engine/` and `^EngineDir|../tools/...` lands on the repo's `tools/`. No packaged launcher passes the arg — `engine/packaging/linux/openra.appimage.in:49` runs `./OpenRA Game.Mod=... "$@"` with no `Engine.EngineDir` — so in an installer EngineDir is the packaged root itself and the same string resolves **one level above everything that shipped**. Verified against the real artifact: `WW3MOD-v0.1.2-x64-winportable.zip` has 2895 entries, `mods/{common,modcontent,ra,ww3mod}` at its top level, and no `tools/` anywhere.
 

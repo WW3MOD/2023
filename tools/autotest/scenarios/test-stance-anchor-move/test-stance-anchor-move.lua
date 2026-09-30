@@ -147,7 +147,9 @@ WorldLoaded = function()
 		stepS3()
 
 		if b1_done and s3.L.done and s3.R.done then
-			Test.Pass()
+			Test.Pass("all three legs settled by tick " .. elapsed .. ": B1 re-anchored and held " ..
+				b1_holdCount .. " ticks; the S3 pair settled at " .. s3.L.rest.X .. "," .. s3.L.rest.Y ..
+				" and " .. s3.R.rest.X .. "," .. s3.R.rest.Y .. " without oscillating")
 			return
 		end
 

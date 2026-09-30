@@ -46,7 +46,9 @@ WorldLoaded = function()
 		if HeldOilb.IsDead or HeldOilb.Owner ~= usa then
 			Test.Fail("Phase 4: held derrick was lost — experimental garrison did not hold it")
 		else
-			Test.Pass()
+			Test.Pass("Phase 4: the held derrick is still USA-bot's after 45s, so the experimental " ..
+				"garrison held it against the Russia raid. Phases 1-3 are observational -- read the " ..
+				"[experimental-*] lines in lua.log for those")
 		end
 	end)
 end

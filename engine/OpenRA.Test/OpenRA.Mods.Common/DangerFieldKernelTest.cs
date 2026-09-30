@@ -484,12 +484,17 @@ namespace OpenRA.Test
 			// EMPTY table, but for a non-empty one filters to the classes it LISTS — an unlisted class
 			// matches nothing and takes the unmodified 100%. Omission is the OPPOSITE of a zero.
 			//
-			// The concrete case is IskanderTargeter / HIMARSTargeter (weapons-missiles.yaml:284-306), the two
-			// force-fire spotter weapons reported as phantom contributors to the danger field. They zero
+			// The concrete case was IskanderTargeter / HIMARSTargeter (weapons-missiles.yaml), the two
+			// force-fire spotter weapons reported as phantom contributors to the danger field. They zeroed
 			// None/Wood/Concrete/Light/Medium/Heavy/Brick — but `Brick` is not an armor class here, while
-			// Kevlar (EVERY soldier), Unarmored and Indestructable are, and are unlisted. So the targeters
-			// deal their full 50 to infantry and are real, if feeble, threats. The exclusion below therefore
+			// Kevlar (EVERY soldier), Unarmored and Indestructable are, and were unlisted. So the targeters
+			// dealt their full 50 to infantry and were real, if feeble, threats. The exclusion below therefore
 			// drops NOTHING from the current ruleset, and that is the correct outcome, not a broken filter.
+			//
+			// Fixed 260921 by setting those warheads to `Damage: 0` — NOT by completing the table, which
+			// would flip every infantry tooltip (Traits/Armor.cs:73). The shipped weapons are therefore no
+			// longer an instance of this asymmetry; the asymmetry itself is unchanged and is what the
+			// synthetic table below pins. TooltipWeaponResolutionTest pins the weapons.
 			var targeter = WarheadVersus(
 				("None", 0), ("Wood", 0), ("Concrete", 0), ("Light", 0),
 				("Medium", 0), ("Heavy", 0), ("Brick", 0));

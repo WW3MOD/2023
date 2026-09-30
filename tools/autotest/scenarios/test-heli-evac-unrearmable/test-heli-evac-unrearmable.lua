@@ -134,6 +134,10 @@ WorldLoaded = function()
 			return
 		end
 
-		Test.Pass()
+		Test.Pass(string.format(
+			"only the spent airframe left: SpentHeli gone=%s moved=%d (needed >= %d); the unarmed " ..
+			"SpentTransport stayed (moved=%d) and the still-loaded LoadedHeli stayed (moved=%d, %d rounds) " ..
+			"-- the trait fires on being spent, not on lacking a host",
+			tostring(heliGone), heliMoved, LEFT_CELLS, tranMoved, loadedMoved, totalAmmo(LoadedHeli)))
 	end)
 end

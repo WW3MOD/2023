@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Eluant;
 using NUnit.Framework;
@@ -12,43 +13,32 @@ namespace OpenRA.Test
 	/// Pins the seconds -> ticks conversion the Lua autotest harness runs on, and the scenario
 	/// deadlines that were sized against it.
 	///
-	/// THE STANDING DEFECT. TestHarness.TicksPerSecond is 25. Single-test autotest runs are played at
-	/// the mod's "default" GameSpeed (Game.LoadMap hardcodes "default" unless Test.GameSpeed overrides
-	/// it, and tools/autotest/run-test.sh never passes that), whose Timestep is 60 ms. The engine's own
-	/// Lua converter runs at 16.667 ticks per second, so DateTime.Seconds(n) and
-	/// TestHarness.AssertWithin(n) disagree by exactly 25/16.667 = 1.5 — every harness "second" is
-	/// worth one and a half engine seconds.
+	/// THE DEFECT THIS FIXTURE WAS BUILT AROUND IS FIXED, 2026-09-21. TestHarness.TicksPerSecond was
+	/// the literal 25 — a rate belonging to no tick base in this mod (RA's 40 ms timestep gives 25;
+	/// ours gives 16.667), so every AssertWithin(n) was worth 1.5 n engine seconds. It is now derived
+	/// from TestHarness.TimestepMs, which mirrors the mod's default GameSpeed Timestep, and
+	/// AssertWithin converts the way the engine does (multiply before divide). Harness and engine agree
+	/// tick-for-tick on every integer second, and every window in the suite got a third shorter.
 	///
-	/// CORRECTED 2026-09-19, AND THE GAP NARROWED SLIGHTLY. This paragraph used to say the engine
-	/// derived "1000 / 60 = 16 by INTEGER division (DateTimeGlobal.cs:31)" and put the disagreement at
-	/// 25/16 = 1.5625. That truncation was real and is now fixed: DateTimeGlobal converts through
-	/// TickTime, which multiplies before dividing, so DateTime.Seconds(n) yields 4.2 % MORE ticks than
-	/// it used to — in the LENIENT direction for every "did it happen by N" deadline in the suite.
-	/// The harness constant is untouched, so the two bases still disagree; they now disagree by 1.5.
-	///
-	/// WHY THIS FIXTURE EXISTS RATHER THAN A CORRECTED CONSTANT. The error runs in the LENIENT
-	/// direction, so 137 scenarios were authored, tuned and accepted against it, several of them
-	/// knowingly (test-tunguska-missile-standoff:25 "Left alone deliberately";
-	/// test-depot-vacate-phantom:32 "Generous on purpose"). Correcting the constant shortens 91
-	/// deadlines by a third at once, and it cannot be validated without running the suite. So the
-	/// number is left alone and the RELATIONSHIPS it silently holds up are made executable instead.
-	///
-	/// WHAT CHANGED, 2026-09-02. The two scenarios this fixture used to pin as casualties are no
-	/// longer sensitive to the constant at all: both now budget in TICKS and convert back with
-	/// `ticks / TestHarness.TicksPerSecond`, which round-trips exactly through the Math.Floor in
-	/// AssertWithin. The tests below no longer assert "still passes at 25" — they evaluate each
-	/// deadline at EVERY rate in CandidateRates and require it to hold at all of them, so they are
-	/// proofs of immunity rather than pins on a fragile relationship. The gate on the constant
-	/// itself stays, because the OTHER seconds-literal deadlines across the suite have not been
-	/// audited and that is a full-suite question rather than a `dotnet test` one.
+	/// WHAT THESE TESTS NOW PROTECT. Three things, and none of them is "the number is 25":
+	///   1. The harness rate still equals 1000 / the real default Timestep. Putting back either 25
+	///      (the old harness literal) or 16 (the old TRUNCATED engine value, which conventions.md:1107
+	///      records as an exactly-backwards prescription) fails this fixture.
+	///   2. AssertWithin agrees with DateTime.Seconds for every integer second, executed rather than
+	///      restated — this is what fails if the multiply-before-divide is reverted.
+	///   3. The two scenarios that were casualties of the old constant are still immune to it: their
+	///      deadlines are budgeted in ticks and round-trip exactly at the shipped timestep and at the
+	///      40 ms one that yields the old 25.
 	///
 	/// A CORRECTION TO THE ORIGINAL FRAMING, worth keeping because it inverts the risk. Only ONE of
-	/// the two — test-critical-no-panic — actually went red at 16; its deadline fell 5 ticks short of
-	/// the window it contains, so the predicate could never succeed. test-autotarget-preempt-air did
-	/// NOT become "structurally impossible to pass": a healthy build engaged at poll ~155 against a
-	/// 160-tick deadline and kept passing, while its documented 110-tick responsiveness budget became
-	/// unreachable at 174 and silently stopped being enforced. A green that has quietly stopped
-	/// measuring is the worse of the two failures and the harder to notice.
+	/// the two — test-critical-no-panic — actually went red when the rate dropped; its deadline fell 5
+	/// ticks short of the window it contains, so the predicate could never succeed.
+	/// test-autotarget-preempt-air did NOT become "structurally impossible to pass": a healthy build
+	/// engaged at poll ~155 against a 160-tick deadline and kept passing, while its documented 110-tick
+	/// responsiveness budget became unreachable and silently stopped being enforced. A green that has
+	/// quietly stopped measuring is the worse of the two failures and the harder to notice. That is the
+	/// shape to hunt in the full-suite run that follows the flip, across the deadlines this fixture
+	/// does NOT cover: the seconds-literal ones, which nothing here audits.
 	///
 	/// Sources of truth: mods/ww3mod/scripts/test-helpers.lua, mods/ww3mod/mod.yaml,
 	/// engine/OpenRA.Mods.Common/Scripting/Global/DateTimeGlobal.cs, DOCS/recipes/AUTOTEST.md.
@@ -78,27 +68,50 @@ namespace OpenRA.Test
 			return File.ReadAllText(path);
 		}
 
-		/// <summary>
-		/// The harness constant, read by EXECUTING the real helper rather than restating its value. A
-		/// fixture that declares 25 itself agrees with itself whatever the helper ships.
-		/// The engine-bound helpers in that file are never called and Lua resolves globals at call
-		/// time, so loading it needs no world.
-		/// </summary>
-		static double HarnessTicksPerSecond()
+		static string HarnessSource()
 		{
-			var helper = ReadRepoFile("mods", "ww3mod", "scripts", "test-helpers.lua");
+			return ReadRepoFile("mods", "ww3mod", "scripts", "test-helpers.lua");
+		}
+
+		/// <summary>
+		/// Re-derives the harness rate from a hypothetical timestep exactly as test-helpers.lua does,
+		/// for the immunity checks. Injected as source rather than as a rate literal so the two stay
+		/// coupled the way the shipped file couples them.
+		/// </summary>
+		static string OverrideTimestep(int timestepMs)
+		{
+			return $"TestHarness.TimestepMs = {timestepMs}\nTestHarness.TicksPerSecond = 1000 / TestHarness.TimestepMs";
+		}
+
+		/// <summary>
+		/// Reads a numeric field out of the harness by EXECUTING the real helper rather than restating
+		/// its value. A fixture that declares the rate itself agrees with itself whatever the helper
+		/// ships. The engine-bound helpers in that file are never called and Lua resolves globals at call
+		/// time, so loading it needs no world. The number is taken through Eluant rather than through
+		/// ToString: the rate is no longer an integer, and a string round-trip would be at the mercy of
+		/// the current culture's decimal separator.
+		/// </summary>
+		static double HarnessNumber(string expression)
+		{
 			using (var runtime = new LuaRuntime())
 			{
-				runtime.DoBuffer(helper, "test-helpers.lua").Dispose();
-				using (var results = runtime.DoBuffer("return TestHarness.TicksPerSecond", "tps"))
+				runtime.DoBuffer(HarnessSource(), "test-helpers.lua").Dispose();
+				using (var results = runtime.DoBuffer("return " + expression, "probe"))
 				{
 					Assert.That(results.Count, Is.GreaterThan(0),
-						"test-helpers.lua no longer exposes TestHarness.TicksPerSecond; the scenario "
-						+ "deadlines pinned below are derived from it and the pin must be re-pointed "
-						+ "rather than deleted");
-					return double.Parse(results[0].ToString(), CultureInfo.InvariantCulture);
+						$"test-helpers.lua no longer exposes {expression}; the scenario deadlines pinned "
+						+ "below are derived from it and the pin must be re-pointed rather than deleted");
+
+					var number = results[0].ToNumber();
+					Assert.That(number.HasValue, Is.True, $"{expression} is no longer a number");
+					return number.Value;
 				}
 			}
+		}
+
+		static double HarnessTicksPerSecond()
+		{
+			return HarnessNumber("TestHarness.TicksPerSecond");
 		}
 
 		/// <summary>Timestep of the GameSpeed named by DefaultSpeed, read out of the real mod.yaml.</summary>
@@ -137,74 +150,138 @@ namespace OpenRA.Test
 		public void SingleTestRunsPlayAtTheModDefaultTimestep()
 		{
 			// If this changes, every "seconds" figure in every scenario changes meaning at once, and
-			// the two tripwires below stop describing the suite that actually runs.
+			// the tripwires below stop describing the suite that actually runs.
 			Assert.That(DefaultTimestepMs(), Is.EqualTo(60),
 				"the mod's default GameSpeed Timestep has moved. Autotest single-test runs play at this "
 				+ "speed (Game.LoadMap hardcodes \"default\"; run-test.sh never passes Test.GameSpeed), so "
 				+ "every seconds-based scenario deadline has just changed meaning. Re-derive the harness "
 				+ "conversion and re-check the scenario tripwires below before updating this number");
+
+			// And the harness must be looking at the same number, not at a copy that drifted.
+			Assert.That(HarnessNumber("TestHarness.TimestepMs"), Is.EqualTo((double)DefaultTimestepMs()),
+				"TestHarness.TimestepMs no longer mirrors mod.yaml's default GameSpeed Timestep. Every "
+				+ "AssertWithin window is derived from it, so the harness is now converting seconds at a "
+				+ "rate the game does not run at");
 		}
 
 		[Test]
-		public void TheHarnessConversionDisagreesWithTheEngineConversion()
+		public void TheHarnessConversionMatchesTheEngineConversion()
 		{
-			// Scenarios mixing DateTime.Seconds with AssertWithin are mixing two bases, which is
-			// exactly the trap test-autotarget-preempt-air:70-77 documents. Assert the ENGINE side by
-			// the arithmetic the engine now performs (DateTimeGlobal -> TickTime.TicksForSeconds),
-			// not by the `1000 / Timestep` it used to perform: that expression truncated to 16, and
-			// pinning 16 here would re-pin the defect rather than the behaviour.
+			// Assert the ENGINE side by the arithmetic the engine performs (DateTimeGlobal ->
+			// TickTime.TicksForSeconds), not by the `1000 / Timestep` it used to perform: that expression
+			// truncated to 16, and pinning 16 here would re-pin the defect rather than the behaviour.
 			var engineTicksForSixtySeconds = TickTime.TicksForSeconds(60, DefaultTimestepMs());
 			Assert.That(engineTicksForSixtySeconds, Is.EqualTo(1000),
 				"the engine's Lua seconds->ticks conversion has moved; DateTime.Seconds(n) in every "
 				+ "scenario has changed meaning. 960 means the truncated `1000 / Timestep` is back");
 
-			// The two bases, stated as the ratio scenario authors actually trip over.
-			Assert.That(HarnessTicksPerSecond() * 60, Is.EqualTo(1.5 * engineTicksForSixtySeconds),
-				"the harness and engine conversions no longer differ by exactly 1.5, so every scenario "
-				+ "that mixes AssertWithin with DateTime.Seconds has changed meaning");
+			// The two bases, stated as the relationship scenario authors rely on. This was an assertion
+			// that they differ by exactly 1.5 until the harness was corrected on 2026-09-21. Compared
+			// through the harness's own converter, not as rate * 60: the rate is 1000/60, which has no
+			// exact double, so rate * 60 is 1000.0000000000001 and an equality on it tests IEEE rounding
+			// rather than the agreement this fixture is about.
+			Assert.That(HarnessTicksForSecondsRange(60, DefaultTimestepMs())[60], Is.EqualTo(engineTicksForSixtySeconds),
+				"the harness and engine conversions no longer agree, so every scenario that mixes "
+				+ "AssertWithin with DateTime.Seconds has changed meaning. 1500 means the old hardcoded "
+				+ "25 is back");
 
-			Assert.That(HarnessTicksPerSecond(), Is.EqualTo(25.0),
-				"TestHarness.TicksPerSecond has been edited. The two scenarios that used to invert on "
-				+ "this constant no longer do — they are budgeted in ticks and converted back, and the "
-				+ "immunity tripwires below prove it at BOTH rates — but the constant is still not free "
-				+ "to change unattended: the remaining seconds-literal deadlines across the suite were "
-				+ "authored against 25, some deliberately (test-tunguska-missile-standoff:25, "
-				+ "test-depot-vacate-phantom:32), and correcting it to the engine's 16 shortens every "
-				+ "one of them by a third. That is a full-suite question, not a dotnet-test one. This "
-				+ "assertion is the gate on making it deliberately; do not delete it to go green");
+			Assert.That(HarnessTicksPerSecond(), Is.EqualTo(1000.0 / 60),
+				"TestHarness.TicksPerSecond has been edited. It must stay derived from the mod's default "
+				+ "Timestep: 25 is the old hardcoded harness literal, which made every AssertWithin window "
+				+ "1.5x longer than it read, and 16 is the old TRUNCATED engine value — DOCS/reference/"
+				+ "conventions.md:1107 records the prescription to aim at 16 as exactly backwards. Either "
+				+ "one re-opens a divergence between AssertWithin and DateTime.Seconds");
+		}
+
+		[Test]
+		public void HarnessAndEngineAgreeTickForTickOnEveryIntegerSecond()
+		{
+			// The deliverable of the 2026-09-21 flip, executed rather than restated: AssertWithin(n) and
+			// DateTime.Seconds(n) must land on the SAME tick. This is what fails if TicksForSeconds is
+			// reverted to `seconds * TicksPerSecond` on a rate with no exact double, or if the multiply
+			// and the divide are swapped back into a truncating `1000 / Timestep` rate.
+			const int MaxSeconds = 600;
+			var timestepMs = DefaultTimestepMs();
+			var harness = HarnessTicksForSecondsRange(MaxSeconds, timestepMs);
+
+			for (var n = 0; n <= MaxSeconds; n++)
+				Assert.That(harness[n], Is.EqualTo(TickTime.TicksForSeconds(n, timestepMs)),
+					$"TestHarness.TicksForSeconds({n}) disagrees with DateTime.Seconds({n}) at a "
+					+ $"{timestepMs} ms timestep. The harness conversion has stopped mirroring "
+					+ "TickTime.TicksForSeconds (multiply before divide, then truncate)");
 		}
 
 		/// <summary>
-		/// The rates a scenario deadline must survive: the harness constant as it ships today, and
-		/// the engine's real rate that a future correction would move it to. A budget written as
-		/// `ticks / TestHarness.TicksPerSecond` round-trips through Math.Floor at both.
+		/// Runs the shipped TestHarness.TicksForSeconds over 0..maxSeconds at a given timestep.
 		/// </summary>
-		static readonly double[] CandidateRates = { 25.0, 16.0 };
+		static int[] HarnessTicksForSecondsRange(int maxSeconds, int timestepMs)
+		{
+			using (var runtime = new LuaRuntime())
+			{
+				runtime.DoBuffer(HarnessSource(), "test-helpers.lua").Dispose();
+				runtime.DoBuffer(OverrideTimestep(timestepMs), "timestep").Dispose();
+
+				var chunk = "local out = {} for n = 0, " + maxSeconds.ToString(CultureInfo.InvariantCulture)
+					+ " do out[#out + 1] = TestHarness.TicksForSeconds(n) end return table.concat(out, \",\")";
+
+				using (var results = runtime.DoBuffer(chunk, "range"))
+				{
+					Assert.That(results.Count, Is.GreaterThan(0), "test-helpers.lua no longer exposes TestHarness.TicksForSeconds");
+					return results[0].ToString().Split(',')
+						.Select(s => int.Parse(s, CultureInfo.InvariantCulture)).ToArray();
+				}
+			}
+		}
 
 		/// <summary>
-		/// Asserts a scenario's outer deadline covers what the run needs at EVERY candidate rate —
+		/// The timesteps a scenario deadline must survive: the one the mod ships, and 40 ms — the RA/cnc
+		/// value, which derives the harness's former hardcoded 25 ticks/second. A budget written as
+		/// `ticks / TestHarness.TicksPerSecond` round-trips exactly at both.
+		/// </summary>
+		static readonly int[] CandidateTimestepsMs = { 60, 40 };
+
+		/// <summary>
+		/// Puts `ticks` through the round-trip a scenario performs — `ticks / TestHarness.TicksPerSecond`
+		/// into AssertWithin — by running the SHIPPED helper at the given timestep. Reproducing that
+		/// arithmetic in C# instead would be restating the thing under test, including its epsilon.
+		/// </summary>
+		static int HarnessRoundTrip(int ticks, int timestepMs)
+		{
+			using (var runtime = new LuaRuntime())
+			{
+				runtime.DoBuffer(HarnessSource(), "test-helpers.lua").Dispose();
+				runtime.DoBuffer(OverrideTimestep(timestepMs), "timestep").Dispose();
+
+				var chunk = "local seconds = " + ticks.ToString(CultureInfo.InvariantCulture)
+					+ " / TestHarness.TicksPerSecond return TestHarness.TicksForSeconds(seconds)";
+
+				using (var results = runtime.DoBuffer(chunk, "roundtrip"))
+					return (int)results[0].ToNumber().Value;
+			}
+		}
+
+		/// <summary>
+		/// Asserts a scenario's outer deadline covers what the run needs at EVERY candidate timestep —
 		/// i.e. that the deadline is immune to TestHarness.TicksPerSecond rather than merely large
-		/// enough at today's value. `outerTicks` is the scenario's tick budget; the round-trip
-		/// through seconds and back is reproduced exactly as test-helpers.lua performs it.
+		/// enough at today's value. `outerTicks` is the scenario's tick budget; the round-trip through
+		/// seconds and back is performed by the shipped helper.
 		/// </summary>
 		static void AssertDeadlineIsRateImmune(string name, int outerTicks, int neededTicks, string composition)
 		{
-			foreach (var rate in CandidateRates)
+			foreach (var timestepMs in CandidateTimestepsMs)
 			{
-				// Exactly what the scenario computes, then exactly what AssertWithin does with it.
-				var outerSeconds = outerTicks / rate;
-				var effective = (int)Math.Floor(outerSeconds * rate);
+				var effective = HarnessRoundTrip(outerTicks, timestepMs);
 
 				Assert.That(effective, Is.EqualTo(outerTicks),
-					$"{name}: the ticks->seconds->ticks round-trip is lossy at {rate} ticks/second "
+					$"{name}: the ticks->seconds->ticks round-trip is lossy at a {timestepMs} ms timestep "
 					+ $"({outerTicks} became {effective}). Pick a budget that round-trips exactly rather "
 					+ "than absorbing the loss into headroom");
 
 				Assert.That(effective, Is.GreaterThan(neededTicks),
-					$"{name} cannot pass at {rate} ticks/second: its outer deadline is {effective} ticks "
-					+ $"but the run needs {neededTicks} ({composition}). Those needed ticks do NOT scale "
-					+ "with TestHarness.TicksPerSecond, so the deadline must not either — budget it in "
-					+ "ticks and divide by TestHarness.TicksPerSecond. Do not widen it to clear this");
+					$"{name} cannot pass at a {timestepMs} ms timestep: its outer deadline is {effective} "
+					+ $"ticks but the run needs {neededTicks} ({composition}). Those needed ticks do NOT "
+					+ "scale with TestHarness.TicksPerSecond, so the deadline must not either — budget it "
+					+ "in ticks and divide by TestHarness.TicksPerSecond. Do not widen it to clear this");
 			}
 		}
 
@@ -224,30 +301,27 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// Loads the REAL scenario Lua with TestHarness.TicksPerSecond forced to `ticksPerSecond` and
-		/// returns (tick budget, deadline AssertWithin would actually use). This executes the shipped
-		/// arithmetic instead of restating it in C#, which is the difference between checking that the
-		/// scenario is written the way we think and checking what it computes. Appended to the same
-		/// chunk because OuterTicks/OuterSeconds are file-scope LOCALS and a second chunk cannot see
-		/// them. Only the scenario's top level runs — WorldLoaded is defined, never called — so no
-		/// engine-bound global is touched and this needs no world.
+		/// Loads the REAL scenario Lua at the given timestep and returns (tick budget, deadline
+		/// AssertWithin would actually use). This executes the shipped arithmetic instead of restating
+		/// it in C#, which is the difference between checking that the scenario is written the way we
+		/// think and checking what it computes. Appended to the same chunk because OuterTicks and
+		/// OuterSeconds are file-scope LOCALS and a second chunk cannot see them. Only the scenario's top
+		/// level runs — WorldLoaded is defined, never called — so no engine-bound global is touched and
+		/// this needs no world.
 		/// </summary>
-		static (int Budget, int Effective) RunScenarioDeadlineAt(string scenarioName, double ticksPerSecond)
+		static (int Budget, int Effective) RunScenarioDeadlineAt(string scenarioName, int timestepMs)
 		{
-			var helper = ReadRepoFile("mods", "ww3mod", "scripts", "test-helpers.lua");
 			var scenario = Scenario(scenarioName);
 
 			using (var runtime = new LuaRuntime())
 			{
-				runtime.DoBuffer(helper, "test-helpers.lua").Dispose();
+				runtime.DoBuffer(HarnessSource(), "test-helpers.lua").Dispose();
 
-				// The flip, simulated exactly: the scenario reads this constant as it loads.
-				runtime.DoBuffer(
-					"TestHarness.TicksPerSecond = " + ticksPerSecond.ToString(CultureInfo.InvariantCulture),
-					"rate").Dispose();
+				// The flip, simulated exactly: the scenario reads these as it loads.
+				runtime.DoBuffer(OverrideTimestep(timestepMs), "timestep").Dispose();
 
 				var probe = scenario
-					+ "\nreturn tostring(OuterTicks) .. \":\" .. tostring(math.floor(OuterSeconds * TestHarness.TicksPerSecond))";
+					+ "\nreturn tostring(OuterTicks) .. \":\" .. tostring(TestHarness.TicksForSeconds(OuterSeconds))";
 
 				using (var results = runtime.DoBuffer(probe, scenarioName + ".lua"))
 				{
@@ -261,30 +335,30 @@ namespace OpenRA.Test
 		}
 
 		/// <summary>
-		/// THE DELIVERABLE, EXECUTED. Both scenarios are loaded for real at the harness constant as it
-		/// ships (25) and at the engine's rate a correction would move it to (16), and the deadline
-		/// AssertWithin would use is read back out of Lua. Byte-identical at both rates is what
-		/// "immune to the constant" means; the arithmetic above only shows we believe it.
+		/// THE DELIVERABLE, EXECUTED. Both scenarios are loaded for real at the shipped 60 ms timestep
+		/// (16.667 ticks/second) and at 40 ms (25 ticks/second, the harness's former hardcoded value),
+		/// and the deadline AssertWithin would use is read back out of Lua. Byte-identical at both is
+		/// what "immune to the constant" means; the arithmetic above only shows we believe it.
 		/// </summary>
 		[TestCase("test-autotarget-preempt-air", 174)]
 		[TestCase("test-critical-no-panic", 325)]
 		public void ScenarioDeadlineIsIdenticalAtBothRatesWhenTheLuaActuallyRuns(string scenarioName, int neededTicks)
 		{
-			var atHarnessRate = RunScenarioDeadlineAt(scenarioName, 25.0);
-			var atEngineRate = RunScenarioDeadlineAt(scenarioName, 16.0);
+			var atShippedRate = RunScenarioDeadlineAt(scenarioName, 60);
+			var atOldHarnessRate = RunScenarioDeadlineAt(scenarioName, 40);
 
-			Assert.That(atHarnessRate.Effective, Is.EqualTo(atEngineRate.Effective),
-				$"{scenarioName} computes a different deadline at 25 ({atHarnessRate.Effective} ticks) "
-				+ $"than at 16 ({atEngineRate.Effective} ticks), so it is still sensitive to "
-				+ "TestHarness.TicksPerSecond and the flip cannot be a one-line change");
+			Assert.That(atShippedRate.Effective, Is.EqualTo(atOldHarnessRate.Effective),
+				$"{scenarioName} computes a different deadline at 16.667 ({atShippedRate.Effective} ticks) "
+				+ $"than at 25 ({atOldHarnessRate.Effective} ticks), so it is sensitive to "
+				+ "TestHarness.TicksPerSecond again");
 
-			Assert.That(atHarnessRate.Effective, Is.EqualTo(atHarnessRate.Budget),
+			Assert.That(atShippedRate.Effective, Is.EqualTo(atShippedRate.Budget),
+				$"{scenarioName}: the ticks->seconds->ticks round-trip lost a tick at the shipped 16.667");
+			Assert.That(atOldHarnessRate.Effective, Is.EqualTo(atOldHarnessRate.Budget),
 				$"{scenarioName}: the ticks->seconds->ticks round-trip lost a tick at 25");
-			Assert.That(atEngineRate.Effective, Is.EqualTo(atEngineRate.Budget),
-				$"{scenarioName}: the ticks->seconds->ticks round-trip lost a tick at 16");
 
-			Assert.That(atEngineRate.Effective, Is.GreaterThan(neededTicks),
-				$"{scenarioName} budgets {atEngineRate.Effective} ticks but the run needs {neededTicks}. "
+			Assert.That(atShippedRate.Effective, Is.GreaterThan(neededTicks),
+				$"{scenarioName} budgets {atShippedRate.Effective} ticks but the run needs {neededTicks}. "
 				+ "That requirement is a sum of raw tick counts and does not move with the constant");
 		}
 
@@ -305,12 +379,13 @@ namespace OpenRA.Test
 			var headroom = ReadInt(src, Name + " OuterTicks headroom",
 				@"^\s*local\s+OuterTicks\s*=\s*SpawnHeliAfterTicks\s*\+\s*DeadlineTicks\s*\+\s*(\d+)");
 
-			// The spawn delay is a raw Trigger.AfterDelay now, deliberately NOT DateTime.Seconds: that
-			// would re-couple it to Timestep, which is the third tick base in play.
+			// The spawn delay is a raw Trigger.AfterDelay, deliberately NOT DateTime.Seconds. The two
+			// converters agree today, but DateTime.Seconds still moves with mod.yaml's Timestep while
+			// DeadlineTicks does not, so keeping it raw keeps the pair locked together.
 			Assert.That(Regex.IsMatch(src, @"DateTime\.Seconds\(\s*\w+\s*\)\s*,\s*function"), Is.False,
-				$"{Name} schedules from DateTime.Seconds again. That is the ENGINE base (1000/Timestep, "
-				+ "integer), so the spawn delay would move with mod.yaml's Timestep while DeadlineTicks "
-				+ "does not. Keep it a raw tick count");
+				$"{Name} schedules from DateTime.Seconds again. That converts through mod.yaml's Timestep, "
+				+ "so the spawn delay would move with the game speed while DeadlineTicks does not. Keep it "
+				+ "a raw tick count");
 
 			AssertDeadlineIsRateImmune(Name, spawnTicks + deadlineTicks + headroom, spawnTicks + deadlineTicks,
 				$"spawn delay {spawnTicks} + DeadlineTicks {deadlineTicks}");

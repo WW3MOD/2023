@@ -21,7 +21,8 @@ WorldLoaded = function()
 				.. Bradley.AmmoCount("secondary-ammo")
 				.. " < " .. startingAmmo .. ")")
 		else
-			Test.Pass()
+			Test.Pass("5 trees on the line (density 5 > ClearSightThreshold 4): Bradley never fired, " ..
+				"secondary-ammo held at " .. startingAmmo .. " for the full " .. DeadlineSeconds .. "s")
 		end
 	end)
 end

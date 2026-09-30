@@ -77,9 +77,23 @@ pauperabrams:
 #
 # ALL TEN VISION LAYERS ARE REMOVED, exactly as test-fog-darkness-ruler's fogmarker
 # does and for a related reason: PBOX inherits ^Defense -> ^StandardVision
-# (structures-defenses.yaml:5), and a stock pillbox lighting its own 32-cell circle
-# would be an unnecessary second vision source in a scenario whose whole premise is
-# that USA's vision reaches nowhere near 60,30. Removal rather than a zeroed Range,
+# (structures-defenses.yaml:5), and when this was written a stock pillbox lit its own
+# 32-cell circle, which would have been an unnecessary second vision source in a
+# scenario whose whole premise is that USA's vision reaches nowhere near 60,30.
+#
+# TWO THINGS HAVE SINCE CHANGED THAT ARGUMENT AND NEITHER CHANGES THE OUTCOME. First,
+# this probebox is RUSSIA-owned, and Vision.ValidRelationships defaults to Ally
+# (Vision.cs:24, enforced in AddCellsToPlayerMapLayer at :48-50), so its circle could
+# never have revealed anything for USA in the first place. Second, since 70e63582
+# (wt/neutral-entry, 2026-09-21) PBOX inherits ^StandardVisionWhenLoaded
+# (structures-defenses.yaml:215), which re-states all ten Vision@N keys carrying
+# `RequiresCondition: loaded` (defaults.yaml:156-177); MiniYaml key collision gates the
+# whole ladder, so an UNMANNED pillbox reveals nothing at all. Nothing garrisons this
+# probe. The removals STAY -- they keep the probe independent of both facts -- but they
+# are belt-and-braces, not load-bearing. Audited 2026-09-22,
+# WORKSPACE/audit/260922-pbox-vision-gate.md.
+#
+# Removal rather than a zeroed Range,
 # because nothing in the engine declares VisionInfo as a requirement and a Range of 0
 # beside an inherited non-zero MinRange is a self-inconsistent trait rather than an
 # absent one.

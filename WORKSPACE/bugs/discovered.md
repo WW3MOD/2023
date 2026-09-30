@@ -5,6 +5,207 @@
 
 ---
 
+- [2026-09-22] [MEDIUM] **The engineer's repair employment cannot service a MOVING casualty: it is a
+  stern chase at infantry speed against a cell refreshed once per 200 ticks, and it can never close.**
+  `EngineerOperatorBotModule.IssuePark` issues an unqueued `Move` to a fixed cell and
+  `OrderSettleTicks` (200) then holds that order even once the anchor is stale, so a damaged vehicle
+  that is under anyone else's orders — an offensive axis, a defence line, a garrison walk — outruns
+  the engineer indefinitely. Observed in both recorded runs of
+  `test-experimental-engineer-repairs`: the `[engineer] ... repair cell=` anchor tracks the casualty
+  east across `24,16 -> 36,16 -> 47,14 -> 56,6` while the engineer trails 12-20 cells behind
+  (`~/.ww3mod-tests/screenshots/260921_213228_p64650`, `260922_063223_p90965`).
+  **NOT the same bug as the park-on-top defect fixed at `RepairParkAnchor` on branch
+  `wt/engineer-repairs-regress`, and not fixed by it** — that one stopped him being ordered into the
+  casualty's body; this one is about the anchor going stale. Arguably acceptable behaviour (he trails
+  the group and catches up when it halts), which is exactly why it wants a measurement before a
+  change: `FindRepairTarget` picks the NEAREST damaged friendly with no viability term, so a racing
+  casualty can shadow a genuinely parked one 3 cells from the SR that he could have serviced all
+  match. Two candidate shapes, neither measured: give the repair employment a viability test in the
+  spirit of `EngineerTaskingMath.IsBreachViable` (refuse a casualty that is ledger-committed to
+  another objective), or abandon a target the engineer has not gained ground on across two
+  evaluations. **Deliberately left alone** rather than bundled into the park fix — it is a second
+  behavioural change with no scenario that can currently discriminate it, since
+  `test-experimental-engineer-repairs` now holds its casualty still by design.
+  (found while working on: the `test-experimental-engineer-repairs` pass/fail flip, 260921 vs 260922)
+- [2026-09-22] [MEDIUM] **No detector exists for the reverse of the bot-desync class: SYNCED code
+  reading state that only bot ticks refresh.** Filed as its own entry because it has been named
+  three times inside other entries and never once as a thing that can be triaged, assigned or
+  closed — see the trailing caveats on the 2026-08-16 GREEN and STATIC AUDIT paragraphs further
+  down this file, and `audit/260816-bot-direct-mutation.md`. **This is NOT a new discovery and NOT
+  a reported symptom; nothing observed is attributed to it.** What is filed is the absence of a
+  detector. The forward direction — *a bot module mutates synced state directly* — is now bounded
+  twice over: statically, by the 2026-08-16 sweep, and continuously, by
+  `engine/OpenRA.Test/BotOrderedMutationTest.cs` (86 bot-layer types, 12,668 call tokens, zero
+  offences, RED under sabotage). The reverse direction is bounded by nothing. **Why the obvious
+  instruments cannot see it:** the whole-match `SyncHash` sweep watches mutations reaching the
+  hash, and this shape performs no mutation at all — it is a READ, on a client where bot ticks ran,
+  of state a restored or non-host client never refreshed, and it only surfaces later as a different
+  branch taken. `BotOrderedMutationTest` scans bot-layer code for writes and would not look at the
+  reader. The dynamic instrument (`test-savegame-resume-riverzeta`) *would* go red on it, but it
+  goes red identically for every member of every class and names nothing. **Cheapest attack, not
+  attempted here:** enumerate the state bot ticks refresh (bot-module fields and the ledgers they
+  own), then grep for reads of it from `ITick`/`IResolveOrder`/activity code — the mirror of the
+  sweep that bounded the forward direction, and enumerable by reading rather than by running.
+  Severity is MEDIUM on consequence-if-live (a saved-game or multiplayer divergence) discounted by
+  there being no evidence it is live.
+  (found while working on: audit package 10 / defect S2, branch `wt/savegame-facing`,
+  `main @ 4a11439f`)
+
+- [2026-09-22] [HIGH] **A Tunguska at 24 cells, missiles loaded, under a live player attack order,
+  never fires its 9M311 and never closes — it just stands there for 30 s.**
+  `test-tunguska-missile-standoff` re-run at the scenario's ORIGINAL authored budget (500 ticks,
+  restored from the 333 the tick flip had cut it to) fails identically to the shrunken run:
+  `~/.ww3mod-tests/screenshots/260922_013509_p61719` — "tunguska never fired a 9M311 — it sat at 24
+  cells with missiles loaded and a live order". **The budget was never the cause.** Two facts pin
+  the behaviour rather than the rig: the verdict is `AssertWithin`'s `timeoutReason`
+  (`test-tunguska-missile-standoff.lua:107`, no `fail:` prefix), so the predicate never tripped any
+  of its three abort branches — in particular it did **not** take the
+  `Tunguska.Location.X > ClosingCol` branch, so the unit did not drive east toward 30 mm range
+  either. It neither fired nor closed. The order is a plain click with `allowMove=true`
+  (`.lua:90`), which the scenario notes is load-bearing: the unit is permitted to close, so this is
+  a choice, not an inability to reach. `lua.log` carries one line —
+  "littlebird 10 (not in world) is an invalid target for tunguska 9 (not in world)" — which is
+  teardown, both actors already gone.
+  (found while working on: verifying the tick-budget restorations,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+
+- [2026-09-22] [HIGH] **A player-issued attack order on a crate lands no damage in 30 s** —
+  `test-crate-force-attack` at its restored 500-tick budget, run
+  `~/.ww3mod-tests/screenshots/260922_013809_p64154`, fails with `.lua:42`'s `timeoutReason`
+  ("the manual attack order never damaged the crate — excluding it from auto-target has broken the
+  player's own attack order as well"). No `fail:` prefix, so the predicate never took its
+  `MyTank died` branch — the tank was alive throughout and the crate's health never moved. The
+  scenario's own framing is the hypothesis to test first: the crate is excluded from auto-target,
+  and the exclusion may have been implemented somewhere that also vetoes the explicit order.
+  Identical outcome at 333 and at 500 ticks, so this is not a budget artefact. `lua.log` is empty.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
+- [2026-09-22] [MEDIUM] **The WGM tree-density gate is not a threshold — the fire/deny ladder is
+  non-monotonic, and 3 trees denies while 5 and 6 fire.** `test-wgm-tree-density-ladder` expects
+  `trees 0..3 → fire, 4..6 → deny` (`ClearSightThreshold = 3`, `.lua:6-8`). Observed at the
+  restored 200-tick budget (`~/.ww3mod-tests/screenshots/260922_015937_p75311`):
+  `0t=F 1t=F 2t=F 3t=- 4t=- 5t=F 6t=F` — rungs 3 and 4 sat at full ammo 8 (never fired a round),
+  rungs 5 and 6 fired. **Budget is proven irrelevant here, which is what makes it worth filing.**
+  The same run at the shrunken 133-tick budget produced the identical classification for all seven
+  rungs (`0t=F(a7) … 3t=-(a8) 4t=-(a8) 5t=F(a7) 6t=F(a7)`); the only thing the extra 67 ticks
+  changed was that each *firing* lane got one more round away (ammo 7 → 6). A lane that fires does
+  so well inside 133 ticks, and a lane that denies still denies at 200 — so the deny/fire decision
+  is made early and is not time-dependent. Either the density gate mis-counts, or the rig's tree
+  placement does not match the `trees = N` labels in `pairs_data` (`.lua:21-28`) — the second is
+  cheap to check first and would make this a rig bug rather than an engine one.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
+- [2026-09-22] [MEDIUM] **Five ambushing defenders in cover killed none of five attackers in 135 s,
+  while losing one of their own.** `test-case01-forest-ambush` at its restored 2250-tick budget
+  (`~/.ww3mod-tests/screenshots/260922_015253_p71898`) reports
+  `defLoss=100 attLoss=0 survDef=4/5 survAtt=5/5 sprang=true refined=5/5 attKilled=0 defDmgTot=461`.
+  The ambush sprang and all five defenders were confirmed seated in cover
+  (`refined(seated-in-cover)=5/5`, `densWin=100` each, `lua.log`), so the staging is sound. **The
+  budget restoration is visible in the data and did not move the verdict**: damage taken rose
+  256 → 461 and defenders damaged 3/5 → 4/5, and the one defender death landed at tick 2398,
+  i.e. outside the 1500-tick window the flip had imposed — but `attKilled` stayed 0 in both runs.
+  The trend runs the wrong way for a time explanation: more window produced more *defender*
+  casualties, not attacker ones. **Instrumentation gap that blocks the diagnosis:** the scenario
+  records `defDmgTot` but no attacker-damage total, so it cannot distinguish "the ambush is landing
+  damage too slowly to kill" from "the ambush is landing no damage at all". Add an `attDmgTot`
+  before drawing a conclusion. Note also the verdict PROSE is stale — it hardcodes
+  "so defLoss=0 is vacuous" while the same string reports `defLoss=100`.
+  (found while working on: verifying the tick-budget restorations, same audit)
+
+- [2026-09-22] [MEDIUM] **`test-power-buy-loop` died without unwinding — no `result.json`, zero-byte
+  `lua.log`, and NO managed exception anywhere in `debug.log`.** Run dir
+  `~/.ww3mod-tests/screenshots/260921_232523_p65425_test-power-buy-loop` (batch at
+  `wt/tick-rate @ e6732446`); `result.launchstamp` present, `debug.log` 4379 bytes.
+  **There is no stack trace to quote, and that is the finding.** The only four `Exception` matches
+  in that log are the routine mod probes — `Load mod '…/engine/mods/cnc': InvalidDataException:
+  'FileSystem' section is not defined` for cnc/d2k/all/ts — which appear identically in every run in
+  the batch, including passing ones, so they are not the crash. The log ends mid-stream after normal
+  output (`[danger] pct player=FreadyFish n=2 chan=air …`), with the world constructed
+  (`DEFCON wall derived from 2 home(s) in 2 group(s)`) and the scenario armed
+  (`Scenario selection: 'none'`, `[TestMode] speed multiplier 8x — Timestep 60 → 7 ms/tick`).
+  **Not a scenario timing crash** — `test-power-buy-loop.lua` contains no `AssertWithin`,
+  `AssertAfter`, `ScreenshotAfter` or `TicksPerSecond`, so the 16.667 tps flip on that branch cannot
+  reach it; it is immune by construction. Unreproduced (a single batch observation, no rerun).
+  Note this is also a live instance of the 2026-09-21 entry below: a crash with no pre-existing
+  exception log is exactly the case `run-test.sh` cannot grade as `CRASH`.
+  (found while working on: triaging the full suite after the tick-rate flip,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+
+- [2026-09-22] [MEDIUM] **`test-depot-vacate-phantom` takes a screenshot on EVERY TICK of its
+  `AssertWithin` predicate, and the PNG writes blow the 300 s wall clock before the tick budget can
+  expire.** `TestHarness.Screenshot("2-vacated", …)` (`test-depot-vacate-phantom.lua:226`) sits
+  inside the per-tick predicate with **no latch**, after the settle/on-footprint rungs pass but
+  while the predicate is still waiting on the later Tank2 rung. Run
+  `~/.ww3mod-tests/screenshots/260921_205245_p35609_test-depot-vacate-phantom` wrote **98 identical
+  `2-vacated` PNGs** and reported `timeout: no verdict after 300s`.
+  **Rate-independent, and worth saying because the scenario's own comment says otherwise:**
+  `.lua:66-73` predicts that a timeout would mean the budget needs re-deriving after the 16.667
+  flip. It does not — the flip cut the budget 1875 → 1250 ticks, which is *fewer* iterations of the
+  loop, so the flip made this less likely to bite, not more. The fix is to latch the capture (the
+  `lineCells` latch a few lines above is the pattern already in the file), not to widen or narrow
+  any deadline. Left unfixed: it is scenario logic, outside that triage's remit.
+  (found while working on: triaging the full suite after the tick-rate flip,
+  `WORKSPACE/audit/260922-tick16-suite-triage.md`)
+- [2026-09-21] [MEDIUM] [**FIXED 2026-09-22**, `wt/hotkey-reference`: `WaypointMode` moved to
+  `O Shift`; the panel no longer draws either row red, and the command bar's Waypoint Mode button
+  has a working key for the first time. The "which one is dead" question below is answered in the
+  resolution note at the end of this entry.] **`O` is bound twice in the Player context, so one of
+  the two commands is dead and nothing says which** (found while: re-deriving audit 260921 §2.5/§2.6 for the hotkey
+  reference, `wt/hotkey-reference`, `main @ d69e6883`). `WaypointMode: O`
+  (`engine/mods/common/hotkeys/game.yaml:187`, `Types: OrderGenerator`, `Contexts: Player`) and
+  `ProductionTypePowers: O` (`mods/ww3mod/hotkeys.yaml:20`, `Types: Production`, `Contexts:
+  Player`). **CONFIRMED ON SCREEN 2026-09-22**, run `manual_hotkeys_260922_011140`: the panel draws
+  `Waypoint (queue orders) mode: O` in the red `HotkeyColorInvalid`, so this is no longer an
+  inference from the definitions — it is what the game says about itself, to any player who opens
+  the panel. That is exactly `HotkeyManager.GetFirstDuplicate`'s predicate — equal value **and**
+  overlapping `Contexts` (`HotkeyManager.cs:91-103`) — so both already render red in
+  Esc → Settings → Hotkeys; nobody has opened it. **Scanned all 198 definitions the mod loaded at
+  that ref; this is the only collision.** The command-bar `WAYPOINT` button
+  (`ingame-player.yaml:521`) and the production tab button (`:1583`) are visible simultaneously in a
+  normal match, and `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks children in reverse
+  returning on the first claim, so the later-drawn one wins and the other silently never fires.
+  **Which one loses was NOT determined** — that is a draw-order question and no capture was taken;
+  do not assume it from the file order. **Not fixed here**: the repair is picking a new default for
+  one of them, `K` is the only free unmodified letter left in the Player context, and spending it is
+  a design call rather than a worker's. `ww3mod|hotkeys.yaml`'s own header comment asserts the
+  `Y/U/I/O` run is "unbound in the Player context", which was already false when written.
+  **RESOLUTION 2026-09-22.** The dead one was `WaypointMode` — settled by reading, not by capture.
+  `Widget.HandleKeyPressOuter` (`Widget.cs:450-465`) walks `Children` in **reverse** and returns on
+  the first handler that claims the key; under `Container@PLAYER_WIDGETS` the production sidebar is
+  child index **24** and the command bar index **15**, so the sidebar is reached first and
+  `ProductionTypeButton@POWERS` takes `O`. It does so **unconditionally**: `ButtonWidget
+  .HandleKeyPress` returns `true` even when the button is disabled (`:160-169`), and nothing hides
+  the tab (`ClassicProductionLogic` sets `IsVisible` on the scroll arrows only). So the command
+  bar's `QUEUE_ORDERS` key has never fired since `746c592c` gave it one. Moved to `O Shift` rather
+  than to `K`: `K` is the last free bare letter and this is a comfort toggle over a gesture that
+  already exists (the button's own tooltip says *"Hold {(Shift)} to activate temporarily"*, and
+  Shift+right-click already queues), so Shift is both the cheaper and the more mnemonic modifier.
+  `HotkeyReference.IsActivatedBy` compares `Modifiers` for equality (`:43`), so `O Shift` cannot
+  re-collide with the tab's bare `O`. Re-swept all 209 definitions afterwards: **0 duplicate
+  bindings with overlapping contexts.**
+
+
+- [2026-09-21] [MEDIUM] **`run-test.sh` cannot report a CRASH unless a `debug.log` already exists,
+  and `tools/autotest/selftest.sh` has two red cases saying so.** Running the selftest on
+  `main @ 70e63582` (stub launcher, no game) gives `crash (fresh exception log)` → wanted
+  `CRASH` exit 3, got `NO-RESULT` exit 3, plus its companion `crash report does not name the
+  exception log`. **Pre-existing, not from `wt/assertwithin-audit`** — verified by running the
+  same selftest against `main`'s own `run-test.sh`, where both still fail. The mechanism:
+  crash detection finds the exception log by taking `dirname` of whatever `find_debug_log`
+  returns (`run-test.sh:1121-1127`), and `find_engine_log` returns **empty** when no
+  `debug.log` is present (`ls -t "${_dir}/debug.log" … | head -1`). Empty `_dbg` skips the
+  whole block, `CRASH_LOG` stays unset, and the run is graded `NO-RESULT`.
+  **Two readings, and a person should pick one.** (a) The fixture is under-specified: a real
+  engine crash writes `debug.log` before it throws, so the stub writing only
+  `exception-selftest.log` is a shape the engine never produces — fix the stub. (b) The runner
+  is genuinely fragile: an engine that dies *before* creating `debug.log` leaves an exception
+  log that this code can never find, and reports `NO-RESULT` (exit 3, "hung or closed by hand")
+  for a crash. **Not fixed here** — (a) is a one-line fixture change that would also hide (b),
+  and choosing between them is a judgement about what the gate is for. Note the selftest is
+  therefore red on a clean tree, which costs it the thing it exists for: nobody re-reads a
+  suite that is already failing. (found while: adding the PASS-EMPTY tripwire cases to that
+  same selftest, branch `wt/assertwithin-audit`)
+
 - [2026-09-20] [MEDIUM] **`demo-nuke-arsenal` cannot fire two of its six warheads, and has not been
   able to since the powers were faction-tiered.** The demo fires all six shots from USA
   (`demo-nuke-arsenal.lua` `SHOTS`, all `Test.ActivateSupportPower(USA, ...)`), but
@@ -646,6 +847,21 @@ button never un-highlights · three stale duration/gate comments · the stray It
   decision and not this branch's to make. **Comparison against `main` was by reading the width
   arithmetic, NOT by screenshot**, so "pre-existing" is reasoned, not observed.
   (found while working on: the typed-element tooltip rewrite, `wt/tooltip-elements`)
+
+  **FIXED 2026-09-21 on `wt/tooltip-legibility` (base `main @ d69e6883`), by the first of those two
+  routes.** The transparency is now a measured number rather than an observation: `dialog4`'s centre
+  tile, `uibits/dialog.png` 518,393 52x52, is `(0,0,0,159)` at **every one of its 2704 pixels** —
+  38% of what is behind it came through. `PRODUCTION_TOOLTIP` now draws on a new `tooltip-panel`
+  collection: dialog4's eight frame pieces byte-for-byte, with `background` moved to dialog5's
+  fully-opaque black tile (580,388 62x62). **The right column was NOT narrowed and the panel still
+  overlaps the sidebar** — the entry is right that the geometry is not the bug.
+  Two things stay true and are not regressions: the 6px frame ring is still alpha-159 black plus its
+  bevel highlight, deliberately, because replacing it would flatten the bevel every other panel in
+  the mod has; and **this was still not settled by screenshot** — it is settled by decoding the art,
+  which `engine/OpenRA.Test/TooltipPanelOpacityTest.cs` now does on every test run (RED-controlled
+  both ways: reverting to `dialog4`, and re-pointing `background` at the translucent tile, each fail
+  with their own message). A capture request is staged at
+  `tools/autotest/scenarios/demo-production-tooltip/README.md` for the manager to run.
 
 ---
 

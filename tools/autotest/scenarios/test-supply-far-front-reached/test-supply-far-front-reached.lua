@@ -222,7 +222,10 @@ WorldLoaded = function()
 			-- happened, and walking home does not undo it.
 			if back >= NEED_BACK and peakDrift() <= MAX_DRIFT then
 				verdict = true
-				Test.Pass()
+				Test.Pass(string.format(
+					"resupplied at second %d: %d of 5 riflemen climbed clear (need >= %d) with peak " ..
+					"drift %d (max %d); truck reached x=%d",
+					s, back, NEED_BACK, peakDrift(), MAX_DRIFT, truckMaxX))
 			end
 		end)
 	end
@@ -248,7 +251,10 @@ WorldLoaded = function()
 
 		if fed and held then
 			verdict = true
-			Test.Pass()
+			Test.Pass(string.format(
+				"resupplied by the end of the window: best %d of 5 riflemen climbed clear (need >= %d) " ..
+				"with peak drift %d (max %d); truck reached x=%d",
+				bestBack, NEED_BACK, drift, MAX_DRIFT, truckMaxX))
 			return
 		end
 

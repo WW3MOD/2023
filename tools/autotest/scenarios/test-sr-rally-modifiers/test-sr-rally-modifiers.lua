@@ -23,5 +23,6 @@ WorldLoaded = function()
 	if not expect("Shift+default", "Shift", "Move") then return end
 	if not expect("Shift+Alt", "Shift Alt", "AttackMove") then return end
 
-	Test.Pass()
+	Test.Pass("all 5 rally-click modifiers resolved through IIssueOrder: default=Move, Alt=AttackMove, " ..
+		"Ctrl=ForceMove, Shift=Move, Shift+Alt=AttackMove")
 end

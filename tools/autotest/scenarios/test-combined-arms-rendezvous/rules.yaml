@@ -1,15 +1,53 @@
 # Deliberately kept as close to test-experimental-poi-observe as possible — that
 # is the known-good shape for a Lua-verdict scenario driving the @experimental
-# bot from a spectator slot. An earlier revision of this file also removed
-# SpawnStartingUnits / CrateSpawner / ConquestVictoryConditions and forced
-# DefaultCash to 0 to freeze the force under test; that run never produced a
-# verdict at all, so the extra overrides are not worth the risk. The measurement
-# only ever looks at NAMED actors, so incidental units the bot buys or spawns do
-# not affect it.
+# bot from a spectator slot.
+#
+# DefaultCash 0, RESTORED 2026-09-22 WITH THE MISSING HALF, and the history matters
+# because this file has been here before. An earlier revision forced cash to 0
+# *and* removed SpawnStartingUnits / CrateSpawner / ConquestVictoryConditions, and
+# "that run never produced a verdict at all", so the whole bundle was reverted to
+# 7500. The diagnosis in that note was wrong about which part did the damage: at
+# cash 0 the named actors are the entire force, and of USA's six exactly ONE
+# reaches offense's free pool — the bradley is in PoiOffensiveBotModule's
+# ExcludeUnitTypes (ai.yaml) and all four e3.america are PassengerTypes, withheld
+# by TransportStandoffEnabled while an empty carrier wants them. Against
+# EarlyMinAxisSize 2 and FreePoolMinAdvanceUnits 2 a pool of one forms no axis and
+# is barred from advancing, so the tank never moves, clause (a) is never satisfied
+# and the run times out having measured nothing. THAT is the no-verdict, and it is
+# arithmetic, not a spawn-override side effect.
+#
+# So cash 0 comes back together with a SECOND free-pool unit in map.yaml (BotTank2),
+# which is the smallest staging that reaches the floor of 2. Only the cash line is
+# overridden here; the spawn/crate/victory traits are left exactly as they were,
+# since nothing ever demonstrated they were the problem.
+#
+# WHY CASH HAD TO GO. At 7500 both bots buy, and the measurement stopped being
+# about the ferry: Russia fielded t90 x2 + giatsint + bmp2 + btr and ordered a
+# 3-unit flank (via 33,21) at t443, against USA's single lead abrams. The lead
+# advanced to x=19-21, stopped at contact and died alone — t624 @ 21,16 (run
+# 260922_200826) and t567 @ 19,16 (run 260922_203626), with 260922_193617 the same
+# shape. Clause (a) "tank alive at judgement" was racing an enemy army on a clock
+# that closes by ~t600, while the carrier needs ~190 ticks to close the last cells;
+# the margin was zero either way and no change to the transport could move it.
+# The two-t90 reduction recorded in map.yaml was the right instinct and did not go
+# far enough — it capped the BELIEF source but left the PURCHASED army untouched,
+# and the purchased army is what killed the tank.
+#
+# The two t90s STAY. They are the belief source the control field needs, and at
+# cash 0 they are also the whole of Russia's offence: 54 cells from USA's Supply
+# Route, which is far outside the measurement window.
+#
+# NO AI FLAG OVERRIDES. The offensive and transport modules run on shipped ai.yaml,
+# so what this scenario judges is the shipped configuration. Contrast
+# test-ambush-lane-share, which deliberately stages the OPPOSITE condition by
+# lifting the axis floors to 40 so no axis can form — and verifies that override at
+# runtime rather than assuming it merged. The analogous premise here is "USA's free
+# pool reaches the advance floor"; the Lua reads it back through
+# Test.GetBotOffenseFreePool and SKIPs rather than timing out if it never does.
 
 Player:
 	PlayerResources:
-		DefaultCash: 7500
+		DefaultCash: 0
 
 World:
 	-StartGameNotification:

@@ -1,0 +1,138 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Ambush lane army-share reserve
+
+Author: WW3MOD autotest
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# PIPELINE item 86 — the ambush lane's share of a small army.
+#
+# THE DEFECT. LaneAmbushBotModule's budget argument is "MaxAmbushes x UnitsPerAmbush is
+# small, so offense keeps the rest". That assumes offense has units to spare. At the
+# opening it does not: measured in run 260906_091912, with three eligible units the lane
+# took two — the army's only MBT among them — and posted them 40% of the way to the enemy
+# beachhead while `[exp-staging] hold-under-min pool=1 min=2` shows offense correctly
+# refusing to advance the one unit left to it. Both modules were right in isolation.
+#
+# WHAT THIS SCENARIO ASSERTS, and it is deliberately NOT a positional or survival claim:
+# units held under an `ambush:` commitment must stay at zero while offense's own free pool
+# is at or under its advance floor. Read through Test.GetBotLedgerHeld /
+# GetBotOffenseFreePool / GetBotOffenseAdvanceFloor — the same numbers the reserve itself
+# decides on, so the verdict and the mechanism cannot drift apart.
+#
+# WHY IT IS A SEPARATE SCENARIO FROM test-combined-arms-rendezvous, which was the original
+# measurement and CANNOT do this job. Two runs there, one per arm, both FAIL and
+# indistinguishable:
+#   * 260922_012732 (reserve ON): the reserve bound perfectly — `allow=0 free=2
+#     offense-free=2 min=2 waived=none lanes=0` at every eval, ledger never shows
+#     `by=ambush` — and the run still printed FAIL, because the tank it judges belongs to
+#     the OFFENSIVE AXIS, not the lane. `[composition] census tick=80` gives USA exactly
+#     `abrams=1 ar.america=1` (the bradley is the carrier, the four e3 are
+#     transport-claimed), which is the precise `pool=2` the t120 axis took whole; the tank
+#     moves 8,16->11,16 across t100-t200 while the lane still reads `lanes=0`.
+#   * 260922_012930 (reserve OFF): also FAIL, and the lane posted nothing HERE TOO, because
+#     offense had already absorbed the pool into its axis before the lane's eval. A control
+#     that cannot fail differently from its test is not a control.
+# That scenario measures item 64's rendezvous/lead-hold residual. This one measures item 86.
+#
+# THE OPENING IS CONSTRUCTED, not hoped for — see rules.yaml, which lifts the axis floor to
+# 40 so DesiredAxisCount returns 0, no axis ever forms, and offense holds its units in the
+# free pool permanently under its own advance floor. The override is read back at runtime
+# and the run SKIPS rather than passing if it did not merge.
+#
+# Player layout follows test-combined-arms-rendezvous: non-playable map players with Bot:
+# assigned directly and the local client in a spectator slot, so no lobby slot assignment is
+# needed. Exactly ONE Playable: True (the Observer).
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@Observer:
+		Name: Observer
+		Playable: True
+		Spectating: True
+		LockFaction: True
+		Faction: america
+	PlayerReference@USA-bot:
+		Name: USA-bot
+		LockFaction: True
+		Faction: america
+		Bot: experimental
+		Color: 4488FF
+		Enemies: Russia-bot
+	PlayerReference@Russia-bot:
+		Name: Russia-bot
+		LockFaction: True
+		Faction: russia
+		Bot: experimental
+		Color: FF4444
+		Enemies: USA-bot
+
+# One supplyroute per active faction (WW3MOD canon, and it keeps a faction alive so no
+# Mission-Accomplished overlay ends the run before the poller writes).
+#
+# THE TWO ABRAMS ARE THE MEASUREMENT and their eligibility is derived, not assumed:
+# `abrams` inherits ^AutoTargetMBT -> ^AutoTarget (vehicles-america.yaml:469,
+# defaults.yaml:457-458), which carries BOTH `AmbushTacticsCondition:
+# enable-ambush-tactics` (:430) and the `ExternalCondition@ambushtactics` seam (:454-455) —
+# so CanHostAmbush is true and the OBS-1 ^AutoTargetGround exclusion does not apply. Its
+# UnitRole is MainBattle ("an armed, mobile ground combatant with no more specialised
+# role", UnitRoleResolver.cs:380-382), which is what LaneAmbushBotModule's UseUnitRoles
+# filter admits. TWO of them, because MinUnitsPerAmbush is 2 on both profiles: one would be
+# refused by minimum manning and the RED arm would post nothing for a reason that has
+# nothing to do with the reserve.
+#
+# BOTH CELLS ARE PROVEN VEHICLE-PASSABLE rather than chosen from the preview: 8,16 held the
+# abrams and 8,18 the bradley in every test-combined-arms-rendezvous run on this same
+# map.bin. Do not move them to a cell no vehicle has stood on.
+Actors:
+	OwnSR: supplyroute
+		Owner: USA-bot
+		Location: 6,16
+	OpponentSR: supplyroute
+		Owner: Russia-bot
+		Location: 58,4
+	BotTank1: abrams
+		Owner: USA-bot
+		Location: 8,16
+	BotTank2: abrams
+		Owner: USA-bot
+		Location: 8,18
+	# Belief source, and it must stay FAR from our units. The lane needs an enemy anchor to
+	# draw a corridor to (GetOffensiveTargets -> Pressure), which the enemy SR above already
+	# supplies; these exist only so the control field has a believed enemy at all. Massed in
+	# the far corner deliberately — this scenario's verdict never reads a unit's survival, but
+	# a firefight that kills both abrams early would end the observation window with nothing
+	# measured, which the Lua reports as a SKIP.
+	EnemyTank1: t90
+		Owner: Russia-bot
+		Location: 60,30
+	EnemyTank2: t90
+		Owner: Russia-bot
+		Location: 62,31
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,4
+
+# LOAD-BEARING, and its absence is SILENT. Without this line rules.yaml is never read, so
+# LuaScript is never attached, no assertion ever runs and the scenario burns the full
+# watchdog with an empty lua.log — a scenario that measures nothing while looking like an
+# ordinary timeout. Blank line above is significant (adjacent MiniYaml top-level entries
+# merge). It ALSO carries the axis-floor override this scenario is built on.
+Rules: rules.yaml

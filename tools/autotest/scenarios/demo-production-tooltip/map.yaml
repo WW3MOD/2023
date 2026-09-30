@@ -1,0 +1,76 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Production Tooltip Legibility
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	# THE SUPPLY ROUTE IS THE WHOLE RIG. This demo photographs the production SIDEBAR, not the
+	# map, and the sidebar is empty until an enabled ProductionQueue exists — queues live on the
+	# player but are only Enabled while the player owns a producer, which in WW3MOD is the
+	# Supply Route and nothing else (no factories, no tech tree; DOCS/reference/game-model.md).
+	# Delete this actor and every capture below comes back with a bare sidebar and no tooltip,
+	# which photographs exactly like a broken hover.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 8,16
+	# One for the opponent as well, so neither side is eliminated before the captures run.
+	# Faction elimination would tear the world down mid-sequence and the later frames would
+	# land on a menu.
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 58,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,16
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 58,28
+	# ONE UNIT ON THE GROUND, DELIBERATELY, AND IT IS NOT THE SUBJECT. The tooltip is built from
+	# the ruleset (ProductionTooltipLogic reads ActorInfo, not an Actor), so nothing has to be
+	# built or alive for it to draw. This abrams exists only to give the camera something with
+	# contrast under the panel: the defect being photographed is "the sidebar shows THROUGH the
+	# tooltip", so the frame has to contain something behind it that would show.
+	Ballast: abrams
+		Owner: USA
+		Location: 20,16
+		Facing: 512
+	# NO ENEMY UNITS. Nothing may shoot, explode, or draw a muzzle flash during the sequence:
+	# an explosion behind the panel changes what "shows through" means between frames and would
+	# make two captures incomparable.
+
+Rules: rules.yaml

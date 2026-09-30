@@ -18,6 +18,7 @@ using OpenRA.Mods.Common.Traits;
 using OpenRA.Mods.Common.Widgets;
 using OpenRA.Mods.Common.Widgets.Logic.Ingame;
 using OpenRA.Scripting;
+using OpenRA.Support;
 using OpenRA.Traits;
 using OpenRA.Widgets;
 
@@ -254,6 +255,27 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			// World.OrderGenerator to a PlaceBuildingOrderGenerator and would throw AssertUnsynced from
 			// the synced Lua tick. It has survived only because every existing caller clicks a UNIT.
 			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconClick(actorType, MouseButton.Left, mods));
+		}
+
+		[Desc("Open the production tooltip for `actorType`'s build-menu icon, as a mouse hover does, " +
+			"switching the sidebar to the queue that offers it first. THE TOOLTIP IS NOT UP WHEN " +
+			"THIS RETURNS: the palette applies the hover on its next Tick, because the icon " +
+			"rectangles it needs only exist after a layout pass, and the capture itself samples one " +
+			"frame later still. Leave a delay before photographing. Returns false if no enabled " +
+			"queue offers the type. Test mode only.")]
+		public bool HoverProductionIcon(string actorType)
+		{
+			if (!TestMode.IsActive)
+				return false;
+
+			var palette = Ui.Root?.GetOrNull<ProductionPaletteWidget>("PRODUCTION_PALETTE");
+			if (palette == null)
+				return false;
+
+			// Unsynced for the same reason ClickProductionIcon is: this reaches into widget state
+			// from the synced Lua tick. Switching the queue rebuilds the icon list and touches the
+			// production-icon overlay cache, neither of which is part of the simulation.
+			return Sync.RunUnsynced(Context.World, () => palette.SimulateIconHover(actorType));
 		}
 
 		[Desc("State of the class-grouped unload menu: an empty string when it is closed, otherwise " +
@@ -1510,6 +1532,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return TestMode.IsActive ? TestMode.ImpactEffectCount : 0;
 		}
 
+		[Desc("The wall-clock cost in milliseconds of a recently completed simulation tick. This is " +
+			"the SAME quantity, in the same unit, that benchmark mode writes to the `tick_time` CSV: " +
+			"both read PerfItem.LastValue off PerfHistory.Items[\"tick_time\"] (Benchmark.cs:31), and " +
+			"that item's PerfSample lives in Game.InnerLogicTick (Game.cs:805) where it runs on every " +
+			"tick whether or not anything is sampling.\n" +
+			"WHY THIS EXISTS RATHER THAN Launch.Benchmark: setting Launch.Benchmark sets " +
+			"PerfHistory.Sampling (Game.cs:886), and TerrainLighting refuses its parallel sweep while " +
+			"that flag is true (TerrainLighting.cs:316-318). A benchmarked run therefore measures the " +
+			"serial relight, which is not the build the mod ships. This binding sets no flag and takes " +
+			"no sample, so it reads tick cost off the shipped configuration.\n" +
+			"THE VALUE LAGS TWO TICKS, AND NOT BY THE SAME AMOUNT AS THE CSV. PerfHistory.Tick() " +
+			"publishes the accumulated total and zeroes it at Game.cs:826, while the tick_time sample " +
+			"only disposes — and so only adds this tick's cost — when the using block closes at :833. " +
+			"A Lua tick callback runs inside world.Tick() at :824, i.e. before the publish, so what it " +
+			"reads is the cost of tick N-2. Benchmark.Tick runs at :834, after both, so a CSV row " +
+			"labelled N holds the cost of tick N-1. Offset by 2 here and by 1 there; never line a Lua " +
+			"reading up against a CSV row on the same tick number.\n" +
+			"Returns 0.0 before two ticks have completed, and 0.0 outside test mode. Test mode only.")]
+		public double GetTickTimeMs()
+		{
+			return TestMode.IsActive ? PerfHistory.Items["tick_time"].LastValue : 0.0;
+		}
+
 		[Desc("Returns the number of in-flight Missile projectiles currently in the world. " +
 			"Useful for asserting that a missile reached its target / fuel-out and detonated " +
 			"within a deadline. Test mode only.")]
@@ -1519,6 +1564,40 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return 0;
 
 			return Context.World.Effects.OfType<Missile>().Count();
+		}
+
+		[Desc("Warheads of `actorType` that have COMPLETED THEIR FLIGHT and detonated at their aim " +
+			"point this run, as a running total. Pass \"\" for every ballistic-missile type at once.\n" +
+			"THIS IS THE ONLY WAY A SCENARIO CAN TIME A SUPPORT-POWER SALVO IN A LIVE MATCH. " +
+			nameof(GetActiveMissileCount) + " and the MissileTrace bindings are both wired to the " +
+			"`Missile` PROJECTILE, and MissileStrikePower delivers its warheads as ACTORS carrying " +
+			"BallisticMissile (MissileStrikePower.cs:818, world.CreateActor) -- so a six-RV Sarmat " +
+			"salvo in flight reads 0 from both of those and 6 from this. " +
+			nameof(GetImpactEffectCount) + " does rise, but it counts CreateEffectWarhead impacts: " +
+			"one 750 kt re-entry vehicle is worth roughly twenty of those, ordinary tank fire is " +
+			"worth one every few ticks, and the two are indistinguishable. This counts arrivals, " +
+			"exactly one per warhead.\n" +
+			"PASS THE TYPE. Twenty-one shipped actors carry BallisticMissile and two of them -- " +
+			"himarsmissile, iskandermissile -- are unit armaments bots fire all game, so the " +
+			"unqualified total is not attributable to anything in a real match.\n" +
+			"A missile shot down on the way in is NOT counted: it never reaches its aim point. Test " +
+			"mode only.")]
+		public int GetBallisticMissileImpactCount(string actorType = "")
+		{
+			return TestMode.IsActive ? TestMode.BallisticMissileImpactsOf(actorType) : 0;
+		}
+
+		[Desc("World tick of the most recent " + nameof(GetBallisticMissileImpactCount) + " arrival " +
+			"of `actorType` (\"\" for any type), or -1 when none has arrived.\n" +
+			"WHY THE TICK AND NOT JUST THE COUNT. A scenario polling the count each tick learns the " +
+			"arrival happened but not WHEN inside the tick, and a Lua OnTick callback runs inside " +
+			"world.Tick() (Game.cs:824) -- before or after a given actor's activities depending on " +
+			"nothing the scenario controls. This is World.WorldTick as the activity itself read it, " +
+			"so a window keyed on it is keyed on the detonation rather than on the observation. " +
+			"Test mode only.")]
+		public int GetLastBallisticMissileImpactTick(string actorType = "")
+		{
+			return TestMode.IsActive ? TestMode.LastBallisticMissileImpactTickOf(actorType) : -1;
 		}
 
 		[Desc("Switch the Phase-0 missile trace on for this run. Call from WorldLoaded, before " +
@@ -2407,6 +2486,93 @@ namespace OpenRA.Mods.Common.Scripting.Global
 				return 0;
 
 			return Sighting()?.ThreatDirection(player, cell).Angle ?? 0;
+		}
+
+		// ── PIPELINE item 86: the army-share reserve, made measurable from Lua ──
+		//
+		// WHY THESE EXIST. The reserve's whole behaviour is "the ambush lane did NOT recruit", and a scenario
+		// cannot see that: no bot module logs which ACTOR it sent where, an un-recruited unit is indistinguishable
+		// from an idle one by position, and the [exp-ambush] reserve line is in debug.log where no verdict can
+		// read it. Run 260922_012732 proved the fix works and its own scenario still printed FAIL for an
+		// unrelated reason (the tank belongs to the offensive axis), so the item had no verdict of its own.
+		// These three accessors are that verdict's inputs. Read-only, test mode only, no orders, no side effects.
+
+		PoiGoalGuard Guard(Player player)
+		{
+			return player?.PlayerActor?.TraitsImplementing<PoiGoalGuard>()
+				.FirstOrDefault(g => !g.IsTraitDisabled);
+		}
+
+		PoiOffensiveBotModule Offense(Player player)
+		{
+			return player?.PlayerActor?.TraitsImplementing<PoiOffensiveBotModule>()
+				.FirstOrDefault(m => !m.IsTraitDisabled);
+		}
+
+		[Desc("Number of `player`'s units currently held in the shared PoiGoalGuard ledger under an objective " +
+			"whose OWNER PREFIX (the part before the colon) is `ownerPrefix` — one of offense, ambush, " +
+			"garrison, capture, transport, bombard, defend-line. These are the same commitments debug.log " +
+			"tallies as `by=<owner>:<n>`, but read straight from the ledger rather than through " +
+			"PoiOffensiveBotModule's free-pool pass, so unlike that line it does NOT inherit the pass's " +
+			"axis-claim exclusion and may count a unit the census skips. 0 outside test mode, for a player " +
+			"with no ledger, or for a prefix nobody holds.")]
+		public int GetBotLedgerHeld(Player player, string ownerPrefix)
+		{
+			if (!TestMode.IsActive || player == null || string.IsNullOrEmpty(ownerPrefix))
+				return 0;
+
+			var guard = Guard(player);
+			if (guard == null)
+				return 0;
+
+			var tick = Context.World.WorldTick;
+			var prefix = ownerPrefix + ":";
+			var held = 0;
+
+			foreach (var a in Context.World.Actors)
+			{
+				if (a.Owner != player || a.IsDead || !a.IsInWorld)
+					continue;
+
+				if (!guard.Ledger.IsCommitted(a, tick))
+					continue;
+
+				if (guard.Ledger.TryGetObjective(a, out var objective)
+					&& objective != null
+					&& objective.StartsWith(prefix, StringComparison.Ordinal))
+					held++;
+			}
+
+			return held;
+		}
+
+		[Desc("PoiOffensiveBotModule's published free-pool count for `player`: the uncommitted, un-axis'd units " +
+			"it saw at the START of its most recent eval, identical to the `free=` in that tick's [exp-ledger] " +
+			"line. This is the exact number the item-86 ambush reserve decides against, so a scenario asserting " +
+			"on the reserve reads the same value the reserve did. -1 when the player runs no enabled offensive " +
+			"module, or it has not evaluated yet — which is information, not zero, and must not be papered over.")]
+		public int GetBotOffenseFreePool(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			var offense = Offense(player);
+			if (offense == null)
+				return -1;
+
+			return offense.TryGetFreePoolSnapshot(out var free, out _, out _) ? free : -1;
+		}
+
+		[Desc("PoiOffensiveBotModule's forward-staging floor for `player` AS IT APPLIES IT: " +
+			"FreePoolMinAdvanceUnits, or 0 when ForwardStagingEnabled is false and the field is never read. " +
+			"-1 when the player runs no enabled offensive module.")]
+		public int GetBotOffenseAdvanceFloor(Player player)
+		{
+			if (!TestMode.IsActive || player == null)
+				return -1;
+
+			var offense = Offense(player);
+			return offense == null ? -1 : offense.EffectiveFreePoolMinAdvanceUnits;
 		}
 	}
 }

@@ -309,7 +309,7 @@ namespace OpenRA.Mods.Common.Traits
 		///     shot is banked, and nothing else here banks one. Granted only when the bank is EMPTY, so
 		///     arming a side that already bought a game-ender does not quietly hand it a second.
 		///   * THE TIMER. A timer-charged power that has been sitting disabled has remainingSubTicks
-		///     pinned at full: Tick resets it on every tick instancesEnabled is false (:246-248) and
+		///     pinned at full: Tick resets it on every tick instancesEnabled is false (:399-401) and
 		///     then returns before the countdown, so a disabled power does not charge while it waits.
 		///     Zeroing is the only way it can be ready inside a window this short. No-op for a purchased
 		///     power, whose TotalTicks is 0 and whose remainingSubTicks is therefore already 0.</para>
@@ -378,7 +378,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// A FREE NUCLEAR POWER STARTS COLD, not fully charged, and that is not a tax on the player:
 			// its band condition is ungranted until release, and Tick pins remainingSubTicks back to
-			// full on every tick a power is disabled (:246-248), so the countdown could not have run
+			// full on every tick a power is disabled (:399-401), so the countdown could not have run
 			// anyway. NuclearExchange zeroes it on the grant edge through MakeReady, which is what
 			// makes the band ready the instant it is released rather than one interval later.
 			remainingSubTicks = info.StartFullyCharged || purchased ? 0 : TotalTicks * 100;

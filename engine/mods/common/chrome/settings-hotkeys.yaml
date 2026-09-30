@@ -11,6 +11,29 @@ Container@HOTKEYS_PANEL:
 				Types: Unit
 			hotkey-group-unit-stance-commands:
 				Types: Stance
+			# WW3MOD: the three stance bars the mod added alongside Fire Stance. THESE GROUPS ARE
+			# WHAT MAKES THE KEYS EXIST TO THE PLAYER. HotkeysSettingsLogic.InitHotkeyList walks
+			# THIS list, not the hotkey definitions -- a definition whose Types match no group here
+			# is never drawn, so it cannot be read and cannot be rebound, however well it works in
+			# the match. 84a1ee69 added EngagementStance / CohesionStance / ResupplyBehavior to
+			# common|hotkeys/game.yaml and did not add them here, which is the whole of R5: nine
+			# live bindings (Ctrl+Alt+A/D/F and Ctrl+Alt+1-6) invisible in the only panel that
+			# enumerates keys. HotkeyManager still computes HasDuplicates for them -- grouping is a
+			# display filter, not a registration -- but the red that flag drives is painted on a
+			# remap button that is never created, so a clash involving one of them cannot be seen.
+			# Separate groups rather than more Types on the line above because the command bar
+			# draws them as four separate stance bars, and the panel should read the way the bar does.
+			hotkey-group-engagement-stance-commands:
+				Types: EngagementStance
+			hotkey-group-cohesion-stance-commands:
+				Types: CohesionStance
+			hotkey-group-resupply-behavior-commands:
+				Types: ResupplyBehavior
+			# WW3MOD: the garrison and transport hold panels (ingame-player.yaml GARRISON_PANEL /
+			# CARGO_PANEL). Every definition in this group ships WITHOUT a default key -- see
+			# ww3mod|hotkeys.yaml for why -- so this group's only job is to make them bindable.
+			hotkey-group-hold-commands:
+				Types: Hold
 			hotkey-group-production-commands:
 				Types: Production, ProductionSlot
 			hotkey-group-support-power-commands:

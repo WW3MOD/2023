@@ -54,6 +54,7 @@ WorldLoaded = function()
 			return
 		end
 
-		Test.Pass()
+		Test.Pass("the Observer seat was built no sighting field: threat 0 at (" .. cell.X .. "," ..
+			cell.Y .. ") where the control USA reads " .. control)
 	end)
 end

@@ -390,7 +390,27 @@ IskanderTargeter:
 	Projectile: InstantHit
 	Warhead@Target: TargetDamage
 		ValidTargets: Ground, Water
-		Damage: 50
+		# ZERO, not 50. This warhead exists only so the launcher has something to fire; the shot the
+		# player is buying is the IskanderMissile actor spawned by MissileSpawnerMaster
+		# (vehicles-russia.yaml:1068-1071) and the damage is IskanderExplosion's. The 50 that used to
+		# sit here was never meant to land on anything -- and it did. See the Versus PITFALL below.
+		Damage: 0
+		# PITFALL: an armour class OMITTED from a Versus table takes the unmodified 100%, NOT 0.
+		# DamageWarhead.DamageVersus filters the victim's armours by Versus.ContainsKey
+		# (Warheads/DamageWarhead.cs:105), so an unlisted class matches nothing, ApplyPercentageModifiers
+		# runs over an empty sequence and the 100 it started from survives. Omission is the OPPOSITE of
+		# a zero. So this table never made the weapon harmless: it zeroed six classes and omitted Kevlar
+		# -- which is every ^Soldier (infantry.yaml:174-175), i.e. the whole combat-infantry roster --
+		# plus Unarmored and Indestructable, and therefore dealt its full 50 to every soldier in the
+		# game. `Damage: 0` above is what makes it harmless against all nine classes; these zeroes are
+		# now belt-and-braces.
+		# DELIBERATELY STILL INCOMPLETE -- do NOT "finish" it by adding Kevlar/Unarmored/Indestructable.
+		# ArmorInfo.ProvideTooltipDescription (Traits/Armor.cs:73) asks whether ANY warhead in the whole
+		# ruleset names a type, so naming Kevlar even at 0 flips every infantry tooltip in the game from
+		# "None" to "Kevlar", contradicting the 28 unit descriptions that correctly read "- No armor".
+		# Presence and magnitude are different signals there; see conventions.md
+		# "`Versus`: an OMITTED armor class is FULL damage".
+		# `Brick: 0` was also dropped: Brick is not an armour class in this ruleset, so it did nothing.
 		Versus:
 			None: 0
 			Wood: 0
@@ -398,7 +418,6 @@ IskanderTargeter:
 			Light: 0
 			Medium: 0
 			Heavy: 0
-			Brick: 0
 
 HIMARSTargeter:
 	Inherits: IskanderTargeter

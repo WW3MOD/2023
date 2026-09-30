@@ -8,7 +8,12 @@
 -- pre-tune, this fails and surfaces the real hit rate. Goal post-tune:
 -- 90 %+.
 
-local DeadlineSeconds = 10
+-- 250 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 250
 local Bradleys = { B0, B1, B2, B3 }
 -- Per-hit accounting: WGM target warhead = 10000 (always applies on a hit
 -- inside the hitshape), spread warhead = 2000 with Spread 64 (rarely
@@ -34,7 +39,7 @@ WorldLoaded = function()
 	end
 
 	local startHp = Target.Health
-	local ticks = math.floor(DeadlineSeconds * TestHarness.TicksPerSecond)
+	local ticks = DeadlineTicks
 	Trigger.AfterDelay(ticks, function()
 		if Target.IsDead then
 			Test.Fail("Target died — sponge HP not high enough or accuracy is way over expected")

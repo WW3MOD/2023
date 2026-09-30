@@ -367,7 +367,22 @@ namespace OpenRA.Mods.Common.Activities
 			if (horizontalProgress >= 1f)
 			{
 				sbm.SetPosition(self, targetPos);
-				Queue(new CallFunc(() => self.Kill(self)));
+
+				// THE ARRIVAL, RECORDED WHERE IT HAPPENS. Inside the CallFunc rather than beside the
+				// Queue, because the queued action is what actually runs on the detonation tick --
+				// this returns true and the child ticks afterwards. self.Kill is what fires the
+				// Explodes payload, so the count and the warhead go off together by construction.
+				//
+				// Costs a static bool test per missile per run outside test mode, and nothing at all
+				// per tick. See TestMode.CountBallisticMissileImpact for why a scenario cannot get
+				// this from Test.GetActiveMissileCount or from MissileTrace: both of those are wired
+				// to the `Missile` PROJECTILE, and these warheads are actors.
+				Queue(new CallFunc(() =>
+				{
+					TestMode.CountBallisticMissileImpact(self.Info.Name, self.World.WorldTick);
+					self.Kill(self);
+				}));
+
 				return true;
 			}
 

@@ -49,12 +49,28 @@ Players:
 #
 # NO SCOUT IS NEEDED, AND THAT IS NOT AN OVERSIGHT. The sister scenario needs a
 # Scout because its Box belongs to Russia, so USA has to earn sight of the cell
-# and then lose it. Here Box belongs to USA from tick 0, and ^BasicBuilding
-# mounts its own Vision ladder (structures.yaml:14-23: strength 3 out to 1c0,
-# 2 to 2c0, 1 to 3c0). A building therefore reveals its own footprint to its
-# owner permanently, so USA's ghost of Box reads 'live' with no help -- and the
-# CAPTURE is what takes that vision away. The transition this scenario needs is
-# produced by the event under test rather than staged around it.
+# and then lose it. Here Box belongs to USA from tick 0 and sees its own cell, so
+# USA's ghost of Box reads 'live' with no help -- and the CAPTURE is what takes
+# that vision away. The transition this scenario needs is produced by the event
+# under test rather than staged around it.
+#
+# WHERE THAT SELF-SIGHT COMES FROM, corrected 2026-09-22. This block used to say
+# ^BasicBuilding's own ladder (structures.yaml:14-23: strength 3 out to 1c0) and
+# that was never the rung that lit this cell. PBOX inherits ^Defense, which takes
+# ^Building FIRST and then ^StandardVision (structures-defenses.yaml:3-5), and
+# ^StandardVision re-declares the keys Vision@3/@2/@1 at 22-32c0
+# (defaults.yaml:143-154) -- so by MiniYaml key collision the later inherit
+# OVERWRITES ^BasicBuilding's three short rungs outright. The cell was lit by
+# ^StandardVision's Vision@10 (strength 10, 0..4c0), which is why the last green
+# run reads `vis=10`, not `vis=3`.
+#
+# AND SINCE 70e63582 (wt/neutral-entry, 2026-09-21) THAT LADDER IS GATED. PBOX
+# gained `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded`, which re-states
+# all ten Vision@N with `RequiresCondition: loaded`, so an unmanned bunker reveals
+# nothing and this scenario's phase 1 sat at 'shrouded' for 161 ticks
+# (run 260922_065240). The gate is correct and is left alone; rules.yaml re-adds
+# one ungated rung under a fresh key for this scenario only, and carries the whole
+# argument. If phase 1 ever goes dark again, read that override first.
 #
 # THAT LAST STEP DEPENDS ON WHICH OWNERSHIP-CHANGE CALL IS USED, and the choice
 # here is deliberate. Lua `Box.Owner = russia` routes through Actor.ChangeOwner
@@ -79,7 +95,7 @@ Players:
 #
 # Observer at 52,16 is on Box's row, 52-8 = 44 cells, checkable by eye with no
 # square roots. ^StandardVision IS A 32-CELL LADDER, NOT A SIGHT RADIUS
-# (defaults.yaml:95-133): ten Vision traits, strength 10 out to 4c0 then one
+# (defaults.yaml:115-154): ten Vision traits, strength 10 out to 4c0 then one
 # rung per 3 cells down to strength 1 over 28c0..32c0. 44 clears the outermost
 # rung by 12. An 18-cell placement is NOT far enough -- that mistake cost the
 # sister scenario a whole run, landing the cell on the strength-5 rung forever.

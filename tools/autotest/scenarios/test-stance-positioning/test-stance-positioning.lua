@@ -79,7 +79,9 @@ WorldLoaded = function()
 
 			stable = stable + 1
 			if stable >= STABLE_TARGET then
-				Test.Pass()
+				Test.Pass("AR reached a threat-facing cover edge at " .. rest.X .. "," .. rest.Y ..
+					" within the 4-cell leash of anchor 13,19 and held it for " .. stable ..
+					" ticks without oscillating")
 				return
 			end
 		end

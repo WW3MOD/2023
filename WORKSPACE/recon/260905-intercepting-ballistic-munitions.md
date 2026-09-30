@@ -6,7 +6,7 @@ worktree is **5 commits behind** (`origin/main` @ `e071a500`, `git rev-list --co
 
 **Those 5 commits do not touch anything cited here.** `git diff --stat 95bdffb2..origin/main` is four files,
 all under `WORKSPACE/`: `ai-bench/README.md`, `ai-bench/RUNBOOK-260905.md`, `ai-bench/SPEC.md`,
-`pipeline/items/56-supply-truck-delivery.md`. No `rules/`, no `engine/`. Every `file:line` below therefore
+`pipeline/items/56-supply-truck-delivery.md` (that file moved into `pipeline/archive/closed-items.md` when item 56 closed on 2026-09-22). No `rules/`, no `engine/`. Every `file:line` below therefore
 reads identically at `e071a500`.
 
 **Static analysis only.** No game launch, no autotest, no screenshot, no YAML lint, no build. Arithmetic is a

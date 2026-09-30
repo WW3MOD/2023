@@ -229,7 +229,10 @@ WorldLoaded = function()
 
 			local served = fedWest >= NEED_BACK and "WEST" or "EAST"
 			if reversals <= MAX_REVERSALS then
-				Test.Pass()
+				Test.Pass(string.format(
+					"the truck committed: it served the %s platoon at tick %d having reversed its " ..
+					"x-travel %d time(s) (allowed %d); fed west=%d east=%d (need >= %d)",
+					served, t, reversals, MAX_REVERSALS, fedWest, fedEast, NEED_BACK))
 				return
 			end
 

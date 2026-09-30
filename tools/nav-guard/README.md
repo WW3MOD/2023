@@ -282,11 +282,27 @@ far.
    non-passable actor and warns if one appears, so a future scenario that scripts a
    barrier into place trips a warning rather than passing silently. That tripwire is a
    string match: an actor type built from concatenation, or read from a table, slips past.
-3. **`CustomTerrain`.** Bridges rewrite terrain type at runtime. No bridge actor is placed
-   on any of the ten maps, and `^Bridge`'s footprint is all-`_` (it blocks nothing, it only
-   *adds* passability), so the error direction is conservative: a bridge appearing would
-   make cells reachable that nav-guard calls unreachable, never the reverse. If a bridge is
-   ever placed, this section is wrong and the tool needs the `CustomTerrain` layer.
+3. **`CustomTerrain` — and this limitation is now LIVE, by a writer nobody predicted.** The
+   bridge case is still the benign one: no bridge actor is placed on any of the ten maps,
+   and `^Bridge`'s footprint is all-`_` (it blocks nothing, it only *adds* passability), so
+   the error direction there is conservative. **But `DefconWall.RaiseWall` writes
+   `Map.CustomTerrain` at runtime**, on the tick the DEFCON level reaches 3, to band a line
+   across the map (`DefconWall.cs:190-195`, the terrain type at `:248-249`, the restore
+   buffer at `:293`). It is not an authored blocking actor and not a terrain edit in
+   `map.bin`, and this tool is a static decode of `map.bin` plus the `map.yaml` `Actors:`
+   block with **zero** `CustomTerrain` handling — so `make nav-guard` is byte-identical green
+   whether that feature is on or off, and blocks in the *opposite* direction from a bridge.
+   **A green run here is real evidence that the authored maps were not disturbed and is
+   vacuous about the wall.** Use `tools/nav-guard/defcon_wall_audit.py` for that instead; note
+   its failure mode is deliberately *not* a shrink — the wall is supposed to halve the map, so
+   "largest component got smaller" fires by design, and the real tests are SEPARATION (no
+   component spans both half-planes) and SEALING (no mutually-reachable pair ends up outside
+   both sides' main bodies).
+
+   **The transferable rule, because this section was a prediction and the prediction came
+   true:** before citing a gate as evidence for a change, check that the gate's INPUT includes
+   the mechanism the change actually uses. A tool's known-limitations list is a forecast, and
+   features eventually walk into it.
 4. **Reachability is not usability.** A cell in the largest component may be reachable only
    through a one-cell-wide gap that no group of units can actually negotiate, or only by a
    route so long the AI will never take it. nav-guard would score a map with a single

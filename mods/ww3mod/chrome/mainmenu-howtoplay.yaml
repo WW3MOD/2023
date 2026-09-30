@@ -13,11 +13,16 @@ Background@HOWTOPLAY_BRIEFING:
 			Text: How to Play
 			Align: Center
 			Font: Bold
+		# 420 -> 435 on 2026-09-21, for HOWTOPLAY_PANEL's FOOT_L3 row (412..429). Nothing clips
+		# to this number -- no scissor is set anywhere on this path and the child labels size off
+		# PARENT_WIDTH only -- so it is bookkeeping rather than a constraint; it is moved so the
+		# declared box still describes the content it holds. 50 + 435 = 485 is exactly
+		# BACK_BUTTON's Y below, and the last label's real bottom is 50 + 429 = 479, clear of it.
 		Container@BRIEFING_CONTENT:
 			X: 20
 			Y: 50
 			Width: 580
-			Height: 420
+			Height: 435
 		Button@BACK_BUTTON:
 			X: (PARENT_WIDTH - WIDTH) / 2
 			Y: 485

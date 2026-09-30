@@ -891,6 +891,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort01
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -908,6 +910,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort02
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -925,6 +929,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort03
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -942,6 +948,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort04
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -959,6 +967,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort05
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -976,6 +986,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort06
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -993,6 +1005,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort07
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -1010,6 +1024,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Out
 					VisualHeight: 0
+					Key: GarrisonEjectPort08
+					DisableKeyRepeat: true
 					TooltipText: Unload Firing Position
 					TooltipDesc: Returns this soldier to your command as a normal unit.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -1044,6 +1060,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Unload All
 					VisualHeight: 0
+					Key: GarrisonEjectAll
+					DisableKeyRepeat: true
 					TooltipText: Unload All
 					TooltipDesc: Sends out every soldier, from the firing positions and the shelter.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -1248,6 +1266,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Unload All Troops
 					VisualHeight: 0
+					Key: TransportUnloadAll
+					DisableKeyRepeat: true
 					TooltipText: Unload All Troops
 					TooltipDesc: Sends every passenger out. Carried supply stays aboard. Same as Deploy.
 					TooltipContainer: TOOLTIP_CONTAINER
@@ -1264,6 +1284,8 @@ Container@PLAYER_WIDGETS:
 					Font: Tiny
 					Text: Drop All Supply
 					VisualHeight: 0
+					Key: TransportDropSupply
+					DisableKeyRepeat: true
 					TooltipText: Drop All Supply
 					TooltipDesc: Leaves the whole load on the ground as a Supply Cache. Same as Deploy.
 					TooltipContainer: TOOLTIP_CONTAINER

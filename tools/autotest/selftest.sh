@@ -116,6 +116,26 @@ EOF
 OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${RUNNER}" ${RUNNER_FLAGS} "${SCENARIO}" 2>&1); RC=$?
 check "verdict fail" FAIL 1 "${RC}" "${OUT}"
 
+# ── A pass that says NOTHING ────────────────────────────────────────────────
+# The empty-note tripwire, proved without launching a game. The ONLY difference
+# from the "verdict pass" case above is `"notes":""` -- same status, same exit
+# code -- which is exactly why this outcome had to exist: nothing else in the
+# verdict distinguishes a green that measured something from one that did not.
+#
+# Exit stays 0 deliberately (this runner's 0/1/2/3 contract is load-bearing; see
+# its header). The name is what carries the distinction, and run-batch.sh grades
+# the name -- so THIS assertion, on the outcome rather than the code, is the
+# whole mechanism. See WORKSPACE/audit/260921-assertwithin-false-green.md.
+H=$(new_home passempty)
+STUB=$(make_stub passempty <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"pass","notes":""}' > "\${RP}"
+EOF
+)
+OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${RUNNER}" ${RUNNER_FLAGS} "${SCENARIO}" 2>&1); RC=$?
+check "verdict pass, EMPTY notes" PASS-EMPTY 0 "${RC}" "${OUT}"
+
 # ── Crash: died writing nothing, but left a fresh exception log ──────────────
 # This is the shape that was read as "broken harness" — and in the sync-guard
 # case the crash WAS the finding.
@@ -357,6 +377,63 @@ EOF
 		echo "        The by-merit negative no longer grades green."
 		FAILURES=$((FAILURES + 1))
 	fi
+fi
+
+# ── An empty-note green must not pass a batch ────────────────────────────────
+# Driven through run-batch.sh, not through expected_status_grade, for the same reason the
+# section above is: the decision table was never the part at risk. What is at risk here is
+# the TALLY -- run-test.sh exits 0 for PASS-EMPTY, so the exit-code case in run-batch has
+# already counted the run as a pass by the time the grader sees it, and the EMPTY branch has
+# to take it back out. A unit test of the grader cannot see that subtraction at all.
+#
+# Four things are asserted, and each one is a different way the plumbing could be wrong:
+#   * batch exit non-zero      -- it counts toward BAD, so a batch cannot pass on one
+#   * "Pass-empty: 1"          -- the separate counter is incremented and printed
+#   * "Pass: 0"                -- and DECREMENTED out of the pass tally, not just added
+#                                 alongside it (the double-count this branch exists to avoid)
+#   * the named block prints   -- the scenario is listed, not merely counted
+H=$(new_home batchempty)
+STUB=$(make_stub batchempty <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"pass","notes":""}' > "\${RP}"
+EOF
+)
+OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${BATCH}" --hidden --speed 1 \
+	"${SCENARIO}" 2>&1); RC=$?
+_be_fail=0
+[ "${RC}" != "0" ] || { echo "  FAIL  empty-note green in a batch     batch exit 0; a batch passed on a green that said nothing"; _be_fail=1; }
+printf '%s' "${OUT}" | grep -q 'PASSED WITH NO VERDICT TEXT' \
+	|| { echo "  FAIL  empty-note green in a batch     no PASSED WITH NO VERDICT TEXT block"; _be_fail=1; }
+printf '%s' "${OUT}" | grep -q 'Pass-empty: 1' \
+	|| { echo "  FAIL  empty-note green in a batch     Pass-empty counter did not read 1"; _be_fail=1; }
+printf '%s' "${OUT}" | grep -q 'Pass: 0' \
+	|| { echo "  FAIL  empty-note green in a batch     still counted in Pass: the run is tallied twice"; _be_fail=1; }
+if [ "${_be_fail}" = "0" ]; then
+	echo "  ok    empty-note green in a batch     exit ${RC}, Pass: 0, Pass-empty: 1, listed by name"
+else
+	FAILURES=$((FAILURES + 1))
+fi
+
+# GREEN ARM. Without it the four assertions above are equally satisfied by a change that
+# made EVERY pass report PASS-EMPTY -- the same trap the 'fail' declaration section guards
+# against one block up. Identical stub but for a non-empty note; must stay an ordinary pass.
+H=$(new_home batchnoted)
+STUB=$(make_stub batchnoted <<EOF
+#!/bin/sh
+${result_path_from_argv}
+printf '{"name":"x","status":"pass","notes":"measured something"}' > "\${RP}"
+EOF
+)
+OUT=$(HOME="${H}" AUTOTEST_LAUNCHER="${STUB}" "${BATCH}" --hidden --speed 1 \
+	"${SCENARIO}" 2>&1); RC=$?
+if [ "${RC}" = "0" ] && printf '%s' "${OUT}" | grep -q 'Pass: 1' \
+	&& printf '%s' "${OUT}" | grep -q 'Pass-empty: 0'; then
+	echo "  ok    a green WITH a note            still an ordinary pass, batch exit 0"
+else
+	echo "  FAIL  a green WITH a note            batch exit ${RC}; wanted 0, Pass: 1, Pass-empty: 0."
+	echo "        The tripwire is firing on every pass, not only on empty ones."
+	FAILURES=$((FAILURES + 1))
 fi
 
 # run-batch names its own outcome file per test. An AUTOTEST_OUTCOME_FILE already in the

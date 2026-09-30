@@ -21,7 +21,13 @@
 -- adding a threat would drag the danger-mode delivery doctrine (drop-and-leave) into a measurement
 -- that is about the quiet-front case.
 
-local DeadlineSeconds = 55
+-- 1375 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 1375
+local DeadlineSeconds = DeadlineTicks / TestHarness.TicksPerSecond
 local FullAmmo = 500
 local DrovePastLine = 34 -- clear of the column at x=22, well short of the destination at x=58
 

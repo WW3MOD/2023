@@ -89,11 +89,11 @@
 --
 -- So the spawn delay is now a raw tick count rather than DateTime.Seconds, and the
 -- outer timeout is budgeted in ticks and converted back through the same constant
--- AssertWithin multiplies by (exact round-trip, checked at both 25 and 16). Nothing
--- here depends on either rate any more. Do not reintroduce a seconds literal.
--- 110 ticks is ~6.9s of game time at the default speed.
+-- AssertWithin converts with (exact round-trip, checked at the shipped 16.667 and at the
+-- 25 the harness used to hardcode). Nothing here depends on either rate any more. Do not
+-- reintroduce a seconds literal. 110 ticks is ~6.6s of game time at the default speed.
 
-local SpawnHeliAfterTicks = 64                      -- 4s at the engine's 16 ticks/s
+local SpawnHeliAfterTicks = 64                      -- 3.84s at the engine's 16.667 ticks/s
 local DeadlineTicks = 110
 local OuterTicks = SpawnHeliAfterTicks + DeadlineTicks + 51   -- 225: the 174 needed, plus headroom
 local OuterSeconds = OuterTicks / TestHarness.TicksPerSecond

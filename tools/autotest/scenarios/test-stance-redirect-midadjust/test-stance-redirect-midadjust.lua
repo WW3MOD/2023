@@ -63,7 +63,11 @@ WorldLoaded = function()
 
 	-- One-shot verdict wrappers: the first verdict wins and stops the poll (avoids re-firing a verdict
 	-- every tick once a terminal state is reached).
-	local function pass() finished = true; Test.Pass() end
+	local function pass()
+		finished = true
+		Test.Pass("the mid-adjustment redirect was honoured: phase=" .. phase .. ", held near B for " ..
+			holdCount .. " ticks without returning to A, at tick " .. elapsed)
+	end
 	local function fail(reason) finished = true; Test.Fail(reason) end
 
 	local function step()

@@ -98,6 +98,9 @@ WorldLoaded = function()
 			return
 		end
 
-		Test.Pass()
+		Test.Pass(string.format(
+			"the guard held: an offensive axis formed (best witness advanced %d cells east, need >= %d) " ..
+			"while the out-of-ammo tank advanced only %d (allowed %d), ammo now=%d",
+			bestWitnessEast, EAST_MOVED, emptyEast, EMPTY_MAX, EmptyTank.AmmoCount("primary-ammo")))
 	end)
 end

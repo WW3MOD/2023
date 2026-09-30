@@ -31,7 +31,12 @@ local ATT_COST = 100   -- e3.russia Valued.Cost (same ^E3 base)
 local BAR_B_DEF_MAX_LOSS = 0
 
 local SETTLE_TICKS   = 250            -- ~10s for the squad to walk in and item-21 to reseat
-local MEASURE_SECS   = 90             -- combat deadline after the attackers launch
+-- 2250 ticks combat deadline after the attackers launch: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local MEASURE_TICKS  = 2250
 local TPS            = TestHarness.TicksPerSecond
 
 local Defenders = { D1, D2, D3, D4, D5 }
@@ -176,7 +181,7 @@ WorldLoaded = function()
 		print("[case01] attackers launched: attack-move south through grove")
 
 		-- Measurement poll.
-		local deadlineTicks = math.floor(MEASURE_SECS * TPS)
+		local deadlineTicks = MEASURE_TICKS
 		local elapsed = 0
 		local poll
 		poll = function()

@@ -167,7 +167,8 @@ local function GuardLimb()
 					return
 				end
 
-				Test.Pass()
+				Test.Pass("vision handed over on the owner change: Russia=" .. afterRussia ..
+					" (live >= " .. Live .. "), USA=" .. afterUsa .. " (explored only). " .. Readings())
 			end)
 		end,
 		function()

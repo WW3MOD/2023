@@ -57,7 +57,9 @@ WorldLoaded = function()
 					return
 				end
 
-				Test.Pass()
+				Test.Pass("pause held then released: 0 e3.america built in 250 ticks while paused " ..
+					"(queue alive, RemainingTime=" .. tostring(remaining) .. "), then " .. #builtUnits ..
+					" built within 250 ticks of unpausing")
 			end)
 		end)
 	end)

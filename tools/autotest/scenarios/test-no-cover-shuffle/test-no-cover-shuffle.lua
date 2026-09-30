@@ -83,7 +83,9 @@ WorldLoaded = function()
 		end
 
 		if elapsed >= WATCH_TICKS then
-			Test.Pass()
+			Test.Pass("the human-owned AR held its spawn cell " .. HOME.X .. "," .. HOME.Y ..
+				" for all " .. WATCH_TICKS .. " ticks at FireAtWill with a live sighted enemy, so it " ..
+				"was never enrolled in StancePositioningExecutor")
 			return
 		end
 

@@ -36,6 +36,30 @@ Small items (17, 18, 22, 32) stay inline in `PIPELINE.md` — a dossier file for
 - **A named branch is not the change.** Another item's branch carried only test hygiene while the real fix rode a different one. Search for the *behaviour* across branches, not for the item's name.
 - **Read the file, not the commit message.** One finding was nearly closed on a commit whose subject matched exactly and whose diff turned out to be a `PIPELINE.md` edit. And **two documents agreeing on a number is not evidence** — docs get copied from each other; only the code is a source.
 
+**Grep the DIRECTORY, never the file with the obvious name.** An item's own done-check read
+`grep -n "sf\.\(america\|russia\)" mods/ww3mod/rules/ai/ai.yaml` and returned nothing — exit 1, no
+output, looking authoritative. The work had shipped in full on both `@experimental` twins and had
+already been propagated to `@stable`. `mods/ww3mod/rules/ai/` holds **three** files, all loaded by
+`mod.yaml:115-117`: `ai.yaml` carries the `ModularBot@` profile definitions and the faction-neutral
+modules, while the per-faction `UnitBuilderBotModule` twins — and with them the ground procurement
+surface — live in `ai-america.yaml` and `ai-russia.yaml`. (Some `UnitsToBuild` blocks *are* in `ai.yaml`,
+for the heli and fixedwing twins, which is exactly why a single-file grep is unpredictable rather than
+merely incomplete.) `ai.yaml` is the biggest of the three and has the name a reader reaches for, so a
+done-check aimed at it looks conclusive and can be **structurally incapable** of seeing the entry.
+
+**And a config grep answers a two-state question when the question has three states.** Present / absent
+is what it tells you. The third state — **present, live, and never once exercised** — is the one where a
+worker reports "already done, stopping" and leaves the item's actual purpose unserved. In the instance
+above the YAML was correct and live while `grep -rln "sf\.america\|sf\.russia" tools/autotest/scenarios/`
+returned **zero**: the item called itself a "measurable experiment" and the measurable half was the half
+that did not exist. Three YAML lines had to hold simultaneously, one of them for a reason that reads like
+a priority weight and is not one, and nothing in the tree was checking any of them.
+
+> **So the done-check is two greps, and the second one decides scope.** First the directory, for
+> membership. Then `tools/autotest/scenarios/` for the same symbol. **If the config is there and the
+> scenario is not, what remains is measurement** — and reporting the item as done is wrong in the
+> direction nobody audits.
+
 **Keep the live file readable whole.** That is the acceptance bar, not a style preference. If `PIPELINE.md` starts growing dossier-shaped prose again, move it here.
 
 ## What survives the split, and what does not

@@ -57,6 +57,16 @@ World:
 # is cost, not correctness: fog is off, so vision cannot change any pixel in the frame, but
 # 193 markers each resolving a 32-cell vision circle every tick is a large amount of work
 # for an instrument that spends its whole life standing still.
+#
+# THAT COST ARGUMENT IS NOW HISTORICAL and is kept only so the removals are not read as
+# load-bearing. Since 70e63582 (wt/neutral-entry, 2026-09-21) PBOX inherits
+# ^StandardVisionWhenLoaded (structures-defenses.yaml:215), which re-states all ten Vision@N
+# keys carrying `RequiresCondition: loaded` (defaults.yaml:156-177); MiniYaml key collision
+# gates the whole ladder, so an UNMANNED pillbox already resolves no vision circle at all and
+# nothing garrisons these markers. The removals STAY -- they keep the instrument independent
+# of a gate it does not control -- but they no longer save any work. Do not cite this block
+# as evidence that a bare PBOX lights 32 cells. Audited 2026-09-22,
+# WORKSPACE/audit/260922-pbox-vision-gate.md.
 shademarker:
 	Inherits: PBOX
 	# A NEW actor name resolves its sprites by that name, not by its parent's, so

@@ -252,7 +252,12 @@ Background@REGISTERED_PLAYER_TOOLTIP:
 
 Background@PRODUCTION_TOOLTIP:
 	Logic: ProductionTooltipLogic
-	Background: dialog4
+	# NOT dialog4. dialog4's interior is black at alpha 159, and this panel is anchored to the
+	# LEFT of the production sidebar, so on a wide display the sidebar's unit portraits were
+	# legible THROUGH it, behind this tooltip's own text (bugs/discovered.md 2026-08-30).
+	# tooltip-panel is the same frame with an opaque centre; every mod that loads this file
+	# declares it (ww3mod, ra, ts) because a missing collection draws nothing, silently.
+	Background: tooltip-panel
 	Width: 200
 	Height: 65
 	Children:

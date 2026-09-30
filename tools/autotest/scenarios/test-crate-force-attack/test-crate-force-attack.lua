@@ -22,7 +22,13 @@
 --   PASS = Crate takes damage within the window (the order bound and the gun fired).
 --   FAIL = Crate untouched — the exclusion broke manual attack too.
 
-local WINDOW = 20   -- seconds for the tank to turn its turret and land a shot
+-- 500 ticks for the tank to turn its turret and land a shot: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local WINDOW_TICKS = 500
+local WINDOW = WINDOW_TICKS / TestHarness.TicksPerSecond
 
 WorldLoaded = function()
 	TestHarness.FocusBetween(MyTank, Crate)

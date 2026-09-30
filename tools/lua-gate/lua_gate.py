@@ -1111,6 +1111,167 @@ def check_verdict_reachable(name, scen_dir, luas, declared, own_text, findings, 
         "assertion was lost."))
 
 
+# --------------------------------------------------------------------------------------
+# The AssertWithin race: a predicate that can win against the scenario's own verdict
+# --------------------------------------------------------------------------------------
+
+ASSERTWITHIN_RE = re.compile(r"TestHarness\.AssertWithin\s*\(")
+TEST_VERDICT_CALL_RE = re.compile(r"Test\.(?:Pass|Fail|Skip)\s*\(")
+RETURN_RE = re.compile(r"(?<![\w.:])return\b([^\n]*)")
+BARE_IDENT_RE = re.compile(r"^[A-Za-z_]\w*$")
+# Keywords that END the returned expression. `then`/`do` cannot follow a return, but
+# including them costs nothing and keeps this list readable as "block punctuation".
+LUA_EXPR_TERMINATORS = {"end", "else", "elseif", "until", "then", "do"}
+
+
+def returned_expression(captured):
+    """The expression in `return <expr>`, or "" for a bare return or a STRING return.
+
+    Strings read as empty because strip_lua has already blanked them, and that is exactly
+    right here rather than a limitation: AssertWithin treats a returned string as FAIL
+    (test-helpers.lua), never as Pass, so a string return cannot trigger the race.
+    """
+    toks = list(re.finditer(r"[A-Za-z_]\w*|[^\sA-Za-z_]", captured))
+    if not toks or toks[0].group(0) in LUA_EXPR_TERMINATORS:
+        return ""
+
+    # SLICE the original rather than re-joining tokens. The finding quotes this expression
+    # back at the reader, and a token join turns `a == b` into `a = = b` (the tokeniser is
+    # single-character for operators on purpose -- it only ever needs to find the cut).
+    depth, cut = 0, len(captured)
+    for t in toks:
+        w = t.group(0)
+        if w in "([{":
+            depth += 1
+        elif w in ")]}":
+            if depth == 0:
+                cut = t.start()
+                break
+            depth -= 1
+        elif depth == 0 and (w in LUA_EXPR_TERMINATORS or w == ","):
+            cut = t.start()
+            break
+    return captured[:cut].strip()
+
+
+def assertwithin_races(text, spans):
+    """[(aw_line, expr, expr_line, [verdict_lines])] — predicates that can beat their own verdict.
+
+    THE BUG. TestHarness.AssertWithin calls Test.Pass ITSELF the moment its predicate returns
+    true, and Test.Pass is TERMINAL -- it writes result.json and exits the game. So a scenario
+    that latches a flag and then schedules its real verdict a few ticks later never runs that
+    verdict: result.json says pass, carries an empty note and no screenshots, and not one of
+    its assertions has executed. Observed twice on 2026-09-21 in test-himars-church-vs-block
+    (`return Reported` against a latch set 27 ticks before its own Verdict), both read as
+    green. Audit of all 46 candidates: WORKSPACE/audit/260921-assertwithin-false-green.md.
+
+    THE RULE, and both halves are needed:
+
+      (a) some return inside the predicate can yield a truthy value -- `return true`, a bare
+          identifier holding one, or any expression that is not a literal false/nil/string; AND
+      (b) a Test.Pass/Fail/Skip call exists OUTSIDE the predicate, at a source position AFTER
+          the AssertWithin call, in a DIFFERENT function body than the one the call sits in.
+
+    (b) is what separates the bug from the 41 scenarios that are simply their own verdict
+    authority. Their Test.Fail calls are SETUP GUARDS, written before the AssertWithin is
+    armed and run before it can fire; a deferred Verdict is written after it and in a
+    function of its own. It is a positional heuristic and it is stated as one in the README.
+
+    The four watchdog-only shapes in the tree -- Test.Pass(note) called from INSIDE the
+    predicate followed by `return false` -- are excluded by the "outside" half of (b), which
+    is why they must not and do not fire.
+
+    Measured over the corpus at main @ 70e63582: 129 AssertWithin call sites, 129 with a
+    truthy-capable predicate, and exactly ONE satisfying (b).
+    """
+    out = []
+    for m in ASSERTWITHIN_RE.finditer(text):
+        following = [sp for sp in spans if sp[0] >= m.end()]
+        if not following:
+            continue
+        pred = min(following, key=lambda sp: sp[0])
+
+        # THE PREDICATE MUST BE A LITERAL SECOND ARGUMENT, and if it is not, this check says
+        # NOTHING. All 129 call sites in the tree today are `AssertWithin(n, function() ...`,
+        # but a scenario that passed a NAMED function instead would leave the nearest span
+        # being some unrelated later function -- the timeout closure, or the next thing in the
+        # file -- and analysing that one's returns would produce a finding about code that is
+        # not the predicate. Same principle as lua_function_spans returning None: a checker
+        # that has lost its place must go quiet, not guess.
+        depth, close = 0, None
+        for i in range(m.end() - 1, len(text)):
+            if text[i] == "(":
+                depth += 1
+            elif text[i] == ")":
+                depth -= 1
+                if depth == 0:
+                    close = i
+                    break
+        if close is None or pred[0] > close:
+            continue
+        if text[m.end():pred[0]].count(",") != 1:
+            continue
+
+        enclosing = _innermost(spans, m.start())
+
+        truthy = None
+        for r in RETURN_RE.finditer(text):
+            if not (pred[0] < r.start() < pred[1]):
+                continue
+            # Returns belonging to a closure nested inside the predicate are that closure's,
+            # not the predicate's, and cannot be what AssertWithin sees.
+            if _innermost(spans, r.start()) != pred:
+                continue
+            expr = returned_expression(r.group(1))
+            if expr in ("", "false", "nil"):
+                continue
+            truthy = (expr, line_of(text, r.start()))
+            break
+        if truthy is None:
+            continue
+
+        deferred = []
+        for v in TEST_VERDICT_CALL_RE.finditer(text):
+            if pred[0] < v.start() < pred[1]:
+                continue                      # inside the predicate: the safe shape
+            if v.start() <= m.start():
+                continue                      # a setup guard, armed before and run before
+            if _innermost(spans, v.start()) == enclosing:
+                continue                      # same body as the call, not a deferred verdict
+            deferred.append(line_of(text, v.start()))
+
+        if deferred:
+            out.append((line_of(text, m.start()), truthy[0], truthy[1], deferred))
+    return out
+
+
+def check_assertwithin_race(name, scen_dir, own_text, findings):
+    """Report each AssertWithin whose predicate can beat the scenario's own deferred verdict.
+
+    Fed the scenario's OWN body only, exactly as check_power_fired is, and for the same
+    reason: AssertWithin is DEFINED in test-helpers.lua, which every scenario declares, so a
+    version of this that scanned helper text would analyse the helper's own returns.
+    """
+    spans = lua_function_spans(own_text)
+    if spans is None:
+        # The span scanner lost its place. Silence is the right answer -- see its docstring.
+        return
+
+    for aw_line, expr, expr_line, verdict_lines in assertwithin_races(own_text, spans):
+        shown = ", ".join(str(v) for v in verdict_lines[:4])
+        findings.append(Finding(
+            "error", repo_rel(os.path.join(scen_dir, name + ".lua")), aw_line,
+            "TestHarness.AssertWithin",
+            f"this predicate can return a truthy value (`return {expr}` at line {expr_line}) "
+            f"while the scenario's own verdict is still pending (Test.Pass/Fail at line(s) "
+            f"{shown}). AssertWithin calls Test.Pass ITSELF on a true return, and Test.Pass is "
+            "TERMINAL -- so those assertions never execute, no screenshot flushes, and the run "
+            "reports green having measured nothing. Give the scenario ONE verdict authority: "
+            "open-code the deadline in a Trigger.OnTick poller, or call Test.Pass(note) from "
+            "INSIDE the predicate and `return false`. See the AssertWithin rule in "
+            "mods/ww3mod/scripts/test-helpers.lua."))
+
+
 def map_actor_names(scen_dir):
     """Instance names under `Actors:` in map.yaml — MapGlobal.cs:34-36 makes each a global.
 
@@ -1423,7 +1584,13 @@ def run_check(args):
         own = os.path.join(d, name + ".lua")
         if os.path.basename(own) in declared and os.path.exists(own):
             with open(own, "r", encoding="utf-8", errors="replace") as fh:
-                body_texts.append(strip_lua(fh.read()))
+                own_body = strip_lua(fh.read())
+            body_texts.append(own_body)
+            # PER-FILE, not on the joined body below. This check reports a LINE NUMBER in
+            # <name>.lua, and `body` is a concatenation of several files -- a line number
+            # taken from it would point into the wrong file the moment a scenario declares a
+            # shared script. The other two checks report line 0 and are unaffected.
+            check_assertwithin_race(name, d, own_body, findings)
         for path in shared_declared:
             if os.path.basename(path) in UNIVERSAL_HELPERS:
                 continue
@@ -2030,6 +2197,194 @@ def run_power_acceptance():
     return out
 
 
+# --------------------------------------------------------------------------------------
+# Acceptance: the AssertWithin race, against both revisions of the scenario that had it
+# --------------------------------------------------------------------------------------
+
+# The main-tree shape at 70e63582, reduced to its mechanism: a latch set beside a deferred
+# Verdict, and a predicate that returns that latch. AssertWithin polls every tick, so it
+# calls Test.Pass ~27 ticks before Verdict would have run, and neither assertion below ever
+# executes. This is what run 260921_174913 and 260921_175314 actually did.
+AW_RED_LATCH = """
+local Reported = false
+
+WorldLoaded = function()
+	Trigger.OnTick(function()
+		if Church.Health < ChurchStart then
+			Reported = true
+			Trigger.AfterDelay(2, Verdict)
+		end
+	end)
+
+	TestHarness.AssertWithin(40, function() return Reported end, function()
+		return "no impact within 40s"
+	end)
+end
+
+function Verdict()
+	if ChurchSeen > 1000 then
+		Test.Fail("one HIMARS did NOT rubble the church")
+		return
+	end
+
+	Test.Pass("church floored")
+end
+"""
+
+# The 4e9f7b24 fix: the deadline is open-coded in the tick poller, so Verdict is the single
+# verdict authority and AssertWithin is gone entirely. The latch and the deferred Verdict
+# both survive -- which is the point of using this as the green arm rather than a scenario
+# that never had the shape.
+AW_GREEN_OPENCODED = """
+local Reported = false
+
+WorldLoaded = function()
+	local DeadlineTicks = 1000
+	local ticks = 0
+
+	Trigger.OnTick(function()
+		ticks = ticks + 1
+		if Reported then
+			return
+		end
+
+		if Church.Health < ChurchStart then
+			Reported = true
+			Trigger.AfterDelay(2, Verdict)
+			return
+		end
+
+		if ticks >= DeadlineTicks then
+			Reported = true
+			Test.Fail("no impact within " .. DeadlineTicks .. " ticks")
+		end
+	end)
+end
+
+function Verdict()
+	Test.Pass("church floored")
+end
+"""
+
+# The watchdog-only shape: Test.Pass(note) from INSIDE the predicate, then `return false`.
+# Four scenarios in the tree do this and NONE may fire -- it is an accepted fix, not the bug.
+AW_GREEN_WATCHDOG = """
+WorldLoaded = function()
+	if Subject == nil then
+		Test.Fail("SETUP: the subject did not resolve")
+		return
+	end
+
+	TestHarness.AssertWithin(30, function()
+		if Subject.IsDead then
+			return "fail: the subject died"
+		end
+
+		if Subject.AmmoCount("primary-ammo") > 0 then
+			Test.Pass("rearmed to " .. Subject.AmmoCount("primary-ammo"))
+			return false
+		end
+
+		return false
+	end, "never rearmed")
+end
+"""
+
+# The sole-verdict-authority shape: `return true` IS the verdict, and the Test.Fail calls are
+# SETUP GUARDS written before the arming. 41 scenarios are this shape and none may fire.
+AW_GREEN_SOLE_AUTHORITY = """
+WorldLoaded = function()
+	if Box == nil then
+		Test.Fail("SETUP: map actors did not resolve")
+		return
+	end
+
+	if Box.Health ~= Box.MaxHealth then
+		Test.Fail("SETUP: the box was damaged before the Kill")
+		return
+	end
+
+	Box.Kill()
+
+	TestHarness.AssertWithin(5, function()
+		if Box.IsDead then
+			return true
+		end
+
+		return false
+	end, "the box survived a direct Kill()")
+end
+"""
+
+# A predicate whose only non-false return is a STRING. AssertWithin treats that as FAIL, never
+# as Pass, so it cannot race anything -- even though a string is truthy in Lua.
+AW_GREEN_STRING_ONLY = """
+WorldLoaded = function()
+	TestHarness.AssertWithin(10, function()
+		if Subject.IsDead then
+			return "fail: died"
+		end
+
+		return false
+	end, "timed out")
+end
+
+function Verdict()
+	Test.Pass("unreachable from the predicate")
+end
+"""
+
+
+def _aw_findings(body):
+    f = []
+    check_assertwithin_race("test-zz-aw", "zz", strip_lua(body), f)
+    return f
+
+
+def run_assertwithin_acceptance():
+    """Both revisions of the scenario that had the bug, plus the three shapes that must not fire.
+
+    The green arms are the ones that earn this check its keep. A guard that reports "this
+    predicate can beat your verdict" has to stay silent on the 45 scenarios in the tree that
+    legitimately return true or legitimately call Test.Pass from inside a predicate, or the
+    first person it lies to turns it off for everybody.
+    """
+    out = []
+    red = _aw_findings(AW_RED_LATCH)
+    out.append(("the main-tree himars shape (latch + deferred Verdict) is reported",
+                len(red) == 1 and red[0].severity == "error"))
+    out.append(("...and the finding names the latch it returns",
+                len(red) == 1 and "return Reported" in red[0].message))
+    out.append(("...and points at the AssertWithin line, not the verdict",
+                len(red) == 1 and red[0].line == 12))
+
+    for desc, body in (
+        ("the 4e9f7b24 fix (open-coded deadline) is not reported", AW_GREEN_OPENCODED),
+        ("a watchdog-only predicate (Pass inside, return false) is not reported", AW_GREEN_WATCHDOG),
+        ("a sole-verdict-authority `return true` with setup guards is not reported",
+         AW_GREEN_SOLE_AUTHORITY),
+        ("a predicate returning only strings is not reported", AW_GREEN_STRING_ONLY),
+    ):
+        out.append((desc, len(_aw_findings(body)) == 0))
+
+    # The expression reader, pinned directly: these are the distinctions the whole check
+    # rests on, and every one of them was wrong in the first draft of it.
+    for captured, want in (
+        (" true end,", "true"),
+        (" Reported end, function()", "Reported"),
+        (" false", "false"),
+        (" nil", "nil"),
+        ("", ""),                       # a bare `return`
+        ("            end", ""),        # a string return: strip_lua blanked it
+        (" ammo > 0 end", "ammo > 0"),
+        (" a == b and c < d", "a == b and c < d"),
+    ):
+        got = returned_expression(captured)
+        out.append((f"returned_expression({captured!r}) -> {want!r}", got == want))
+
+    return out
+
+
 def _write(path, text):
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -2085,6 +2440,7 @@ def run_selftest(args):
               miniyaml_split(line)[0] == want) for line, want in MINIYAML_INDENT_CASES]
     extra += run_wiring_acceptance()
     extra += run_driver_acceptance()
+    extra += run_assertwithin_acceptance()
     for desc, ok in extra:
         print(f"  {'ok  ' if ok else 'FAIL'}  {desc}")
         if not ok:

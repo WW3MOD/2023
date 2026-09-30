@@ -19,7 +19,13 @@
 -- 40 cells from start to goal → ~50s under ideal conditions; tree-cell terrain
 -- and minor steering overhead push the realistic figure to ~75s. 90s leaves
 -- enough margin without making a regression silently slow.
-local DeadlineSeconds = 90
+-- 2250 ticks: the budget this scenario was authored and validated against, back when
+-- TestHarness.TicksPerSecond was a hardcoded 25. The harness was corrected to the engine's real
+-- 16.667 on 2026-09-21, which cut every seconds-literal window by a third; this is the SAME tick
+-- budget re-expressed so it no longer depends on the rate at all (the division round-trips
+-- exactly -- see the epsilon note on TestHarness.TicksForSeconds).
+local DeadlineTicks = 2250
+local DeadlineSeconds = DeadlineTicks / TestHarness.TicksPerSecond
 local GoalX, GoalY = 50, 16
 
 WorldLoaded = function()
@@ -34,5 +40,5 @@ WorldLoaded = function()
 		end
 		local loc = Infantry.Location
 		return loc.X == GoalX and loc.Y == GoalY
-	end, "Infantry did not reach (" .. GoalX .. "," .. GoalY .. ") within " .. DeadlineSeconds .. "s")
+	end, "Infantry did not reach (" .. GoalX .. "," .. GoalY .. ") within " .. DeadlineTicks .. " ticks")
 end

@@ -266,7 +266,7 @@ It says losing the Route "puts them out of the match"; the shipped mechanic make
 
 ## QUEUE
 
-> **Order is execution order.** One known inconsistency is preserved rather than silently resolved: item **56** carries the tag *"HIGHEST PRIORITY IN THE WHOLE QUEUE — above item 40"* while item **40** sits above it here, and 40's own header agrees it was displaced. **That is a live ordering question for the user, not a transcription error.**
+> **Order is execution order.** The one known inconsistency — item **56** tagged *"HIGHEST PRIORITY IN THE WHOLE QUEUE — above item 40"* while item **40** sat above it here, with 40's own header agreeing it had been displaced — **is resolved: 56 closed on 2026-09-22** when its acceptance bar was discharged on a live match ([`archive/closed-items.md`](pipeline/archive/closed-items.md)). **Item 40 is no longer displaced by anything.**
 >
 > **⚠️ Standing hazard, and it is this queue's most expensive recurring defect.** In the week to 2026-08-19, **five items were found to describe already-merged work**; two of them cost a worker dispatched at nothing. Entries tagged `[IN FLIGHT]` have twice outlived their own merge. **Before dispatching anyone, spend one `git log -S <symbol>` or one grep on the item's central premise.**
 >
@@ -318,22 +318,7 @@ It says losing the Route "puts them out of the match"; the shipped mechanic make
 
 ### Current user priorities — 2026-08-15 live-play batch
 
-Framing for this batch (why 63/64 are not one item, and what 65 has to do with either) is in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **63** and **66** from this batch are merged and archived to [`closed-items.md`](pipeline/archive/closed-items.md) — 66's *procurement ordering axis* dossier is still the reference for the unfinished lobby-verification arm.
-
-### 64. Coordinated combined-arms push — the first tank attacks alone
-`[PARTIALLY SHIPPED — the rendezvous is merged but SWITCHED OFF; the speed differential is untouched and is the visible half]`
-**Perceived:** the opening push looks like a formation instead of a lone vehicle. Armour leads, a transport carrying infantry and a technician follows behind it, and the infantry arrive at the front protected rather than walking up on their own.
-**More landed than "recon":** `ef608a62` publishes `PoiOffensiveBotModule.ForwardStagingAnchor` and folds it into the transport's drop-off via a new pure `RendezvousMath` — but `RendezvousWithOffensiveStaging` defaults **false** (`MountedTransportBotModule.cs:92`) and **`ai.yaml:1933`** (2026-09-02; was `:1723`, before that `:1635`, before that `:1625` — **this cite has now drifted four times, so grep the key and stop recording the line**) sets it false, so both profiles are byte-identical and this has never affected play. **The remaining work is (1) enable and measure, (2) the speed differential — infantry already walk to the same anchor from tick 3; the tank simply outruns them.** → [`items/64-combined-arms-push.md`](pipeline/items/64-combined-arms-push.md)
-
-> ✅ **UPDATE 2026-09-01 (`main @ bd8e7290`) — THE KNOWN BLOCKER IS FIXED; THE ITEM IS NOW ONE STEP, AND THAT STEP IS A RUN.** `RendezvousMaxWithdrawCells` exists (default **6**, `MountedTransportBotModule.cs:109`, consumed at `:1589`) — that is the lower bound whose absence turned a 26-cell delivery into a shuttle.
-> **It is still switched OFF — re-confirmed 2026-09-02 at `main @ 6a7e1839`.** Exactly one YAML site sets it: `ai.yaml:1933 RendezvousWithOffensiveStaging: false`, and the C# default at `MountedTransportBotModule.cs:92` is `false` too, so nothing anywhere turns it on. `ai-america.yaml` and `ai-russia.yaml` touch it nowhere, so the other twin takes the `false` C# default. **Both profiles remain byte-identical, and this has still never run in a live match.**
-> **The speed differential is confirmed untouched** — no speed-matching, lead-hold or follower gate exists in the bot modules.
-> **Net effect on dispatch: do NOT send a worker to "fix the rendezvous" — it is fixed. The next action is to flip the flag and measure**, which under the standing launch rule is the manager's to run, not a worker's.
-> **One caveat worth carrying:** `RendezvousMathTest.cs:185` carries the comment *"MEASURED, NOT REASONED — run 260815_202509, seed 1017, `RendezvousWithOffensiveStaging: true`."* So the **maths** has been measured under a hand-flipped flag; **shipped play has not.** Do not read that comment as evidence the feature has run in a match.
-
----
-
-> **2026-09-05 (`main @ bb89f9fd`): the lone tank is found and gated; the item stays open on a third mechanism.** Recon (`62778af1`) + implementation (`bb89f9fd`): the first tank was being posted ALONE as a one-unit ambush lane by `LaneAmbushBotModule` at tick 100, before the offense stager had a pool — not the 08-05 "advance singly" pick, which was measured inert and stands. Shipped: `MinUnitsPerAmbush: 2` (lane posts a pair or none) and `FreePoolMinAdvanceUnits: 2` (no lone unit ordered forward), both profiles — **`@stable` moved, re-take the baseline.** `test-push-departs-together`: gate-0 control first tank alone at t211; HEAD both tanks leave together and advance together; the midline-spread clause still fails because infantry never joins — `PartitionHeldAxes` pulls a committed axis out of the live set before `BuildFreePool`, so `StageFreePool` marches it back to the muster (6 cells per 300 ticks). **That axis↔staging beat is what remains of item 64**; the scenario ships `expected-status: fail` until it is fixed. Dossier: `items/64-combined-arms-push.md` §Recon 2026-09-05 + §measured arms.
+Framing for this batch (why 63/64 are not one item, and what 65 has to do with either) is in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **63**, **64** and **66** from this batch are merged and archived to [`closed-items.md`](pipeline/archive/closed-items.md) — **64 closed 2026-09-23** at `55df64e2` (escort UNLOAD + load ESCAPE on both twins; the speed differential it did NOT close is item **85**) — 66's *procurement ordering axis* dossier is still the reference for the unfinished lobby-verification arm.
 
 ### 40. Danger-scale rework — stop the bot treating ordinary ground as lethal
 `[stage (a) DONE ddcc5d6c; stage (b) instrument landed; stage (c) OPEN and is now the whole item]`
@@ -344,25 +329,7 @@ All 18 ground thresholds (plus 1 air) sit 8×–459× below the live median cell
 
 ### Current user priorities — 2026-08-13 live-play batch
 
-Batch framing in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **58, 59, 60 and 61** from this batch are all shipped and archived — **58's vocabulary ruling and grep trap, and 61's `TAKE_COVER` dead-button analysis, are still live guidance** in [`closed-items.md`](pipeline/archive/closed-items.md).
-
-### 56. Supply trucks still do not commit to a delivery
-`[the item's own tag reads: HIGHEST PRIORITY IN THE WHOLE QUEUE — above item 40]`
-**Perceived:** a supply truck drives to where supplies are needed, drops its supply, and leaves. Today it goes back and forth and never commits.
-Declared fixed to the user at least three times. **A green scenario does NOT close this item**; the acceptance bar is a full bot-vs-bot match on a real map, with an added precondition clause so "no truck was ever bought" reads as instrument failure rather than a negative result. → [`items/56-supply-truck-delivery.md`](pipeline/items/56-supply-truck-delivery.md)
-
-> ⚠️ **THIS ITEM'S CENTRAL PREMISE WAS STALE AND IS CORRECTED HERE (2026-09-01, `main @ bd8e7290`). Read this before dispatching anyone — briefing a worker to "implement the blunt fix" would send it to write code that already exists.**
-> The struck framing said the user's pre-authorised blunt fix was unbuilt, that disabling danger awareness meant **"seven sites, not one seam"**, and that one site read a field *"that no config flag reaches"*. **All three are false.**
-> - **`IgnoreDangerForDelivery` reaches every danger gate in the module, including the `ThreatMapManager` reader.** Consumed at `SupplyFollowerBotModule.cs:721, 899, 930, 1490, 1826, 2299` — and **`:2299` is `FindSafeFollowPosition`, the `ThreatMapManager` site the dossier says no flag can reach.** The flag does reach it.
-> - **Correcting the count while we are here: that is SIX consumption sites, not seven.** The "seven sites" figure has been repeated in three documents and none of them lists seven line numbers — the 2026-08-19 note that first challenged this claim still wrote "all seven sites" above a list of six. Declaration is `:125`; `:731-732` are debug-string interpolation, not gates.
-> - **It is switched ON in shipped content.** `ai.yaml:1339` (2026-09-02; was `:1129`, before that `:1041`) sets `IgnoreDangerForDelivery: true` on the shared `SupplyFollowerBotModule@supply`. C# default is `false` at `SupplyFollowerBotModule.cs:125`, so the YAML is doing the work. **Six consumption sites re-confirmed at `:721, 899, 930, 1490, 1826, 2299`** — unchanged since the 2026-09-01 correction.
-> - **That instance is `enable-ai-any`, so this reaches `@stable` too** — a knowing, visible improvement flowing to the control, per CLAUDE.md policy. **The next benchmark baseline must be re-taken knowingly.**
->
-> **So item 56 is a RUN, not a dispatch.** Its acceptance bar is unchanged and still binding. **Watch in the same match:** `test-supply-safe-front-keeps-cargo` is RED (the truck drops when it must not) and is unrefuted — if the live match looks good while that stays red, the two disagree and the scenario is the one to trust less, per this item's own founding lesson (*a test bed that always reaches a state cannot reveal a broken transition into it*).
-
-> **2026-09-05 (`main @ 40577269`): the follow-path half is now built and measured.** Recon (`e071a500`) found the drop errand already commits but the FOLLOW path re-picked its cluster every scan with no memory; `40577269` adds `ClusterStickinessNeedMargin` (ai.yaml 1000 on the shared instance — reaches `@stable`). `test-supply-two-clusters-commit` went RED at `21690781` (6 reversals, delivery t1475) and GREEN at HEAD (0 reversals). **Scope correction:** at shipped config a full truck drops on its first scan and never reaches the follow path, so the churn only ever bit partial loads. **The acceptance bar above is unchanged and still owed:** one bot-vs-bot match on `tournament-s1-eco-river-zeta`, precondition `[composition] census` shows `earned>0` and a non-zero `truk`, then `crate-placed ÷ drop` against the 15.0% recorded at `c9626273` and the `drop-declined reason=` histogram against `NoDemand` 54.1%. `test-supply-safe-front-keeps-cargo` is RED **by configuration** (`IgnoreDangerForDelivery` makes `SafeFront` unreachable), not unrefuted — retire or re-spec it (backlog).
-
-> **2026-09-06 — that backlog line is discharged: the scenario was RE-SPECCED, and it needs ONE run.** It now sets `IgnoreDangerForDelivery: false` in its own `rules.yaml` (that map only; engine and shipped `ai.yaml` untouched), so the branch it asserts is reachable. **This retires the "trust the match, distrust the scenario" advice two paragraphs up** — the two never disagreed, and the scenario is no longer red. **The risk has inverted and the acceptance test has changed with it: `Test.Pass` no longer discharges anything on its own.** All four Lua clauses can hold while the mode gate is never consulted — any drop decline (`NoDemand`, `Covered`, `LowLoad`, `NoAnchor`) also leaves `drop = false`, and the truck then serves from its aura on the follow path. **A green run counts only with `[supply] drop-declined … reason=SafeFront` and `[supply] init … ignore-danger=False` in `debug.log`.** Working: item 56's dossier, §"Recon §5(a) discharged". **Do not commit the `expected-status: fail` file proposed at `audits/260901-autotest-suite-audit.md` §D.1** — the scenario is now expected to pass.
+Batch framing in [`archive/session-notes.md`](pipeline/archive/session-notes.md). Items **56, 58, 59, 60 and 61** from this batch are all shipped and archived — **58's vocabulary ruling and grep trap, and 61's `TAKE_COVER` dead-button analysis, are still live guidance, as is 56's discharged acceptance bar and its three readout traps** in [`closed-items.md`](pipeline/archive/closed-items.md).
 
 ---
 
@@ -547,9 +514,9 @@ Closes the largest gap between what this game says it is and what it does: `supp
 
 > **Source:** the 2026-09-06 window (manager F51): item 64 closed as a diagnosis, item 56's safe-front doctrine measured, the @stable re-baseline recorded, the rank and deaths audits written. The user's instruction on wrapping up, verbatim: *"Do NOT build now, but make a note of it … I dont want your findings to be lost I just dont want to start it right now."* Filed at `main @ e8e57ada`. **Nothing in this block is in flight.** Position in the queue is not a ranking.
 >
-> User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 86 and 87 need a ruling before code. 88 is hygiene.
+> User readings already attached: **84 is approved in principle** (option chosen, timing deferred); **85 is "not a standalone feature, maybe part of a larger change, not before v1.0"**. 87 needs a ruling before code; **86 was ruled (a) army-share reserve, shipped `ef7362a7`, and is CLOSED** — `pipeline/archive/closed-items.md`. 88 is hygiene.
 >
-> Also standing, not an item: **the 260905 @stable baseline pre-dates b6207b9b** (`MissionReinforceEnabled` moved `@stable`); re-take it before the next bot comparison (item 43's record says so).
+> Also standing, not an item: **the @stable control has been re-taken twice since and the 260905 corpus is no longer it.** Current control: [`benchmarks/260923-rebaseline.md`](benchmarks/260923-rebaseline.md) (item 64, stamped `55df64e2`, 40 matches, 0 culls), which supersedes `260922-rebaseline.md` (item 86, `ef7362a7`), which superseded 260905. **Read its calibration section before quoting any win split off it:** two byte-identical copies of `@stable` split 8–2 by side on S2 there, so a split up to 8–2 in either direction carries no information at N=10.
 
 ### 84. Idle low-ammo infantry hold when the supply truck is already closing (AutoSeekSupplies gate)
 `[USER-APPROVED IN PRINCIPLE 2026-09-06 — NOT NOW]`
@@ -558,10 +525,6 @@ Closes the largest gap between what this game says it is and what it does: `supp
 ### 85. Lead-hold — tanks pace infantry on a committed axis (item 64's last mechanism)
 `[RECORDED — user: not standalone, maybe inside a larger change, not before v1.0]`
 **Perceived:** the push arrives together. Today d1 ≈ 699 ticks (gate 300), d2 = 15 cells (gate 8) on `test-push-departs-together`. Design V1/V2/V3 written; moves both profiles. → [`items/85-lead-hold-tanks-pace-infantry.md`](pipeline/items/85-lead-hold-tanks-pace-infantry.md)
-
-### 86. The ambush lane takes 2 of 3 units at the opening and leaves offense below its own floor
-`[DOCTRINE RULING NEEDED — traits live on both profiles at match opening]`
-**Perceived:** the only tank walks 22 cells forward as half an ambush pair and dies; the army never leaves the SR. Confirmed by run 260906_091912. Smallest ruling: the lane may not take units while offense is below `FreePoolMinAdvanceUnits`. → [`items/86-ambush-lane-opening-share.md`](pipeline/items/86-ambush-lane-opening-share.md)
 
 ### 87. The scorer charges the doom-drain finishing blow as a death and credits it to nobody
 `[DECISION ITEM — fix the scorer or read the swing metric with the bias]`

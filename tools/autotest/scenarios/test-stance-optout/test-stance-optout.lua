@@ -64,7 +64,9 @@ WorldLoaded = function()
 		end
 
 		if elapsed >= HOLD then
-			Test.Pass()
+			Test.Pass("both opt-outs held for " .. HOLD .. " ticks: the HoldPosition unit stayed at " ..
+				holdHome.X .. "," .. holdHome.Y .. " and the deployed unit at " .. deployHome.X .. "," ..
+				deployHome.Y .. " -- neither was repositioned to a cover edge")
 			return
 		end
 
