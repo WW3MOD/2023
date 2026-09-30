@@ -3,6 +3,46 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-09-30 - `<Product>` is read by nothing in-tree, and the Start Menu folder survives a rename only because the UNINSTALLER re-reads it from the registry key you are renaming (`wt/installer-identity`, base `main @ 986e9f2e`)
+
+Two findings from de-OpenRA-ing the Windows install chain. Both are about which strings in that
+chain are load-bearing and which only look it.
+
+**1. `engine/Directory.Build.props:17` `<Product>` has no reader anywhere in the repository.** It
+is safe to rename and the rename is purely cosmetic (Explorer's file-properties "Product name",
+and the crash-dialog chrome that quotes file metadata). Verified by four greps over `*.cs`,
+`*.ps1`, `*.sh`, `*.py`, `*.props`, `*.targets`, `*.csproj`: **zero** hits for
+`AssemblyProductAttribute`, `FileVersionInfo`, `ProductName`, `.Product`, or the MSBuild
+`$(Product)`. **The near-miss worth knowing about is `OpenRA.WindowsLauncher/Program.cs:41`**,
+which *does* read assembly attributes in `Main` and therefore looks like a consumer — it is not.
+It reads `AssemblyMetadataAttribute` and switches on three keys only: `ModID`, `DisplayName`,
+`FaqUrl` (`Program.cs:44-52`), injected by `OpenRA.WindowsLauncher.csproj:10-21` from
+`-p:` properties. `AssemblyProduct` is a different attribute and is never looked at. Anyone
+auditing "what reads the product string" will land on that file; the answer is still no.
+
+**2. Renaming `PACKAGING_WINDOWS_REGISTRY_KEY` orphans a prior install's START MENU FOLDER, not
+just its registry entries — and the mechanism is invisible at the rename site.**
+`buildpackage.nsi:78`'s `MUI_STARTMENUPAGE_DEFAULTFOLDER` is only the pre-fill; the folder the
+user actually accepted is written to `HKLM\Software\${PACKAGING_WINDOWS_REGISTRY_KEY}` value
+`"Start Menu Folder"` (`:75-77`) and the uninstaller recovers it with
+`MUI_STARTMENU_GETFOLDER` (`:376`) before deleting (`:380-381`). So install and uninstall agree
+**within one installer build without anyone maintaining the name in two places** — which is why
+changing the default folder needs no matching uninstall edit. The flip side is that the *only*
+path from an installed product back to its Start Menu folder runs through that registry key:
+rename the key and the new uninstaller reads an absent value, so the old install's folder,
+desktop shortcut and Add/Remove entry are all unreachable and only the OLD uninstaller can
+remove them. `.onInit:40` reads `InstallDir` from the same renamed key, so the new installer also
+cannot detect the old install to upgrade it in place. **Three user-visible orphans from one
+string, and the nsi never mentions two of them.** (Accepted deliberately here — v0.1.x installs
+are orphaned by decision, recorded in `packaging/windows/INSTALLER-TEST-PLAN.md` "Before you
+start" so a tester does not read it as a regression.)
+
+**Also worth carrying: the two `mod.config` packaging vars reach the `.nsi` unmodified.**
+`buildpackage.sh:132` passes each as a bare `-D<NAME>="${NAME}"` and nothing concatenates a
+vendor prefix onto either; every `.nsi` use is `${VAR}` behind a fixed path prefix
+(`Software\`, `$PROGRAMFILES64\`, the Add/Remove `Uninstall\` path). A rename in `mod.config`
+is therefore complete on its own — there is no second site that rebuilds the old name.
+
 ## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
 
 Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any

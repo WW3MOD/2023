@@ -24,13 +24,24 @@ executed by the author.
   section 6 compares against it.
 - The installer requires elevation (`RequestExecutionLevel admin`). Run as a
   user who can elevate.
-- Registry paths below use `OpenRAWW3MOD` (`mod.config`'s
+- Registry paths below use `WW3MOD` (`mod.config`'s
   `PACKAGING_WINDOWS_REGISTRY_KEY`). **The x64 installer does `SetRegView 64`
   and the x86 one does not**, so use `/reg:64` when testing the x64 build and
   `/reg:32` for x86 — reading the wrong view shows an empty key and looks like
   a pass.
-- Take a `reg export HKLM\Software\OpenRAWW3MOD before.reg /reg:64` first so
+- Take a `reg export HKLM\Software\WW3MOD before.reg /reg:64` first so
   you can restore between runs.
+- **A v0.1.x install on the test machine is invisible to this installer, by
+  design.** The install directory and registry key were renamed from
+  `OpenRA WW3MOD` / `OpenRAWW3MOD` to `WW3MOD` (both), so `.onInit` reads
+  `HKLM\Software\WW3MOD` and finds nothing where an old install left
+  `HKLM\Software\OpenRAWW3MOD`. Consequence: **section 2 behaves as a fresh
+  install even when v0.1.x is present, and section 8's in-place reinstall only
+  holds against another post-rename build.** The old install is orphaned — its
+  files, its Start Menu folder, its `OpenRA - WW3MOD` desktop shortcut and its
+  Add/Remove entry all survive, and only its own uninstaller removes them.
+  This was accepted deliberately; it is not a regression. Remove any v0.1.x
+  install with its own uninstaller before testing.
 
 ---
 
@@ -56,10 +67,10 @@ count is wildly below the zip's.
 
 ## 2. Fresh install to the default location
 
-1. On a machine with no prior install, delete `HKLM\Software\OpenRAWW3MOD` if
+1. On a machine with no prior install, delete `HKLM\Software\WW3MOD` if
    present.
 2. Run the installer. On the directory page, **expect** the default to be
-   `C:\Program Files\OpenRA WW3MOD`.
+   `C:\Program Files\WW3MOD`.
 3. **Expect:** the explanatory paragraph naming Desktop / Documents / profile /
    drive root as not accepted is visible on that page.
 4. Accept the default and install.
@@ -69,7 +80,7 @@ count is wildly below the zip's.
    WW3MOD entry with a **non-zero, plausible size** (a few GB, matching the
    build). A blank or `0.00 KB` size means `-DINSTALL_SIZE_KB` did not reach
    the compiler.
-7. **Expect:** `reg query HKLM\Software\OpenRAWW3MOD /v InstallDir /reg:64`
+7. **Expect:** `reg query HKLM\Software\WW3MOD /v InstallDir /reg:64`
    returns the path you installed to.
 
 ## 3. The directory page refuses the dangerous paths
@@ -111,14 +122,14 @@ directory page (or pick it with Browse):
 4. **Expect:** the button stays enabled (it is not one of the refused folders).
 5. Click Install/Next. **Expect:** a message box saying the folder already
    contains other files and naming the new target
-   `C:\Users\<you>\Desktop\ww3test\OpenRA WW3MOD`.
+   `C:\Users\<you>\Desktop\ww3test\WW3MOD`.
 6. Complete the install. **Expect:** the game files are in
-   `...\ww3test\OpenRA WW3MOD\`, and `...\ww3test\` itself contains only your
+   `...\ww3test\WW3MOD\`, and `...\ww3test\` itself contains only your
    three `keepme.*` files plus the new subfolder.
-7. **Expect:** `reg query HKLM\Software\OpenRAWW3MOD /v InstallDir /reg:64`
+7. **Expect:** `reg query HKLM\Software\WW3MOD /v InstallDir /reg:64`
    shows the **subfolder**, not `ww3test`.
 8. Repeat steps 3–5 but click **Back** on the Start Menu page and then Next
-   again. **Expect:** the target does not grow a second `\OpenRA WW3MOD`
+   again. **Expect:** the target does not grow a second `\WW3MOD`
    component per pass — the appended path does not yet exist, so the append
    does not re-fire.
 
@@ -133,12 +144,12 @@ default forever.
 
 1. Uninstall any existing install, then hand-write the poison:
    ```
-   reg add HKLM\Software\OpenRAWW3MOD /v InstallDir /t REG_SZ ^
+   reg add HKLM\Software\WW3MOD /v InstallDir /t REG_SZ ^
        /d "C:\Users\<you>\Desktop" /f /reg:64
    ```
-2. **Verify it took:** `reg query HKLM\Software\OpenRAWW3MOD /v InstallDir /reg:64`.
+2. **Verify it took:** `reg query HKLM\Software\WW3MOD /v InstallDir /reg:64`.
 3. Run the installer and go to the directory page **without typing anything**.
-4. **Expect:** the pre-filled default is `C:\Program Files\OpenRA WW3MOD`, *not*
+4. **Expect:** the pre-filled default is `C:\Program Files\WW3MOD`, *not*
    the Desktop. The poisoned value was rejected and the built-in default
    substituted.
 5. **Expect:** the Install button is enabled (the substituted default is valid),
@@ -155,7 +166,7 @@ default forever.
 **This is the test item 10 exists for. Do not skip it, and do not run it
 outside a snapshot.**
 
-1. Install normally to `C:\Users\<you>\Desktop\ww3test\OpenRA WW3MOD` (i.e. the
+1. Install normally to `C:\Users\<you>\Desktop\ww3test\WW3MOD` (i.e. the
    state section 4 leaves behind), or to any scratch folder.
 2. Now place unrelated files **inside the install directory itself**, beside the
    game's own:
@@ -195,8 +206,8 @@ outside a snapshot.**
    }
    ```
    **Expect:** no output. Any line is a file the uninstaller failed to remove.
-7. **Expect:** `HKLM\Software\OpenRAWW3MOD` and the
-   `...\CurrentVersion\Uninstall\OpenRAWW3MOD` key are both gone
+7. **Expect:** `HKLM\Software\WW3MOD` and the
+   `...\CurrentVersion\Uninstall\WW3MOD` key are both gone
    (`reg query` returns "unable to find").
 8. **Expect:** the Start Menu shortcut and the Desktop shortcut are gone.
 
@@ -205,7 +216,7 @@ the original bug, alive.
 
 ## 7. Uninstall from a clean install directory
 
-1. Install to the default `C:\Program Files\OpenRA WW3MOD` and add nothing.
+1. Install to the default `C:\Program Files\WW3MOD` and add nothing.
 2. Uninstall.
 3. **Expect:** the install directory itself is **gone** — with nothing left in
    it, the final non-recursive `RMDir "$INSTDIR"` succeeds.
@@ -213,12 +224,12 @@ the original bug, alive.
 
 ## 8. Reinstall over an existing install
 
-1. With a working install at `C:\Program Files\OpenRA WW3MOD`, run the same
+1. With a working install at `C:\Program Files\WW3MOD`, run the same
    installer again.
 2. **Expect:** the directory page pre-fills that path, and clicking Install
    shows **no** "folder already contains other files" message — reinstalling
    over yourself must stay in place, not create
-   `...\OpenRA WW3MOD\OpenRA WW3MOD`.
+   `...\WW3MOD\WW3MOD`.
 3. **Expect:** the install completes and the game still launches.
 
 ## 9. Both architectures

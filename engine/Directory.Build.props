@@ -14,7 +14,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <Nullable>disable</Nullable>
     <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
-    <Product>OpenRA</Product>
+    <Product>WW3MOD</Product>
     <Copyright>Copyright (c) The OpenRA Developers and Contributors</Copyright>
   </PropertyGroup>
 
