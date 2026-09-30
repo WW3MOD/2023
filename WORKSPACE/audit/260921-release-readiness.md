@@ -208,7 +208,7 @@ The How To Play panel is accurate (R9 closed), reachable from both the main menu
 | | Defect | Evidence | Severity |
 |---|---|---|---|
 | **U1** | **The production tooltip overlaps the sidebar and is not opaque** — portraits are legible *through* it. Every player meets this within seconds. **VERIFIED AND FIXED 2026-09-21 (`wt/tooltip-legibility`).** The number: `dialog4`'s centre tile (`uibits/dialog.png` 518,393 52x52) is `(0,0,0,159)` at every one of its 2704 pixels — 38% transmission. The overlap geometry is correct and was never the bug. Now on a `tooltip-panel` collection: same 6px dialog4 frame, opaque interior. The frame ring stays translucent on purpose. | `bugs/discovered.md` 2026-08-30; `ProductionTooltipLogic`, `TooltipContainerWidget:154` | **SHOULD-FIX**, arguably BLOCKER on a wide display. |
-| **U2** | **Infantry give no selection feedback at all** — box-select six riflemen, nothing changes. | `infantry.yaml:57 ShowNever: true`, the only occurrence under `mods/` | **BLOCKER if the `ShowNever` was accidental, POLISH if deliberate** — and nobody can tell by reading. Two screenshots settle it. |
+| **U2** | ~~**Infantry give no selection feedback at all** — box-select six riflemen, nothing changes.~~ **RULED AND CLOSED 2026-09-30 (`wt/infantry-selection`): keep arm A as shipped.** `infantry.yaml:57` `ShowNever: true` stays; brackets deferred to a hands-on session, not to another audit — so this resolves to **POLISH**, not BLOCKER. `tools/autotest/scenarios/demo-infantry-selection` stays in the tree as the capture rig for that session. **Two corrections that outlive the ruling:** the defect line as written is wrong — `^Soldier` does carry a selection-only mark, `WithDecoration@Selected` (`infantry.yaml:232-237`, `RequiresSelection: true`, art `pip-selected.shp`), authored at the *exact* anchor of the class pictogram with no z-order between them, which is the likelier reason nothing appears to change; and `ShowNever` gates only the corner-bracket box (`SelectionDecorationsBase.cs:109`), not the bars call or the `IDecoration` loop. | `infantry.yaml:57 ShowNever: true`, the only occurrence under `mods/` | **BLOCKER if the `ShowNever` was accidental, POLISH if deliberate** — and nobody can tell by reading. Two screenshots settle it. |
 | **U3** | **11 garrison/cargo buttons still carry no hotkey.** Labels and tooltips shipped. | `ingame-player.yaml:830-1269`, 0 `Key:` | **COSMETIC** — R5's verdict already downgraded this class. |
 
 ## 2.7 Gameplay — **Escalation and the nukes: what has never been verified**
@@ -316,7 +316,7 @@ item 90 (sequencing is load-bearing and the shellmap must come first); R4's rena
 6. **Does a nuke stutter in a real late-game match?** The rig says it cannot answer this.
 7. **The version string** (`AWAITING-USER` §1), **the case-01 bar** (§4), **the HIMARS `Thickness`
    omission** (§3), **splash art** (§5) — four one-word answers that unblock four items.
-8. **Infantry selection brackets** — package 4 produces two screenshots; you pick.
+8. ~~**Infantry selection brackets** — package 4 produces two screenshots; you pick.~~ **ANSWERED 2026-09-30: keep arm A as shipped; brackets deferred to a hands-on session.** See §2.6 U2.
 9. **Two new rulings not yet in `AWAITING-USER.md`:** the pre-captured band-only rule (all 90 eligible
    structures now get an owner; zero stay neutral) and whether the editor's Zones tool is the border-
    authoring path going forward.

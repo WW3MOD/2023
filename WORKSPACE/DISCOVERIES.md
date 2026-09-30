@@ -121,6 +121,8 @@ the same branch to photograph all of it and had not been run when this was writt
   shares the sprite, the `Selectable`/`DecorationBounds` (`500,700,65,-128`) and the decoration stack —
   with `-ProducibleWithLevel:` added scenario-locally, because its shipped `InitialLevels: 2` would
   otherwise put a rank chevron on one arm and not the other.
+
+**RULED 2026-09-30 — user: keep arm A as shipped; brackets deferred to a hands-on session (*"I need to do this hands on later but not now"*). `infantry.yaml:57` is untouched and stays.** `demo-infantry-selection` stays in the tree as the capture rig for that session. The two factual corrections above are NOT deferred with it and stand on their own: the selection pip exists, and `ShowNever` gates only the box.
 ## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
 
 Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any
