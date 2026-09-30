@@ -1,0 +1,44 @@
+Player:
+	-ConquestVictoryConditions:
+	PlayerResources:
+		DefaultCash: 0
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	# UnitDefaultsManager applies this machine's saved per-type stance defaults to human-owned
+	# units. Stance changes nothing about a selection mark, but it does change which stance
+	# glyph is drawn over every soldier in the frame — strip it so the picture does not depend
+	# on the runner's settings.yaml.
+	-UnitDefaultsManager:
+	MusicPlaylist:
+		DisableWorldSounds: false
+	LuaScript:
+		Scripts: test-helpers.lua, demo-infantry-selection.lua
+
+# ============================================================================================
+# ARM B — THE CANDIDATE FIX, APPLIED SCENARIO-LOCALLY AND NOWHERE ELSE.
+#
+# This is the whole of it. `ShowNever` is a plain Info field on SelectionDecorationsBaseInfo
+# (SelectionDecorationsBase.cs:24) — not a ConditionalTrait, so it cannot be toggled during a
+# run. Two arms in ONE scenario therefore require two ACTOR TYPES, which is why arm B is
+# e3r1.america: it inherits e3.america wholesale, so it is the same sprite, the same
+# Selectable/DecorationBounds (500,700,65,-128 from ^Infantry) and the same decoration stack.
+#
+# The shipped fix, if the user picks arm B, is one line in mods/ww3mod/rules/ingame/infantry.yaml
+# — delete `ShowNever: true` at :57 (or set it false) under ^Infantry, which covers every
+# infantry actor at once. NOTHING on this branch touches that file.
+#
+# -ProducibleWithLevel: is not cosmetic bookkeeping. e3r1.america ships InitialLevels: 2
+# (infantry-america.yaml:26-27), which would draw a rank chevron on arm B and none on arm A —
+# a second visible difference between the arms, in a capture whose entire job is to isolate
+# one. Removing it makes ShowNever the only authored difference in the frame.
+E3R1.america:
+	-ProducibleWithLevel:
+	SelectionDecorations:
+		ShowNever: false

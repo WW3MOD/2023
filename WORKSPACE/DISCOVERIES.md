@@ -43,6 +43,126 @@ vendor prefix onto either; every `.nsi` use is `${VAR}` behind a fixed path pref
 (`Software\`, `$PROGRAMFILES64\`, the Add/Remove `Uninstall\` path). A rename in `mod.config`
 is therefore complete on its own — there is no second site that rebuilds the old name.
 
+## 2026-09-22 - `Test.SelectActors` SELECTED ONE ACTOR, NOT ALL OF THEM, for as long as it has existed — and four scenarios that make claims about multi-unit selection were photographing a one-unit one (`wt/infantry-selection`)
+
+Caught by the guard rather than by reading: `demo-infantry-selection` selects nine actors and
+prints the count, and run `260922_005703_p47240` came back **`selected = 1 (want 9)`** with four
+healthy 462–569 KB PNGs. Four frames that looked exactly like evidence and were not.
+
+**The bug is one boolean.** `TestGlobal.SelectActors` called
+`Selection.Combine(world, alive, isCombine: false, isClick: true)`. `Combine` branches on
+`isClick` before anything else (`engine/OpenRA.Mods.Common/Traits/World/Selection.cs:96-99`):
+
+```csharp
+if (isClick)
+{
+    // TODO: select BEST, not FIRST
+    var adjNewSelection = newSelectionCollection.Take(1);
+```
+
+`isClick` is the **input handler's** path — *the player clicked, and a click is one actor*. So the
+binding replaced the selection with `alive[0]` and silently discarded the rest, while its own
+`[Desc]` promised *"Replace the local player's selection with ALL of `actors`"* and justified its
+existence by `UserInterface.Select` being single-actor-only. The correct branch is
+`isClick: false` → `actors.Clear(); actors.UnionWith(newSelectionCollection)` (`:108-114`). Fixed
+in this branch.
+
+**Why it survived.** Of nine call sites in the scenario corpus, **five pass exactly one actor**
+(`{Runner}`, `{Payer}`, `{Pauper}`, …) — and `Take(1)` of one element is that element, so those
+five have always been correct and always will be. The failure is invisible at the majority of call
+sites, which is the property that let it live.
+
+**Four scenarios were affected, and what happened to each is not the same:**
+
+- `test-visual-command-bar.lua:28` selects three riflemen and then hard-asserts
+  `Test.GetSelectedCount() ~= 3 → Test.Fail`. It is **not** declared in
+  `tools/autotest/expected-status.sh`, i.e. it is expected to pass. **Prediction, not a
+  measurement: it must be failing today with "selection is 1 actors, not the 3 riflemen", and
+  must start passing on this fix.** Anyone running a batch can check it in one go; I did not
+  launch.
+- `test-visual-concealment-gauge.lua:178` passes a five-actor `Squad` and captures
+  `04-squad-merged-outline` — a **grouped** concealment gauge. With one actor selected there is no
+  group, so that frame has been photographing the wrong thing without any assertion to say so.
+- `test-visual-radar-circles.lua:33` (`{Radar1, Radar2}`) and
+  `test-groupscatter-attackmove-waypoint.lua:63` (`{Rifle, Truck}`) select two and got one.
+
+**The durable lesson is not about this binding.** A capture that photographs a STATE must assert
+the state it photographs, in the same run, or it cannot tell a right state from a wrong one — both
+produce equally convincing pictures, and the file size check that catches a black frame says
+nothing at all about this. The nine-actor demo found in one run what four scenarios had not found
+between them, for the cost of one `print`. **A screenshot scenario with no `GetSelectedCount` (or
+equivalent) assertion is not evidence about selection; it is a photograph of an assumption.**
+
+## 2026-09-21 - INFANTRY DO HAVE A SELECTION-ONLY MARK, it is parked on top of the class pictogram with no z-order, and the curated claim about the VEHICLE bracket cites a line that cannot draw one (`wt/infantry-selection`, base `main @ eacc1cff`)
+
+Static read for audit package 4 (`audit/260921-release-readiness.md` §2.6 **U2**, *"Infantry give no
+selection feedback at all — box-select six riflemen, nothing changes"*, citing `infantry.yaml:57
+ShowNever: true`). The finding's **premise is half right and the interesting half is not the half it
+names.** Nothing below is measured; `tools/autotest/scenarios/demo-infantry-selection` was built in
+the same branch to photograph all of it and had not been run when this was written.
+
+- **The corner-bracket box really is off for infantry, and `ShowNever` gates ONLY that box.**
+  `^Infantry` sets `SelectionDecorations: ShowNever: true` (`mods/ww3mod/rules/ingame/infantry.yaml:56-57`,
+  the only `ShowNever` under `mods/`) and `SelectionDecorationsBase.cs:109` is literally
+  `if (selected && !Info.ShowNever)`. **It does not touch anything else in `DrawDecorations`** — the
+  selection-bars call at `:113-115` and the whole `IDecoration` loop at `:129-132` run regardless. So
+  "ShowNever" is a much narrower switch than its name suggests, and reading it as "infantry draw
+  nothing when selected" is the error this entry exists to stop.
+
+- **`^Soldier` carries a dedicated selection pip, and nobody in the audit trail knew.**
+  `WithDecoration@Selected` (`infantry.yaml:232-237`), `RequiresSelection: true`, draws
+  `selected_infantry`/`pip-selected` (`mods/ww3mod/sequences/sequences-infantry.yaml:61-64`; the art is
+  real — `mods/ww3mod/bits/units/pips/pip-selected.shp`). Every rifleman has it:
+  `E3.america → ^E3 → ^CamoSoldier → ^Soldier → ^Infantry`.
+
+- **THE LIVE SUSPECT, and the reason the user's report can be true anyway: the pip is authored at the
+  EXACT anchor of the class pictogram, and decorations have no z-order.** Both
+  `WithDecoration@Class` (`:226-231`, `e3_class` on `^E3` at `:1334-1335`) and
+  `WithDecoration@Selected` are `Position: Top, Margin: 0,6`. Which one lands on top is decided by
+  `TraitsImplementing<IDecoration>` order captured once at `Created` (`SelectionDecorationsBase.cs:42-43`);
+  every decoration renderable reports `ZOffset = 0`. `WORKSPACE/indicator-audit.md:271` already
+  recorded the collision ("Collision 4 — class pictogram vs 'selected' pip, exact") without drawing
+  the consequence. **If the class pip wins, the mod's one infantry selection mark is authored,
+  shipped, and invisible** — which is a better bug than the one filed, and a one-line fix in a
+  different place (move the margin) than the one the audit implies.
+
+- **There is no health bar anywhere in this mod, so it is not a fallback cue.**
+  `SelectionBarsAnnotationRenderable.Render` has its `DrawHealthBar` call commented out deliberately,
+  with an in-tree warning that two people have already improved that dead chain and a standing
+  instruction to ask before re-enabling it. `DrawHealthBar` and `GetHealthColor` have no other callers.
+
+- **CORRECTED IN `DOCS/reference/architecture.md` ON SIGHT — the vehicle mechanism there was wrong.**
+  The curated bullet said own vehicles draw their corner brackets on the *unselected* path, citing
+  `renderDecorations = selected ? selectedDecorations : decorations` (`SelectionDecorationsBase.cs:129`).
+  **That line governs `IDecoration` traits and cannot emit a bracket.** The bracket is a
+  `SelectionBoxAnnotationRenderable` (four 1px L-corners, 4px arms,
+  `SelectionBoxAnnotationRenderable.cs:44-55`), and in the whole engine it is constructed at four
+  sites: `SelectionDecorations.cs:75` (the render path, reached only from
+  `SelectionDecorationsBase.cs:110` under `selected && !Info.ShowNever`), the isometric variant
+  `IsometricSelectionDecorations.cs:70`, the map editor preview `EditorActorPreview.cs:106`, and three
+  support-power target previews via `ISelectionDecorations.RenderSelectionAnnotations`. None of the
+  latter is normal play. **A vehicle's bracket is selection-gated.**
+
+- **What that correction does NOT do is refute the measurement, and the distinction matters.** The
+  same bullet recorded a full-frame pixel diff in which selecting four Bradleys changed *zero pixels*.
+  A code reading cannot overturn a pixel count. The two most likely reconciliations are that the
+  always-on white marks a vehicle carries (the concealment diamond, two stance glyphs, damage/cargo/ammo
+  pips) were read as the bracket, or that the selection never applied in that capture — the same
+  failure the capture scenario built here guards against by printing `selected=N`.
+  **The general shape is worth more than the instance: a bullet that pairs a correct OBSERVATION with
+  an invented MECHANISM is the most durable kind of wrong, because the observation keeps vouching for
+  the explanation.** The observation here survived curation and promotion into a trusted doc; the
+  mechanism was never checked against the constructor's call sites, which takes one grep.
+
+- **Two arms of a `ShowNever` comparison cannot share one actor type.** `ShowNever` is a plain Info
+  field on `SelectionDecorationsBaseInfo` (`:24`), not a `ConditionalTraitInfo`, so nothing can toggle
+  it during a run. The way to get both arms into one frame is a second actor type that renders the
+  same sprite: `e3r1.america` inherits `e3.america` wholesale (`infantry-america.yaml:24-30`), so it
+  shares the sprite, the `Selectable`/`DecorationBounds` (`500,700,65,-128`) and the decoration stack —
+  with `-ProducibleWithLevel:` added scenario-locally, because its shipped `InitialLevels: 2` would
+  otherwise put a rank chevron on one arm and not the other.
+
+**RULED 2026-09-30 — user: keep arm A as shipped; brackets deferred to a hands-on session (*"I need to do this hands on later but not now"*). `infantry.yaml:57` is untouched and stays.** `demo-infantry-selection` stays in the tree as the capture rig for that session. The two factual corrections above are NOT deferred with it and stand on their own: the selection pip exists, and `ShowNever` gates only the box.
 ## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
 
 Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any

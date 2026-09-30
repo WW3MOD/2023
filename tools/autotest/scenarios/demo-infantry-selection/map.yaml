@@ -1,0 +1,148 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: DEMO: Infantry selection mark — shipped vs. corner bracket (captures)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# AUDIT PACKAGE 4 (audit/260921-release-readiness.md §2.6 U2): "Infantry give no selection
+# feedback at all — box-select six riflemen, nothing changes."
+#
+# The staging answers that as a PICTURE, because the static read says the finding's premise is
+# half true and the interesting half is not the half it names:
+#
+#   * TRUE — no corner-bracket selection box is ever drawn on infantry. ^Infantry sets
+#     SelectionDecorations ShowNever: true (infantry.yaml:56-57, the only ShowNever under mods/)
+#     and SelectionDecorationsBase.cs:109 gates the box on `selected && !Info.ShowNever`.
+#   * FALSE as written — ^Soldier DOES carry a selection-only mark: WithDecoration@Selected
+#     (infantry.yaml:232-237), RequiresSelection: true, drawing selected_infantry/pip-selected
+#     (sequences-infantry.yaml:61-64; art bits/units/pips/pip-selected.shp).
+#   * THE LIVE SUSPECT — that pip is authored at Position: Top, Margin: 0,6, which is the
+#     EXACT anchor of WithDecoration@Class (infantry.yaml:226-231, e3_class on ^E3). Decorations
+#     carry no z-order at all (every renderable reports ZOffset 0; iteration order is whatever
+#     TraitsImplementing<IDecoration> returned at Created, SelectionDecorationsBase.cs:42-43),
+#     so which of the two is on top is unauthored. WORKSPACE/indicator-audit.md:271 records the
+#     same collision. If the class pictogram wins, the shipped selection mark is invisible and
+#     the user's report is exactly right for a reason nobody has written down.
+#
+# ARM A vs ARM B ARE THE SAME SPRITE ON PURPOSE. e3r1.america inherits e3.america wholesale
+# (infantry-america.yaml:24-30) and therefore renders image e3.america, carries the identical
+# Selectable bounds from ^Infantry (500,700,65,-128) and the identical decoration stack. The
+# only shipped difference is ProducibleWithLevel: InitialLevels: 2, which would put a rank
+# chevron on arm B and nothing on arm A — so rules.yaml strips it. After that the two arms are
+# pixel-comparable and the ONLY authored difference between them is ShowNever.
+#
+# Every group has an UNSELECTED CONTROL two rows below it. That is what makes each frame
+# self-contained: a mark that appears on the top row and not the bottom row is selection-gated;
+# a mark on both rows is not. It also inoculates the frames against the capture harness's own
+# distortion — TestModeLogic.cs:31 nulls RenderPlayer, so every ValidRelationships gate is off
+# and MORE decorations draw than a player would see (SCREENSHOT.md). The control row absorbs
+# that: both rows are equally over-decorated, so the DIFFERENCE is still honest.
+#
+# THE VEHICLE PAIR IS NOT DECORATION. DOCS/reference/architecture.md §Widget/chrome authoring
+# gotchas currently states that own vehicles draw their corner brackets on the UNSELECTED path
+# "so the bracket is not a selection indicator at all", citing
+# `renderDecorations = selected ? selectedDecorations : decorations` (SelectionDecorationsBase.cs:129).
+# That line governs IDecoration traits (pips, glyphs) and cannot emit a bracket: the bracket is
+# a SelectionBoxAnnotationRenderable, constructed at exactly one site in the mod's render path
+# (SelectionDecorations.cs:75, reached only from :110 under `selected && !Info.ShowNever`). One
+# selected abrams beside one unselected abrams settles a curated claim for the cost of two actors.
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+
+Actors:
+	# ---- ARM A: shipped rules. ShowNever: true, so no corner bracket. ----------------------
+	ASel1: e3.america
+		Owner: USA
+		Location: 24,13
+		Facing: 768
+	ASel2: e3.america
+		Owner: USA
+		Location: 25,13
+		Facing: 768
+	ASel3: e3.america
+		Owner: USA
+		Location: 26,13
+		Facing: 768
+	ASel4: e3.america
+		Owner: USA
+		Location: 27,13
+		Facing: 768
+	ACtl1: e3.america
+		Owner: USA
+		Location: 25,16
+		Facing: 768
+	ACtl2: e3.america
+		Owner: USA
+		Location: 26,16
+		Facing: 768
+
+	# ---- ARM B: same sprite, rules.yaml sets ShowNever: false. -----------------------------
+	BSel1: e3r1.america
+		Owner: USA
+		Location: 40,13
+		Facing: 768
+	BSel2: e3r1.america
+		Owner: USA
+		Location: 41,13
+		Facing: 768
+	BSel3: e3r1.america
+		Owner: USA
+		Location: 42,13
+		Facing: 768
+	BSel4: e3r1.america
+		Owner: USA
+		Location: 43,13
+		Facing: 768
+	BCtl1: e3r1.america
+		Owner: USA
+		Location: 41,16
+		Facing: 768
+	BCtl2: e3r1.america
+		Owner: USA
+		Location: 42,16
+		Facing: 768
+
+	# ---- The vehicle pair. Shipped rules on both; one is selected, one is not. -------------
+	TankSel: abrams
+		Owner: USA
+		Location: 31,20
+		Facing: 768
+	TankCtl: abrams
+		Owner: USA
+		Location: 36,20
+		Facing: 768
+
+	# Keeps the slot alive. There is deliberately no second side: nothing to shoot at, nothing
+	# to contest the SR, nothing that can move a unit or change a pip between two captures.
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 6,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 6,28
+
+Rules: rules.yaml
