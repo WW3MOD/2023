@@ -6203,3 +6203,30 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   (audit said `:42`; the comment spans 40-42). The numbers are right, only the line cite drifted; the
   same comment's `mod.yaml:358` cite was not re-checked. **Not fixed here.**
   (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+- [2026-10-07] [HIGH] **Live multiplayer desync: `PoiOffensiveBotModule.SweepOutOfAmmoUnits` queues a
+  rearm activity directly from the host-only bot tick.** Cites re-opened at `origin/main @ 3b5c71e8`.
+  Site: `engine/OpenRA.Mods.Common/Traits/BotModules/PoiOffensiveBotModule.cs:3406`
+  (`AmmoPool.AutoRearm(unit, true, host);`, inside `SweepOutOfAmmoUnits` at `:3353`) →
+  `AmmoPool.AutoRearm` (`engine/OpenRA.Mods.Common/Traits/AmmoPool.cs:1054`) →
+  `self.QueueActivity(false, new SeekSupplyProvider|RideTransport|Resupply(...))` at `:1067`, `:1079`,
+  `:1088`. `QueueActivity(false, …)` also CANCELS the current activity. **Why it desyncs:** bot logic is
+  enabled only `if (IsBot && Game.IsHost)` (`engine/OpenRA.Game/Player.cs:253`) and the bot tick
+  early-returns on `IsLoadingGameSave` (`ModularBot.cs:241`, `:339`), and this is not an Order — so the
+  host's copy of a dry bot unit cancels its activity and drives to rearm while every other client's copy
+  does not, and every replay / save-restore of a match where it fired diverges (single-player too). Same
+  class as the `LaneAmbushBotModule` fix of 2026-08-16 and the `SweepEjectedCrew` entry above; scout
+  attributes this instance to `ea1cb20f` (2026-09-03, not re-checked). **Live on both profiles:**
+  `EvacuateOutOfAmmoUnits: true` at `mods/ww3mod/rules/ai/ai.yaml:578` (`@experimental`) and `:3269`
+  (`@stable`). **Why `BotOrderedMutationTest` is green over it:** `engine/OpenRA.Test/BotOrderedMutationTest.cs`
+  IL-scans bot-module methods for *direct* mutation calls (`IsUnorderedMutation`, `:130`) and follows
+  callees one hop only into helper types matched by name suffix (`HelperSuffixes` = `Math`/`Tactics`/
+  `Gate`/`Guard`/`Blackboard`, `:81`); `AmmoPool` matches none, so a mutation one call deeper is
+  invisible. **Repro:** RED NUnit, no launch — extend `BotOrderedMutationTest` to scan same-assembly
+  callees one more level (or minimally list `AmmoPool.AutoRearm` in `IsUnorderedMutation`); expected red
+  on `:3406` today. Dynamic: `./tools/autotest/run-test.sh --hidden test-savegame-resume-riverzeta`, but it
+  only reds if a bot unit runs dry and rearms before the save tick — a green there is not evidence of
+  absence. **Fix shape:** route through an Order resolved on the unit (the `SetAmbushGate` precedent in
+  `AutoTarget.cs` / `LaneAmbushBotModule.cs`), passing the chosen `host` as the target so the
+  affordability choice survives. **NOT FIXED.**
+  (found while working on: engine robustness scout 2026-10-07, finding #1,
+  `DOCS/design/261007_engine-robustness-scout.md`; filed by file-desync)
