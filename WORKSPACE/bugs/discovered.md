@@ -5891,6 +5891,14 @@ Ranked as item #7 in `WORKSPACE/audit/260915-civ-garrison-audit.md`.
 
 ## 2026-09-15: [low] `GarrisonPanelLogic` renders at most 4 reserve occupants against a capacity of 10 (found while: civ-garrison audit, `wt/civ-garrison`)
 
+**FIXED — `62d81842`, re-verified 2026-10-07 at `c276679c` (ancestor of main).** The hardcoded
+`i < 4` is gone: `GarrisonPanelLogic` now discovers however many `RESERVE_LABEL_n` the chrome declares,
+and the last one becomes an overflow row (`[S] +7 more (10/10 in shelter)`) whenever the shelter holds
+more than the rows can name — the summary-row shape this entry recommended. Decision is a plain helper,
+`GarrisonPanelMath.IsOverflowRow` / `HiddenOccupants`, covered by `GarrisonPanelReserveRowsTest`. The
+narrow-garrison gap (shelter rows stranded under 6 hidden port rows on a PBOX/HBOX) was fixed in the
+same commit. No further change made. Body below kept as written.
+
 The shelter loop is `for (var i = 0; i < 4; i++)` over `RESERVE_LABEL_{i}`
 (`GarrisonPanelLogic.cs:78-89`), and `chrome/ingame-player.yaml` declares exactly `RESERVE_LABEL_0..3`
 (`:987-1010`). `^CivBuilding` is `MaxWeight: 10` with 8 firing ports (`civilian.yaml:61`, `:73-114`).
@@ -5928,6 +5936,22 @@ is the better end state and is ranked as item #9 in the audit — not taken ther
 edits and that branch was barred from running the YAML lint.
 
 ## 2026-09-15: [med] Two independent revert-to-neutral paths on every garrison building, and they disagree about port soldiers (found while: civ-garrison hygiene, `wt/civ-garrison`)
+
+**FIXED — `4116a5c5`, re-verified 2026-10-07 at `c276679c` (ancestor of main).** The "NOT FIXED,
+deliberately" paragraph below is stale. Landed as exactly the cheap shape this entry proposed: the
+`UnloadCargo` flip now defers to `GarrisonManager` through a new `IOverridesCargoNeutralRevert`
+(`TraitsInterfaces.cs:289`), which `GarrisonManager` answers true under the SAME guard
+`CheckOwnershipAfterExit` early-returns on (`GarrisonManager.cs:373` vs `:381`), so the two cannot
+disagree about who is in charge. The decision is `GarrisonOwnershipMath.MayRevertHoldToNeutral`
+(`UnloadCargo.cs:247`), covered by `GarrisonUnloadNeutralRevertTest` (truth table + an IL pin on the
+call site). Not a design choice left open: the port-aware path already had the answer; the Cargo flip
+was overwriting it on a frame-end task. The commit also corrects this entry's reachability — "Unload
+All" never reached it (`GarrisonManager.ResolveOrder` clears ports first); the live path was the
+per-man unload menu (hotkey J). **Residual, unchanged and deliberate:** with `DynamicOwnership: false`
+or no `InternalName == "Neutral"` player the veto lifts and `Cargo.Neutral` keeps its old behaviour,
+including the `players.First(...)` throw when no player is *named* `Neutral` (note the two lookups key
+on different fields: `InternalName` vs `PlayerName`). No shipped garrison actor sets
+`DynamicOwnership: false`. Body below kept as written.
 
 Found by being wrong about the entry above: chasing down what `CargoInfo.Neutral` actually does
 turned up a second implementation of the behaviour `GarrisonManager` already provides.
