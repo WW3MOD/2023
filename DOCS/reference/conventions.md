@@ -444,6 +444,8 @@ catch it: it passes `discriminated` as a literal, so it pins the formatter and n
 **Presence and magnitude are two different signals, and here one of them is load-bearing for the UI.**
 *(Promoted 2026-09-20 from DISCOVERIES; re-read at `a21583fd`.)*
 
+**So when a `Versus` table is wrong, ask whether the defect is in its VALUES or its KEY SET before editing it — a value is local, a key is global.** *(Added 2026-10-07 from a 2026-09-21 DISCOVERIES entry, re-read at `c276679c`.)* `IskanderTargeter`'s dummy `Warhead@Target` zeroed six classes and omitted `Kevlar`, dealing 50 to every soldier per shot; completing the table would have flipped every infantry tooltip. The levers that do not touch the key set are `Damage: 0` (what shipped, `rules/weapons/weapons-missiles.yaml:397`, with the reasoning in-comment), `DamagePercent: 0`, or dropping the warhead. **One residue:** `DangerFieldLayer.WarheadIsHarmless` (`:895-905`) reads only `Versus`, never `Damage`, so a `Damage: 0` warhead is a **fail-open false positive** in the bot danger field; correcting that moves bot belief and breaks replay byte-identity, so it was left.
+
 ### `Penetration` is compared against `Thickness × ArmorDirectionPercent`, so reading it without the attack direction ranks weapons BACKWARDS
 
 *(Promoted 2026-09-01 from DISCOVERIES, verified against `main @ 60c1cda4`. Arithmetic over read code — not measured in game.)*

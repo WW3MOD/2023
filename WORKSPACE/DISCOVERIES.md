@@ -1604,7 +1604,7 @@ are "indestructible". `CLAUDE.md` is emphatic that they are **untargetable, not 
 is inert), and the distinction is exactly what decides whether a bypass such as `VaporizeWarhead`
 reaches one. Whether player-facing copy should carry that nuance is a call for the user, so the line
 is left alone and flagged here.
-## 2026-09-21 - Two of the release audit's three production-tooltip findings were already fixed, one by three weeks; the live one is a single alpha value in the art (`wt/tooltip-legibility`, base `main @ d69e6883`)
+## 2026-09-21 - Two of the release audit's three production-tooltip findings were already fixed, one by three weeks; the live one is a single alpha value in the art (`wt/tooltip-legibility`, base `main @ d69e6883`) **[rejected: audit bookkeeping, not mechanism -- two stale audit rows (fixed in `5965d955`/`0d7663ab`) and one art alpha value. The durable method point, that a bespoke YAML reader which replaces inherited nodes instead of merging them manufactures defects, is already `conventions.md` §"A merged top-level node means ONE FILE CANNOT ANSWER" ("a hand-rolled text scan over MiniYaml is evidence about your regex"); the stale-audit lesson is CLAUDE.md's queue rule]**
 
 Found auditing package 3 of `WORKSPACE/audit/260921-release-readiness.md`, which asked for three
 defects to be fixed. **Only one of the three is live at `d69e6883`.** The audit rows have been
@@ -1648,7 +1648,7 @@ those are the interesting ones. Validate the reader against something the engine
 before believing anything it says — this one reproduces all 17 `FormatWeaponLabel` NUnit
 expectations exactly.
 
-## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`)
+## 2026-09-21 - A `Versus` table can be un-completable: the fix for "omitted class = 100%" is sometimes `Damage: 0`, because the table's KEY SET drives every unit tooltip (`wt/versus-repair`, base `main @ eacc1cff`) **[promoted, in part -> `conventions.md` §"`Versus`: an OMITTED armor class is FULL damage" (values vs KEY SET; `Damage: 0` as the lever that does not touch the key set; `WarheadIsHarmless` ignores `Damage` and is now a fail-open false positive). The tooltip key-set coupling, the lint gap and the 42-table census were already there. Re-read at `c276679c`]**
 
 Found auditing item 62's last standing line — `IskanderTargeter`'s `Warhead@Target`
 (`weapons-missiles.yaml`), which zeroed six armour classes, named one the ruleset does not define
@@ -1706,7 +1706,7 @@ live full-damage-to-infantry by the same rule, but they are plausibly intended a
 sign-off territory. `Brick` has now left the union entirely; `Kevlar`, `Unarmored` and
 `Indestructable` remain in zero tables, so `conventions.md`'s standing claim that no warhead
 discriminates infantry damage by armour class still holds.
-## 2026-09-22 - A scenario whose two arms produce the same outcome is not a control: construct the state under test, do not hope the opening supplies it (`test-ambush-lane-share`)
+## 2026-09-22 - A scenario whose two arms produce the same outcome is not a control: construct the state under test, do not hope the opening supplies it (`test-ambush-lane-share`) **[promoted -> `AUTOTEST.md` §"A green run is not evidence unless something could have made it RED" step 9 (construct the state; read the override back and SKIP; ledger not position; lua-gate as a scaffold RED)]**
 
 Four runs of `test-combined-arms-rendezvous` were spent trying to judge PIPELINE item 86 with it. It cannot,
 and the reason generalises to any bot-behaviour scenario.
@@ -1753,7 +1753,7 @@ C# bindings. Sabotaging one call (`Test.GetBotLedgerHeldXYZ`) made it name the e
 2; restoring made it clean. On a machine where launches are serialised and expensive, that is a real
 RED-before-green on the scaffold, available in seconds and with no slot.
 
-## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229)
+## 2026-09-22 - "An axis is live" is not "offense has units to spare": a waiver that fired on an axis built from the entire army (`wt/item86-lane-share`, run 260922_005229) **[promoted -> `architecture.md` §"Two modules drawing on one free pool" (borrowed-predicate error; publish on the census pass; log the decision). Re-read at `c276679c`: the axis clause is gone from `ReserveAllowance`. The tank-ownership finding is a scenario note]**
 
 The item-86 reserve below shipped with an axis waiver and it did not bind on its first measured run. The
 failure is worth more than the fix.
@@ -1798,7 +1798,7 @@ taken it. **The scenario's VERDICT cannot gate item 86; only its log lines can.*
 acceptance criterion that names a specific ACTOR needs the ownership derived from the census before the run,
 not assumed from the direction it walked.
 
-## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`)
+## 2026-09-21 - Two correct floors, one army: the opening split that neither module could see (`wt/item86-lane-share`, base `main @ eacc1cff`) **[promoted -> `architecture.md` §"Two modules drawing on one free pool" (the item-86 reserve on offense's published numbers; `BuildFreePool` writes `standoffSince`). The problem half was already promoted 2026-09-06. Re-read at `c276679c`]**
 
 PIPELINE item 86, ruling (a). Recorded because the SHAPE generalises past this fix.
 
