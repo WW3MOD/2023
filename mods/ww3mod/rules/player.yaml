@@ -1038,7 +1038,13 @@ Player:
 		WinNotification: Win
 		LoseNotification: Lose
 		LeaveNotification: Leave
+	# The engine default is "Destroy all opposition!", and it is what the Objectives tab -- the default
+	# tab of the in-game info dialog -- printed for every match until 2026-10-07. The enemy Supply Route
+	# cannot be destroyed (structures.yaml, Targetable NoAutoTarget); matches are decided by contesting it
+	# (SupplyRouteContestation). Never say "capture" here: ownership never transfers. Keep it to one
+	# line -- chrome/ingame-infostats.yaml STATS_CHECKBOX is 482 px of Bold, about 60 characters.
 	ConquestVictoryConditions:
+		Objective: Contest enemy Supply Routes until they fall. Hold yours.
 	ConcedeOnDisconnect:
 	# PowerManager:
 	AllyRepair:
@@ -1119,9 +1125,6 @@ Player:
 		Type: Veterancy
 		Image: iconchevrons
 		Sequence: veteran
-	ResourceStorageWarning:
-		AdviceInterval: 25000
-		TextNotification: Silos needed.
 	PlayerExperience:
 	# THESE `Factions:` LISTS NAME EXACTLY THE FACTIONS THAT EXIST. They used to carry five more --
 	# `nato`, `europe`, `ukraine` on the NATO side and `brics`, `china`, `belarus` on the other --
