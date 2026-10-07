@@ -49,3 +49,5 @@
 - AI profiles: **2** — `Experimental AI` (`experimental`) and `Standard AI 0902` (`stable`), `ai.yaml:82-90`. There is no Normal/Rush/Turtle ladder.
 - Engine C# modified: **not settled here** — `CLAUDE.md` says ~264, a diff against the import commit counts 1293. Two different measures; nobody has reconciled them.
 - Suite health: **not re-measured** (no runs in this pass). Last read is `audits/260901-autotest-suite-audit.md` at `97c2fe78`: 189 of 210 `test-*` enter a batch, 64 folders carry no verdict call at all.
+
+- **Unmerged, ungated (2026-10-08 handoff):** `wt/noautotarget-test` @ b0caa3f6 on origin adds `engine/OpenRA.Test/NoAutoTargetInvariantTest.cs` (no weapon lists NoAutoTarget; SUPPLYROUTE carries NoAutoTarget + `-Vaporizable:`). Written without compiling — run `make check` + `dotnet test --filter NoAutoTargetInvariantTest` before merging. Also on origin unmerged: `wt/proximity-perf` @ 2a12faaf.
