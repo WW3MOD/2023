@@ -1848,7 +1848,7 @@ Code: `LaneAmbushBotModule.cs` (`OffenseFloorReserveEnabled`, `ResolveReserveAll
 `AmbushLaneMath.ReserveAllowance`), `PoiOffensiveBotModule.cs` (`TryGetFreePoolSnapshot`,
 `EffectiveFreePoolMinAdvanceUnits`), `ai.yaml:1093` / `:3227`.
 
-## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`)
+## 2026-09-21 - `game-model.md` still described the PRE-item-78 evacuation anchor, and its "not from the SR" conclusion was wrong for reinforcement entry too (`wt/item78-study`, base `main @ 70e63582`) **[rejected: already applied -- the correction was made in place on 2026-09-21 and `game-model.md` §"Map-edge spawning" carries it (re-read at `c276679c`: `ProductionFromMapEdge.cs:101/:119` anchor on the SR's own cell; `RotateToEdge.cs:209` reads `FriendlyEvacuationOrigin`). The method point -- grep DOCS for the changed code EXPRESSION, not the item number -- is the README §curation corollary "grep the FILE, never your diff"]**
 
 Found while re-deriving item 78's edge-choice rule from source for
 [`WORKSPACE/audit/260921-item78-edge-arithmetic.md`](audit/260921-item78-edge-arithmetic.md).
@@ -1898,7 +1898,7 @@ false correction.
 exactly at `70e63582`. Weighting the nine unit-anchored maps' raid rows by sample size (n = 7170)
 gives own/opponent/flank = **14.36 / 70.37 / 15.27**, against the recorded 14.4 / 70.4 / 15.3.
 Medians do **not** recombine that way and were bounded, not re-derived.
-## 2026-09-21 - `TestHarness.AssertWithin` passed with NO note and TERMINALLY, so any scenario that latched a flag and deferred its verdict reported a green it never earned (`wt/assertwithin-audit`, base `main @ 70e63582`)
+## 2026-09-21 - `TestHarness.AssertWithin` passed with NO note and TERMINALLY, so any scenario that latched a flag and deferred its verdict reported a green it never earned (`wt/assertwithin-audit`, base `main @ 70e63582`) **[rejected: already covered -- `AUTOTEST.md` §"`TestHarness.*`" carries ONE VERDICT AUTHORITY PER SCENARIO, the two safe shapes, and the `PASS-EMPTY` outcome; the helper now always passes a note (`test-helpers.lua:125-135`, re-read at `c276679c`). The per-scenario census is in `WORKSPACE/audit/260921-assertwithin-false-green.md`]**
 
 `AssertWithin`'s poller called `Test.Pass()` -- **no argument** -- the instant its predicate returned
 `true` (`mods/ww3mod/scripts/test-helpers.lua`, the `check` closure). `Test.Pass` is terminal:
@@ -27532,11 +27532,11 @@ The tell was available for free at step one: the bug entry itself reasoned "`Tim
 ## 2026-09-19 — "no C# changed, so skip NUnit" is a merge-gate hole: NUnit fixtures read shipped YAML **[promoted, in part -> `conventions.md` §"The set of actor names you may override is mod.yaml's `Rules:` LIST" (the walk over-approximates the loaded rules, so a directory-walking fixture must union declarations, and a `mods/` change still needs `dotnet test`)]**
 Observed at main @ b0aa900c: `VaporizeScopeTest.TheSupplyRouteOptsOutOfVaporisation` went red on a tree whose C# was byte-identical to the last NUnit-green build. Cause: `rules/cameo-captions.yaml` (new at 201df112, deliberately NOT in mod.yaml's `Rules:`) declares `SUPPLYROUTE` a second time, the fixture walks `mods/ww3mod/rules` with `GetFiles(AllDirectories)` — root-level files before `ingame/` — and its first-match `Find` returned the caption node, which has no `-Vaporizable:`. The shipped line at `structures.yaml:183` was never touched. The fixture's own `FindAll` comment predicted exactly this ("safe only because their actors are declared once"); both first-match sites now use the union. Two rules for the gate: (1) a branch that changes anything under `mods/` or `tools/` still needs `dotnet test` — several fixtures (VaporizeScopeTest, DefconEscalationTest's clock pins, WebServicesConfigTest, ScarEdgeVariantTest, the caption checks) assert on files, not code; (2) a YAML file under `rules/` that mod.yaml does not load is still visible to every directory-walking fixture — the walk over-approximates the loaded rules, so a fixture asking a per-actor question must union the declarations.
 
-## 2026-09-21 — `run-test.sh` reported LAUNCH-FAIL from a six-day-old client.log
+## 2026-09-21 — `run-test.sh` reported LAUNCH-FAIL from a six-day-old client.log **[rejected: fixed and narrow -- all three log greps in `check_launch_failure` are now gated on `-nt "${LAUNCH_STAMP}"` (`tools/autotest/run-test.sh:536/:549/:558`, re-read at `c276679c`); harness history, not mechanism]**
 
 `check_launch_failure` (`tools/autotest/run-test.sh:517`, added `6651d5f4`) grepped `server.log` / `client.log` for the refused-join signatures **without checking the log was newer than `LAUNCH_STAMP`** — only the `lua.log` world-seen branch had the `-nt` gate. Killing the game at teardown leaves `Connection to 127.0.0.1:… failed` as `client.log`'s last line, so the FIRST run after any session fired the watch one second after launch, killed the game before it wrote a byte, and reported `launch-fail: server refused the client at join` quoting the previous session's line (run `260921_145344`, log dated 2026-09-15 22:11). Symptom that gives it away: **no file under the OpenRA support dir is newer than `result.launchstamp`.** Fixed by gating both greps on `-nt "${LAUNCH_STAMP}"`. The Windows box never saw it because its last run of each session apparently did not leave that line — unverified.
 
-## 2026-09-21 — `Test.PressHotkey` returns TRUE for a DISABLED button, so its return value is evidence of CONSUMPTION and never of ACTION (`wt/unload-scenario`, base `wt/garrison-unload @ 55ac6bee`)
+## 2026-09-21 — `Test.PressHotkey` returns TRUE for a DISABLED button, so its return value is evidence of CONSUMPTION and never of ACTION (`wt/unload-scenario`, base `wt/garrison-unload @ 55ac6bee`) **[promoted -> `architecture.md` §"A `Key:` is claimed by the LAST visible widget" (`PressHotkey` reports consumption, not action) + §"The hold is not the building" (the Deploy key and the deploy cursor are separate dispatch surfaces; `GarrisonManager` still implements no `IIssueDeployOrder` at `c276679c`)]**
 
 **THE GENERAL SHAPE, which is not about garrisons.** `ButtonWidget.HandleKeyPress`
 (`engine/OpenRA.Mods.Common/Widgets/ButtonWidget.cs:155-170`) returns `true` **unconditionally**
@@ -27585,7 +27585,7 @@ adds the **issue** side: before writing "gesture X *reaches* order Y", check whi
 mechanism the gesture uses — `IIssueOrder` targeters (mouse) and `IIssueDeployOrder` (key/button)
 are separate surfaces with separate gates, and a trait may be on one and not the other.
 
-## 2026-09-21 — A RED that PASSED: the Cargo hold has TWO exits and only one of them arms the frame-end revert (`wt/unload-scenario`, base `wt/garrison-unload @ dc368f16`)
+## 2026-09-21 — A RED that PASSED: the Cargo hold has TWO exits and only one of them arms the frame-end revert (`wt/unload-scenario`, base `wt/garrison-unload @ dc368f16`) **[promoted -> `architecture.md` §"The hold is not the building" (two exits, one arms the revert; `Trigger.AfterDelay` is a frame-end task, in §"A scripting binding ... ONE TICK EARLY") + `AUTOTEST.md` §"A RED that PASSES certifies the fix"]**
 
 **THE GENERAL SHAPE, which is not about garrisons.** When a defect lives in a task armed as a SIDE
 EFFECT of one particular code path, a scenario that merely reproduces the defect's *state* proves
@@ -27637,7 +27637,7 @@ it is the most dangerous outcome available, because it certifies the fix. Before
 ask **which line arms the defect** and whether the scenario's own setup can reach the measured state
 without ever executing it.
 
-## 2026-09-21 — The unload menu acts on a SNAPSHOT, so a setup gate that does not wait for the population to settle silently under-orders (`wt/unload-scenario`)
+## 2026-09-21 — The unload menu acts on a SNAPSHOT, so a setup gate that does not wait for the population to settle silently under-orders (`wt/unload-scenario`) **[promoted -> `architecture.md` §"The hold is not the building" (snapshot; nothing re-boards; port men do not block exits) + `AUTOTEST.md` (settled-population gate)]**
 
 Addendum to the entry above, found on the next run of the same scenario
 (`260921_155532`, skip: `shelter=1; ports=8`). Nine men of ten accounted for — **one was still
@@ -27671,7 +27671,7 @@ position only (`GarrisonManager.cs:458-469`) — while `ChooseExitSubCell` searc
 unload its shelter. **There is no "port men seal their own exits" bug.** (2) *The ALL chip does issue
 one order per man* — first unqueued, the rest queued off a `hasDropped` latch precisely so the second
 does not `CancelActivity` the first (`CargoUnloadMenuLogic.cs:58-61`, `:239-247`).
-## 2026-09-21 — `allowMove=false` into a weapon's MinRange is a SILENT no-op: every target at exactly full HP, nothing in `debug.log`, no Lua error (`wt/himars-scenario`, run `260921_145835`)
+## 2026-09-21 — `allowMove=false` into a weapon's MinRange is a SILENT no-op: every target at exactly full HP, nothing in `debug.log`, no Lua error (`wt/himars-scenario`, run `260921_145835`) **[promoted -> `architecture.md` §"An attack order that produces NOTHING" (two activity families; the `allowMove=false` give-up; the launchers' bot hold is `HoldFire`, not `RequiresForceFire`). Re-read at `c276679c`. Not promoted: the `TargetDamage` position-sweep and `ShockwaveDamage` `StartDelay` asides, which are scenario arithmetic]**
 
 **THE INSTANCE.** `test-himars-church-vs-block` failed its first ever run with `no impact within 40s — church 38000/38000, block 120000/120000`: two HIMARS, both ordered `Attack(target, false, true)`, neither of which put a single rocket in the air in ~60 s of wall clock. Each launcher stood **10 cells** from the target it was told to hit, against `HIMARSTargeter`'s `MinRange: 16c0` (`mods/ww3mod/rules/weapons/weapons-missiles.yaml:383`, inherited from `IskanderTargeter`). The map's own comment asserted 20 cells: the four actors sat on one column at y = 14/24/34/44, so the *span* from a launcher to the FAR building is 20 and to its own is 10, and the Lua paired each launcher with the adjacent one.
 
@@ -27692,7 +27692,7 @@ does not `CancelActivity` the first (`CargoUnloadMenuLogic.cs:58-61`, `:239-247`
 **A PHRASING TRAP IN THE LAUNCHER RULES, NOT A DEFECT.** Neither `himars` (`vehicles-america.yaml:1136-1142`) nor `iskander` (`vehicles-russia.yaml:1055-1056`) carries `RequiresForceFire` on its armament, and none is inherited (no `Armament@1` exists in `defaults.yaml`). The iskander's comment says so explicitly — "Until the armament's `RequiresForceFire` **was dropped** below…" — but the HIMARS comment at `vehicles-america.yaml:1121-1123` reads in the present tense ("**Dropping** the armament's `RequiresForceFire` below would otherwise hand bots auto-launch"), which invites a reader to believe the line is still there. What actually holds bots off both launchers is `AutoTarget: InitialStanceAI: HoldFire` alone. Anyone auditing why bots never auto-launch strategic missiles should not go looking for a `RequiresForceFire` that was removed.
 
 
-## 2026-09-21 (later the same day) — the range fix was necessary and NOT sufficient: a turreted launcher has ~11 independent gates between `Attack()` and a rocket, and the HP census cannot see any of them
+## 2026-09-21 (later the same day) — the range fix was necessary and NOT sufficient: a turreted launcher has ~11 independent gates between `Attack()` and a rocket, and the HP census cannot see any of them **[promoted -> `architecture.md` §"An attack order that produces NOTHING" (the turreted gate list; GUNTRACE lives inside `CheckFire`; four suspects struck by reading; ammo + `ActivityChain` as the instruments)]**
 
 Second run of `test-himars-church-vs-block` at `wt/himars-scenario @ ca2e18ba`, launchers now 24 cells out and inside the band: **identical failure**, `church 38000/38000, block 120000/120000`. So min-range was real (it must be cleared) but was not the only blocker, and the run produced the same total absence of evidence as the first.
 
@@ -27709,7 +27709,7 @@ Second run of `test-himars-church-vs-block` at `wt/himars-scenario @ ca2e18ba`, 
 - **The turret-realign standoff is already fixed.** The circular-looking dependency — `Turreted.Tick` only tracks while `attack.IsAiming`, but `IsAiming` needs the turret already aligned — is closed at `Turreted.cs:238-241`, which suppresses the realign countdown while `desiredDirection` is non-zero, with a comment naming the exact symptom ("rotates one tiny step then stops"). `MoveTurret` (`:290-294`) clears `desiredDirection` on alignment, so `HasAchievedDesiredFacing` latches true rather than oscillating.
 
 **ONE NEGATIVE THAT IS WEAKER THAN IT LOOKS.** A zero-byte `lua.log` does *not* prove the target was visible and valid. `CombatProperties.Attack` logs "is an invalid target" / "is not revealed for player" to the Lua log (`CombatProperties.cs:93-99`), so an empty log is tempting to read as both checks passing — but the visibility warning is gated on `!targetActor.Info.HasTraitInfo<FrozenUnderFogInfo>()`, and civilian buildings carry `FrozenUnderFog`, so for exactly the targets in this scenario the warning is skipped whether or not they can be seen. The fog question had to be settled elsewhere (`MapLayers.cs:197`: `FogCheckboxEnabled` is the lobby *default value*, not the checkbox's availability, so `FogCheckboxEnabled: false` does turn fog off; and the harness sets only the `scenario` lobby option, `Game.cs:650-651`).
-## 2026-09-21 (run 3) — an attack order issued from Lua `WorldLoaded` can die on tick one, silently: the pre-explored map is a FRAME-END TASK, so the world is not settled when `WorldLoaded` runs
+## 2026-09-21 (run 3) — an attack order issued from Lua `WorldLoaded` can die on tick one, silently: the pre-explored map is a FRAME-END TASK, so the world is not settled when `WorldLoaded` runs **[promoted -> `architecture.md` §"A scripting binding that queues an activity is a player action ONE TICK EARLY" (`ExploreAll` is a frame-end task; the call site, not a delay, is the discriminator; the `FrozenUnderFog` warning suppression). Observed one-tick deferral per the runs-4/5 entry]**
 
 Third run of `test-himars-church-vs-block`, now instrumented. The probe was decisive and its whole output was one line:
 
@@ -27731,7 +27731,7 @@ Both launchers **already idle at the first Lua tick**, ammo untouched at 2, no m
 
 **THE PROCESS LESSON, WHICH COST THREE RUNS.** The verdict carried only health, and "both targets at exactly full HP" is the shared signature of at least four unrelated causes — out of min-range, activity dead on tick one, fired-but-no-missile, and warheads that did nothing. Each needs a different fix. One `Test.ActivityChain` + ammo reading separated them in a single run after two runs of reading code had produced two wrong mechanisms. **For any scenario asserting that something FIRED, print the activity chain and the ammo count in the failure message from the start** — health is a downstream proxy that cannot distinguish the interesting cases. `TestGlobal.cs:1195-1200` already says this about `ActivityChain`; that count of "one confident wrong answer" is now three.
 
-## 2026-09-21 (runs 4 and 5) — a scenario passed twice WITHOUT EVER RUNNING ITS ASSERTIONS: `AssertWithin`'s predicate returning true is itself a terminal `Test.Pass()`
+## 2026-09-21 (runs 4 and 5) — a scenario passed twice WITHOUT EVER RUNNING ITS ASSERTIONS: `AssertWithin`'s predicate returning true is itself a terminal `Test.Pass()` **[rejected: already covered -- the `AssertWithin` race is `AUTOTEST.md` §"`TestHarness.*`" (ONE VERDICT AUTHORITY); its one new mechanism fact, the observed one-tick `ExploreAll` deferral and the call-site discriminator, is promoted with the run-3 entry]**
 
 `test-himars-church-vs-block` finally fired — and both GREEN runs were worthless. `result.json` carried `"notes":""`, no `screenshots` key, and no PNG on disk in either run directory (`260921_174914`, `260921_175315`). The verdict function never executed, so **neither half of the bar was ever evaluated**: the run passed because both targets took *some* damage, and one hit point would have done it.
 

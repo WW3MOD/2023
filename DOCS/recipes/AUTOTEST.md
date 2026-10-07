@@ -747,6 +747,12 @@ run surprises. **Record which kind of argument each site rests on; they are not 
 missing it calls **`Assert.Ignore`, not `Assert.Fail`** (`:67`). Retiring the directory would have converted
 a passing NUnit test into a skipped one, with the suite still reading green.
 
+### A RED that PASSES certifies the fix — ask which line ARMS the defect, and whether setup can reach the state without executing it
+
+*(Added 2026-10-07 from a 2026-09-21 DISCOVERIES entry.)* `test-garrison-unload-keeps-manned-owner` passed GREEN and passed again with the veto under test forced off, notes identical byte for byte. The defect lived in a frame-end task that only `UnloadCargo` arms; the scenario drained the shelter while ports were still filling, so the last man left through `DeployToPort`, which arms nothing (mechanism in [`architecture.md` §"The hold is not the building"](../reference/architecture.md)). And the PASS clause named the same end state the regression produces, so the sabotage was indistinguishable from the repair. **When a verdict's PASS names the state the regression would also produce, catch the TRANSITION, not the end state** — the fix waits for all eight ports and then WATCHES ownership for a beat. A setup gate must also require the population to be SETTLED, not just non-empty (`shelter + ports >= #men`), or a man still walking in is never ordered anywhere.
+
+**For a scenario asserting that something FIRED, put the ammo count and `Test.ActivityChain` in the failure message from the start.** "Targets at exactly full HP" is the shared signature of at least four unrelated causes — out of `MinRange` under `allowMove=false`, the activity dying on tick one, fired-but-no-missile, warheads doing nothing — and health cannot separate them. The engine-side gate list is in [`architecture.md` §"An attack order that produces NOTHING"](../reference/architecture.md).
+
 ### Reverting a PROBABILISTIC fix is not a RED arm — compute the overlap before trusting the rerun
 
 The standard way to validate a behavioural scenario is to revert the fix and confirm it goes red. Where
