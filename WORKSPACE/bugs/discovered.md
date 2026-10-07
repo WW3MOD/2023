@@ -6118,3 +6118,14 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   a visible behavioural change deserving its own NUnit arm and an in-game look.
   (found while working on: getting `test-garrison-unload-keeps-manned-owner` to a verdict; its
   phase 4 pressed Deploy and waited 30s for ports that were never ordered to clear)
+
+- [2026-10-07] [LOW] **The Windows installer's `QuietUninstallString` names an uninstaller that is
+  never written.** `packaging/windows/buildpackage.nsi:325` writes `$INSTDIR\uninstaller.exe` and
+  `:327` (`UninstallString`) and `:359` agree, but `:328` (`QuietUninstallString`) points at
+  `"$INSTDIR\uninstall.exe" /S`. Upstream's `engine/packaging/windows/OpenRA.nsi:195` has
+  `uninstaller.exe` there, so this is a WW3MOD-side typo from `817bffb4` ("Add Windows and macOS
+  packaging scripts"). Effect: an interactive uninstall from Add/Remove works; any tool that uses the
+  quiet string (silent/managed uninstall, winget-style automation) launches a file that does not
+  exist. **Not fixed here** — found by reading during a docs-only curation pass at `c276679c`; the
+  `.nsi` is not compiled on this machine, so a one-word fix would ship unverified.
+  (found while working on: curate-07, verifying the 2026-09-30 installer-identity DISCOVERIES entry)

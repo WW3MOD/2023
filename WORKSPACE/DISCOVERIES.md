@@ -3,7 +3,7 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
-## 2026-09-30 - `<Product>` is read by nothing in-tree, and the Start Menu folder survives a rename only because the UNINSTALLER re-reads it from the registry key you are renaming (`wt/installer-identity`, base `main @ 986e9f2e`)
+## 2026-09-30 - `<Product>` is read by nothing in-tree, and the Start Menu folder survives a rename only because the UNINSTALLER re-reads it from the registry key you are renaming (`wt/installer-identity`, base `main @ 986e9f2e`) **[rejected: wrong home -- packaging mechanics with no reference doc to hold them, and the user-visible consequence (old installs orphaned by decision) is already recorded where a tester meets it, `packaging/windows/INSTALLER-TEST-PLAN.md:35-41`. Re-read at `c276679c`: `<Product>WW3MOD</Product>` (`engine/Directory.Build.props:17`) has no reader; the launcher reads `AssemblyMetadataAttribute` keys only; the Start Menu folder round-trips through `Software\${PACKAGING_WINDOWS_REGISTRY_KEY}` (`buildpackage.nsi:76-77`, `:376`). Verifying it turned up an unrelated live typo, `QuietUninstallString` -> `uninstall.exe` at `:328`, filed in `WORKSPACE/bugs/discovered.md`]**
 
 Two findings from de-OpenRA-ing the Windows install chain. Both are about which strings in that
 chain are load-bearing and which only look it.
