@@ -753,6 +753,10 @@ a passing NUnit test into a skipped one, with the suite still reading green.
 
 **For a scenario asserting that something FIRED, put the ammo count and `Test.ActivityChain` in the failure message from the start.** "Targets at exactly full HP" is the shared signature of at least four unrelated causes — out of `MinRange` under `allowMove=false`, the activity dying on tick one, fired-but-no-missile, warheads doing nothing — and health cannot separate them. The engine-side gate list is in [`architecture.md` §"An attack order that produces NOTHING"](../reference/architecture.md).
 
+### A NEGATIVE limb ("no damage arrived") is not a test of a gate — assert the predicate the engine exposes
+
+*(Added 2026-10-07 from a 2026-09-21 DISCOVERIES entry, re-read at `c276679c`.)* `test-garrison-port-arc-highpriority` asserted that a shooter outside a port's arc lands nothing by comparing health over 30 s, and passed with the arc gate deleted. "No damage" is satisfied by every reason a shot can fail to connect. **`Actor.CanTarget` is `Target.FromActor(t).IsValidFor(Self)`** (`Scripting/Properties/CombatProperties.cs:112-116`) — literally the `Actor.IsTargetableBy` the attack activity re-runs every tick — so it IS the instrument below the order layer, and the scenario had been printing it (`canTarget=TRUE` under sabotage) without asserting on it. What does NOT see a per-attacker gate is the order layer: `Test.GetTargetOrder`/`Test.ClickOrder` end at `WeaponInfo.IsValidAgainst` over the victim's enabled target-type UNION. **When the mechanism is a boolean predicate the engine exposes, assert the predicate and keep the downstream effect as a second limb, not the reverse.** To tell "never fired" from "fired and discarded", `WW3_GUNTRACE=1` makes `TargetDamageWarhead.DoImpact` write `TargetDamage HIT` / `TargetDamage SKIP outsideSpread` (`Warheads/TargetDamageWarhead.cs:89`, `:96`).
+
 ### Reverting a PROBABILISTIC fix is not a RED arm — compute the overlap before trusting the rerun
 
 The standard way to validate a behavioural scenario is to revert the fix and confirm it goes red. Where

@@ -43,7 +43,7 @@ vendor prefix onto either; every `.nsi` use is `${VAR}` behind a fixed path pref
 (`Software\`, `$PROGRAMFILES64\`, the Add/Remove `Uninstall\` path). A rename in `mod.config`
 is therefore complete on its own — there is no second site that rebuilds the old name.
 
-## 2026-09-22 - `Test.SelectActors` SELECTED ONE ACTOR, NOT ALL OF THEM, for as long as it has existed — and four scenarios that make claims about multi-unit selection were photographing a one-unit one (`wt/infantry-selection`)
+## 2026-09-22 - `Test.SelectActors` SELECTED ONE ACTOR, NOT ALL OF THEM, for as long as it has existed — and four scenarios that make claims about multi-unit selection were photographing a one-unit one (`wt/infantry-selection`) **[promoted -> `architecture.md` §Widget gotchas, the selection-box bullet (`Selection.Combine`'s `isClick` keeps `Take(1)`; the binding is fixed). The assert-the-state-you-photograph rule was already that bullet's operative advice]**
 
 Caught by the guard rather than by reading: `demo-infantry-selection` selects nine actors and
 prints the count, and run `260922_005703_p47240` came back **`selected = 1 (want 9)`** with four
@@ -93,7 +93,7 @@ nothing at all about this. The nine-actor demo found in one run what four scenar
 between them, for the cost of one `print`. **A screenshot scenario with no `GetSelectedCount` (or
 equivalent) assertion is not evidence about selection; it is a photograph of an assumption.**
 
-## 2026-09-21 - INFANTRY DO HAVE A SELECTION-ONLY MARK, it is parked on top of the class pictogram with no z-order, and the curated claim about the VEHICLE bracket cites a line that cannot draw one (`wt/infantry-selection`, base `main @ eacc1cff`)
+## 2026-09-21 - INFANTRY DO HAVE A SELECTION-ONLY MARK, it is parked on top of the class pictogram with no z-order, and the curated claim about the VEHICLE bracket cites a line that cannot draw one (`wt/infantry-selection`, base `main @ eacc1cff`) **[rejected: already in the bank -- the correction was applied in place to `architecture.md` §Widget gotchas ("NO UNIT IN THIS MOD IS GUARANTEED TO SHOW A SELECTION BOX") on 2026-09-21, and the user's 2026-09-30 ruling (keep arm A) leaves nothing new to promote. Re-read at `c276679c`]**
 
 Static read for audit package 4 (`audit/260921-release-readiness.md` §2.6 **U2**, *"Infantry give no
 selection feedback at all — box-select six riflemen, nothing changes"*, citing `infantry.yaml:57
@@ -163,7 +163,7 @@ the same branch to photograph all of it and had not been run when this was writt
   otherwise put a rank chevron on one arm and not the other.
 
 **RULED 2026-09-30 — user: keep arm A as shipped; brackets deferred to a hands-on session (*"I need to do this hands on later but not now"*). `infantry.yaml:57` is untouched and stays.** `demo-infantry-selection` stays in the tree as the capture rig for that session. The two factual corrections above are NOT deferred with it and stand on their own: the selection pip exists, and `ShowNever` gates only the box.
-## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`)
+## 2026-09-22 - The PBOX vision gate's blast radius was exactly one scenario, and the grep recommended to find that out is blind to three more (`wt/pbox-sight-audit`, base `main @ 1d7ea03b`) **[promoted -> `conventions.md` §"Scenarios are NOT maps to SOME tooling" (census both `map.yaml` placements and `Inherits: <ACTOR>` clones; `Vision.ValidRelationships` defaults `Ally`). The off-by-one cite is already corrected in-tree]**
 
 Follow-up audit to `cb8ce077`, which fixed the one scenario the gate broke and asked whether any
 PASSING scenario had quietly become vacuous. **It had not.** All 23 scenarios that touch a pbox
@@ -861,7 +861,7 @@ reinforcements join behind it -- item 64's missing **lead-hold**, which is not b
 module. `test-push-departs-together`'s own `expected-status` says so: *"DELETE THIS FILE when a
 lead-hold ... lands and d1/d2 can be met."*
 
-## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`)
+## 2026-09-22 - A rules change to a shared actor template silently invalidated an autotest scenario's STAGING premise, and no gate could see it (`70e63582` -> `test-frozen-tooltip-owner-hidden`) **[promoted, in part -> `conventions.md` §"Scenarios are NOT maps to SOME tooling" (the two-route census) and §"Precedence inside an actor is POSITIONAL" (the overlay idiom that gated PBOX). Not promoted: the `[danger] reference` map-dependence aside and the run-timestamp triage lesson (WORKSPACE method)]**
 
 `test-frozen-tooltip-owner-hidden` passed on 2026-09-21 21:59 and failed on main @ `ef7362a7`
 with `SETUP -- after 161 ticks USA's ghost of its OWN Box reads state 'shrouded'
@@ -932,7 +932,7 @@ predates the commit by six hours.** The worktree was at `e6732446`, whose main b
 `1160a531` (2026-09-21 15:22) -- not `d69e6883` (20:50). The true window was **15 merges, not 5**,
 and the cause sat in `70e63582`, four merges outside the assumed one. When a run dir is offered as
 a code reference, check the run's timestamp against the commit's `%cI` before diffing.
-## 2026-09-22 - A SCENARIO CANNOT RE-ROLE A SHIPPED UNIT: `AIUnitRole` in a scenario's `rules.yaml` is lint-visible, because `CheckUnitRoleTable` runs over EVERY map's resolved ruleset
+## 2026-09-22 - A SCENARIO CANNOT RE-ROLE A SHIPPED UNIT: `AIUnitRole` in a scenario's `rules.yaml` is lint-visible, because `CheckUnitRoleTable` runs over EVERY map's resolved ruleset **[promoted -> `conventions.md` §"Scenarios are NOT maps to SOME tooling" (every lint pass runs per map; the clone form with `RenderSprites: Image` and `-Buildable`; a mis-cased `Inherits` value is loud). Re-read at `c276679c`]**
 
 `5f8fed03` kept a staged casualty out of the bot's offensive pool by writing
 
@@ -2342,7 +2342,7 @@ all -- which is exactly the question above -- then preemption reaches past the g
 `if`s would close it, but it is an unmeasured behavioural change to a fire path and should ride with
 the scenario that can see it, not ahead of it.
 
-## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`)
+## 2026-09-21 - A damage-based negative limb can pass a RED whose gate is provably open: `Actor.CanTarget` IS `IsTargetableBy` and is the instrument that moves (`wt/port-arc-red`, base `main @ 1010c543`) **[promoted -> `AUTOTEST.md` §"A NEGATIVE limb is not a test of a gate" (`Actor.CanTarget` is `IsTargetableBy`; the order layer reads the union; GUNTRACE's `TargetDamage HIT/SKIP`) + `architecture.md` §"The hold is not the building" (the arc is a targeting gate only; cover is a flat 20%; `GarrisonProtection` forwards to the shelter only). Re-read at `c276679c`]**
 
 `test-garrison-port-arc-highpriority` asserted "a shooter outside a garrison port's arc lands nothing"
 by holding a 30 s window and comparing the occupant's health. Its header argued at length that damage

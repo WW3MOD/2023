@@ -923,6 +923,20 @@ For a clean scenario that prints exactly one line: the header. **The general for
 
 **The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads every scenario' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
+**A scenario's `rules.yaml` is not a private namespace to lint, and it is not a private namespace to the shipped actor either — re-role or re-tune a scenario-local CLONE, never the shipped type.** *(Promoted 2026-10-07 from two 2026-09-22 DISCOVERIES entries; re-read at `main @ c276679c`.)* `CheckYaml` runs every `ILintRulesPass` over every map's resolved ruleset, scoping errors to the map's package (`UtilityCommands/CheckYaml.cs:103-137`), so a scenario writing `abrams: AIUnitRole: Role: Logistics` failed `CheckUnitRoleTable`'s name pin (`Lint/CheckUnitRoleTable.cs:130-146`) for that map — only the set-equality half of that lint is gated to `DefaultRules` (`:170-174`). Overriding the TYPE also re-roles every instance the bot BUYS during the run. The clone form fixes both:
+
+```yaml
+casualtyabrams:
+	Inherits: abrams
+	RenderSprites:
+		Image: abrams      # sprites resolve by ACTOR NAME, not through Inherits -- without it, world load dies
+	AIUnitRole:
+		Role: Logistics
+	-Buildable:           # or the clone sits in the live production queue all run
+```
+
+and a mis-cased `Inherits:` value is loud (`Parent type ... not found`, `MiniYaml.cs:461-464`), so the clone also converts the silent case-merge failure into a loud one. **The converse census: a change to a shipped actor reaches scenarios by TWO routes** — `map.yaml` placements of the type, and `rules.yaml` clones declaring `Inherits: <ACTOR>`. When PBOX's vision was gated (`70e63582`), the placement grep found 18 scenarios and missed three clones (`fogmarker`, `shademarker`, `probebox`). Grep both. For a vision change, ask first whose side the scenario stages on: `Vision.ValidRelationships` defaults to `Ally` (`Traits/Vision.cs:24`, enforced `:50`) and nothing in the mod overrides it, so only scenarios that rely on the actor's OWN side seeing can be invalidated — exactly one of 23 was.
+
 ### A duplicate child key is LATENT until another file overrides that actor — the override is the detonator
 
 *(Promoted 2026-09-20 from `DISCOVERIES.md`, mechanism re-read at `main @ 554895ba`. Extends the section above, which says what the merge *does*; this says when it is *reported*.)*
