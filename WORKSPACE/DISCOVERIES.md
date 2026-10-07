@@ -1418,7 +1418,7 @@ that passed this batch carry the same shrunken idiom: `test-wgm-deny-thru-5-tree
 Their windows are a third shorter than authored and they may be passing without enforcing. Left
 untouched on purpose - editing a passing scenario's budget with no run to compare against is an
 unmeasured behavioural change, and a green proves nothing about which of its assertions still fire.
-## 2026-09-22 - Two chrome buttons may carry the same `Key:` and the winner is decided by CHILD ORDER, reversed — and a DISABLED button still claims the key (`wt/hotkey-reference`, base `main @ d69e6883`)
+## 2026-09-22 - Two chrome buttons may carry the same `Key:` and the winner is decided by CHILD ORDER, reversed — and a DISABLED button still claims the key (`wt/hotkey-reference`, base `main @ d69e6883`) **[promoted -> `architecture.md` §"A `Key:` is claimed by the LAST visible widget in tree order" (reverse walk, disabled button still claims, not panel-scoped, `GetFirstDuplicate` as the detector). Re-read at `c276679c`]**
 
 Settling the `O` collision (`WaypointMode` vs `ProductionTypePowers`, both WW3MOD's own, the only
 duplicate across 209 definitions). The question "which one actually fires?" looked like it needed a
@@ -1452,7 +1452,7 @@ Cheap detector, no build and no launch: parse the nine files, normalise `<KEY> <
 exactly `HotkeyManager.GetFirstDuplicate` (`HotkeyManager.cs:91-103`). It found this one and, after
 the fix, reports zero.
 
-## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`)
+## 2026-09-22 - The hotkey panel's description column is 198px and EVERY string that overflows it is ours; and a list with no scroll verb can only ever be photographed down to row 11 (`wt/hotkey-reference`, base `main @ d69e6883`) **[promoted, in part -> `architecture.md` §"A `Key:` is claimed by the LAST visible widget" (the ~198 px unclipped description budget) + `SCREENSHOT.md` (the `type` verb). The per-string measurements are history]**
 
 Both found from run `manual_hotkeys_260922_011140`, the first capture of the Settings → Hotkeys
 panel this project has taken.
@@ -1497,7 +1497,7 @@ between them, which for a driver taking deliberately different shots is a failur
 size checks cannot see it (both frames were a healthy 794 KB). `screenshot-hotkeys.sh` now counts
 distinct md5s and fails the run when it is short.
 
-## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`)
+## 2026-09-22 - An external-capture click that lands before the world exists photographs a healthy-looking wrong screen, and `NO SUCH VISIBLE WIDGET` is two failures wearing one message (`wt/hotkey-reference`, base `main @ d69e6883`) **[promoted -> `SCREENSHOT.md` (the miss line is two failures; order it against the load lines; retry on the dispatch line). The forward-vs-reverse walk is in `architecture.md` §"A `Key:` is claimed by the LAST visible widget"]**
 
 From run `manual_hotkeys_260922_005942`, a driver written the day before. Both `click` commands
 missed; both screenshots came out as **1,024,258-byte, byte-identical** pictures of the Esc menu
@@ -1544,7 +1544,7 @@ well-formed PNG of the wrong screen. **File size cannot detect it** — SCREENSH
 a blank frame is file size" is true and does not apply. What detects it is the dispatch line, and
 secondarily that the two frames were byte-identical.
 
-## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`)
+## 2026-09-21 - A hotkey list HAS shipped in-game all along; what is missing is the `HotkeyGroups` entry that makes a key visible, and 9 of the mod's own keys fall through it (`wt/hotkey-reference`, base `main @ d69e6883`) **[promoted -> `architecture.md` §"A `Key:` is claimed by the LAST visible widget in tree order" (`HotkeyGroups` is the registration; the panel reads bindings live). Re-read at `c276679c`: the three stance `Types` now have groups and the `O` clash is gone (`WaypointMode: O Shift`). Not promoted: the audit-item bookkeeping, the free-letter count, and the SR "indestructible" copy note (a user call, not mechanism)]**
 
 Found re-deriving audit `260921-release-readiness.md` §2.5 **I1** ("There is no hotkey list a player
 can read", evidence: "`chrome/` inventory — no help/keys panel"). **I1 is wrong as stated.**
@@ -2696,7 +2696,7 @@ missing is a line whose name (`DetectionWhenLoaded`) does not contain the word i
 is a one-line addition, not a removal, and it is invisible to any check that looks for divergent
 trait VALUES: all three actors' Vision traits carry identical ranges and strengths.
 
-## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`)
+## 2026-09-20 - A roster that scans RAW MiniYaml nodes is blind to inheritance, which is why adding a SUBCLASS moves none of the four warhead counts (`wt/exchange-variants`, base `main @ 554895ba`) **[promoted -> `conventions.md` §"A merged top-level node means ONE FILE CANNOT ANSWER" (raw-node rosters: subclass stays out, sibling is what they catch) + §"Disabling a string field" (a bare key KEEPS the inherited value, `MiniYaml.cs:333`/`:538` -- added as a caveat the bank lacked). The forced-subclass shape was already in §"A MiniYaml template of PURE `-Key:` removals cannot exist". Re-read at `c276679c`]**
 
 The arsenal's own instruction is that "anything added to either file has to be added here"
 (`engine/OpenRA.Test/OpenRA.Mods.Common/NuclearYieldTest.cs:153-162`), and the brief for this work
@@ -2740,7 +2740,7 @@ inherit answer so a later edit that starts stating things is loud.
    day, §"A MiniYaml template of PURE `-Key:` removals cannot exist"). The seventeen removals are
    therefore written out once per variant; there is no shape that shares them.
 
-## 2026-09-20 - The Sarmat's cluster bus has been dead code since 2026-09-07, and a design note still routes through it (`wt/exchange-variants`, base `main @ 554895ba`)
+## 2026-09-20 - The Sarmat's cluster bus has been dead code since 2026-09-07, and a design note still routes through it (`wt/exchange-variants`, base `main @ 554895ba`) **[rejected: narrow and already recorded at the site -- `nuclear-arsenal.yaml:1007-1010` says in-comment that `NukeSarmatMIRV` is no longer fired and `SarmatMissile` explodes `NukeSarmatRV` directly (re-read at `c276679c`); the grep-for-`Weapon:`-lines habit is the CLAUDE.md "Picking up ANY queue item" rule]**
 
 The brief for the exchange variants said, in as many words, that "the Sarmat's cluster bus dispenses
 `NukeSarmatRV` -- swap where the RV weapon is named, not just the bus". That is a true statement about
