@@ -1050,9 +1050,11 @@ tree.
 
 ### `Launch.Benchmark` forces the SERIAL relight path, so a benchmark does not measure the shipped one
 
-`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:879`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
+`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:886`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
 
 **So the three instruments that make a relight measurable are the same three that switch off the thing being measured.** Any profile with `Launch.Benchmark`, the perf graph, or the perf text overlay is timing the serial sweep. That is deliberate and it is also stable — a benchmark profile keeps measuring what it always measured — but **a figure taken under `Launch.Benchmark` is not a figure about shipped play**, and an A/B whose arms differ in whether sampling is on is comparing two different code paths rather than two configurations.
+
+**The per-tick cost is readable WITHOUT the flag.** *(Added 2026-10-07 from a 2026-09-22 DISCOVERIES entry, re-read at `c276679c`.)* The `tick_time` `PerfSample` in `Game.InnerLogicTick` is unconditional (`Game.cs:805`), and `Benchmark.Tick` only reads `PerfHistory.Items["tick_time"].LastValue`; `Test.GetTickTimeMs()` (`Scripting/Global/TestGlobal.cs:1553-1556`) reads the same property in test mode, so a populated-match timing can be taken on the shipped parallel path. **The two readings lag differently:** a `Trigger.OnTick` callback runs inside `world.Tick()` before `PerfHistory.Tick()` publishes (`Game.cs:824-826`), so Lua reads the cost of tick **N−2**; `benchmark?.Tick` runs after both (`:834`), so a CSV row labelled N holds tick **N−1**. Never line a Lua reading up against a CSV row by tick number.
 
 ### A staleness bound derived from a THRESHOLD preserves the threshold, not the behaviour — and they can be orders of magnitude apart
 

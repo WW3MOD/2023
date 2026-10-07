@@ -345,11 +345,11 @@ before and after any scenario edit and says nothing whatever about your scenario
 underneath it has no such limit and models what the pathfinder sees:
 
 ```bash
-./tools/nav-guard/nav_guard.py report  --scenarios --map test-<name>
-./tools/nav-guard/nav_guard.py pockets --scenarios --map test-<name> --locomotor wheeled
+python3 tools/nav-guard/nav_guard.py report  --scenarios --map test-<name>
+python3 tools/nav-guard/nav_guard.py pockets --scenarios --map test-<name> --locomotor wheeled
 ```
 
-`pockets` is the one to read: it prints every region that is **not** the largest, with a bounding box.
+*(Corrected 2026-10-07: these lines used to start `./tools/nav-guard/nav_guard.py`. The file is tracked mode `100644`, so that form dies with `permission denied` and exit 126 — a launch failure, not a result. Invoke the interpreter.)* `pockets` is the one to read: it prints every region that is **not** the largest, with a bounding box.
 If your scenario means to seal something off, the pocket must be exactly the shape you sealed; if it
 does not, a pocket is a unit that cannot reach what the test assumes it reaches. For a specific
 "can A reach B?" question, label the cells and compare — worked, committed example with its measured
@@ -388,6 +388,15 @@ maps to the tooling" hole:** `ScenarioLuaParsesTest` parses every `tools/autotes
 under the engine's own Lua 5.1 runtime, so `dotnet test` catches a syntax error naming the file and
 line. Verified by injecting `local x = = 1` and watching it fail, rather than assumed. Cheap insurance
 against burning a slot on a typo.
+
+### A scenario's LOGIC can be run offline — its DIALECT cannot be checked that way
+
+*(Added 2026-10-07 from three 2026-09-22/23 DISCOVERIES entries.)* The macOS dev host has a stand-alone interpreter (`/usr/local/bin/lua`, Lua 5.5.1 as of this writing). `lua -e 'assert(loadfile("<scenario>.lua"))'` is a free syntax check, and stubbing `Test.*`, `TestHarness.*` and `Player.*` makes a whole scenario runnable without a slot — that is how `tools/nuke-perf/drive-populated.lua` caught two bugs before a first launch. Two limits, both paid for:
+
+- **5.5 accepts what the engine's Eluant rejects** — floor division `//` above all — so a clean local parse is evidence about logic, never about the dialect.
+- **An offline driver must take the quantity under test as an INPUT, not inherit it from the code under test.** The same driver synthesised its fake detonations at the impact tick the scenario derived, so both shared the error and the arm passed; it now takes the arrival offset as a parameter (`SALVO_AT=`).
+
+**A detector calibrated on an inert rig does not transfer to a populated one, and fails by pointing somewhere plausible.** `demo-nuke-perf` anchors its window on the first rise of `Test.GetImpactEffectCount()`, which is sound on a map of statues; in a two-bot match ordinary tank fire moves that counter every few ticks, so the "first rise" is whatever round landed — 22 ticks early on all three shots in the offline arm where no warhead landed at all. Any predicate on a mod-wide running counter is in this class the moment a second combatant is added. Anchor on an attributable observation instead (`Test.GetLastBallisticMissileImpactTick(actorType)`), and stamp a census on both the open and the close of each window: a census that changes across a window it should not change across means the window is in the wrong place.
 
 ### A scenario that passes every gate a launch-barred worker may run is NOT known to load
 

@@ -336,7 +336,7 @@ the only 4 over-budget ticks in the entire 10 493-tick run. Read as a floor: the
 the ~98 quiet ticks the mis-keyed window also contained.
 
 
-## 2026-09-22 - `tick_time` can be read from Lua WITHOUT `Launch.Benchmark`, and that matters because the benchmark flag measures a build nobody ships (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+## 2026-09-22 - `tick_time` can be read from Lua WITHOUT `Launch.Benchmark`, and that matters because the benchmark flag measures a build nobody ships (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`) **[promoted -> `conventions.md` §"`Launch.Benchmark` forces the SERIAL relight path" (`Test.GetTickTimeMs` reads the unconditional sample; Lua lags N-2, the CSV N-1). Also corrected that section's `Game.cs:879` -> `:886`. Re-read at `c276679c`]**
 
 **THE INSTRUMENT AND THE TAX ARE THE SAME FLAG, AND ONLY ONE OF THEM IS WANTED.** `tools/nuke-perf`
 reads per-tick cost out of `nukeperf-tick_time.csv`, which only exists when the run is launched with
@@ -367,7 +367,7 @@ tick number.
 (`PerfTickLogger.cs:36-50`). And nothing about the GPU: under `--hidden` nothing is drawn either
 way.
 
-## 2026-09-22 - Anchoring a measurement window on an OBSERVED impact works on an inert map and cannot work in a live match; the fix is to derive the tick and count impacts instead (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+## 2026-09-22 - Anchoring a measurement window on an OBSERVED impact works on an inert map and cannot work in a live match; the fix is to derive the tick and count impacts instead (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`) **[promoted -> `AUTOTEST.md` §"A scenario's LOGIC can be run offline" (an inert-rig detector fails plausibly in a populated match; anchor on an attributable observation). The derive-the-tick fix it proposed was itself overturned on 2026-09-23 (sandbox zeroes `MissileDelay`, package size is the map's) -- not promoted]**
 
 **`demo-nuke-perf` anchors its detonation window on the first rise in `Test.GetImpactEffectCount()`,
 and is right to: its map is 448 statues and one Supply Route, so the only thing that can move that
@@ -406,7 +406,7 @@ transfer to a populated one, and it fails SILENTLY — by pointing somewhere pla
 erroring.** Any autotest predicate that reads a mod-wide running counter (`GetImpactEffectCount`,
 `GetActiveMissileCount`) is in this class the moment a second combatant is added to the map.
 
-## 2026-09-22 - Three small traps met while building a scenario on a fresh worktree, none of which is about the scenario (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`)
+## 2026-09-22 - Three small traps met while building a scenario on a fresh worktree, none of which is about the scenario (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`) **[promoted -> `AUTOTEST.md` (the `./nav_guard.py` form fixed to `python3 ...` in two places, plus `tools/nav-guard/README.md`; the file is still mode `100644` at `c276679c`) + §"A scenario's LOGIC can be run offline" (local Lua 5.5 for logic, never for dialect). The scenario count is a dated observation and is not promoted]**
 
 **`tools/nav-guard/nav_guard.py` IS TRACKED NON-EXECUTABLE** (mode `100644`, against
 `tools/lua-gate/lua_gate.py`'s `100755`). `./tools/nav-guard/nav_guard.py report ...` — the form

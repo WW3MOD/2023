@@ -18,12 +18,12 @@ Nothing in the build would have caught it. nav-guard reproduces that number — 
 
 ```bash
 make nav-guard                              # selftest + baseline check; no build needed
-./tools/nav-guard/nav_guard.py check        # the gate on its own
-./tools/nav-guard/nav_guard.py bless        # re-record the baseline after a reviewed change
-./tools/nav-guard/nav_guard.py validate     # decoder self-check against the map.png previews
-./tools/nav-guard/nav_guard.py report       # per-map/per-locomotor table
-./tools/nav-guard/nav_guard.py pockets --map river-zeta --locomotor wheeled
-./tools/nav-guard/nav_guard.py compare --before none --after generic
+python3 tools/nav-guard/nav_guard.py check        # the gate on its own
+python3 tools/nav-guard/nav_guard.py bless        # re-record the baseline after a reviewed change
+python3 tools/nav-guard/nav_guard.py validate     # decoder self-check against the map.png previews
+python3 tools/nav-guard/nav_guard.py report       # per-map/per-locomotor table
+python3 tools/nav-guard/nav_guard.py pockets --map river-zeta --locomotor wheeled
+python3 tools/nav-guard/nav_guard.py compare --before none --after generic
 ```
 
 `check` is standard-library-only so it can gate anywhere. `validate` needs Pillow.
@@ -127,8 +127,8 @@ the tooling".
 The decoder itself has no such limit, so the inspection commands can reach a scenario:
 
 ```bash
-./tools/nav-guard/nav_guard.py report  --scenarios --map test-restock-unreachable-centre
-./tools/nav-guard/nav_guard.py pockets --scenarios --map test-restock-unreachable-centre --locomotor wheeled
+python3 tools/nav-guard/nav_guard.py report  --scenarios --map test-restock-unreachable-centre
+python3 tools/nav-guard/nav_guard.py pockets --scenarios --map test-restock-unreachable-centre --locomotor wheeled
 ```
 
 Scenarios stay opt-in rather than becoming part of the gate, for two reasons that are worth
