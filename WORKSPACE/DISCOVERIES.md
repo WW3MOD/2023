@@ -219,7 +219,7 @@ needs vision" hazard is structurally unreachable for an empty box.
 `70e63582` (`git show 70e63582^:…` → `:79` and `:329`), so the merge added the third and changed
 neither. 31 scenarios place a `gtwr` or an `hbox` and **not one contains a `GetVisibility` or
 `IsDetectedBy` call**, so none can be assuming either sees while unmanned.
-## 2026-09-23 - The powers sandbox silently zeroes `MissileDelay`, and a game-ender's salvo size is the MAP's, not the YAML's — two derived numbers that invalidated a whole run (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`, worked at `5954a0ff`)
+## 2026-09-23 - The powers sandbox silently zeroes `MissileDelay`, and a game-ender's salvo size is the MAP's, not the YAML's — two derived numbers that invalidated a whole run (`wt/nuke-perf-populated`, base `origin/main @ 1d7ea03b`, worked at `5954a0ff`) **[promoted -> `architecture.md` §"What a scenario must not derive from a power's YAML" (`AimPointsFor` -> `PackageSize` from `Bounds`; `PreLaunchTicks` is zero; missile counters cannot see `BallisticMissile` actors; the impact-count bindings). Not promoted: the mis-keyed-window census table and the offline-driver/second-shot method points (scenario method; the perf number lives in `tools/nuke-perf/README.md`)]**
 
 **THE RUN.** `260923_084012_p19451_demo-nuke-perf-populated`, the first live run of the populated
 nuke-perf scenario. It finished cleanly at tick 10493, fired 3/3 shots — and **declared all three
@@ -1967,7 +1967,7 @@ had just written (its PITFALL block at :123-128 is the first diagnosis of this i
 countermeasure is structural, not documentary: **one verdict authority per scenario**, and if a
 helper might reach `Test.Pass`, the scenario must not also schedule one.
 
-## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`)
+## 2026-09-21 - Under `powers-sandbox`, every `MissileDelay:` override a scenario writes is INERT, and two demos computed impact ticks from one (`wt/nuke-demo`, base `main @ c5f4acb7`) **[promoted -> `architecture.md` §"What a scenario must not derive from a power's YAML" (the `Sandbox*` family REPLACES launch delay and purchase time; only standoff is identity). The scenario rule was already `AUTOTEST.md` §"Timing an event-driven scenario". Re-read at `c276679c`]**
 
 `MissileStrikePower.Activate` does not read `info.MissileDelay` when the sandbox lobby option is on:
 
@@ -1996,7 +1996,7 @@ per-power value rather than scaling it. Before deriving any timing from a power'
 scenario, read that file -- the third one, `SandboxStandoffPercent`, defaults to the identity 100
 and is the only one that leaves its value alone.
 
-## 2026-09-21 - A support power gated to the other faction fails SILENTLY through four layers, and `EnsurePower` reports `buying` forever rather than `refused` (`wt/nuke-demo`, base `main @ c5f4acb7`)
+## 2026-09-21 - A support power gated to the other faction fails SILENTLY through four layers, and `EnsurePower` reports `buying` forever rather than `refused` (`wt/nuke-demo`, base `main @ c5f4acb7`) **[promoted -> `architecture.md` §"What a scenario must not derive from a power's YAML" (the four silent layers; `EnsurePower` reports `buying` forever; `GetSupportPowerBin` disambiguates). Re-read at `c276679c`]**
 
 `demo-nuke-arsenal` could not fire the Sarmat or the Tsar Bomba from its America seat -- both carry
 `Prerequisites: powers.event, player.russia` and the sandbox block grants only the first. What makes
@@ -2019,7 +2019,7 @@ a power will not fire, read the prerequisite before trusting the status token.**
 that does disambiguate is `Test.GetSupportPowerBin(player)`: a power the seat cannot hold is not in
 it at all.
 
-## 2026-09-21 - A script CAN order a non-playable map combatant about, and the reason is that its ClientIndex is the host's (`wt/nuke-demo`, base `main @ c5f4acb7`)
+## 2026-09-21 - A script CAN order a non-playable map combatant about, and the reason is that its ClientIndex is the host's (`wt/nuke-demo`, base `main @ c5f4acb7`) **[promoted -> `architecture.md` §"What a scenario must not derive from a power's YAML" (map player's `ClientIndex` is the admin's, `Player.cs:222`; one-client only)]**
 
 The fix above needed Russia to buy and fire from a seat that is a bare map player (`Playable:`
 absent), not a lobby slot. Both halves work, by different routes, and only one of them is obvious:
@@ -2044,7 +2044,7 @@ absent), not a lobby slot. Both halves work, by different routes, and only one o
 remote admin and the validator would drop a locally-issued order for that seat. This is an autotest
 and demo technique only.
 
-## 2026-09-21 - The B83 became a SIX-warhead weapon on 2026-09-20, and its footprint now exceeds the Tsar Bomba's staging band (`wt/nuke-demo`, base `main @ c5f4acb7`)
+## 2026-09-21 - The B83 became a SIX-warhead weapon on 2026-09-20, and its footprint now exceeds the Tsar Bomba's staging band (`wt/nuke-demo`, base `main @ c5f4acb7`) **[promoted, in part -> `architecture.md` §"What a scenario must not derive from a power's YAML" + `game-model.md` (the retired B83 is still a yield-ender, so it fires as a package). The demo-geometry consequence is not promoted; the 6 is map-derived (the 09-23 entry corrects the general case)]**
 
 `AimPoints` is deliberately absent from `MissileStrikePower@B83` as well as `@Sarmat`;
 `MissileStrikePower.AimPointsFor` overrides it for anything `NuclearGameEnders.Is()` accepts and
