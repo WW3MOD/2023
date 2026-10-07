@@ -108,6 +108,8 @@ Four properties of that seam, each of which decides whether a follow-on is build
 
 **Detector:** when a YAML override does not take, resolve the ruleset (`--dump-balance-json`, below) and list the derived actor's `Inherits@` lines *in order* — anything declared after the line you edited is a candidate to have overwritten it. This is the multi-parent form of the same merge machinery described in [§A duplicate trait key inside ONE actor](#a-duplicate-trait-key-inside-one-actor-last-value-wins-at-the-first-keys-position).
 
+**The same machinery makes an OVERLAY TEMPLATE: a template whose whole body re-states keys it inherits, carrying only a gate.** *(Promoted 2026-10-07 from a 2026-09-15 DISCOVERIES entry; re-read at `main @ c276679c`.)* `^StandardVisionWhenLoaded` inherits `^StandardVision` and then re-states `Vision@1`..`Vision@10` carrying nothing but `RequiresCondition: loaded` (`rules/defaults.yaml:156-177`). MiniYaml merges those onto the identically-keyed nodes already present, so the ranges survive and the gate lands on top — **it removes nothing and adds no band; the gating is done by key collision.** Two consequences. It only gates a ladder that is already there by the time it is folded in, so its position among the `Inherits@` lines matters (above). And **the actor that is wrong is the one with a line MISSING**, invisible to any check comparing trait VALUES: PBOX revealed shroud while unmanned, alone of the three emplacements, because GTWR and HBOX carry `Inherits@DetectionWhenLoaded: ^StandardVisionWhenLoaded` and PBOX did not — fixed at `70e63582` (`structures-defenses.yaml:215`, with the reasoning in-comment above it). Every defence's Vision ranges were identical throughout, and the inherit's name does not contain the word it gates on.
+
 ### Conditions system
 
 **A condition variable resolves to its STACK DEPTH, so a band selector needs no engine code.** `Actor.UpdateConditionState` assigns `conditionCache[condition] = conditionState.Tokens.Count` (`Actor.cs:696`), and `VariableExpression` (`engine/OpenRA.Game/Support/VariableExpression.cs:131-136`) implements the full set of comparison operators against those variables. **So any trait that grants one token per unit of something exposes a countable quantity to YAML for free.** `AmmoPool` already does exactly this — one token pushed per remaining round, popped on spend (`AmmoPool.cs:817-821`) — which is what makes `RequiresCondition: ammo-primary == 2` on the Iskander's missile overlay (`vehicles-russia.yaml:1041`) work; `ammo-primary >= 6 && ammo-primary <= 10` is equally valid and needs no C#.
@@ -442,6 +444,8 @@ catch it: it passes `discriminated` as a literal, so it pins the formatter and n
 **Presence and magnitude are two different signals, and here one of them is load-bearing for the UI.**
 *(Promoted 2026-09-20 from DISCOVERIES; re-read at `a21583fd`.)*
 
+**So when a `Versus` table is wrong, ask whether the defect is in its VALUES or its KEY SET before editing it — a value is local, a key is global.** *(Added 2026-10-07 from a 2026-09-21 DISCOVERIES entry, re-read at `c276679c`.)* `IskanderTargeter`'s dummy `Warhead@Target` zeroed six classes and omitted `Kevlar`, dealing 50 to every soldier per shot; completing the table would have flipped every infantry tooltip. The levers that do not touch the key set are `Damage: 0` (what shipped, `rules/weapons/weapons-missiles.yaml:397`, with the reasoning in-comment), `DamagePercent: 0`, or dropping the warhead. **One residue:** `DangerFieldLayer.WarheadIsHarmless` (`:895-905`) reads only `Versus`, never `Damage`, so a `Damage: 0` warhead is a **fail-open false positive** in the bot danger field; correcting that moves bot belief and breaks replay byte-identity, so it was left.
+
 ### `Penetration` is compared against `Thickness × ArmorDirectionPercent`, so reading it without the attack direction ranks weapons BACKWARDS
 
 *(Promoted 2026-09-01 from DISCOVERIES, verified against `main @ 60c1cda4`. Arithmetic over read code — not measured in game.)*
@@ -632,6 +636,8 @@ arithmetic rather than approximating it, and give the checker a file it is requi
 
 **Free gate nobody had mentioned: `--check-yaml` REFUSES a scenario map with no playable slot.** A new scenario whose players are all map-authored combatants fails the single-scenario lint with `Error: Found no playable player` and exit 1, before any launch. `PlayerReference.Playable` defaults to false and plenty of traits deliberately do not test it, so an all-non-`Playable` cast is otherwise a perfectly reasonable scenario shape. One `Playable: True` satisfies it.
 
+**A test roster that reads `MiniYaml.FromFile` sees RAW nodes, so it is blind to anything a node INHERITS.** *(Promoted 2026-10-07 from a 2026-09-20 DISCOVERIES entry, re-read at `c276679c`.)* Four nuclear rosters — `NuclearYieldTest.AllNukes` (`OpenRA.Test/OpenRA.Mods.Common/NuclearYieldTest.cs`), the `Warhead@TreeBurn` count in `BurntTreeScopeTest`, the per-file smudge count in `ScarUnderActorsTest`, and the `YIELDS` tables in `tools/nuke-light/gen_fireball_light.py` / `tools/nuke-shake/gen_shake.py` — iterate unresolved nodes, so a weapon whose body is `Inherits:` plus removals plus one override declares nothing they count and moves none of them. **Cuts both ways:** a SUBCLASS correctly stays out (its physics is checked once, at the base, and listing it would hand the roster a raw node missing the warheads its invariants test), while a SIBLING that restates the same physics is exactly what the roster exists to catch and looks identical from outside. Ask of any roster before adding to it: **"does this node STATE the quantity the roster checks, or inherit it?"** `ExchangeVariantTest.TheVariantsStateNoPhysicsOfTheirOwnAndSoJoinNoRoster` pins the inherit answer.
+
 ### `Rules:` as an INLINE VALUE is a file list, not a child block — and a static tool that walks child nodes sees nothing
 
 `MiniYaml.Load` treats a non-null `mapRules.Value` as a file list and appends it to the mod's rule files (`engine/OpenRA.Game/MiniYaml.cs:627-630`), separately from `mapRules.Nodes` (`:636`). Both forms are legal and several shipped maps and scenarios use the inline one. **Any static tool that reads a map by walking `Rules:`' child nodes therefore returns no overrides at all for those maps** — silently, and in the direction that looks like "this map overrides nothing". A map that overrode a **locomotor** that way would be invisible to `nav-guard`. Related: [§"Maps must declare `Rules: rules.yaml`"](#maps-must-declare-rules-rulesyaml).
@@ -761,6 +767,8 @@ had been hit once before and not generalised.
 ### Disabling a string field: bare colon, not `""`
 
 To clear a widget/chrome string field (`Background`, `Decorations`, `Separators`, `TooltipText`, …), use a **bare trailing colon**, never empty quotes. `FieldLoader.ParseString` returns the value verbatim (`FieldLoader.cs:161`), so `Separators: ""` parses as the literal two-character string `""`. That passes the `!string.IsNullOrEmpty` guards in the widgets, and the code then tries to load a chrome collection literally named `""` — e.g. `Sprite ""/separator was not found`. `Separators:` (bare colon) parses as null, `IsNullOrEmpty` fires, and the feature is skipped as intended.
+
+**That holds only where nothing is INHERITED under the same key — in a merge, a bare colon KEEPS the parent's value.** *(Added 2026-10-07, re-read at `main @ c276679c`.)* `MiniYaml.FromLines` maps an empty value to `null` (`MiniYaml.cs:333`), and the merge leaf rule is `new MiniYaml(overrideNodes.Value ?? existingNodes.Value, …)` (`:538`), so a null override never replaces an inherited value. That is a feature when re-pointing one leaf of an inherited block — `Warhead@FireballLight:` with only `Light:` under it still resolves as `LightEvent`, which is how the nuclear exchange variants override one field without restating the warhead type (pinned in `OpenRA.Test/OpenRA.Mods.Common/ExchangeVariantTest.cs`) — and a trap when the intent was to clear it. **To clear an inherited field, remove the node with `-Key:` (and re-add what you need), not with a bare colon.**
 
 ### Maps must declare `Rules: rules.yaml`
 
@@ -915,6 +923,20 @@ For a clean scenario that prints exactly one line: the header. **The general for
 
 **The NUnit option, and why nobody has taken it.** An `engine/OpenRA.Test/` fixture that loads every scenario' rules would close the gap in CI, and it is possible but not cheap: **nothing in the test project constructs a `ModData`** (zero references), so the mod-filesystem bootstrap would have to be built from scratch. The one `Ruleset` a test does build is hand-assembled in memory from synthetic `ActorInfo`s with no YAML behind it (`ShadowCacheKeyTermsTest.cs:40-55`), so it is not a starting point. The cost is the bootstrap, not the ruleset.
 
+**A scenario's `rules.yaml` is not a private namespace to lint, and it is not a private namespace to the shipped actor either — re-role or re-tune a scenario-local CLONE, never the shipped type.** *(Promoted 2026-10-07 from two 2026-09-22 DISCOVERIES entries; re-read at `main @ c276679c`.)* `CheckYaml` runs every `ILintRulesPass` over every map's resolved ruleset, scoping errors to the map's package (`UtilityCommands/CheckYaml.cs:103-137`), so a scenario writing `abrams: AIUnitRole: Role: Logistics` failed `CheckUnitRoleTable`'s name pin (`Lint/CheckUnitRoleTable.cs:130-146`) for that map — only the set-equality half of that lint is gated to `DefaultRules` (`:170-174`). Overriding the TYPE also re-roles every instance the bot BUYS during the run. The clone form fixes both:
+
+```yaml
+casualtyabrams:
+	Inherits: abrams
+	RenderSprites:
+		Image: abrams      # sprites resolve by ACTOR NAME, not through Inherits -- without it, world load dies
+	AIUnitRole:
+		Role: Logistics
+	-Buildable:           # or the clone sits in the live production queue all run
+```
+
+and a mis-cased `Inherits:` value is loud (`Parent type ... not found`, `MiniYaml.cs:461-464`), so the clone also converts the silent case-merge failure into a loud one. **The converse census: a change to a shipped actor reaches scenarios by TWO routes** — `map.yaml` placements of the type, and `rules.yaml` clones declaring `Inherits: <ACTOR>`. When PBOX's vision was gated (`70e63582`), the placement grep found 18 scenarios and missed three clones (`fogmarker`, `shademarker`, `probebox`). Grep both. For a vision change, ask first whose side the scenario stages on: `Vision.ValidRelationships` defaults to `Ally` (`Traits/Vision.cs:24`, enforced `:50`) and nothing in the mod overrides it, so only scenarios that rely on the actor's OWN side seeing can be invalidated — exactly one of 23 was.
+
 ### A duplicate child key is LATENT until another file overrides that actor — the override is the detonator
 
 *(Promoted 2026-09-20 from `DISCOVERIES.md`, mechanism re-read at `main @ 554895ba`. Extends the section above, which says what the merge *does*; this says when it is *reported*.)*
@@ -1028,9 +1050,11 @@ tree.
 
 ### `Launch.Benchmark` forces the SERIAL relight path, so a benchmark does not measure the shipped one
 
-`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:879`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
+`PerfHistory.Sampling = Settings.Debug.PerfGraph || Settings.Debug.PerfText || benchmark != null` (`engine/OpenRA.Game/Game.cs:886`), and the parallel terrain-relight sweep refuses to run while it is true (`TerrainLighting.cs:316-318`) because `PerfHistory.Increment` is not thread-safe — mechanism in [`architecture.md` §"The terrain relight sweep parallelises by VERTEX row"](architecture.md).
 
 **So the three instruments that make a relight measurable are the same three that switch off the thing being measured.** Any profile with `Launch.Benchmark`, the perf graph, or the perf text overlay is timing the serial sweep. That is deliberate and it is also stable — a benchmark profile keeps measuring what it always measured — but **a figure taken under `Launch.Benchmark` is not a figure about shipped play**, and an A/B whose arms differ in whether sampling is on is comparing two different code paths rather than two configurations.
+
+**The per-tick cost is readable WITHOUT the flag.** *(Added 2026-10-07 from a 2026-09-22 DISCOVERIES entry, re-read at `c276679c`.)* The `tick_time` `PerfSample` in `Game.InnerLogicTick` is unconditional (`Game.cs:805`), and `Benchmark.Tick` only reads `PerfHistory.Items["tick_time"].LastValue`; `Test.GetTickTimeMs()` (`Scripting/Global/TestGlobal.cs:1553-1556`) reads the same property in test mode, so a populated-match timing can be taken on the shipped parallel path. **The two readings lag differently:** a `Trigger.OnTick` callback runs inside `world.Tick()` before `PerfHistory.Tick()` publishes (`Game.cs:824-826`), so Lua reads the cost of tick **N−2**; `benchmark?.Tick` runs after both (`:834`), so a CSV row labelled N holds tick **N−1**. Never line a Lua reading up against a CSV row by tick number.
 
 ### A staleness bound derived from a THRESHOLD preserves the threshold, not the behaviour — and they can be orders of magnitude apart
 
@@ -1084,6 +1108,8 @@ effects through a `tanh`, so a 7x error and a 1.6x error render as the same pict
 fails to load; or have the retuning commit add a check that enumerates call sites **from the files** rather
 than from a list typed at the time. Any branch open across the instant a semantic change lands
 reintroduces the old semantics on merge, silently, because the spelling is unchanged.
+
+**Splitting a shared template scalar into per-actor values is the same migration, and the consumers that break never name the key.** *(Promoted 2026-10-07 from a 2026-09-21 DISCOVERIES entry, re-read at `c276679c`.)* When every civilian building inherited `Cargo: MaxWeight: 10` from `^CivBuilding`, `demo-garrison-lineup` encoded that value as the **length of six Lua lists**, where no grep for `MaxWeight` can find it; the per-building table then gave the oil pump `V19` two and the demo died at `LoadPassenger`, while `RUSHOUSE` rising 10 → 12 under-filled silently. The question when splitting is not only "is each new value right" but **"who had memorised the old one"**, and the answer is never in the file being edited. The repair there deleted the literal rather than correcting it: the generator resolves `Cargo.MaxWeight` through `Inherits` (`tools/autotest/scenarios/demo-garrison-lineup/generate.py:121`) and the demo re-reads the live figure through `Test.CargoCapacity` (`Scripting/Global/TestGlobal.cs:900`). The inbound twin — 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody had typed anything — is in [`architecture.md` §Garrisoning](architecture.md#garrisoning-is-an-ownership-transfer-and-that-one-fact-rewrites-the-rest-of-the-system) (the undeclared `Health`/`Armor` paragraph): **a value shared by twenty actors is a fact about the RESOLVED rules that no single actor's YAML contains**, so resolve and look at the distribution.
 
 ## A change believed made, documented as made, and inert
 
