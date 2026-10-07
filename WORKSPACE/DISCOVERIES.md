@@ -429,7 +429,7 @@ rejects. Use the interpreter for logic, never as evidence about the dialect.
 unobserved 320 and its 10 shipped maps. That row says to recount rather than quote, and it is right:
 the figure moved by 47 in the time it took the prediction to be written down.
 
-## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`)
+## 2026-09-22 - Audit defect S2 ("saved-game restore is RED on a second leak") is STALE: the leak was fixed on 2026-08-16 at `61546a51` and verified green five times. The audit re-checked the CITES, which are in a file the fix never touched (`wt/savegame-facing`, base `main @ 4a11439f`) **[promoted -> `architecture.md` §"A bot module that mutates world state DIRECTLY desyncs saves and replays" (the static bound `BotOrderedMutationTest` exists; the ambush gate is now the `SetAmbushGate` order; a call-graph scan cannot see the wire name, `ScanStringLiterals` can; the measured site is the reader, not the write). Re-read at `c276679c`. The audit/HOTBOARD correction itself is bookkeeping]**
 
 **THE STALE CLAIM AND WHY IT SURVIVED THREE RECONCILIATIONS.** `WORKSPACE/HOTBOARD.md:18` and
 `audit/260921-release-readiness.md` (Part 3 row 10, defect S2) both describe the second saved-game
@@ -1003,7 +1003,7 @@ but a mis-cased `Inherits:` VALUE is loud — `MiniYaml.cs:461-464` throws `Pare
 at load. `abrams` is lowercase (`vehicles-america.yaml:464`); `E3.america` has a capital E3
 (`infantry-america.yaml:18`). The clone form converts the silent failure mode into the loud one.
 
-## 2026-09-22 - A bot module ordered a unit ONTO the actor it was sent to service, and no gate could see it (`EngineerOperatorBotModule`, `main @ ef7362a7`)
+## 2026-09-22 - A bot module ordered a unit ONTO the actor it was sent to service, and no gate could see it (`EngineerOperatorBotModule`, `main @ ef7362a7`) **[promoted -> `architecture.md` §"A bot ordered onto un-standable ground is not rejected" (neither clamp can park NEXT TO a mobile actor; the adjacency-ring fix; a combat-role actor staged as furniture is a legal recruit) + `AUTOTEST.md` (check the seed before bisecting a flip; final distance cannot select a failure message). Re-read at `c276679c`]**
 
 `test-experimental-engineer-repairs` passed on 2026-09-21 (run `260921_213228`) and failed on
 2026-09-22 (run `260922_063223`). **It was not a regression.** The two runs differ in RNG seed, not

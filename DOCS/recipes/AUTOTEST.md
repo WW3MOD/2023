@@ -654,6 +654,8 @@ Cheapest sources of such a control, in order: a per-tick telemetry line that alr
 
 ### A before/after pair is not an experiment unless both arms carry the same explicit `--seed`
 
+**And before bisecting a scenario flip, check whether the two runs share a seed** *(added 2026-10-07)*: `run-test.sh` seeds from the clock unless `--seed` is given, so a pass and a fail at n=2 on different seeds are not evidence of a regression — the code delta is a hypothesis and the two logs are the evidence. `test-experimental-engineer-repairs` flipped that way with no code change reaching the mechanism; the defect was in the passing run's log too. Relatedly, **an end-of-run distance cannot select a failure message** — it cannot tell "never arrived" from "arrived and was left behind"; track the closest approach and the drift from the staged cell.
+
 `run-test.sh` defaults to a `DateTime.Now`-derived seed. It records it in `result.json`, so any run is
 reproducible *after the fact* — but two runs launched without `--seed` are **two different matches**,
 and in a long bot-vs-bot game the between-match variance on a quantity like "how long until the first
