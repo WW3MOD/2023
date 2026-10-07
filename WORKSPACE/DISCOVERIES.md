@@ -2394,7 +2394,7 @@ not be separated without another run: either he never fired, or every round was 
 `TargetDamage SKIP outsideSpread ...` when enabled. No `TargetDamage` line for the behind shooter
 means he never fired; a `SKIP outsideSpread` line means he did and it was thrown away.
 
-## 2026-09-15 - The "Unload All" bug was NOT reachable through Unload All: two IResolveOrder implementors on one actor, one synchronous and one queued (`wt/garrison-unload`)
+## 2026-09-15 - The "Unload All" bug was NOT reachable through Unload All: two IResolveOrder implementors on one actor, one synchronous and one queued (`wt/garrison-unload`) **[promoted -> `architecture.md` §"The hold is not the building" (two `IResolveOrder` implementors, sync vs queued, is an ordering guarantee; the unload menu is the reaching path; the revert is vetoed via `IOverridesCargoNeutralRevert`). Re-read at `c276679c`]**
 
 **THE GENERAL SHAPE, which is not about garrisons.** When two traits on the same actor both implement `IResolveOrder` for the same order string, `Actor.ResolveOrder` runs both — and **one doing its work SYNCHRONOUSLY while the other only QUEUES an activity is an ordering guarantee, not a race.** The synchronous one always wins the tick. That can silently make a real defect unreachable through the gesture it obviously belongs to, and reachable only through a different gesture nobody was looking at.
 
@@ -2406,13 +2406,13 @@ Concretely: `CargoInfo.Neutral`'s revert-to-neutral flip in `UnloadCargo` tests 
 
 **AND THE CHEAP LESSON:** before writing a scenario for "gesture X triggers bug Y", grep every `IResolveOrder` on the actor for X. Two implementors is the normal case on a garrison building, not an exotic one.
 
-## 2026-09-15 - A rifle cannot target ANY building in this mod, so a building makes a useless garrison bait (`wt/garrison-unload`)
+## 2026-09-15 - A rifle cannot target ANY building in this mod, so a building makes a useless garrison bait (`wt/garrison-unload`) **[promoted -> `architecture.md` §"The hold is not the building" (a port is manned only against targets the soldier's weapon is valid against; `^5.56mm` is disjoint from civilian target types). The diagonal-bait placement advice is scenario method and is not promoted]**
 
 `^5.56mm` declares `ValidTargets: Infantry, Vehicle, AirLight` (`weapons-ballistics.yaml:105`) and every civilian building's target types are `Ground, C4, DetonateAttack, Structure, Defense` (`civilian.yaml:17-19`) — **disjoint sets**. `GarrisonManager` skips any soldier whose armament is not `IsValidAgainst` the candidate before scoring it, so **an enemy building placed to make a garrison man its ports mans nothing**, and the scenario runs green having measured its own absence. The bait must be infantry or a vehicle. Armour class is a red herring here: validity is decided on target TYPES, and the armour tables never enter it.
 
 **Second trap in the same setup:** the 8 civilian ports sit at yaws 896/640/384/128 — the four **diagonals**, 256 apart — with `Cone: 140`. A bait placed due south is 128 (45 degrees) off the nearest port centre, which is inside the arc only if `Cone` is a half-angle. Rather than bet a run on that reading *or* on `WAngle`'s counterclockwise convention mapping the port NAMES onto the compass the way they read, place one bait per diagonal: whatever the mapping is, ports face targets. Cheaper than being right.
 
-## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455)
+## 2026-09-21 - A script queues an activity on the tick it asks; an order arrives a tick later — and that one tick decided whether a rifleman could enter a neutral building at all (`wt/neutral-entry`, run 260921_164455) **[promoted -> `architecture.md` §"A scripting binding that queues an activity is a player action ONE TICK EARLY". Re-read at `c276679c`]**
 
 **OBSERVED, three lanes differing in one variable each.** Two riflemen told from Lua to enter a
 NEUTRAL civilian building **moved zero cells**. The identical Lua call into a USA-owned copy of the
@@ -2449,7 +2449,7 @@ shroud and two players, so NUnit can only stop the plumbing being deleted; lane 
 `test-garrison-neutral-entry` is what asserts it.
 
 
-## 2026-09-21 - `Cargo.Load` is half of a pair and the Lua binding only ever did its half, so a scripted load put a man in the hold AND on the map — and the crash arrived ninety seconds later in another file (`wt/neutral-entry`, run 260921_162312)
+## 2026-09-21 - `Cargo.Load` is half of a pair and the Lua binding only ever did its half, so a scripted load put a man in the hold AND on the map — and the crash arrived ninety seconds later in another file (`wt/neutral-entry`, run 260921_162312) **[promoted -> `architecture.md` §"A scripting binding that queues an activity is a player action ONE TICK EARLY". Re-read at `c276679c`]**
 
 **THE MECHANISM.** `Cargo.Load` adds to the passenger list and does NOT call `World.Remove`; the
 removal is the CALLER's half, and every caller in the engine does it —
@@ -2481,7 +2481,7 @@ pins the pairing structurally, because no autotest can — a scenario proves the
 actors it passes, and the defect is about the actors it does not.
 
 
-## 2026-09-21 - The garrison boarding filter does NOT refuse a neutral building, and a stale one-line elimination kept three instruments pointed at it (`wt/neutral-entry @ 4d1b7bfc`)
+## 2026-09-21 - The garrison boarding filter does NOT refuse a neutral building, and a stale one-line elimination kept three instruments pointed at it (`wt/neutral-entry @ 4d1b7bfc`) **[promoted -> `architecture.md` §Garrisoning (bullet rewritten: TWO relationship checks, the load filter admits Neutral; write the invariant, not a census). This also CORRECTED the bank, which still said the targeter was the only relationship check]**
 
 **THE CORRECTION.** The 2026-09-15 entry below eliminates the load filter with the line *"Cargo's
 only `ICargoCanLoadFilter` is `SupplyProvider`, which no civilian building has."* **That is stale** —
@@ -2503,7 +2503,7 @@ and costs the next reader a four-file re-derivation. Where an elimination has to
 write the invariant that makes the class safe — here *"the filter admits Neutral, and a test says
 so"* — because that sentence stays true when a second implementor appears.
 
-## 2026-09-21 - `Cargo.HasSpace` asks every load filter about a NULL passenger, and a filter that answers "no" makes a building silently, permanently full (`wt/neutral-entry @ 4d1b7bfc`)
+## 2026-09-21 - `Cargo.HasSpace` asks every load filter about a NULL passenger, and a filter that answers "no" makes a building silently, permanently full (`wt/neutral-entry @ 4d1b7bfc`) **[promoted -> `architecture.md` §"The hold is not the building". Re-read at `c276679c`]**
 
 **THE CONTRACT NOBODY DECLARED.** `ICargoCanLoadFilter.CanLoadPassenger(Actor self, Actor passenger)`
 reads as a question about a man. `Cargo.HasSpace` calls it with `passenger: null` before it does any
@@ -2524,7 +2524,7 @@ nothing tested that line; `GarrisonBoardingTest.ACapacityProbeIsNotABoardingRefu
 RED-verified both ways (answer `false` -> the capacity assert fires; guard deleted -> the invocation
 throws).
 
-## 2026-09-21 - `Cargo.PassengerCount` is not "did he garrison": a man at a firing port is out of the hold and back in the world, and reads exactly like a man who never boarded (`wt/neutral-entry @ 4d1b7bfc`, run 260921_145733)
+## 2026-09-21 - `Cargo.PassengerCount` is not "did he garrison": a man at a firing port is out of the hold and back in the world, and reads exactly like a man who never boarded (`wt/neutral-entry @ 4d1b7bfc`, run 260921_145733) **[promoted -> `architecture.md` §"The hold is not the building" (last bullet) + the did-he-move half into §"A scripting binding ... ONE TICK EARLY"]**
 
 **THE TRAP.** `GarrisonManager.DeployToPort` takes a shelter occupant OUT of `Cargo` and puts him
 back in the world at the port offset (`:413-476`). So the three quantities a garrison scenario can
@@ -2544,7 +2544,7 @@ different bugs in different files, and one integer (`TestHarness.CellDrift` agai
 recorded in `WorldLoaded`) separates them. A garrison scenario reporting neither is a bug report
 with the diagnosis removed.
 
-## 2026-09-21 - Splitting a template scalar into 37 per-actor values breaks every consumer that memorised the old one, and none of them names the key (`wt/garrison-tuning @ 4d1b7bfc`, run 260921_150809_demo-garrison-lineup)
+## 2026-09-21 - Splitting a template scalar into 37 per-actor values breaks every consumer that memorised the old one, and none of them names the key (`wt/garrison-tuning @ 4d1b7bfc`, run 260921_150809_demo-garrison-lineup) **[promoted -> `conventions.md` §"A semantic change to a YAML field is a MIGRATION" (splitting a shared scalar is a migration; the consumers that break never name the key)]**
 
 **THE INSTANCE.** `demo-garrison-lineup` died at `Trigger.AfterDelay` with `LoadPassenger: e1 80
 cannot be loaded into v19 73 — the transport refused it (no space, loading blocked, or a cargo
@@ -2579,7 +2579,7 @@ generator's static read is the one that can be wrong about inheritance, and the 
 that decides.
 
 
-## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535)
+## 2026-09-15 - A shared template value is indistinguishable from a decision, and 21 of 38 civilian buildings were "concrete, 60000 HP" because nobody ever typed anything (`wt/garrison-tuning`, run 260915_210535) **[promoted -> `architecture.md` §"The hold is not the building" (the absolute port ring must circumscribe the footprint; `CivBuildingPortCoverageTest` asserts the invariant) + `conventions.md` §"A semantic change to a YAML field is a MIGRATION" (resolve and look at the distribution). The undeclared Health/Armor half was already in `architecture.md` §Garrisoning; the 21 actors now declare their own (V14-V18 are the only civilians without `Health`)]**
 
 **THE INSTANCE.** Tuning 38 garrisonable civilian buildings from their sprites turned up that
 **twenty-one of them declared neither `Health` nor `Armor`** — V12, V13, V19 and every desert
@@ -2613,7 +2613,7 @@ footprint along each port's own bearing. `CivBuildingPortCoverageTest` now asser
 directly (`|X| >= halfX or |Y| >= halfY`) rather than the formula, which is why it catches both the
 original defect and the near-miss that was written to fix it.
 
-## 2026-09-15 - `EnterTransport` moved nobody into a NEUTRAL civilian building while the same order into an owned one worked, and no gate on the path explains it (`wt/garrison-tuning`, run 260915_210535_p58516_demo-garrison-lineup)
+## 2026-09-15 - `EnterTransport` moved nobody into a NEUTRAL civilian building while the same order into an owned one worked, and no gate on the path explains it (`wt/garrison-tuning`, run 260915_210535_p58516_demo-garrison-lineup) **[rejected: superseded -- the observation was diagnosed on 2026-09-21 as a scripted `Enter` that never started (not a boarding refusal), and that diagnosis is promoted to `architecture.md` §"A scripting binding that queues an activity is a player action ONE TICK EARLY". Its elimination line about `SupplyProvider` being the only load filter went stale at `8ca4b926`]**
 
 **THE OBSERVATION, WHICH IS NOT YET A DIAGNOSIS.** Six squads were ordered into six garrisonable
 buildings in one scenario at one tick. The three whose buildings were **USA-owned** (GTWR, PBOX,
@@ -2643,7 +2643,7 @@ squad since it was written, unnoticed, because its verdict only ever covered the
 Neutral and one owned, side by side, with the owned lane as a control so that "both lanes failed"
 cannot be misread as "neutral entry is broken". Unrun as of this entry.
 
-## 2026-09-15 - A garrison port's `Offset` Z is discarded for the SOLDIER and kept for his MUZZLE FLASH, so every shipped port's Z raises the gun-flash off the man who is firing it (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+## 2026-09-15 - A garrison port's `Offset` Z is discarded for the SOLDIER and kept for his MUZZLE FLASH, so every shipped port's Z raises the gun-flash off the man who is firing it (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`) **[promoted -> `architecture.md` §"The hold is not the building" (three clamp sites vs the raw flash offset). Re-read at `c276679c`: civilian ports now carry Z 0, GTWR/PBOX/HBOX still 384/256/200]**
 
 **THE SPLIT.** `GarrisonPort.Offset` is a `WVec` and every shipped port sets a non-zero Z — 200 on the
 eight `^CivBuilding` ports and on HBOX's two, 384 on GTWR's four, 256 on PBOX's two
@@ -2671,7 +2671,7 @@ branch (`:364`, `:376`) keeps Z for both position and flash — but it is the fa
 no `GarrisonManager` (`:33-40`, `:53-60`), and all four garrison families have one, so no garrisonable
 actor in the mod reaches it.
 
-## 2026-09-15 - PBOX gives vision while empty and GTWR/HBOX do not, and the whole difference is one missing `Inherits@` line — the gating is done by key-collision, not by a removal (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`)
+## 2026-09-15 - PBOX gives vision while empty and GTWR/HBOX do not, and the whole difference is one missing `Inherits@` line — the gating is done by key-collision, not by a removal (`wt/garrison-tuning`, base `wt/garrison-followups @ 51272f83`) **[promoted -> `conventions.md` §"Precedence inside an actor is POSITIONAL" (the overlay-template idiom: gating by key collision). The PBOX defect itself is fixed at `70e63582` (`structures-defenses.yaml:215`)]**
 
 **THE MECHANISM.** `^StandardVisionWhenLoaded` does not remove anything and does not add a band. It
 `Inherits: ^StandardVision` and then re-states the same ten keys `Vision@1`..`Vision@10` carrying
