@@ -5,7 +5,7 @@
 > v1 items live in `RELEASE_V1.md` — this file is for v1.1+ and parking-lot ideas only.
 
 ## Deferred Tasks
-- [ ] **Docs-lane briefs ready for the code lane** — WORKSPACE/briefs/2026-10-07_test-holes.md (#1 NoAutoTarget tripwire first, S)
+- [ ] **Docs-lane briefs ready for the code lane** — WORKSPACE/briefs/2026-10-07_robustness.md FIRST (R1 live bot rearm desync, S–M), then WORKSPACE/briefs/2026-10-07_test-holes.md (#1 NoAutoTarget tripwire first, S)
 - [x] **Lobby Phase 6 — inline map browse** — shipped 260515 as phase 12 (`MAPCHOOSER_INLINE`, stock chooser re-parented inline) + finishing pass 260718 (focus handoff, refresh-on-open, host-change flip-back, panel chrome, narrow-width fits).
 - [ ] **Lobby designed map browser** — the *locked* design (decisions.md 7b: search bar on top, filter chips All·2p·4p·6+·Conquest·Scenarios, CURRENT badge + accent outline on current map, single-click select flips back to preview) was never built; what ships is the restyled stock chooser (category dropdown, OK/Cancel, title-order sort). Functional, visibly not the mockup. *v1.1*
 - [ ] **Lobby text ink decision** — palette says primary text = ink `#d4d4d4`, but nearly every label inherits pure white from `metrics.yaml` defaults (`TextColor`/`ButtonTextColor`). One-line global override in `mods/ww3mod/metrics.yaml` would fix the whole lobby but also recolors the in-game HUD — needs a user call + visual pass. *decision*
