@@ -2064,7 +2064,7 @@ one bomb: at 50 Mt it is above `NuclearReleaseLadder.SandboxOnlyAboveTons` (10 M
 warhead count with every detonation, so the next capture settles it from `lua.log` without anyone
 re-deriving this. Any other scenario that assumes a single B83 circle is in the same position.
 
-## 2026-09-21 - A build stamp cannot be a clock: the `BuildRevision` attribute is a Compile input, which is why the menu's build date reads a file timestamp instead (`wt/identity-panel`, base `main @ 1160a531`)
+## 2026-09-21 - A build stamp cannot be a clock: the `BuildRevision` attribute is a Compile input, which is why the menu's build date reads a file timestamp instead (`wt/identity-panel`, base `main @ 1160a531`) **[promoted -> `architecture.md` §"`BuildFingerprint`: three segments" (segment 1: the stamp is a Compile input, so the build date reads the assembly mtime). Re-read at `c276679c`]**
 
 The main menu's `v` panel showed `"Built: " + DateTime.Now` — the **player's** current date, labelled
 as the build date, on every install forever. The obvious repair is an assembly attribute stamped at
@@ -2094,7 +2094,7 @@ the entire age of the release.
 the value changes on every build. If it does, it does not belong in an assembly attribute in this
 repo, however natural the slot looks.
 
-## 2026-09-21 - `mod.yaml` `Version:` means two different things in a source tree and an install, and a standing decision doc reasoned from the source-tree meaning (`wt/identity-panel`, base `main @ 1160a531`)
+## 2026-09-21 - `mod.yaml` `Version:` means two different things in a source tree and an install, and a standing decision doc reasoned from the source-tree meaning (`wt/identity-panel`, base `main @ 1160a531`) **[promoted -> `architecture.md` §Networking, the handshake paragraph (`Metadata.Version` is rewritten with the git tag on packaging; `ModVersion.TryParse` discriminates). Re-read at `c276679c`]**
 
 `mods/ww3mod/mod.yaml:3 Version: release-20230225` is the OpenRA release this forked from — **in a
 source tree only**. `mod.config:104 PACKAGING_OVERWRITE_MOD_VERSION="True"` routes packaging through
@@ -2115,7 +2115,7 @@ does not. Its own comments already assign that reading to "an unstamped developm
 two uses cannot drift apart. **Any check of the form "is this a packaged build?" should go through
 it rather than string-comparing against `engine/VERSION`.**
 
-## 2026-09-21 - U4's duplicate-map table was never missing, and the new icon collections look like de-duplication without being it (`wt/identity-panel`, base `main @ 1160a531`)
+## 2026-09-21 - U4's duplicate-map table was never missing, and the new icon collections look like de-duplication without being it (`wt/identity-panel`, base `main @ 1160a531`) **[rejected: audit bookkeeping and a dated icon count. The one durable point -- only the RESOLVED sheet rectangle decides whether two chrome images look alike, so an `Inherits:` alias collection is not new art -- is the same resolve-before-you-count rule as `conventions.md` §"A merged top-level node means ONE FILE CANNOT ANSWER"]**
 
 `audit/260921-release-readiness.md` §1.4 and `## Watch` record that U4's deliverable — "19 of 25
 buttons share art across 11 sprites; 14 new icons needed" — **could not be found** and might never
@@ -2136,7 +2136,7 @@ change of zero. **Only the resolved sheet rectangle decides whether two buttons 
 future recount has to walk the `Inherits:` chain to get one. The genuine improvement in those
 commits is real but is in the `-highlighted` twins: 8 amber recolours give some buttons distinct
 *active* art. The duplication above is of the resting art.
-## 2026-09-21 - CLOSED: every vehicle in this mod bleeds to death SELF-INFLICTED, so a tank shot below half and left to burn out never ended DEFCON 2 (`wt/escalation-guards`, runs `260921_181057` / `260921_181456`)
+## 2026-09-21 - CLOSED: every vehicle in this mod bleeds to death SELF-INFLICTED, so a tank shot below half and left to burn out never ended DEFCON 2 (`wt/escalation-guards`, runs `260921_181057` / `260921_181456`) **[promoted -> `architecture.md` §"DEFCON 2 ends on the first casualty somebody decided" (the bleed-out is `attacker == victim`; `QualifiesByPriorEnemyDamage` credits the prior enemy damager). Re-read at `c276679c`]**
 
 The instrumented `DEFCON casualty` line (added the same day, entry below) answered it on the first
 run. Cause, by reading:
@@ -2184,7 +2184,7 @@ accident". In this mod it is also the ordinary end of any damaged vehicle, and a
 on it is silently filtering out a large share of real kills. `Explodes` with the default
 `DamageSource` behaves the same way.
 
-## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`)
+## 2026-09-21 - A failure message that renders a DEAD actor as "on 0 hp" cost two diagnosis rounds; and an enemy kill at DEFCON 2 did NOT end the phase, cause still open (`wt/escalation-guards`, run `260921_171955_p71347`) **[promoted, in part -> `architecture.md` §"DEFCON 2 ends on the first casualty somebody decided" (an ORDERED shot is permitted at DEFCON 2). The open defect it recorded was closed by the entry above. Not promoted: the message-formatting rule, which is `AUTOTEST.md` step 8 ("make the verdict self-diagnosing") in another form]**
 
 **The message bug first, because it is the transferable part.** `test-escalation-banner-separate`
 timed out and reported:
@@ -2244,7 +2244,7 @@ death, gated on the hold-fire rung so a real match gets a handful at most, namin
 inside the method; from outside, all four rejections look identical ("the level is still 2"). One
 line closes what hours of reading could not.
 
-## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`)
+## 2026-09-21 - A widget-derived count is never a sound autotest observable: `Ui.Tick` runs on a 40 ms WALL-CLOCK cadence that is unrelated to the world tick, and a `--hidden` run free-runs the sim (`wt/escalation-guards`, run `260921_165856`) **[promoted -> `architecture.md` §"A `Key:` is claimed by the LAST visible widget" (`Ui.Tick` is a 40 ms wall clock; `--hidden` free-runs the sim; the banner fix). Re-read at `c276679c`]**
 
 `test-escalation-banner-combined` asserted `DefconTransitionBannerWidget.BannersRaised == 1` on the tick
 `Test.DefconLevel()` first read 2. It failed reading `raised=0`, with the widget **present** (the
@@ -2287,7 +2287,7 @@ ordered shot that failed to land. No order had been issued -- the banner asserti
 autotarget acquires freely there and only `Armament.CanFire` is gated -- which is also why the t90
 was untouched. The ordered-kill timing in that scenario remains **unmeasured**; it has never run.
 
-## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`)
+## 2026-09-21 - The "three scenarios owed for hold-fire's six fire-path guards" were written three days before the audit relayed the claim; the real gap is READ SITE 3, and it may be unreachable (`wt/escalation-guards`, base `main @ 1160a531`) **[promoted, in part -> `architecture.md` §"DEFCON 2 ends on the first casualty" (hold-fire vs cease-fire are different gates; the edge wipe skips out-of-world actors; read site 3's reachability; preemption runs before site 3's guard, still true at `c276679c`). The audit-relay bookkeeping is not promoted]**
 
 `260921-release-readiness.md` §2.7 claim 6 says hold-fire's six fire-path guards have no test and that
 *"Three scenarios are named as owed"*. It is relaying `escalation-gameplay-review-260919.md`, which was
