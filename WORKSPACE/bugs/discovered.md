@@ -6153,3 +6153,53 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   exist. **Not fixed here** — found by reading during a docs-only curation pass at `c276679c`; the
   `.nsi` is not compiled on this machine, so a one-word fix would ship unverified.
   (found while working on: curate-07, verifying the 2026-09-30 installer-identity DISCOVERIES entry)
+
+- [2026-10-07] [LOW] **`run-batch.sh --all` silently drops scenarios whose verdict lives in a shared
+  `*-lib.lua`.** The selection filter (`tools/autotest/run-batch.sh:170`) only cats
+  `scenarios/<name>/*.lua`, so a scenario that gets `Test.Pass`/`expected-status` from a library file
+  is never picked up. Per the audit: 5 of the 23 `expected-status` declarations are never graded, and
+  9 of the 10 `test-balance-*` scenarios are excluded. **Not fixed here.**
+  (found while working on: instruction-accuracy audit, `WORKSPACE/ideas/261007_instruction-accuracy-audit.md` §"What matters most" item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`run-demo.sh` passes no `--timeout`, so the 300 s watchdog kills every demo
+  window at 5 minutes and the script returns 1, not the documented 0.** `tools/autotest/run-demo.sh:54`
+  delegates as `run-test.sh --visible --audio "$@"`; only exit 3 is mapped to 0 (`:56-58`), and a
+  watchdog kill is not exit 3. **Not fixed here; watchdog exit code taken from the audit, not re-run.**
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`run-tournament.sh -v` is a dead flag, and the script exits 0 even when no
+  match produced a verdict.** `tools/autotest/run-tournament.sh:107` sets `RUN_TEST_FLAGS`
+  (default at `:93`), but nothing ever reads it; the script ends in an unconditional `exit 0`
+  (`:377`). **Not fixed here.**
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`loop-tournament.sh`'s awk parser folds inline `# comments` and literal `""`
+  into the values it reads.** `tools/autotest/loop-tournament.sh:71-74` take everything after
+  `Key: ` (`awk -F': *' … print $2`) and strip only `\r`, so `BatchSize: 4 # note` yields
+  `4 # note`. **Not fixed here.**
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`tools/autotest/selftest-launch-failure.sh` is tracked mode 100644** (verified
+  `git ls-files -s`), so `./tools/autotest/selftest-launch-failure.sh` dies with exit 126 — the same
+  trap as `engine/utility.sh`. **Not fixed here** (`git update-index --chmod=+x`).
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **Medic `SwitchMargin: 10` now equals the heal pulse, and its PITFALL still says
+  the pulse is 5.** `mods/ww3mod/rules/ingame/infantry.yaml:2335-2340` says "DamagePercent is 5 … 10
+  clears one pulse with room", and `:2341` sets `SwitchMargin: 10`; but the Heal warhead is now
+  `DamagePercent: -10` (`mods/ww3mod/rules/weapons/weapons-other.yaml:364`, also cited at
+  `infantry.yaml:2385`). The margin was meant to exceed the pulse; at equality the ping-pong the
+  PITFALL describes may be back. **Not fixed here** — needs a tuning decision, not just a comment edit.
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`SupportPower.LobbyChargeIntervalId` is a dead field.** Declared at
+  `engine/OpenRA.Mods.Common/Traits/SupportPowers/SupportPower.cs:25` (Desc at `:23`); a grep of
+  `engine/**/*.cs` finds no other reference, so setting it does nothing. Per the audit its Desc also
+  still says "Parsed at 25 ticks/second". **Not fixed here.**
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
+
+- [2026-10-07] [LOW] **`SupplyRouteContestation.cs:41` cites `mod.yaml:381` for the 60 ms
+  timestep; it is at `mod.yaml:431`.** `engine/OpenRA.Mods.Common/Traits/SupplyRouteContestation.cs:40-41`
+  (audit said `:42`; the comment spans 40-42). The numbers are right, only the line cite drifted; the
+  same comment's `mod.yaml:358` cite was not re-checked. **Not fixed here.**
+  (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
