@@ -105,7 +105,7 @@ from `--all` stops reporting, so if it later breaks in a new way nobody hears.
 AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
 ```
 
-where OUTCOME is one of `PASS`, `PASS-EMPTY`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no).
+where OUTCOME is one of `PASS`, `PASS-EMPTY`, `FAIL`, `SKIP`, `TIMEOUT-FAIL`, `LAUNCH-FAIL`, `CRASH`, `NO-RESULT`, `BAD-VERDICT`, `INTERRUPTED`, `HARNESS-ERROR`. It distinguishes what the exit code collapses: `CRASH` (the game threw — the exception log is named, and a crash is sometimes the *finding*, as when a sync guard fires) vs `NO-RESULT` (hung or closed by hand) vs `HARNESS-ERROR`; and `TIMEOUT-FAIL` (never answered) vs `FAIL` (answered no). `LAUNCH-FAIL` (exit 3) means the local server refused the client at join and no world was ever built — nothing ran and the scenario made no claim either way; it is detected from `server.log`'s `Dropping connection` (or `client.log`'s `Connection to ... failed`) while waiting for a verdict (`run-test.sh:152-159`, detector at `:508-560`), and without it that state would surface as a full-watchdog `TIMEOUT-FAIL`. Treat it like an exit-127 launch: not a test result.
 
 **`NO-RESULT` also covers "the game never launched", and a fresh worktree hits this on its first run.** `launch-game.sh:42` aborts with `Required engine files not found.` when `engine/bin/OpenRA.dll` is missing — and build output is neither shared between worktrees nor tracked in git, so a new `git worktree add` fails this and burns a granted run slot. **Run `make all` in a new worktree before the first `run-test.sh`, even when the diff contains no compiled code** — being built is a property of the worktree, not of the change. Tells: `lua.log` 0 bytes, run dir empty, `test -f engine/bin/OpenRA.dll` fails. (Related, and launch-free: `./utility.sh --check-yaml <MAPDIR>` lints a single map without starting the game, but `utility.sh:53` `cd`s into `engine/` first, so the path you pass is `../tools/autotest/scenarios/<name>`.)
 
@@ -170,8 +170,6 @@ duration sources: `TimeLimitTicks` in `rules.yaml`, `TimeLimitSeconds` in `tourn
 | `test-rank-accumulation` | `DeadlineTicks = PhaseBTick + 4300` = 11016 (`.lua:147`); the abrams rank-1 interval alone is 6666 ticks under the shipped curve (`rules.yaml` header comment). Lengthened by `ab4347fc`, AFTER the audit above | 660 s (11 min). Measured 2026-09-20 on main @ 2de1dc78: `--hidden` at 1x reached t=4799 when the 300 s watchdog fired, ticking normally the whole way | `--speed 8 --timeout 900` (PASS in ~75 s) |
 | `test-experimental-buys-special-forces` | `DEADLINE_TICKS = 9000` (`.lua:37`) | 540 s (9 min) | `--speed 4 --timeout 600` |
 | `test-experimental-msar-deploy` | `DEADLINE_TICKS = 6000` (`.lua:25`) | 360 s (6 min) | `--speed 4 --timeout 600` |
-| `test-combined-arms-rendezvous` | `DeadlineSeconds = 200` (`.lua:39`) = 5000 ticks | 300 s — **exactly the watchdog** | `--speed 4 --timeout 600` |
-| `wip-transport-delivers` | `DeadlineSeconds = 180` (`.lua:35`) = 4500 ticks | 270 s + load time | marginal; `--speed 4 --timeout 600` |
 
 **Read "cannot complete" precisely, because it is not the same claim for every row.**
 `test-escalation-full-match` is the strict case: its time limit is the *subject* of the test — the
@@ -183,9 +181,12 @@ diagnostic — which names the unit and the tick, and is the whole point of the 
 generic `TIMEOUT-FAIL`. So a `TIMEOUT-FAIL` on one of these rows at default settings says nothing
 about the code under test; rerun it with the flags above before drawing any conclusion.
 
-The last two rows are the ones to check by hand rather than trust: 5000 and 4500 ticks sit at or just
-under the watchdog, so whether they clear it depends on map-load time, which this audit did not
-measure. Treat them as "raise the timeout" rather than as known-good.
+Two seconds-denominated deadlines sit below the 5000-tick line and clear the watchdog at 1×:
+`test-combined-arms-rendezvous` (`DeadlineSeconds = 200`, `.lua:39`, passed to `AssertWithin` at
+`:143`) is 3333 ticks = 200 s, and `wip-transport-delivers` (`DeadlineSeconds = 180`, `.lua:35`,
+`AssertWithin` at `:89`) is 3000 ticks = 180 s. That leaves 100 s and 120 s of headroom for map load
+under the default 300 s, which this audit did not measure — if either reports `TIMEOUT-FAIL` rather
+than its own `within Ns` message, raise `--timeout` before reading anything into it.
 
 **The `tournament-*` scenarios carrying `TimeLimitSeconds: 720` are NOT on this list**, because
 `run-tournament.sh` computes its own budget (`:164`, `TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV`) and
