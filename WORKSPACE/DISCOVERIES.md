@@ -514,7 +514,7 @@ only the call graph is checking the half that cannot break silently.**
 bounded *bot mutates → synced reads* and left the reverse open: **synced code reading state that
 only bot ticks refresh.** No detector exists for that shape, this fixture is not one, and a green
 run here says nothing about it.
-## 2026-09-22 - `DefaultCash: 0` does not "freeze the force under test" on a scenario with a carrier — it silently starves the offensive free pool below its own advance floor, and the scenario that recorded this blamed the wrong override
+## 2026-09-22 - `DefaultCash: 0` does not "freeze the force under test" on a scenario with a carrier — it silently starves the offensive free pool below its own advance floor, and the scenario that recorded this blamed the wrong override **[promoted -> `AUTOTEST.md` §"A green run is not evidence" step 9 (count the passenger/carrier subtraction against the floors; SKIP naming `free=`/`floor=`)]**
 
 `test-combined-arms-rendezvous`'s `rules.yaml` carried this from its creation (`ef608a62`,
 2026-08-15) until `4d3801de` (2026-09-22) — five weeks, untouched in between. It is the kind of
@@ -557,7 +557,7 @@ as cheap and was added here: read `Test.GetBotOffenseFreePool` and SKIP with bot
 pool never reaches the floor. A timeout cannot say why it timed out; a SKIP naming `free=` and
 `floor=` sends the next person to the staging instead of to the mechanism.
 
-## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it
+## 2026-09-22 - An early-departure valve for a transport is WORSE than no valve unless it stands the stragglers down first — the late boarder cancels the carrier's move, and two comments in the file predict it **[promoted -> `architecture.md` §"Item 64: the carrier's bounded escape" (stand the stragglers down; list what a wait was incidentally protecting). Re-read at `c276679c`: `StandDownStragglers` at `MountedTransportBotModule.cs:646`]**
 
 Measured, `test-combined-arms-rendezvous` run `260922_203626` (commit `b333834e`). The new escape
 fired exactly as designed — `[exp-transport] depart ... aboard=4 target=5 still-coming=1
@@ -600,7 +600,7 @@ doctrine call explicitly accepts, and it should be stated rather than discovered
 **GENERAL RULE.** Before adding an escape from a wait, list what the WAIT was incidentally protecting.
 A wait state in a system with reservations is rarely only about the thing it is named for.
 
-## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else
+## 2026-09-22 - Nothing in the mounted transport bounds "we have been loading for 400 ticks while the unit we exist to reinforce is losing a fight" — the two patience bounds it has both measure something else **[promoted -> `architecture.md` §"Item 64: the carrier's bounded escape" (both patience bounds are blind to tempo; the escape and its two placement rules; `EscortLoadGraceTicks` 0 in C#, 100 in `ai.yaml:2371`). The inertness-test trap is NUnit method, not promoted]**
 
 Measured in `260922_200826`: `task-created` t72, `depart ... reason=Full` t472. **400 ticks loading**,
 with `pax-waiting ... activity=RideTransport cells-to-carrier=1` the whole way and `aboard` stepping
@@ -644,7 +644,7 @@ a `LoadingTimeoutTicks` of 1500, and failed with `But was: Timeout` — correct 
 reported as a failure of the feature under test. An inertness test that trips a different mechanism is
 testing that mechanism.
 
-## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers
+## 2026-09-22 - Run 260922_200826 settles item 64's opening: the armour did NOT outrun the ferry — it stopped 15 cells out and fought for 224 ticks while the ferry spent 400 ticks loading 1 cell from its passengers **[promoted -> `architecture.md` §"Item 64: the carrier's bounded escape" (centroid is not the lead; a hold before `ApplyMissionCommitment` only protects against self-freezing; why the escort hold never engaged). The positional roll is run evidence]**
 
 Measured, `test-combined-arms-rendezvous`, worktree @ `288d3db9`. Verdict FAIL, tank dead t624 at
 `21,16`. The `lua.log` positional roll is the thing to read first, and it refutes the reading every
@@ -708,7 +708,7 @@ carrier unloads only within `DropOffArrivalRadius` of that cell, so the riflemen
 set down near the tank whatever either of them did. The unload SITE, not the departure discipline, is
 what gates "riflemen set down within 7 cells of the tank".
 
-## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate
+## 2026-09-22 - Item 64 "push departs together": the axis can be paced against its own carrier through an EXISTING cross-module seam, and a carrier with nowhere to go is structurally invisible to such a gate **[promoted, in part -> `architecture.md` §"Item 64: the carrier's bounded escape" (a no-drop-cell carrier is invisible to a `Delivering`-keyed gate; walking infantry are out of reach). The hold-ladder line cites are not promoted; the hold this designed ships off]**
 
 The measured symptom (run `260922_193617`) is that nothing paces armour against the infantry it is
 supposed to arrive with: the abrams reached `22,16` and died at t621 while the carrier was at `15,15`
@@ -763,7 +763,7 @@ a CARRIER does nothing for infantry that WALK. `test-push-departs-together` has 
 red: d2 is a speed clause between an abrams (`Speed: 90`) and a rifleman (`Speed: 25`), and only a
 throttle or a speed-split lead-hold can move it. That remains item 64's separate, unbuilt half.
 
-## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") IS MEASURED-INERT AND DOES NOT SHIP: the 2026-08-19 withdraw bound rejects the anchor in the only state that reaches it
+## 2026-09-22 - `RendezvousWithOffensiveStaging` (PIPELINE item 64 "combined arms") IS MEASURED-INERT AND DOES NOT SHIP: the 2026-08-19 withdraw bound rejects the anchor in the only state that reaches it **[promoted -> `architecture.md` §"Item 64: the carrier's bounded escape" (ships false; the withdraw bound is the live gate; do not re-flip without changing it). Re-read at `c276679c`: `ai.yaml:2326`]**
 
 **MEASURED, and the flip was reverted on the strength of it.** Run `260922_193617`
 (`test-combined-arms-rendezvous`, flag ON on both twins, worktree @ `cf3b70f3`): **zero
