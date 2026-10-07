@@ -1089,7 +1089,7 @@ was no way to tell that apart from a regression, and the brief that triaged it a
 **Rule: before bisecting a scenario flip, check whether the two runs share a seed.** If they do not,
 the code delta is a hypothesis and the two logs are the evidence — diff the logs first.
 
-## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`)
+## 2026-09-22 - The item-56 acceptance bar is DISCHARGED: 4 deliveries, 5 dispatches, zero open errands, zero x-reversals (`main @ 0f6912b8`, run dir `tools/autotest/tournament-results/260922_0211_tournament-s1-eco-river-zeta`) **[promoted, in part -> `AUTOTEST.md` §"The 300-second watchdog" (the tournament wall cap assumes the full multiplier and culls before trucks exist; `truk=0+0` precedes the first truck). The delivery accounting, ratios and per-truck traces are an item-closure measurement and stay here / in the item-56 dossier]**
 
 One `tournament-s1-eco-river-zeta` match, `--seeds 1 --max-wall-secs 600`, full 7,500-tick clock,
 `time_limit`, USA-bot (`experimental`) 86,633 vs Russia-bot (`stable`) 53,215. Every figure below
@@ -1217,7 +1217,7 @@ simulated time — there is no warm-up window to wait out before deciding a run 
 first delivery ~5,250 (70%), last delivery ~6,570 (88%). A 300s config barely admits the subsystem
 under test; the sibling 720s config would sample several times as many dispatches.
 
-## 2026-09-22 - Three harness/readout traps on the item-56 acceptance-bar run, one of which INVERTED the diagnosis (`main @ d69e6883`, run dir `tools/autotest/tournament-results/260922_0124_tournament-s1-eco-river-zeta`)
+## 2026-09-22 - Three harness/readout traps on the item-56 acceptance-bar run, one of which INVERTED the diagnosis (`main @ d69e6883`, run dir `tools/autotest/tournament-results/260922_0124_tournament-s1-eco-river-zeta`) **[promoted -> `AUTOTEST.md` §"The 300-second watchdog" (no `tournament.yaml` on ladder scenarios -> exit 3; absolute `--result-dir` is not idempotent; the wall cap; the `speed multiplier` watcher line as the discriminator). Re-read at `c276679c`: all three are still live in `run-tournament.sh`. The bracket-expression grep trap is the existing `grep -F` rule]**
 
 All three were hit inside one 150-second tournament attempt. The third is the one worth carrying
 furthest: it is not a harness bug at all, and it made a healthy instrument read as a dead one.
@@ -1307,7 +1307,7 @@ applied. `OPENRA_WINDOW_HIDDEN=1` is not implicated either — it is read only b
 culled match breaks the paired model"). **On a macOS host that is still too low: budget ~900 s for a
 7,500-tick S1 match.** A culled match is not a negative result; for item 56 specifically it is an
 instrument failure, because the trucks are bought in the back half of the clock.
-## 2026-09-22 - The 16.667 flip broke exactly one class of script, and the class is not "scenarios with deadlines" - it is "scenarios that convert seconds through the HARNESS" (`wt/tick-rate`, base `main @ d69e6883`)
+## 2026-09-22 - The 16.667 flip broke exactly one class of script, and the class is not "scenarios with deadlines" - it is "scenarios that convert seconds through the HARNESS" (`wt/tick-rate`, base `main @ d69e6883`) **[promoted -> `AUTOTEST.md` §"`TestHarness.*`", after "There is now ONE tick base" (five no-reasoning discriminators for a rate-change triage; restoring a budget is a diagnostic; budgets in ticks via `TicksForSeconds`). The two-converter split it describes is now history -- one base since 2026-09-21. The four possibly-vacuous passing scenarios are a WORKSPACE follow-up, not reference]**
 
 The full suite at `wt/tick-rate @ e6732446` returned Pass 198 / Fail 39 / Skip 21 / Error 1 over 259
 scenarios. Static triage called **13 tick-caused**, 32 pre-existing, 15 unexplained; the re-run at
