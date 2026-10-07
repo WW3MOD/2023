@@ -3,6 +3,14 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+## 2026-10-07 - On the MBP, HTTPS `origin` stopped authenticating and was switched to SSH; one direct `git push origin main` was then REJECTED by the "Main" ruleset while later SSH pushes of `main` landed — cause unverified (docs-only, `wt/disc-push`, base `main @ 97cc3756`)
+
+**What happened.** On the MBP, pushing over the HTTPS remote failed with `could not read Username` (the `osxkeychain` credential helper returned nothing). `origin` was switched to SSH: `git@github.com:WW3MOD/2023.git`. One direct `git push origin main` over SSH was then rejected by the repository's **"Main" ruleset** with `Changes must be made through a pull request` — yet later SSH pushes of `main` from the same machine landed.
+
+**What is NOT known.** Why the same push path was rejected once and accepted afterwards. Candidates, none checked: a ruleset bypass list keyed on the pushing identity (SSH key vs. account), the ruleset having been edited between the pushes, or the rejected push differing in shape (e.g. not a fast-forward). `gh` on the MBP is **logged out**, so the ruleset and its bypass actors could not be read from there (`gh api repos/WW3MOD/2023/rulesets` needs auth).
+
+**Why it matters.** The manager's push-after-verified-merge rule (CLAUDE.md, Hard rules) assumes a direct push of `main` works. If the ruleset genuinely requires PRs, that flow fails intermittently from at least one machine and the "push when finished" commitment silently does not happen. Next step for whoever has `gh` auth: read the ruleset's enforcement and bypass list, and record which identity the accepted pushes used.
+
 ## 2026-09-30 - `<Product>` is read by nothing in-tree, and the Start Menu folder survives a rename only because the UNINSTALLER re-reads it from the registry key you are renaming (`wt/installer-identity`, base `main @ 986e9f2e`) **[rejected: wrong home -- packaging mechanics with no reference doc to hold them, and the user-visible consequence (old installs orphaned by decision) is already recorded where a tester meets it, `packaging/windows/INSTALLER-TEST-PLAN.md:35-41`. Re-read at `c276679c`: `<Product>WW3MOD</Product>` (`engine/Directory.Build.props:17`) has no reader; the launcher reads `AssemblyMetadataAttribute` keys only; the Start Menu folder round-trips through `Software\${PACKAGING_WINDOWS_REGISTRY_KEY}` (`buildpackage.nsi:76-77`, `:376`). Verifying it turned up an unrelated live typo, `QuietUninstallString` -> `uninstall.exe` at `:328`, filed in `WORKSPACE/bugs/discovered.md`]**
 
 Two findings from de-OpenRA-ing the Windows install chain. Both are about which strings in that
