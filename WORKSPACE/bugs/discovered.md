@@ -6255,3 +6255,63 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   ticks (**inferred from this run's pace, not measured on the parent**). **NOT FIXED;** the wip clone's
   deadline was raised to 90 s, unrun.
   (found while working on: supply-guards, robustness scout #6 scenario; filed by supply-guards)
+- [2026-10-10] [MED] **`test-savegame-resume-riverzeta` reports LAUNCH-FAIL (exit 3) at the restart into
+  the saved game — triage says the harness killed a restore that was still loading, not that a join was
+  refused.** Triage read at `origin/main @ 1a610a8c`; the run was on a tree at `a4fd519e`.
+  **SYMPTOM (observed).** `./tools/autotest/run-test.sh --hidden test-savegame-resume-riverzeta`, run dir
+  `/Users/fredrik/.ww3mod-tests/screenshots/261010_130502_p50664_test-savegame-resume-riverzeta`.
+  `result.json`: `"status":"fail","notes":"launch-fail: server refused the client at join; nothing ran -
+  see server.log","timestamp":"2026-10-10T11:08:44Z"` (13:08:44 local). The archived `debug.log` ends with
+  `[saveprobe] pausing at tick 3000`, `[saveprobe] requesting save — paused=True … worldtick=3003
+  netframe=1008`, `[saveprobe] save written — restarting into the saved game`, and has **no**
+  `[saveprobe] restore complete` line. Global logs as quoted by the manager (they were overwritten by a
+  13:43 run before triage, so this entry could not re-read them): client.log `Connection to
+  127.0.0.1:59462 failed: Unable to read data from the transport connection: Software caused connection
+  abort.`; server.log, a new server at 13:08:39–41: `Failed to set socket option on 127.0.0.1:0: Invalid
+  argument`, then it accepts the client from `127.0.0.1:59868` and marks it Ready. The harness print blamed
+  "a duplicate ILobbyOptions id" as the most common cause.
+  **HYPOTHESIS (code-read, high confidence, not yet confirmed by a launch): a harness false positive.**
+  (1) The scenario has no Lua: its `rules.yaml` adds only `GameSaveRoundTripProbe`, and `LuaScript` is
+  commented out in `mods/ww3mod/rules/world.yaml:1049`. `lua.log` is created only by `ScriptContext`
+  (`engine/OpenRA.Game/Scripting/ScriptContext.cs:166`), which only `LuaScript.WorldLoaded` constructs
+  (`engine/OpenRA.Mods.Common/Scripting/LuaScript.cs:41-45`). So `check_launch_failure`'s
+  "a world was built" latch (`tools/autotest/run-test.sh:548-552`, `WORLD_SEEN=1`) **can never set**
+  for this scenario. Its comment says the latch is general because "every scenario under
+  tools/autotest/scenarios runs Lua" (`:534-535`); that is false for 31 of 369 scenarios (all three
+  `test-savegame-resume*` plus 28 `tournament-*`). (2) The probe restarts in-process:
+  `GameSaveRoundTripProbe.GameSaved` → `Game.CreateAndStartLocalServer` (`GameSaveRoundTripProbe.cs:113-124`,
+  `engine/OpenRA.Game/Game.cs:274-288`) → `JoinServer` → `JoinInner`, which disposes the old
+  `OrderManager` (`Game.cs:101`) → `NetworkConnection.Dispose` closes the socket (`Connection.cs:382`,
+  commented "Closing the stream will cause any reads on the receiving thread to throw") → the old receive
+  thread logs `Connection to {EndPoint} failed: …` (`Connection.cs:222`), where `EndPoint` is the OLD
+  connection's remote endpoint (`:177`). **So nothing dials port 59462 again: that line is the original
+  match's connection being torn down on purpose**, and the new connection to the new server succeeded
+  (server.log: accepted, Ready). 59868 is the client's own source port, not a server port. (3) The
+  client.log branch of the watch (`run-test.sh:570-574`) matches `Connection to .* failed` in a client.log
+  newer than the launch stamp; with no latch it is still armed 3000 ticks in, trips within one 1 s poll,
+  and the runner kills the game while the restore is replaying the save — hence no `restore complete`.
+  `Failed to set socket option` is benign and logged on every server start: the `IPv6Only` option set on
+  an IPv4 loopback listener (`engine/OpenRA.Game/Server/Server.cs:255-259`); the 13:43 server.log has it too.
+  **Is the LAUNCH-FAIL classification right? No** — the first world was constructed and ran to tick 3003;
+  a reload-phase teardown line is being read as a join refusal. **History:** the watch started reading
+  client.log at `6651d5f4` (2026-09-20), the lua.log latch came at `4f70b7a8`, the launch-stamp gate on
+  client.log at `61d0c1f8`. The scenario's last recorded passes are all 2026-08-16 — `61546a51` (merge
+  `d6897e9e`), then 4/4 seeds (`fc145288`) and the human variant (`a06adaf4`, merge `19e3b26e`). No run of
+  it between 2026-09-20 and this one is recorded in WORKSPACE, DISCOVERIES or this file, so the regression
+  is plausibly latent since `6651d5f4` and this is its first outing. **`a4fd519e` (RearmAtHost) is not
+  implicated:** the sweep logs `[exp-ooa] sweep player=… rearm=N …` whenever it issues any rearm or evac
+  (`PoiOffensiveBotModule.cs:3427`, guarded `if (sought > 0 || evacuated > 0)`), and the run's debug.log
+  has zero `[exp-ooa]` lines and zero case-insensitive `rearm` matches, so no `RearmAtHost` order was
+  issued before the save; and the failure happened before the restore reached `GameLoaded`, so no restored
+  sync comparison ever ran. **What would confirm it:** one `./tools/autotest/run-test.sh --hidden
+  test-savegame-resume` (900-tick arena, also no Lua) on main reporting LAUNCH-FAIL within a few seconds of
+  `[saveprobe] save written`, with no `restore complete` in the archived debug.log and a client.log line
+  naming a port other than the new server's. A PASS there refutes "deterministic" (it would make this a
+  timing race). **Refuted by:** a `lua.log` newer than the run's `result.launchstamp` at the time of the
+  trip (the latch would then have been set). **Fix shape (not done):** a latch that does not depend on
+  Lua — e.g. any `[saveprobe]`/world-tick line in this run's debug.log, or the engine writing a
+  world-constructed marker — or ignore `Connection to … failed` once the first world has existed; and
+  extend `tools/autotest/selftest-launch-failure.sh` with a no-lua.log, in-process-reconnect case that
+  must stay quiet. **NOT FIXED. The restore itself is UNMEASURED since 2026-08-16** — this run says
+  nothing about whether saved games still restore.
+  (found while working on: manager's post-merge run of the savegame scenario; filed by savegame-reload-triage)
