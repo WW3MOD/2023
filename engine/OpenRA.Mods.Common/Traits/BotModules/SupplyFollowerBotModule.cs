@@ -572,6 +572,9 @@ namespace OpenRA.Mods.Common.Traits
 		BotBlackboard blackboard;
 		DangerFieldLayer dangerField;
 
+		// dangerField bound to this player, or null with it. Read only through GroundDangerAt.
+		Func<CPos, int> groundDangerRead;
+
 		// Read for its grid GEOMETRY only (GroundDangerAt's lattice de-aliasing), never for control scores.
 		ControlField controlField;
 		int scanCountdown;
@@ -760,6 +763,7 @@ namespace OpenRA.Mods.Common.Traits
 			// active. With DangerEvac at its default off, this is exactly the old condition.
 			dangerField = participates && (Info.DangerFieldRouting || Info.DangerEvac || Info.DropAndLeave)
 				? world.WorldActor.TraitOrDefault<DangerFieldLayer>() : null;
+			groundDangerRead = dangerField != null ? c => dangerField.GroundDanger(player, c) : null;
 
 			// Grid geometry for GroundDangerAt's de-aliasing, and — for drop-and-leave — the frontier-distance
 			// field the forward supply point is walked down. Null is tolerated (raw single-cell reads; and no
@@ -2620,19 +2624,19 @@ namespace OpenRA.Mods.Common.Traits
 		/// wrong direction for a safety gate. A MEAN over the block would NOT reintroduce parity (a mean over
 		/// a fixed block is uniform within it); the objection to it is different and is about the other term:
 		/// it dilutes the densely-stamped CONTACT kernel across four cells, roughly quartering the local peak
-		/// that the gate exists to notice. MAX is the only one of the three that preserves both terms.</para></summary>
+		/// that the gate exists to notice. MAX is the only one of the three that preserves both terms.</para>
+		///
+		/// <para>Null-safe: with no danger field this reads 0 — see SupplyLogisticsMath.DeAliasedGroundDanger.</para></summary>
 		int GroundDangerAt(CPos cell)
 		{
-			var danger = dangerField.GroundDanger(player, cell);
-			if (controlField == null)
-				return danger;
+			CPos? representative = null;
+			if (controlField != null)
+			{
+				var (gx, gy) = controlField.MapCellToGridCell(cell);
+				representative = controlField.GridCellToMapCell(gx, gy);
+			}
 
-			var (gx, gy) = controlField.MapCellToGridCell(cell);
-			var representative = controlField.GridCellToMapCell(gx, gy);
-			if (representative == cell)
-				return danger;
-
-			return Math.Max(danger, dangerField.GroundDanger(player, representative));
+			return SupplyLogisticsMath.DeAliasedGroundDanger(groundDangerRead, cell, representative);
 		}
 
 		/// <summary><para>Run the DAMPED danger-evac decision for one truck and, when it is on the evac branch, issue

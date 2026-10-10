@@ -286,6 +286,30 @@ namespace OpenRA.Mods.Common.Traits
 			return destinationWasGated ? dangerAtDestination : 0;
 		}
 
+		/// <summary>Believed ground danger at <paramref name="cell"/>, de-aliased against the control-grid
+		/// lattice by taking the MAX with its grid-centre <paramref name="representative"/> (null when there is
+		/// no grid; the reasoning for MAX is on SupplyFollowerBotModule.GroundDangerAt, which is the only caller).
+		///
+		/// <para>A NULL <paramref name="read"/> MEANS "NO DANGER FIELD" AND RETURNS 0. The module only fetches
+		/// the field for a participating profile with a danger consumer enabled, and the world may not carry
+		/// one at all (a map's rules can remove it), yet the errand and drop log lines sample danger
+		/// unconditionally — so this used to dereference null and crash the host on the first errand edge of
+		/// a fieldless profile. 0 is the direction every other fieldless sampler in the module already takes
+		/// (`dangerField != null ? ... : 0`), and it pairs with GroundDangerLevel turning every positive
+		/// threshold unreachable: no gate fires, and nothing reads a fieldless profile as everywhere-dangerous.
+		/// Pure, zero RNG.</para></summary>
+		public static int DeAliasedGroundDanger(Func<CPos, int> read, CPos cell, CPos? representative)
+		{
+			if (read == null)
+				return 0;
+
+			var danger = read(cell);
+			if (representative == null || representative.Value == cell)
+				return danger;
+
+			return Math.Max(danger, read(representative.Value));
+		}
+
 		/// <summary>Step the dwell counter <see cref="EvacuateWithDwell"/> reads. Armed to
 		/// <paramref name="dwellScans"/> on the scan a truck STARTS evacuating (<paramref name="startedEvacuating"/>
 		/// — the caller's <c>evacNow &amp;&amp; !wasEvacuating</c>), counted down otherwise, floored at 0.

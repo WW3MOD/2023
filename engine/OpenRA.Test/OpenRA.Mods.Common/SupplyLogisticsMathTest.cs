@@ -738,5 +738,30 @@ namespace OpenRA.Test
 			Assert.That(SupplyLogisticsMath.FollowBoxScanOrder(-1).Length, Is.EqualTo(0));
 			Assert.That(SupplyLogisticsMath.FollowBoxScanOrder(0), Is.EqualTo(new[] { CVec.Zero }));
 		}
+
+		// ---- GroundDangerAt with no danger field (robustness scout §3) ----
+
+		[Test]
+		public void NoDangerFieldReadsZeroInsteadOfCrashing()
+		{
+			// The errand-edge and drop log lines sample danger unconditionally, and the field is null for any
+			// profile that did not fetch one. 0 is the inert direction every fieldless sampler takes.
+			Assert.That(SupplyLogisticsMath.DeAliasedGroundDanger(null, new CPos(5, 5), new CPos(5, 5)), Is.EqualTo(0));
+			Assert.That(SupplyLogisticsMath.DeAliasedGroundDanger(null, new CPos(4, 4), null), Is.EqualTo(0));
+		}
+
+		[Test]
+		public void DeAliasingTakesTheMaxOfTheCellAndItsGridCentre()
+		{
+			var centre = new CPos(5, 5);
+			int Read(CPos c) => c == centre ? 40 : 7;
+
+			Assert.That(SupplyLogisticsMath.DeAliasedGroundDanger(Read, new CPos(4, 4), centre), Is.EqualTo(40),
+				"an unstamped block member must recover its grid-centre baseline");
+			Assert.That(SupplyLogisticsMath.DeAliasedGroundDanger(Read, new CPos(4, 4), null), Is.EqualTo(7),
+				"no grid ⇒ the raw single-cell read");
+			Assert.That(SupplyLogisticsMath.DeAliasedGroundDanger(c => c == centre ? 3 : 9, new CPos(4, 4), centre), Is.EqualTo(9),
+				"MAX, never MIN: the contact kernel at the cell itself must survive");
+		}
 	}
 }
