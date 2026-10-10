@@ -3400,11 +3400,18 @@ namespace OpenRA.Mods.Common.Traits
 						// Its flag-only else-branch is unreachable here — we only call it with a live host.
 						// dispatchedBecauseDry: the sweep's own candidate filter IS AllPoolsEmpty (IsOutOfAmmo).
 						//
-						// `host` is PASSED. Omitting it lets AutoRearm re-pick via ChooseResupplier one call
-						// deeper, which would hand back the nearest merely-stocked depot and throw away the
-						// affordable choice made above — the exact trap that parameter was added to prevent.
-						AmmoPool.AutoRearm(unit, true, host);
-						sought++;
+						// `host` is PASSED, as the order's target. Omitting it lets AutoRearm re-pick via
+						// ChooseResupplier one call deeper, which would hand back the nearest merely-stocked
+						// depot and throw away the affordable choice made above — the exact trap that parameter
+						// was added to prevent.
+						//
+						// ORDERED, not called. AutoRearm queues an activity and cancels the current one, and
+						// this tick runs on the host only — a direct call moved the host's copy of the unit and
+						// no other client's (multiplayer desync), and was never recorded for replay or restore.
+						// AmmoPool resolves the order on every client and re-validates the host there.
+						if (bot.QueueOrder(new Order(AmmoPool.RearmAtHostOrder, unit, Target.FromActor(host), false)))
+							sought++;
+
 						break;
 
 					case AmmoEvacAction.Evacuate:

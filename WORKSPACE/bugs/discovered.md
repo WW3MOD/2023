@@ -6227,6 +6227,11 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   only reds if a bot unit runs dry and rearms before the save tick — a green there is not evidence of
   absence. **Fix shape:** route through an Order resolved on the unit (the `SetAmbushGate` precedent in
   `AutoTarget.cs` / `LaneAmbushBotModule.cs`), passing the chosen `host` as the target so the
-  affordability choice survives. **NOT FIXED.**
+  affordability choice survives. **FIXED 2026-10-10 on `wt/rearm-desync`:** the sweep now issues
+  `Order("RearmAtHost", unit, Target.FromActor(host))` via `bot.QueueOrder`, resolved in
+  `AmmoPool.ResolveOrder` (first pool only; drops the order if the host is dead/out of world, the unit
+  is no longer dry, or it is already on a rearm run). `BotOrderedMutationTest` now opens every
+  same-assembly callee one hop deep and was RED on exactly this site before the fix. Dynamic
+  confirmation (save-restore riverzeta) not yet run.
   (found while working on: engine robustness scout 2026-10-07, finding #1,
   `DOCS/design/261007_engine-robustness-scout.md`; filed by file-desync)
