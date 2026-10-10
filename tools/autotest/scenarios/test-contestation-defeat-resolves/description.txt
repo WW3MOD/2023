@@ -1,0 +1,1 @@
+REGRESSION: a contested Supply Route with nobody to relieve it resolves its owner to Lost under TestMode (SupplyRouteContestation.RunInTestMode).
