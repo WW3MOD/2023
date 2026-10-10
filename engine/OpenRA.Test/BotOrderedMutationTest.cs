@@ -174,10 +174,16 @@ namespace OpenRA.Test
 			// walks reach the order resolvers themselves (ResolveOrder -> ... -> QueueActivity) through
 			// shared helpers, and a fixture that cannot tell "the bot ordered it" from "the bot did it"
 			// is one that gets switched off.
+			//
+			// BLIND SPOT: the hop follows the call token as compiled. A call through an interface or a
+			// virtual/abstract method resolves to the declaration, which has no body (or the base body),
+			// so a mutation in an implementation reached by dispatch is NOT opened. Those callees are
+			// skipped rather than counted, so the floors below measure only bodies actually read.
 			var botLayer = new HashSet<Type>(types);
 			var assembly = typeof(AutoTarget).Assembly;
 			var hopCache = new Dictionary<MethodBase, List<MethodBase>>();
 			var hopsOpened = 0;
+			var hopResolved = 0;
 
 			foreach (var type in types)
 			{
@@ -199,9 +205,26 @@ namespace OpenRA.Test
 
 						if (!hopCache.TryGetValue(callee, out var mutations))
 						{
-							mutations = IlScan.Scan(callee).Callees.Where(IsUnorderedMutation).Distinct().ToList();
+							mutations = new List<MethodBase>();
 							hopCache[callee] = mutations;
+
+							if (callee.IsAbstract || callee.GetMethodBody() == null)
+								continue;
+
+							IlScan.Result hop;
+							try
+							{
+								hop = IlScan.Scan(callee);
+							}
+							catch (Exception e) when (e is TypeLoadException || e is BadImageFormatException
+								|| e is InvalidOperationException || e is NotSupportedException)
+							{
+								continue;
+							}
+
+							mutations.AddRange(hop.Callees.Where(IsUnorderedMutation).Distinct());
 							hopsOpened++;
+							hopResolved += hop.ResolvedCalls;
 						}
 
 						foreach (var mutation in mutations)
@@ -212,9 +235,15 @@ namespace OpenRA.Test
 				}
 			}
 
-			Assert.That(hopsOpened, Is.GreaterThan(100),
+			Assert.That(hopsOpened, Is.GreaterThan(150),
 				$"Only {hopsOpened} same-assembly callees were opened for the second hop — the hop " +
 				"filter is excluding nearly everything, not finding a clean bot layer.");
+
+			// Measured 2026-10-10: 226 callees opened, 908 call tokens resolved. Floors sit well under both so
+			// ordinary refactors do not trip them, and far above what a filter that opens nothing would read.
+			Assert.That(hopResolved, Is.GreaterThan(600),
+				$"The second hop resolved only {hopResolved} call tokens across {hopsOpened} opened " +
+				"callees — the hop is reading empty bodies, not finding a clean bot layer.");
 
 			Assert.That(resolved, Is.GreaterThan(2000),
 				$"IL scan resolved only {resolved} call tokens across {types.Count} bot-layer types — " +
@@ -335,7 +364,6 @@ namespace OpenRA.Test
 				"ambush halt is inert with nothing logged." +
 				Environment.NewLine + Environment.NewLine + Incident);
 		}
-
 
 		// BOTH HALVES OF THE REARM ORDER (2026-10-10). PoiOffensiveBotModule.SweepOutOfAmmoUnits called
 		// AmmoPool.AutoRearm directly — a QueueActivity that cancelled the unit's current activity on the
