@@ -139,6 +139,13 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Minimap ping color.")]
 		public readonly Color MiniMapPingColor = Color.Orange;
 
+		[Desc("Resolve the team elimination in TestMode sessions too. Defaults to false, which is what keeps",
+			"every existing autotest and tournament configuration behaving exactly as it did: they assert on",
+			"their own verdicts and never expect a contested Supply Route to mark anybody Lost. With it false",
+			"the bars still run under TestMode and a full defeat bar still makes the owner passive; only the",
+			"WinState resolution is skipped. A scenario that tests the win condition end to end sets this true.")]
+		public readonly bool RunInTestMode = false;
+
 		public override object Create(ActorInitializer init) { return new SupplyRouteContestation(init.Self, this); }
 	}
 
@@ -255,6 +262,7 @@ namespace OpenRA.Mods.Common.Traits
 		// Accessors for AttackSupplyRoute / external queries.
 		public SupplyRouteContestationInfo Info => info;
 		public int ControlBar => controlBar;
+		public int DefeatBar => defeatBar;
 		public int ControlBarFraction => info.BarMax > 0 ? controlBar * 100 / info.BarMax : 0;
 		public int NetEnemySurplus => cachedNetEnemySurplus;
 		public int NetFriendlySurplus => cachedNetFriendlySurplus;
@@ -810,9 +818,16 @@ namespace OpenRA.Mods.Common.Traits
 		void ResolveTeamElimination()
 		{
 			// TestMode owns win/loss verdicts (see ConquestVictoryConditions.Tick / CheckIfGameIsOver);
-			// don't emit stray victory lines or sounds during autotests.
-			if (TestMode.IsActive)
+			// don't emit stray victory lines or sounds during autotests -- unless the scenario opted in
+			// with RunInTestMode, the same switch DoomsdayStrike uses. MissionObjectives.CheckIfGameIsOver
+			// still declines to end the world under TestMode, so an opted-in scenario keeps running and
+			// can read the WinStates this sets.
+			if (!ResolvesEliminationInSession(TestMode.IsActive, info.RunInTestMode))
+			{
+				Log.Write("debug", $"SupplyRouteContestation: elimination of {self.Owner.InternalName} declined at tick {self.World.WorldTick} -- " +
+					$"test-mode session and {nameof(SupplyRouteContestationInfo.RunInTestMode)} is false. Set it in the scenario's rules.yaml to resolve WinStates.");
 				return;
+			}
 
 			// Phase 1: mark the eliminated team (this SR's owner + its allies) Lost — but never a
 			// team that already has a victor. If a teammate has already Won (its enemies were
@@ -848,6 +863,13 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Phase 2: award the win to any surviving combatant whose every hostile is now Lost.
 			AwardDecidedSurvivors(self.World);
+		}
+
+		// Pure decision: does a full defeat bar with nobody left to relieve it resolve WinStates in this
+		// session? Always outside TestMode; inside it only when the scenario opted in.
+		public static bool ResolvesEliminationInSession(bool testModeActive, bool runInTestMode)
+		{
+			return !testModeActive || runInTestMode;
 		}
 
 		// Award the win to every still-Undefined combatant whose every hostile is now Lost. This is

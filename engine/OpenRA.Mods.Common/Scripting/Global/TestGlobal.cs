@@ -491,6 +491,29 @@ namespace OpenRA.Mods.Common.Scripting.Global
 			return detectable == null ? -1 : detectable.CurrentVisibility;
 		}
 
+		[Desc("A Supply Route's contestation state, as `control=<n>|defeat=<n>|passive=<bool>|barmax=<n>|" +
+			"base=<ticks>|min=<ticks>|scan=<ticks>|runintestmode=<bool>`, or \"absent\" when the actor " +
+			"carries no " + nameof(SupplyRouteContestation) + ".",
+			"",
+			"EXISTS SO A WIN-CONDITION SCENARIO CAN TELL ITS TWO FAILURES APART. `player.WinState` " +
+			"staying Undefined means either the bars never filled or they filled and the resolution " +
+			"was skipped; `defeat` and `passive` say which. The Info fields ride along so the scenario " +
+			"computes its deadline from the rules it is actually running, not from copied numbers. " +
+			"APPEND-ONLY. Read-only and test mode only.")]
+		public string SupplyRouteContestationState(Actor actor)
+		{
+			if (!TestMode.IsActive || actor == null)
+				return "absent";
+
+			var c = actor.TraitOrDefault<SupplyRouteContestation>();
+			if (c == null)
+				return "absent";
+
+			return $"control={c.ControlBar}|defeat={c.DefeatBar}|passive={(c.IsPassive ? "true" : "false")}|" +
+				$"barmax={c.Info.BarMax}|base={c.Info.BaseTicks}|min={c.Info.MinTicks}|scan={c.Info.ScanInterval}|" +
+				$"runintestmode={(c.Info.RunInTestMode ? "true" : "false")}";
+		}
+
 		[Desc("The perf rig's ARM: 'exchange' when the process was launched with " +
 			"Test.ForceEscalationVariant=true, otherwise 'salvo'. A scenario prints this into its own " +
 			"markers so a run's numbers can never be read as the other arm's -- the two arms share a " +

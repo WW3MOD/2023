@@ -1,0 +1,16 @@
+World:
+    -StartGameNotification:
+    -SpawnStartingUnits:
+    -MapStartingLocations:
+    -CrateSpawner:
+    LuaScript:
+        Scripts: test-helpers.lua, test-contestation-defeat-resolves.lua
+
+# THE SUBJECT. Without this, SupplyRouteContestation.ResolveTeamElimination declines under TestMode:
+# the bars still run and the owner still goes passive, but nobody is ever marked Lost. Flipping this
+# to false is the RED arm -- the scenario then fails with "defeat bar full ... WinState Undefined".
+# Key is SUPPLYROUTE, upper case, matching the defining key in rules/ingame/structures.yaml: top-level
+# keys merge case-sensitively, so `supplyroute:` here would override nothing.
+SUPPLYROUTE:
+    SupplyRouteContestation:
+        RunInTestMode: true
