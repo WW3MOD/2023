@@ -84,6 +84,8 @@ done
 
 # ── Pre-flight (discriminator 1) ────────────────────────────────────────────
 # Every failure in this block is exit 3. None of them is evidence about a World.
+# fail_launch is also called from inside the map loop; its SMOKE_VERDICT line
+# always reports passed=0 failed=0, even when earlier maps already passed.
 fail_launch() {
 	echo
 	echo "============================================================"

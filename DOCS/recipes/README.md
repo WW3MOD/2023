@@ -4,20 +4,20 @@ Workflows I (Claude) follow when triggered. Each entry has its own `<NAME>.md` w
 
 The point: instead of re-explaining a workflow each session, the user types the trigger word and I follow the documented steps. Humans skim this index to remember what's available.
 
-> **Note for the agent.** These are project-convention docs, **not** harness-registered Skills. When the user says the trigger word (with or without a `/`), READ the relevant `.md` here and follow the procedure. Never call the `Skill` tool for these — that's a different system and the call will fail.
+> **Note for the agent.** These are project-convention docs, **not** harness-registered Skills. Any step in a recipe that starts the game or runs the YAML lint follows CLAUDE.md §"Who runs what". When the user says the trigger word (with or without a `/`), READ the relevant `.md` here and follow the procedure. Never call the `Skill` tool for these — that's a different system and the call will fail.
 
 | Trigger | Recipe | One-liner |
 |---|---|---|
 | [`PLAN <topic>`](PLAN.md) | PLAN | Design a feature or change before coding — ask, research, write a plan doc, wait for approval |
 | [`PLAYTEST [topic]`](PLAYTEST.md) | PLAYTEST | Build, write a focus brief, hand back to user with eye-list. Pair with TRIAGE after |
-| [`TRIAGE [findings]`](TRIAGE.md) | TRIAGE | Sort raw findings into v1 buckets, route to RELEASE_V1.md / BACKLOG / discovered.md |
-| [`AUTOTEST <bug>`](AUTOTEST.md) | AUTOTEST | Test-driven debug loop — failing test → fix → green → regression-check → commit. User walks away |
+| [`TRIAGE [findings]`](TRIAGE.md) | TRIAGE | Sort raw findings, route to RELEASE_V1.md (scope) / PIPELINE.md (queue) / BACKLOG / discovered.md |
+| [`AUTOTEST <bug>`](AUTOTEST.md) | AUTOTEST | Test-driven debug loop — failing test → fix → green → regression-check → commit |
 | [`DEMO <topic>`](DEMO.md) | DEMO | Stage a scenario for the human to look at. Same harness as AUTOTEST, but no verdict, no autonomous loop |
 | [`REVIEW [N]`](REVIEW.md) | REVIEW | Quality pass on last N commits — pitfalls, leftover traces, over-engineering |
-| [`FINALIZE`](FINALIZE.md) | FINALIZE | Session wrap-up — bell, tracker, hotboard, session promote, commit |
+| [`FINALIZE`](FINALIZE.md) | FINALIZE | Session wrap-up — bell, trackers, hotboard, plan archive, commit |
 | [`CONTEXT <area>`](CONTEXT.md) | CONTEXT | Quick orientation on an area — recent commits, open work, file pointers |
 | [`BALANCE <a> <b>`](BALANCE.md) | BALANCE | Wrap combat-sim for data-driven tuning — duel matrices, tier consistency |
-| [`TELEMETRY <events>`](TELEMETRY.md) | TELEMETRY | Per-tick JSON-line gameplay log channel for post-mortem analysis (not built yet — first invocation builds) |
+| [`TELEMETRY <events>`](TELEMETRY.md) | TELEMETRY | Turn on the JSONL event channels (unit lifecycle, missile trace) for post-mortem analysis |
 | [`SCREENSHOT <topic>`](SCREENSHOT.md) | SCREENSHOT | Capture game state as PNGs (in-test or menu/lobby) and evaluate visually via the multimodal Read tool |
 | [`DOCUMENT <topic>`](DOCUMENT.md) | DOCUMENT | Write/update a game-mechanic description in [`../gameplay/`](../gameplay/README.md) — player perspective, not technical. Always-on for discoveries |
 
@@ -35,4 +35,4 @@ For operating modes (RELEASE, EXPERIMENTAL) see [`../modes/`](../modes/README.md
 
 1. Create `DOCS/recipes/<NAME>.md` following the format of an existing recipe.
 2. Add a row to the table above.
-3. Mention in `CLAUDE.md` under the trigger table if the user should know about it.
+3. CLAUDE.md's routing table already points trigger words at this README; add a routing row there only if the recipe also applies without a trigger word.

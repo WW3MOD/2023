@@ -81,7 +81,9 @@
 #   ./expected-status.sh --selftest               -> proves the decision table, no launch
 #
 # <outcome> is run-test.sh's OUTCOME NAME -- PASS, PASS-EMPTY, FAIL, SKIP, TIMEOUT-FAIL,
-# CRASH, NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR -- NOT an exit-code bucket.
+# LAUNCH-FAIL, CRASH, NO-RESULT, BAD-VERDICT, INTERRUPTED, HARNESS-ERROR -- NOT an
+# exit-code bucket. (Any name outside PASS/PASS-EMPTY/FAIL/SKIP is the harness
+# answering, and grades NOTRUN.)
 # PASS-EMPTY shares exit code 0 with PASS, which is the same trap one rung along: grading on
 # the code would make an empty-note green indistinguishable from a real one.
 # Passing a bucket is the bug described above: it erases TIMEOUT-FAIL into FAIL.

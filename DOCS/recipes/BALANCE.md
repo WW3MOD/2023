@@ -18,19 +18,22 @@ Stat drift between dashboard and game = structurally impossible (the dashboard r
 
 ## What I do
 
-### 1. Refresh stats (one-time per session, after any YAML edit)
+### 1. Refresh stats (after any YAML edit)
 
 ```bash
 ./tools/combat-sim/scripts/dump-stats.sh
 # → tools/combat-sim/data/stats.json regenerated from live YAML
 ```
 
-The script warns if you haven't run it after recent YAML changes. It also gates on JSON validity so a busted dump can't silently replace a good one.
+It needs a built tree (`engine/bin/OpenRA.Utility.dll`; `make all` / `.\make.ps1 all` first) and a `python3`/`python` for the post-dump sanity check, and refuses to replace a good `stats.json` with an invalid one. The **dashboard** warns at startup when `stats.json` is older than any rules YAML (`isStale` in `tools/combat-sim/src/data.ts`).
 
 ### 2. Inspect stats with the dashboard
 
+`build/` is gitignored, so a fresh checkout has no dashboard until it is compiled:
+
 ```bash
 cd tools/combat-sim
+npm install && npm run build               # once per checkout (tsc → build/)
 node build/index.js units                  # list combatant actors
 node build/index.js compare abrams t90     # side-by-side
 node build/index.js actor abrams           # full stat dump
@@ -46,19 +49,20 @@ Use these to:
 
 ### 3. Verify with AUTOTEST
 
-For "who wins?" / "how fast?" / "what HP%?" use the in-game test harness. It runs the actual engine, so it catches everything the dashboard's static math can't (positioning, autotarget jitter, projectile travel, suppression, AI behavior).
+For "who wins?" / "how fast?" / "what HP%?" use the in-game test harness. It runs the actual engine, so it catches everything the dashboard's static math can't (positioning, autotarget jitter, projectile travel, suppression, AI behaviour). `ls -d tools/autotest/scenarios/test-balance-*` lists the duels.
 
 ```bash
-./tools/autotest/run-test.sh test-balance-tank-1v1
-./tools/autotest/run-test.sh test-balance-arty-1v1
-./tools/autotest/run-batch.sh test-balance-tank-1v1 test-balance-ifv-1v1 ...
+./tools/autotest/run-test.sh --hidden --seed 1017 test-balance-tank-1v1
+./tools/autotest/run-batch.sh --seed 1017 test-balance-tank-1v1 test-balance-ifv-1v1 ...
 ```
 
-Each test reports `WINNER=X | ttk=Ys | survivors=N/M | hp=H/MAX (P%)`. Verdicts are deterministic per-seed so re-runs are identical — for variance work, parameterise the scenario or add tests at multiple ranges.
+**These are launches, and a batch is a multi-run**: who may run them, and the go-ahead a batch needs, are in CLAUDE.md §"Who runs what". A worker dispatched by a manager names the duels and the result line it expects, and hands them up. Run the duels **by name** — their verdict comes from the shared `mods/ww3mod/scripts/balance-helpers.lua`, which `run-batch.sh --all`'s per-scenario Lua grep never reads, so `--all` excludes most of them (filed in `WORKSPACE/bugs/discovered.md`).
+
+Each test reports `WINNER=X | ttk=Ys | survivors=N/M | hp=H/MAX (P%)` (`balance-helpers.lua`; `ttk` uses `TestHarness.TicksPerSecond`). **A run is reproducible only with `--seed N`**: without it the seed comes from the clock (recorded in `result.json`), so two unseeded runs are two different fights. For a before/after comparison pass the same seed to both arms; for variance work, sweep seeds or add tests at several ranges.
 
 ### 4. Recommend tuning, then re-test
 
-Write the proposed YAML edit, apply, **re-run dump-stats.sh** (the dashboard would otherwise lie), then re-run the relevant `test-balance-*` to confirm the change lands where intended.
+Write the proposed YAML edit, apply, **re-run dump-stats.sh** (the dashboard would otherwise lie), then re-run the relevant `test-balance-*` at the same seed to confirm the change lands where intended.
 
 ---
 
@@ -80,9 +84,9 @@ unless `--cash` is given**, and **nothing dies unless `--attrition N` is given**
 
 ### `--floor-per` and `--supply-floor-per` are DIFFERENT KNOBS, and confusing them looks like a weak signal
 
-`--floor-per N` rewrites **`UnitFloorPer`** (`DumpCompositionPlanCommand.cs:156`), which drives the
-support floor. The supply truck's standing floor is a **separate field**, `SupplyTruckFloorPer`
-(`:162`), read directly by the demand pre-empt. So sweeping `--floor-per` moves the truck's line only
+`--floor-per N` rewrites **`UnitFloorPer`** (`DumpCompositionPlanCommand`, `floorPerOverride`), which
+drives the support floor. The supply truck's standing floor is a **separate field**, `SupplyTruckFloorPer`
+(overridden by `supplyFloorPerOverride`), read directly by the demand pre-empt. So sweeping `--floor-per` moves the truck's line only
 *indirectly*, through the support type's effect on composition — **which reads as a weak-but-real
 response and is nothing of the kind.** A sweep of 8/10/12 that way returned 19%/19%/20% and was one step
 from being reported as "the truck ratio barely matters". `--supply-floor-per N` exists so the truck ratio
@@ -114,7 +118,7 @@ property of the mod and any disagreement is in the labels. If it does not, the s
 not be trusted outside the point it was anchored on. **Fitting to both points teaches you nothing, and it
 is the tempting thing to do.**
 
-Worked, 2026-09-06: fitting the standard Glasstone optimum-airburst overpressure table to a single power
+Worked example (the figures in this section come from that derivation and were not re-measured for this recipe; `dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --filter NuclearYieldTest` checks the shipped weapons against the law): fitting the standard Glasstone optimum-airburst overpressure table to a single power
 law and converting at the mod's blast scale gave `R_cells = 10 * Y[kt]^(1/3) * P[psi]^-0.589`, which
 reproduces the whole published table. The check that mattered came after: `Atomic`'s blast radius and
 `AtomicHighYield`'s were chosen **years apart by different reasoning** — one to feel tactical, one to
@@ -137,7 +141,7 @@ cube-root law. The cube root is right *for blast* and wrong for everything else 
 radius scales as roughly `Y^0.41` against blast's `Y^0.33`; the difference sounds like rounding, but they
 are **exponents**, so the ratio between the two radii runs as `Y^0.08` and **passes through 1** — at
 ~437 kt on this mod's scale. Below it a weapon breaks things further than it burns them; above it the
-order inverts. As now shipped: 20 kt gives 15.1 cells of blast against 11.9 of thermal, and 6 Mt gives
+order inverts. At derivation time: 20 kt gave 15.1 cells of blast against 11.9 of thermal, and 6 Mt
 101 against 124. Under the single factor both weapons sat on the same side of that line, so the strategic
 weapon was just the tactical one drawn bigger — the qualitative difference that made it worth having had
 been scaled away.
@@ -161,8 +165,8 @@ jointly expressed was not a property of the model at all.
 
 **A geometric decay cannot express a transition, structurally:** it is asymptotic, so "where does the fast
 phase end" has no answer, only a convention applied to a curve whose position depends on the whole
-integration. Replacing the rate with a `TransitionRadius` of `2 * StartRadius` let ten weapons share one
-rule with no per-weapon constant left to derive, and turned the invariant into something assertable —
+integration. Replacing the rate with a `TransitionRadius` of `2 * StartRadius` lets every nuclear shockwave weapon
+share one rule (`grep -c 'TransitionRadius:' mods/ww3mod/rules/weapons/*.yaml`) with no per-weapon constant left to derive, and turned the invariant into something assertable —
 every step at or past that radius is exactly the sonic step.
 
 *(A linear-in-radius ramp is not a cop-out here: over the one octave from `StartRadius` to twice it, the
@@ -209,11 +213,13 @@ If dashboard says X, AUTOTEST says Y: that's an interesting finding — the engi
 
 ---
 
-## Two-layer drift, both fixed
+## Why the dashboard does not simulate combat
 
-Pre-260511 the combat-sim was a TypeScript port of the engine's combat math + a hardcoded copy of unit/weapon stats. Both halves drifted: stats by 5-15× from real YAML, combat math by enough that sim verdicts didn't match in-game. Refactor scrapped both:
+A re-implementation of the engine's combat math and a hand-copied stat table both drift from the real YAML, and a drifted sim gives confident wrong verdicts. So neither is re-implemented:
 
-- **Stats**: dump from engine via `--dump-balance-json`, sim reads JSON. No re-implementation.
-- **Combat outcomes**: AUTOTEST runs the engine. No re-implementation.
+- **Stats**: dumped from the engine via `--dump-balance-json`; the dashboard reads the JSON.
+- **Combat outcomes**: AUTOTEST runs the engine itself.
+
+The retired `run` / `duel` / `list` verbs in `tools/combat-sim/src/index.ts` are what is left of the old simulator.
 
 The dashboard's only computed numbers (DPS, dmg/credit) are derived directly from the dumped stats using simple cycle math (`burst × damage / cycle_ticks`). No engine fidelity required for that — it's a presentation layer.

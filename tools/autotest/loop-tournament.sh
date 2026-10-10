@@ -8,17 +8,29 @@
 # Usage:
 #   ./tools/autotest/loop-tournament.sh <scenario> <target.yaml>
 #
-# Target schema (YAML, MiniYaml-style):
+# Target schema (YAML, MiniYaml-style). The scenario is the positional <scenario>
+# argument; a `Scenario:` key in the file is not read. The parser takes everything
+# after `Key:` as the value, so DO NOT put inline `# comments` on a value line and
+# omit a key rather than writing `""` (both would reach the run verbatim --
+# bugs/discovered.md, 2026-10-07). tools/autotest/example-target.yaml is a clean
+# example. Keys:
 #
-#   Scenario: tournament-arena-skirmish-2p
 #   Config:   tools/autotest/scenarios/tournament-arena-skirmish-2p/tournament-sanity.yaml
-#   BatchSize: 10            # matches per round
-#   BudgetHours: 8           # max wall-clock for the whole loop
-#   MaxRounds: 20            # safety cap on round count (0 = unbounded)
-#   StopWinner: USA-bot      # player name to track for StopThreshold (optional)
-#   StopThreshold: 0.60      # stop when StopWinner's winrate >= this (0..1)
-#   MaxWallSecs: 120         # per-match wall-clock budget passed to run-tournament.sh
-#   MirrorScenario: ""       # optional mirror scenario for --mirror flag
+#   BatchSize: 10
+#   BudgetHours: 8
+#   MaxRounds: 20
+#   StopWinner: USA-bot
+#   StopThreshold: 0.60
+#   MaxWallSecs: 120
+#   MirrorScenario: tournament-arena-mirror-2p
+#
+#   BatchSize       matches per round
+#   BudgetHours     max wall-clock for the whole loop
+#   MaxRounds       safety cap on round count (0 = unbounded)
+#   StopWinner      player name to track for StopThreshold (optional)
+#   StopThreshold   stop when StopWinner's winrate >= this (0..1)
+#   MaxWallSecs     per-match wall-clock budget passed to run-tournament.sh
+#   MirrorScenario  optional mirror scenario, passed as --mirror
 #
 # Behavior:
 # - After each round, runs aggregate-tournament.sh + reads summary.json.

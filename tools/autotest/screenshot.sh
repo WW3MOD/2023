@@ -5,15 +5,21 @@
 #
 # Writes a "screenshot <label>" command to the file watched by an already-running
 # WW3MOD game launched with Test.Mode=true Test.ScreenshotCmdFile=<path>. The
-# engine polls the file each LogicTick (~40ms), executes the command, deletes
-# the file, and appends an entry to manifest.json in the screenshot output dir.
+# engine polls the file each logic tick (~40 ms at the menu, the world timestep
+# -- 60 ms at default speed -- in a match), executes the command, deletes the
+# file, and appends an entry to manifest.json in the screenshot output dir. The
+# manifest entry is written when the capture is ARMED; the PNG lands a frame
+# later, and never under a hidden/minimized window.
 #
 # Use this for menu/lobby captures where there's no Lua running. To launch the
 # game in screenshot mode, see ./tools/autotest/start-screenshot-mode.sh.
 #
-# --wait: poll manifest.json until <label> appears, then print the resulting
-#         PNG path on stdout. Default: return immediately after writing the
-#         command (fire-and-forget).
+# --wait: poll manifest.json until its entry count grows, then print the path
+#         of the NEWEST entry on stdout (whatever its label). Fixed 10 s
+#         deadline. The file may not exist yet when the path prints -- ls it
+#         before reading. Default: return immediately after writing the command.
+#
+# Exit: 0 sent (or path printed), 2 --wait timed out, 1 usage/setup error.
 #
 # --cmd-file=<path>: explicit override. Default matches start-screenshot-mode.sh.
 

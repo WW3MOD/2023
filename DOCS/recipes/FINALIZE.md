@@ -2,29 +2,25 @@
 
 **Trigger:** `FINALIZE` after completing a feature, fix, or meaningful chunk of work.
 
-**Gives you:** a clean session end — bell rung, tracker updated, session promoted, everything committed. Future-me (and the user) can pick up cleanly next session.
+**Gives you:** a clean session end — bell rung, trackers updated, everything committed. Future-me (and the user) can pick up cleanly next session.
 
-**When *not* to use it:** in the middle of work, on micro-edits, or when changes are still uncommitted-WIP that the user wants to inspect first.
+**When *not* to use it:** in the middle of work, on micro-edits, or when changes are still uncommitted WIP the user wants to inspect first.
 
 ---
 
 ## What I do
 
-1. `printf "\a"` — ring the terminal bell so the user knows.
-2. **Double-check against `WORKSPACE/DISCOVERIES.md`** — ensure nothing was violated. Add a new entry if the session uncovered a gotcha worth remembering.
-3. **Update `WORKSPACE/RELEASE_V1.md`** — flip statuses for items touched (e.g. `[~]` → `[T]` or `[x]`); move shipped items to "Recently completed".
-4. **Update `WORKSPACE/HOTBOARD.md`** — refresh "Working on" and recent wins. Keep under 40 lines (rotate oldest items out).
-5. **Archive completed plans** — for each `WORKSPACE/plans/*.md` whose work this session shipped:
-   - If the corresponding tracker item is now `[x]` or `[T]`, `git mv` the plan to `WORKSPACE/archive/plans/`.
-   - If the plan was a brainstorm-handoff that's been resolved, archive it too.
-   - Tracker entries can keep referencing the archive path; don't break links.
-6. **Promote session file** (if any): rename `WORKSPACE/archive/sessions/active_*.md` → `WORKSPACE/archive/sessions/<YYMMDD>_<topic>.md` (sessions live in archive directly — they're historical records, not active state).
-7. **Update `WORKSPACE/BACKLOG.md`** — add deferred items, mark completed with `[x]`.
-8. **Auto-commit** all changes with a descriptive message (no separate FINALIZE-only commit if everything is already committed).
-9. **Review CLAUDE.md** — new pattern worth documenting? Structural change? Recurring gotcha? Update if yes. New recipe emerged? Add to `DOCS/recipes/`.
+1. `printf "\a"` — ring the terminal bell.
+2. **Check against `WORKSPACE/DISCOVERIES.md`** — nothing violated? Add a dated entry (with code refs) if the session uncovered a gotcha worth remembering. New knowledge goes there, not straight into `DOCS/reference/` or CLAUDE.md (CLAUDE.md §Knowledge bank).
+3. **Update `WORKSPACE/RELEASE_V1.md`** — move statuses for items touched along its legend (`[ ]` → `[~]` → `[T]`). An item that has **passed** AUTOTEST or playtest is **removed entirely**: the file keeps no `[x]` entries and no "Recently completed" section; commit history is the archive.
+4. **Update `WORKSPACE/PIPELINE.md`** if a queue item moved — close a finished item per `WORKSPACE/pipeline/README.md` §"Working rules" (dossier into `pipeline/archive/closed-items.md`, a line in `archive/shipped-log.md` if it shipped code, stub deleted).
+5. **Update `WORKSPACE/HOTBOARD.md`** — refresh what is in motion. Cap ~40 lines; rotate shipped items out. Every line carries a `file:line` or a SHA.
+6. **Archive completed plans** — `git mv` each `WORKSPACE/plans/*.md` whose work shipped (or whose brainstorm resolved) to `WORKSPACE/archive/plans/`. Links may keep pointing at the archive path.
+7. **Update `WORKSPACE/BACKLOG.md`** — add deferred items; mark completed ones `[x]` (BACKLOG's own convention, unlike RELEASE_V1).
+8. **Commit** with a descriptive message (skip if everything is already committed). Commit only; pushing follows CLAUDE.md's push rule.
+9. **New recipe?** If a recurring workflow emerged, add it to `DOCS/recipes/` and a row to `DOCS/recipes/README.md`.
 10. **PITFALL anchors check** — did I add any `// PITFALL:` (or `# PITFALL:`) comments this session? `git grep PITFALL` against touched files, sanity-check placement and wording, mention them in the wrap so the user can review. An outdated or wrong PITFALL is worse than none.
 
 ## Tips
 
-- If the session was small / single-file, you don't need every step — skip whatever doesn't apply. The point is "leave the workspace tidy", not "ritual".
-- If a NEW recipe or pattern emerged that recurs, add it to `DOCS/recipes/` (and add a row to `DOCS/recipes/README.md`) before commit.
+- If the session was small / single-file, skip whatever doesn't apply. The point is "leave the workspace tidy", not ritual.

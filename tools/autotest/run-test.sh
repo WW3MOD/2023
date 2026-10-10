@@ -3,11 +3,17 @@
 #
 # Usage:  ./tools/autotest/run-test.sh [position] [flags] <test-folder-name>
 #
+# Exit code: 0=pass, 1=fail, 2=skip, 3=error. The LAST line of every run is
+#   AUTOTEST_VERDICT outcome=<OUTCOME> exit=<n> test=<name> run=<run-id>
+# and OUTCOME is more informative than the exit code. `run-test.sh | tail`
+# reports tail's exit status, not this one. --help prints only this first part
+# of the header; "Reading the verdict" further down is the full contract.
+#
 # Position shorthand (positional, before the test name; case-insensitive):
 #   L | -L | --left      Left half of the screen
 #   R | -R | --right     Right half of the screen
 #   F | -F | --full      PseudoFullscreen
-#                        (no shorthand → centered, ~90% × ~85%, default)
+#   C | -C | --centered  Centered, ~90% × ~85% (the default)
 #
 # Window-behavior flags (windowed mode only):
 #   --background           (default) Visible, but pushed behind your other
@@ -20,9 +26,14 @@
 #                          no GPU cost. This is the unattended/tournament profile;
 #                          prefer it over --minimized on Windows, where a
 #                          minimized window can surface as a black frame.
+#                          Because nothing renders, it writes NO screenshot PNGs
+#                          -- captures are still listed in result.json and
+#                          manifest.json. Use --background for a scenario whose
+#                          answer is a frame.
 #   --minimized            Old behavior: SDL_MinimizeWindow into the dock.
 #                          Restore by clicking the small icon next to Trash.
-#   --visible              Stay foreground. (Alias: --no-minimize.)
+#                          Rendering suspends once minimized, so no PNGs either.
+#   --visible              Stay foreground. (Aliases: --no-minimize, --foreground.)
 #   --size WxH             Pin the windowed size exactly (e.g. --size 1024x768),
 #                          overriding the screen-derived size the position
 #                          shorthand computes. Chrome in this mod is laid out in
@@ -41,7 +52,7 @@
 #                          description, result path, screenshot dir -- but its map.yaml,
 #                          rules.yaml and Lua are NOT loaded, because the engine is pointed
 #                          at a different map entirely. Game.LoadMap resolves Launch.Map by
-#                          UID *or* by map directory name (engine/OpenRA.Game/Game.cs:1218),
+#                          UID *or* by map directory name (engine/OpenRA.Game/Game.cs, LoadMap),
 #                          which is what makes a bare folder name work here.
 #
 #                          A shipped map carries no Lua and therefore cannot reach Test.Pass,
@@ -161,7 +172,9 @@
 #   The detector is exercised by tools/autotest/selftest-launch-failure.sh
 #   (no build, no launch): it extracts find_engine_log and check_launch_failure
 #   from this file and runs them against synthetic logs, including both log-
-#   rotation directions. Run it after touching either function -- the failure
+#   rotation directions. Run it as `sh tools/autotest/selftest-launch-failure.sh`
+#   (the file is tracked mode 100644, so ./ exits 126) after touching either
+#   function -- the failure
 #   mode of a detector is SILENCE, which reads exactly like the fault never
 #   happening.
 #
@@ -266,7 +279,7 @@ done
 
 TEST_NAME="$1"
 if [ -z "${TEST_NAME}" ]; then
-	echo "Usage: $0 [L|R|F] [--background|--hidden|--minimized|--visible] [--audio] [--size WxH] [--map NAME] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace] <test-folder-name>"
+	echo "Usage: $0 [L|R|F|C] [--background|--hidden|--minimized|--visible] [--audio|--mute] [--size WxH] [--fullscreen|--windowed] [--map NAME] [--speed N] [--seed N] [--timeout N] [--lifecycle] [--missile-trace|--missile-trace-summary] [--sync-reports] <test-folder-name>"
 	echo "  e.g.  $0 test-artillery-turret"
 	exit 3
 fi
@@ -786,7 +799,7 @@ fi
 # Both hidden and minimized launches suspend engine-side rendering, and a low
 # framerate cap would then throttle the *suspended* sim to a few ticks/s (the
 # logic gate only clears at the render cadence). Force the cap off in either case
-# so the run free-runs. See WORKSPACE/plans/260721_sim_throughput.md, Option C.
+# so the run free-runs. See WORKSPACE/archive/plans/260721_sim_throughput.md, Option C.
 SUSPEND_ARGS=""
 if [ "${WINDOW_BEHAVIOR}" = "hidden" ] && [ "${POSITION}" != "full" ] && [ "${GRAPHICS_MODE}" = "Windowed" ]; then
 	# Engine reads OPENRA_WINDOW_HIDDEN=1 and creates the window with

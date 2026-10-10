@@ -1,8 +1,11 @@
 #!/bin/sh
 # WW3MOD AI tournament harness — batch match runner.
 #
-# Wraps run-test.sh, iterating N matches against a tournament scenario, collecting
-# per-match verdict JSON into a timestamped result dir, and writing a summary CSV.
+# Iterates N matches against a tournament scenario, collecting per-match verdict
+# JSON into a timestamped result dir, and writing a summary CSV. It does NOT go
+# through run-test.sh: it calls ./launch-game.sh directly with the same arg shape
+# (so run-test.sh's single-instance lock, watchdog and outcome banner do not apply)
+# and always launches HIDDEN (OPENRA_WINDOW_HIDDEN=1).
 #
 # Usage:
 #   ./tools/autotest/run-tournament.sh <scenario> [options]
@@ -22,7 +25,8 @@
 #                      seeds run mirror. Use with a faction-swapped scenario
 #                      (e.g. tournament-arena-mirror-2p) to attribute winrate
 #                      skew to faction vs side.
-#   -v|--visible       Pass --visible to run-test.sh (default: --background).
+#   -v|--visible       Accepted but currently has NO effect: every match launches
+#                      hidden regardless (bugs/discovered.md, 2026-10-07).
 #
 # Per-match output:
 #   <result-dir>/match_<seed-index>.json  Engine-written verdict + meta
@@ -33,9 +37,11 @@
 #   <result-dir>/summary.json             Aggregate stats
 #   <result-dir>/batch.meta.json          Git SHA, scenario, config used
 #
-# Exit code: 0 if any matches ran; 3 on usage error.
+# Exit code: 3 on a usage or config error; otherwise 0 -- INCLUDING when no match
+# produced a verdict (bugs/discovered.md, 2026-10-07). Read the match_*.json files
+# and summary.json, not the exit code.
 #
-# Phase 1 limitations (tracked in WORKSPACE/plans/260511_ai_tournament_harness.md):
+# Phase 1 limitations (plan: WORKSPACE/archive/plans/260511_ai_tournament_harness.md):
 #   - Seeding: RESOLVED (commit 2d3c8fe0). Test.RandomSeed=i*1000+17 seeds the
 #     engine LocalRandom, so a given seed now REPLAYS the same match (verdict v5
 #     stamps the seed). Good for both N-match statistics AND single-match repro.
@@ -279,7 +285,7 @@ for i in $(seq 1 ${SEEDS}); do
 
 	# Per-match deterministic seed: seed index × 1000 + 17 (the 17 just nudges
 	# away from boring round-number seeds). Different match indices → different
-	# games; rerunning the same seed → identical game. See PITFALLS.md §15.
+	# games; rerunning the same seed → identical game. See WORKSPACE/ai/archive/PITFALLS.md §15.
 	MATCH_SEED=$((i * 1000 + 17))
 
 	# Background launch — terminal keeps focus.
@@ -291,7 +297,7 @@ for i in $(seq 1 ${SEEDS}); do
 	# the way SDL_MinimizeWindow did on Windows (bugs/discovered.md 2026-07-22). CapFramerate
 	# must stay OFF here: a 5 fps cap throttles a *suspended* run to ~5 ticks/s because the
 	# logic gate only clears at the render cadence (Game.cs suspended path).
-	# See WORKSPACE/plans/260721_sim_throughput.md, Option C.
+	# See WORKSPACE/archive/plans/260721_sim_throughput.md, Option C.
 	(
 		OPENRA_WINDOW_HIDDEN=1 ./launch-game.sh \
 			"Launch.Map=${MATCH_SCENARIO}" \

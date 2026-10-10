@@ -19,6 +19,8 @@
 # Runs each named test sequentially via run-test.sh, prints a per-test
 # verdict line and a final summary. Exit code: 0 if all pass; otherwise
 # the count of non-GREEN tests (capped at 99 so the shell doesn't truncate).
+# Usage and validation errors ALSO exit 3, so a bare exit 3 is ambiguous with
+# "exactly three reds" -- read the summary, not the code.
 #
 # "non-GREEN" rather than "non-pass" because a scenario may declare the outcome it is
 # SUPPOSED to produce, in a file `tools/autotest/scenarios/test-<name>/expected-status`.
@@ -139,21 +141,17 @@ if [ "$1" = "--all" ]; then
 	# Skip scenarios that can never produce a verdict. A scenario with no
 	# assertion call writes no result.json, so run-test.sh burns its FULL
 	# wall-clock timeout (300s by default, and the timeout is deliberately NOT
-	# scaled by --speed) and then synthesizes a FAIL. TWENTY-ONE such scenarios
-	# exist today -- nine test-balance-* reporting numbers for a human to read
-	# rather than passing or failing, three test-savegame-resume-*, three
-	# test-javelin-*, two test-burn-*, and test-artillery-turret (a "watch the
-	# turret rotate" demo filed under test-*), test-atgm-humvee-motion,
-	# test-desync-dialog, test-minelayer-mode-survives-modifiers. Left in, they
-	# cost ~105 minutes per --all run (21 x the 300s default) and put twenty-one
-	# permanent false FAILs in every regression tally, which is how a red batch
-	# stops meaning anything.
+	# scaled by --speed) and then synthesizes a FAIL -- each one a permanent
+	# false FAIL in every regression tally, which is how a red batch stops
+	# meaning anything. The loop below is the enumeration and prints what it
+	# excludes; no count is kept here because a written-down count goes stale.
 	#
-	# Do not trust these counts over the loop below: it is the enumeration, the
-	# prose is a summary of it, and the prose drifted once already (it read
-	# "nine ... and the eight test-balance-*" while the loop was excluding 21
-	# with nine balance scenarios among them). Re-derive by running the same
-	# predicate rather than by editing this paragraph from memory.
+	# KNOWN HOLE (bugs/discovered.md, 2026-10-07): the predicate reads only
+	# scenarios/<name>/*.lua. A scenario whose verdict call lives in a shared
+	# mods/ww3mod/scripts/*.lua loaded through rules.yaml `Scripts:` (the
+	# test-balance-* duels via balance-helpers.lua, the *-lib.lua families) is
+	# excluded here although it does produce a verdict, and so is never graded
+	# by --all. Run those by name.
 	#
 	# Detected rather than hardcoded, so a future verdict-less scenario is
 	# excluded automatically -- and ANNOUNCED rather than silently dropped, so a

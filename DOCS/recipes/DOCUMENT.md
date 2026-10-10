@@ -34,7 +34,7 @@ If a curious player asked "how does X work in WW3MOD?", a gameplay doc is the an
 2. **Research the mechanic in the code** — relevant YAML, C# traits, autotests. Verify everything I write is grounded in actual behaviour, not assumed.
 3. **Write the doc** to `DOCS/gameplay/<topic>.md`:
    - Top of file: one-paragraph **What it is** for a player who just opened the doc.
-   - **How it works** — rules, numbers, conditions. Be specific (e.g. "Technicians capture neutrals in 20 ticks ≈ 0.8 sim-sec at base speed").
+   - **How it works** — rules, numbers, conditions. Be specific (e.g. "Technicians capture neutrals in 20 ticks — 1.2 s at the default 60 ms timestep"; never convert at 25 ticks/s).
    - **What you'll see / feel / do as a player** — the perspective.
    - **Strategic implications** — why this matters in a match.
    - **Code pointers** (last section, optional) — a few file:line refs that the curious can follow.
@@ -55,7 +55,7 @@ The bar is: **a curious player should never have to grep code to learn a rule th
 ## Conventions
 
 - One file per topic. If a topic grows past ~400 lines, split it (e.g. `capturing.md` → `capturing.md` + `capturable-structures.md`).
-- Player vocabulary first, code names in parentheses when they appear (e.g. "Technicians (`tecn`)").
+- Player vocabulary first, code names in parentheses when they appear (e.g. "Technicians (`tecn`)"). A code name in a gameplay doc is for reading; anyone writing a rules override must use the defining key's exact case (`TECN:`), because top-level keys merge case-sensitively.
 - Use existing project terms from `CLAUDE.md` and `DOCS/reference/supply-route.md` — Supply Route, beachhead, sector, etc.
 - Avoid implementation jargon unless the player has to know it. "Production queue" yes; "BotBlackboard task posting" no.
 - Numbers should be sourced — link to the YAML file:line or quote the trait setting.
