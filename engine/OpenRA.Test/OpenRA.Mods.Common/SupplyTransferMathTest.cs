@@ -385,5 +385,30 @@ namespace OpenRA.Test
 			// refusal, not a negative transfer that would credit the truck out of thin air.
 			Assert.That(SupplyTransferMath.AmountToDeliver(true, 750, 3000, 2250), Is.EqualTo(0));
 		}
+
+		// ---- Host re-validation on arrival (robustness scout §11) ----
+
+		[Test]
+		public void ACentreCapturedMidDriveNoLongerServes()
+		{
+			// The case RestockSupply missed: an LC that changed hands is neither dead nor out of the world
+			// (OwnerLostAction: ChangeOwner), so only the ownership term refuses it. Before this, a truck
+			// arriving at a just-captured Centre refilled from the enemy's stock.
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, false), Is.False,
+				"a live, in-world host that is no longer allied must refuse the transfer");
+		}
+
+		[Test]
+		public void ALiveAlliedCentreStillServes()
+		{
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, true), Is.True);
+		}
+
+		[Test]
+		public void ADeadOrRemovedCentreNeverServesEvenIfAllied()
+		{
+			Assert.That(SupplyTransferMath.HostStillServes(true, true, true), Is.False);
+			Assert.That(SupplyTransferMath.HostStillServes(false, false, true), Is.False);
+		}
 	}
 }

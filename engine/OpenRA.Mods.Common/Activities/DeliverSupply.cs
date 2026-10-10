@@ -101,7 +101,7 @@ namespace OpenRA.Mods.Common.Activities
 			// (test-lc-refill-gesture) does not stage and could not stage without a capture actor and
 			// timing control it has no reason to carry otherwise. It is reasoned from the trait
 			// inheritance above, not observed. Anyone touching this line should assume it has never run.
-			if (host.IsDead || !host.IsInWorld || !self.Owner.IsAlliedWith(host.Owner))
+			if (!SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld, self.Owner.IsAlliedWith(host.Owner)))
 				return true;
 
 			// ARRIVAL CHECK — the load-bearing guard, not a formality, and the same one PlaceSupplyCache

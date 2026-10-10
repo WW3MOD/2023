@@ -195,6 +195,26 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Is the host a transport was sent to still one it may transfer with — alive, in the world, and
+		/// still on our side?
+		///
+		/// <para>THE OWNERSHIP TERM IS THE ONE THAT GOT DROPPED, which is why this is a named method rather
+		/// than three conditions open-coded at each errand. LOGISTICSCENTER is capturable and carries
+		/// <c>OwnerLostAction: ChangeOwner</c>, so a Centre that changes hands mid-drive is neither dead
+		/// nor out of the world. <see cref="DeliverSupply"/> carried the ally test; its mirror
+		/// <see cref="RestockSupply"/> re-checked only dead/in-world while its own comment claimed to
+		/// cover capture — so a truck arriving at a just-captured Centre refilled from the ENEMY's stock.
+		/// Same asymmetry, same cause, as the arrival check above.</para>
+		///
+		/// <para>Ground crates deliberately do NOT go through this: a SUPPLYCACHE is proximity-capturable
+		/// loot, so an enemy crate is a legitimate thing for a truck to drive to.</para>
+		/// </summary>
+		public static bool HostStillServes(bool hostIsDead, bool hostIsInWorld, bool alliedWithHost)
+		{
+			return !hostIsDead && hostIsInWorld && alliedWithHost;
+		}
+
+		/// <summary>
 		/// How much supply a restock moves from host to transport — the mirror of
 		/// <see cref="AmountToDeliver"/>, and deliberately the same shape so the two directions of one
 		/// gesture cannot drift apart.
