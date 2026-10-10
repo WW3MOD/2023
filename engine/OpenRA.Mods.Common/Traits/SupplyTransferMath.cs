@@ -43,6 +43,8 @@
  */
 #endregion
 
+using OpenRA.Traits;
+
 namespace OpenRA.Mods.Common.Traits
 {
 	/// <summary>Which way supply moves for a transport ordered onto a docking-aware host.</summary>
@@ -206,12 +208,26 @@ namespace OpenRA.Mods.Common.Traits
 		/// cover capture — so a truck arriving at a just-captured Centre refilled from the ENEMY's stock.
 		/// Same asymmetry, same cause, as the arrival check above.</para>
 		///
+		/// <para>The relationship test is <c>DropsSupplyCacheInfo.ValidRelationships</c> — the SAME set
+		/// <c>DropsSupplyCache.NearestRestockHost</c> selects hosts by — passed in rather than hard-coded to
+		/// "allied", so a host can never be eligible to be chosen and ineligible to be served by, or the
+		/// reverse. Its default (Ally) makes this exactly the old <c>IsAlliedWith</c> test.</para>
+		///
 		/// <para>Ground crates deliberately do NOT go through this: a SUPPLYCACHE is proximity-capturable
 		/// loot, so an enemy crate is a legitimate thing for a truck to drive to.</para>
 		/// </summary>
-		public static bool HostStillServes(bool hostIsDead, bool hostIsInWorld, bool alliedWithHost)
+		public static bool HostStillServes(bool hostIsDead, bool hostIsInWorld,
+			PlayerRelationship relationshipToHost, PlayerRelationship validRelationships)
 		{
-			return !hostIsDead && hostIsInWorld && alliedWithHost;
+			return !hostIsDead && hostIsInWorld && validRelationships.HasRelationship(relationshipToHost);
+		}
+
+		/// <summary>The relationship set a transport's supply errands accept hosts in: its
+		/// DropsSupplyCache's ValidRelationships, or Ally when it carries none. One derivation for the
+		/// activities, which are handed an actor rather than the trait.</summary>
+		public static PlayerRelationship ValidHostRelationships(Actor transport)
+		{
+			return transport.Info.TraitInfoOrDefault<DropsSupplyCacheInfo>()?.ValidRelationships ?? PlayerRelationship.Ally;
 		}
 
 		/// <summary>

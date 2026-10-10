@@ -29,6 +29,7 @@
 
 using NUnit.Framework;
 using OpenRA.Mods.Common.Traits;
+using OpenRA.Traits;
 
 namespace OpenRA.Test
 {
@@ -388,27 +389,42 @@ namespace OpenRA.Test
 
 		// ---- Host re-validation on arrival (robustness scout §11) ----
 
+		// TRUK's shipping DropsSupplyCache.ValidRelationships (the field's default).
+		const PlayerRelationship AllyOnly = PlayerRelationship.Ally;
+
 		[Test]
 		public void ACentreCapturedMidDriveNoLongerServes()
 		{
 			// The case RestockSupply missed: an LC that changed hands is neither dead nor out of the world
-			// (OwnerLostAction: ChangeOwner), so only the ownership term refuses it. Before this, a truck
+			// (OwnerLostAction: ChangeOwner), so only the relationship term refuses it. Before this, a truck
 			// arriving at a just-captured Centre refilled from the enemy's stock.
-			Assert.That(SupplyTransferMath.HostStillServes(false, true, false), Is.False,
-				"a live, in-world host that is no longer allied must refuse the transfer");
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, PlayerRelationship.Enemy, AllyOnly), Is.False,
+				"a live, in-world host that is now an enemy must refuse the transfer");
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, PlayerRelationship.Neutral, AllyOnly), Is.False,
+				"...and so must one that went neutral");
 		}
 
 		[Test]
 		public void ALiveAlliedCentreStillServes()
 		{
-			Assert.That(SupplyTransferMath.HostStillServes(false, true, true), Is.True);
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, PlayerRelationship.Ally, AllyOnly), Is.True);
 		}
 
 		[Test]
 		public void ADeadOrRemovedCentreNeverServesEvenIfAllied()
 		{
-			Assert.That(SupplyTransferMath.HostStillServes(true, true, true), Is.False);
-			Assert.That(SupplyTransferMath.HostStillServes(false, false, true), Is.False);
+			Assert.That(SupplyTransferMath.HostStillServes(true, true, PlayerRelationship.Ally, AllyOnly), Is.False);
+			Assert.That(SupplyTransferMath.HostStillServes(false, false, PlayerRelationship.Ally, AllyOnly), Is.False);
+		}
+
+		[Test]
+		public void RefusalFollowsTheSameRelationshipSetHostSelectionUses()
+		{
+			// NearestRestockHost selects on DropsSupplyCacheInfo.ValidRelationships; refusal must read the same
+			// set, or a widened config would choose a host only to refuse it on arrival.
+			var allyOrNeutral = PlayerRelationship.Ally | PlayerRelationship.Neutral;
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, PlayerRelationship.Neutral, allyOrNeutral), Is.True);
+			Assert.That(SupplyTransferMath.HostStillServes(false, true, PlayerRelationship.Enemy, allyOrNeutral), Is.False);
 		}
 	}
 }

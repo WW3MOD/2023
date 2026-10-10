@@ -295,7 +295,8 @@ namespace OpenRA.Mods.Common.Traits
 				// Ownership re-checked here as well as in the targeter: the targeter runs on the issuing
 				// client, and a Centre can change hands in the frames before the order resolves.
 				var host = order.Target.Actor;
-				if (host == null || !SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld, self.Owner.IsAlliedWith(host.Owner)))
+				if (host == null || !SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld,
+					self.Owner.RelationshipWith(host.Owner), Info.ValidRelationships))
 					return;
 
 				var hostProvider = host.TraitOrDefault<SupplyProvider>();
@@ -319,7 +320,8 @@ namespace OpenRA.Mods.Common.Traits
 				// Ownership re-checked here as well as in the targeter: the targeter runs on the issuing
 				// client, and a Centre can change hands in the frames before the order resolves.
 				var host = order.Target.Actor;
-				if (host == null || !SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld, self.Owner.IsAlliedWith(host.Owner)))
+				if (host == null || !SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld,
+					self.Owner.RelationshipWith(host.Owner), Info.ValidRelationships))
 					return;
 
 				if (host.TraitOrDefault<AbsorbsSupplyCache>() == null)
