@@ -6,10 +6,15 @@
 #               ./tools/autotest/run-demo.sh L demo-changed-vehicles
 #               ./tools/autotest/run-demo.sh F demo-changed-vehicles
 #
-# Same flags as run-test.sh (L/R/F shortcuts, --position, --fullscreen,
-# --windowed, --help). Demos default to NOT minimized (you want to see them).
-# Demos do NOT write a result file — the user closes the window when done;
-# this script returns 0 either way.
+# Same flags as run-test.sh (L/R/F/C shortcuts, --position, --fullscreen,
+# --windowed, --help). Demos run --visible --audio. Demos do NOT write a result
+# file — the user closes the window when done, and run-test.sh's exit 3
+# ("no result") is mapped to 0. Any other exit passes through.
+#
+# PASS --timeout: none is forwarded by default, so run-test.sh's 300 s
+# wall-clock watchdog closes the demo at five minutes and this script returns 1
+# (TIMEOUT-FAIL). e.g. ./tools/autotest/run-demo.sh --timeout 7200 demo-foo
+# (bugs/discovered.md, 2026-10-07).
 #
 # If you find yourself wanting an exit code from a demo, you want a test
 # (AUTOTEST / run-test.sh), not a demo.

@@ -13,7 +13,7 @@
 1. **Build**: `./make.ps1 all` (or `make all` on macOS/Linux). Hard-fail the playtest if the build fails.
 2. **Pick focus**:
    - If the user gave a topic, scope to it.
-   - Otherwise pull the highest-risk untested items from `WORKSPACE/RELEASE_V1.md` Phase A (the `[T]` and untested `[ ]` items).
+   - Otherwise pull the highest-risk untested items: `[T]` entries in `WORKSPACE/RELEASE_V1.md` (any phase — its "Currently in" pointer is stale by its own header) and recently landed `WORKSPACE/PIPELINE.md` items awaiting a playtest.
 3. **Write a brief** to `WORKSPACE/playtests/<YYMMDD_HHMM>_<topic>.md`:
    - Build hash (`git rev-parse --short HEAD`)
    - Focus list — what's under test, why

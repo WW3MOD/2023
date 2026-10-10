@@ -1,35 +1,37 @@
 # SCREENSHOT — capture game state as PNGs for autonomous visual evaluation
 
-**Trigger:** `SCREENSHOT <topic>` (e.g. `SCREENSHOT lobby tone`). Also fires on natural-language equivalents: "screenshot the lobby and tell me if X", "take a shot of the menu and check Y".
+**Trigger:** `SCREENSHOT <topic>` (e.g. `SCREENSHOT lobby tone`), or natural-language equivalents: "screenshot the lobby and tell me if X", "take a shot of the menu and check Y".
 
-**Apply automatically (no trigger required) when** the work has a visual component. Quick checklist:
+**Apply automatically (no trigger required) when** the work has a visual component:
 
-1. Is the change/check **visual** — UI, color, palette, sprite, animation, formation shape, layout, lobby/menu/HUD work?
-2. Would a screenshot at the right moment **let me verify** the change is visible — or catch unrelated visual regressions a state-query test would miss?
-3. Is the cost reasonable — **one shot at a critical beat**, not 10 shots spamming the verdict?
+1. Is the change/check **visual** — UI, colour, palette, sprite, animation, formation shape, layout, lobby/menu/HUD?
+2. Would a screenshot at the right moment **verify** the change is visible, or catch a visual regression a state query would miss?
+3. Is the cost reasonable — **one shot at a critical beat**, not ten?
 
-Yes / yes / yes → add `TestHarness.Screenshot(label, note)` to the autotest scenario, or take an external shot when iterating on lobby/menu. **Don't wait for the user to say SCREENSHOT.** Same auto-apply stance as AUTOTEST itself.
-
-**Concrete trigger patterns** (any of these → screenshot without asking):
-- Editing a `*.yaml` palette, color, sprite, or chrome file
+Yes / yes / yes → plan `TestHarness.Screenshot(label, note)` into the scenario, or an external shot when iterating on lobby/menu. **Don't wait for the user to say SCREENSHOT.** Concrete patterns that mean "plan a capture":
+- Editing a palette, colour, sprite or chrome `*.yaml`
 - Touching `engine/OpenRA.Mods.Common/Widgets/Logic/Lobby/` or `chrome/lobby.yaml`
-- Bug labeled "looks wrong / visual / palette / animation"
-- Fixing anything in `engine/OpenRA.Mods.Common/Traits/Render/` (sprite/animation traits)
-- User says "show me", "does this look right", "what's the lobby look like now"
+- A bug labelled "looks wrong / visual / palette / animation"
+- Anything in `engine/OpenRA.Mods.Common/Traits/Render/`
+- The user says "show me", "does this look right", "what's the lobby look like now"
 
-**Gives you:** an agent that can *see*. The game writes PNGs to disk; I read them with the multimodal `Read` tool and judge whether what's on screen matches expectations. Works in three modes:
+**Who captures.** Every capture starts the game, so it is a launch, and launches follow CLAUDE.md §"Who runs what": a worker dispatched by a manager writes the capture into the scenario (or names the script and label) together with what the frame must show, and hands it up; it does not run the capture scripts itself. An agent working directly with the user may run the capture.
 
-1. **In an AUTOTEST scenario** — Lua calls `Test.Screenshot(label, note)` at named beats. Paths are emitted into the verdict JSON's `screenshots[]` array. I read the PNGs after the run.
-2. **In the menu / lobby / arbitrary game state** — game is launched in "screenshot mode" with no `Launch.Map`. The user (or me) drives the UI manually; a tiny CLI sends "take a screenshot now" commands. PNGs land in a per-run dir with a `manifest.json`.
-3. **Outside any test context** — the OS-level `Ctrl+P` hotkey still works exactly as it always did. This recipe doesn't touch that path.
+**Gives you:** an agent that can *see*. The game writes PNGs; the multimodal `Read` tool judges whether the frame matches expectations. Modes:
 
-**When *not* to use it:** anything observable via game state (`unit.IsDead`, `unit.AmmoCount`, `world.Players`, etc.) — query that directly, it's deterministic and cheap. Use screenshots for genuinely visual checks: UI tone/contrast, presence of effects/animations, formation shape, "did anything render at all". I'm reliable for coarse semantic checks, unreliable for pixel-perfect alignment or counting more than ~5 similar units.
+1. **In an autotest scenario** — Lua calls `Test.Screenshot(label, note)` at named beats; paths land in the verdict JSON's `screenshots[]`.
+2. **External (menu / lobby / arbitrary state)** — the game is launched in screenshot mode with no `Launch.Map`, and a CLI writes "take a screenshot now" commands to a file the engine polls.
+3. **Direct lobby capture** — one script launches straight into the skirmish lobby, snaps a PNG and exits.
+
+The ordinary `Ctrl+P` hotkey still works outside any test context; this recipe does not touch it.
+
+**When *not* to use it:** anything observable via game state — `unit.IsDead`, `unit.AmmoCount("primary-ammo")`, `Player.GetPlayers(filter)`, `Test.GetActiveMissileCount()` — query that directly; it is deterministic and cheap. Screenshots are for genuinely visual checks: tone/contrast, effects and animations present, formation shape, "did anything render at all". Reliable for coarse semantic checks; unreliable for pixel-perfect alignment or counting more than ~5 similar units.
+
+**`--hidden` and `--minimized` runs write NO PNG.** Both suspend rendering (`OPENRA_WINDOW_HIDDEN` sets `IsSuspended` at window creation; a minimize event sets it from `Sdl2Input`), and `Game.TakeScreenshot` only sets a flag that the render loop consumes — the loop never runs, so no file is written. The capture is still recorded in `manifest.json` and `result.json`. **Run any scenario whose answer is a frame with `--background` (default) or `--visible`, and treat a listed screenshot as a claim until `ls` shows the file.**
 
 ---
 
-## Mode 1 — In-test (Lua-driven, automatic verdict)
-
-Add screenshots to any autotest scenario. Captures end up in the verdict JSON automatically.
+## Mode 1 — In-test (Lua-driven)
 
 ```lua
 -- Inside a test-<name>.lua WorldLoaded handler:
@@ -43,7 +45,7 @@ TestHarness.ScreenshotAfter(2, "02-firing",
     "expects: muzzle flash on M109, projectile or impact effects mid-flight")
 ```
 
-After the run, the verdict JSON looks like:
+The verdict JSON then carries:
 
 ```json
 {
@@ -56,43 +58,39 @@ After the run, the verdict JSON looks like:
 }
 ```
 
-The agent reads the `path` entries and judges each against the `note`. Failures surface as `⚠️` in the end-of-message block — they don't auto-fail the test (visual judgment is too noisy for hard gating).
+Read each `path` and judge it against its `note`. Visual failures are reported as `⚠️` lines; they do not auto-fail the test (visual judgment is too noisy for hard gating).
 
 ### Lua API
 
 | Call | Purpose |
 |---|---|
-| `Test.Screenshot(label, note?)` | Engine binding. **Arms** a capture — it does not sample pixels. Returns the planned path, or nil if TestMode inactive. |
-| `TestHarness.Screenshot(label, note?)` | Thin wrapper around `Test.Screenshot`. Same behavior. Prefer this for consistency with other `TestHarness.*` calls. |
-| `TestHarness.ScreenshotAfter(seconds, label, note?)` | Sugar: schedules a screenshot N game-seconds from now via `Trigger.AfterDelay`. |
+| `Test.Screenshot(label, note?)` | Engine binding. **Arms** a capture — it does not sample pixels. Returns the planned path, or nil if TestMode is inactive. |
+| `TestHarness.Screenshot(label, note?)` | Thin wrapper; prefer it for consistency. |
+| `TestHarness.ScreenshotAfter(seconds, label, note?)` | Schedules a screenshot N seconds from now via `Trigger.AfterDelay`. |
 
-**Label sanitization.** Labels are lowercased; only `a-z 0-9 - _` survive; spaces become dashes; everything else is dropped. Filename pattern: `<NNN>_<sanitized-label>.png` where NNN is a zero-padded sequence number.
+**Label sanitisation.** Labels are lowercased; only `a-z 0-9 - _` survive; spaces become dashes. Filename: `<NNN>_<label>.png`, NNN a zero-padded sequence number.
 
-**THE CAPTURE IS ONE FRAME LATE — PUT A DELAY BETWEEN A SHOT AND THE NEXT STATE CHANGE.** `Test.Screenshot` sets `Game.takeScreenshot` and returns. The pixels are read at the end of the **next** `RenderTick`, after `Ui.Draw()` has redrawn the HUD from whatever the state is *by then* (`Game.cs:926-930`); the binding's own `[Desc]` says "Capture is async". So this is a trap:
+**THE CAPTURE IS ONE FRAME LATE — PUT A DELAY BETWEEN A SHOT AND THE NEXT STATE CHANGE.** `Test.Screenshot` sets a flag and returns; the pixels are read at the end of the **next** `Game.RenderTick`, after `Ui.Draw()` has redrawn the HUD from whatever the state is by then (the binding's `[Desc]` says "Capture is async"). So this is a trap:
 
 ```lua
 TestHarness.Screenshot("01-full", "expects: 10 passengers")
 for _ = 1, 7 do Transport.UnloadPassenger() end   -- BUG: lands before the pixels are read
 ```
 
-The shot passes its `PassengerCount == 10` assertion and then photographs **3** passengers — the state you were about to move to, under the label of the state you asserted. This happened on 2026-08-17 in `test-cargo-panel-full`; the two shots differed by 166 pixels out of 302,768 and the mislabelled one was only caught by diffing them. Give every capture its own `Trigger.AfterDelay` before anything touches the world, including before `Test.Pass`.
+The shot passes its `PassengerCount == 10` assertion and photographs **3** passengers under the label of 10; the two frames differed by 166 pixels out of ~300k and the mislabel was caught only by diffing them. Give every capture its own `Trigger.AfterDelay` before anything touches the world, including before `Test.Pass`. Corollaries: a capture fired in `WorldLoaded` can land **blank** (no frame rendered yet), and a run that exits promptly after a shot could lose it, which is why `Test.Pass` goes through `ExitWhenCapturesFlushed`.
 
-Two corollaries: a capture fired in `WorldLoaded` can land **blank**, because no frame has been rendered yet; and a run that exits promptly after a shot can lose it, which is why `Test.Pass` goes through `ExitWhenCapturesFlushed`.
+**What *is* synchronous is the PNG write.** `Renderer.SaveScreenshot` normally encodes on a `ThreadPool` worker, which `Game.Exit()` can kill mid-flush; under `TestMode.IsActive` it writes inline, ~100–300 ms per shot at 2k+ resolutions. Sync *write*, deferred *sample*.
 
-**AN AUTOTEST CAPTURE HAS NO RENDER PLAYER, SO IT IS NOT A PICTURE OF WHAT A PLAYER SEES.** `TestModeLogic.cs:30-31` sets `world.RenderPlayer = null` for every autotest with a real player slot — deliberately, so the window shows the whole map. **Unless you ask otherwise:** the assignment is guarded by `&& !TestMode.KeepRenderPlayer`, and `Test.KeepRenderPlayer=true` (parsed at `TestMode.cs:311`, matched against the literal `"true"` — `1` does not work) keeps the real render player, which is how a capture of anything fog- or relationship-dependent gets made. Two things follow from the default, and both make a capture *overstate* what is on screen:
+**AN AUTOTEST CAPTURE HAS NO RENDER PLAYER, SO IT IS NOT A PICTURE OF WHAT A PLAYER SEES.** `TestModeLogic` sets `world.RenderPlayer = null` for every autotest with a real player slot, so the window shows the whole map — unless `Test.KeepRenderPlayer=true` is passed (matched case-insensitively against `"true"`; `1` does not work), which is how a capture of anything fog- or relationship-dependent is made. With the default, a capture *overstates* what is on screen:
 
-- **Every `ValidRelationships` gate is off.** `WithDecorationBase.ShouldRender` applies its relationship filter only inside `if (self.World.RenderPlayer != null)` (`WithDecorationBase.cs:101-105`), so enemy units happily draw decorations declared `ValidRelationships: Ally` — which is the **default** (`:44`), i.e. most pips in the mod. Marks a real player would never see appear on every unit on the map.
-- **No fog or shroud is applied.** `World.FogObscures`/`ShroudObscures` all short-circuit to `false` on a null render player (`World.cs:109-115`).
+- **Every `ValidRelationships` gate is off.** `WithDecorationBase.ShouldRender` applies its relationship filter only inside `if (self.World.RenderPlayer != null)`, so enemy units draw decorations declared `ValidRelationships: Ally` — the field's default, i.e. most pips in the mod.
+- **No fog or shroud.** `World.FogObscures` / `ShroudObscures` return false on a null render player.
 
-So a capture cannot validate any indicator whose correctness depends on *who is looking*, and it can make a leak-prevention rule look broken when it is fine. Confirming it costs nothing and no extra run: sample mean terrain brightness at several distances from your units in the PNG — under a real render player, ground outside vision is visibly darker; in the harness it is uniform. **Uniform brightness is the tell.** Note also that when a decoration falls back to `self.Owner` for its viewer, the fallback is what the capture exercises, never the render-player path.
-
-**What *is* synchronous is the PNG write.** `Renderer.SaveScreenshot` normally dispatches encoding to a `ThreadPool` worker, which `Game.Exit()` can kill mid-flush; under `TestMode.IsActive` it writes inline instead, so the file lands before teardown. Costs ~100–300 ms per shot at 2k+ resolutions. Sync *write*, deferred *sample* — do not read the first as the second.
+So such a capture cannot validate an indicator whose correctness depends on *who is looking*, and can make a leak-prevention rule look broken. Free check: sample mean terrain brightness at several distances from your units — under a real render player ground outside vision is darker; in the harness it is uniform. **Uniform brightness is the tell.**
 
 ---
 
 ## Mode 2 — External (menu / lobby / arbitrary state)
-
-For screenshots outside an autotest scenario — main menu, server lobby, mid-match without scripting, etc.
 
 ```bash
 # Terminal 1: launch the game in screenshot mode (visible, foreground).
@@ -103,15 +101,13 @@ For screenshots outside an autotest scenario — main menu, server lobby, mid-ma
 # Prints: /Users/.../manual_<run-id>/001_lobby-system-chat-tone.png
 ```
 
-With `--wait`, the CLI polls `manifest.json` until the new entry appears and prints the resulting PNG path on stdout — pipe directly into a `Read` call.
+`start-screenshot-mode.sh` launches `Test.Mode=true Test.ScreenshotCmdFile=<path>` with no `Launch.Map`. `TestModeScreenshots.PollCommands` runs from the logic tick — every 40 ms at the menu (`Ui.Timestep`), every world tick (60 ms at default speed) in a match — reads the command file, deletes it, and dispatches each line. A `screenshot <label>` line goes through the same `Game.TakeScreenshot` flag as Mode 1, so **the pixels are one frame late here too**, and the manifest entry is written before the PNG exists.
 
-### How it works
+**`screenshot.sh --wait` waits for the manifest entry count to grow and prints the newest entry's path** — whatever its label — with a fixed 10 s deadline (exit 2 on timeout, 1 on error). Because the manifest is written first, the printed path can name a file that is not on disk yet: `ls` it (or wait a beat) before `Read`.
 
-**NEVER FIRE AN EXTERNAL CAPTURE OFF A LOAD-COMPLETION LOG LINE.** World *setup* is logged well before that world's first render pass, so a shot triggered the instant `ApplyScenario: applying '<map>' …` appears in `debug.log` comes back with the menu widgets drawn over a **completely black** background — indistinguishable from a map that failed to load, and the same one-frame-late sampling as Mode 1. This happened on 2026-08-16 while verifying a shellmap fix and was nearly reported as a regression from a correct change; a capture six seconds later showed the map rendering normally. Wait a beat, or capture twice and compare.
+**NEVER FIRE AN EXTERNAL CAPTURE OFF A LOAD-COMPLETION LOG LINE.** World setup is logged before that world's first render pass, so a shot fired the instant `ApplyScenario: applying '<map>' …` appears comes back as menu widgets over a **completely black** background — indistinguishable from a map that failed to load. Wait a beat, or capture twice and compare.
 
-**The tell for a blank frame is file size, not the image.** An almost-flat PNG compresses to nothing: 59 KB for the black frame vs 1.6 MB for the real one. **Check the byte size and re-shoot before believing a blank capture** — it costs no context and no `Read` call. This is the one shape in this pipeline that produces a false *positive* (a regression report against working code) rather than a false green.
-
-`start-screenshot-mode.sh` launches `Test.Mode=true Test.ScreenshotCmdFile=<path>` with no `Launch.Map`. The engine's `LogicTick` polls the command file each tick (~40 ms) when this arg is set. `screenshot.sh` writes a `screenshot <label>` line; the engine reads, deletes the file, captures synchronously, appends to `manifest.json`. Zero overhead when `Test.Mode=false`.
+**The tell for a blank frame is file size.** A near-flat PNG compresses to almost nothing (tens of KB against megabytes for a real frame). Check the byte size and re-shoot before believing a blank capture — it costs no `Read`. This is the one shape here that produces a false *positive* (a regression report against working code).
 
 ### Manifest format
 
@@ -120,212 +116,131 @@ With `--wait`, the CLI polls `manifest.json` until the new entry appears and pri
 ```json
 {
   "output_dir": "...",
-  "updated_at": "2026-05-12T...",
+  "updated_at": "...",
   "screenshots": [
     {"label": "...", "path": "...", "tick": -1, "note": "phase 2 external trigger", "captured_at": "..."}
   ]
 }
 ```
 
-`tick: -1` is the sentinel for "no World loaded" (the game was at the menu). In-match captures carry the real `WorldTick`.
+**External captures always record `tick: -1`**, at the menu and in a match alike. Only a Lua `Test.Screenshot` records the real world tick.
+
+### Driving the UI from the command file
+
+Besides `screenshot <label>`, the command file accepts (`TestModeScreenshots.PollCommands`):
+
+| verb | effect | miss / log line |
+|---|---|---|
+| `click <widget-id>` | Runs the first widget whose `IsVisible()` is true through its own `OnClick` — the same handler a real click runs. | `[TestMode] external click: <id> → dispatched` / `→ NO SUCH VISIBLE WIDGET` |
+| `type <widget-id> [text]` | Sets a text field and fires its `OnTextEdited` (where consumers do their filtering), so a list can be narrowed into frame. Empty text clears the field. | `→ typed "<text>"` / `→ NO SUCH VISIBLE TEXT FIELD` |
+| `hover <actor-name>` | Arms a production-icon hover; send the screenshot on a later line so the tooltip has a frame to build in. | `[TestMode] external hover: <actor>` |
+| `zone-paint` / `zone-erase <x>,<y>[,<size>]` | Arms one map-editor zone stroke, replayed by `EditorZoneBrush` through its own `PaintZoneEditorAction` — undoable, in the history, the same operation as a dragged stroke. Inert unless the zone brush is current (`Test.EditorTool=Zones`). | a stroke that hits nothing logs `zone stroke applied: … CHANGED NOTHING` |
+| `quit` | `Game.Exit` via `RunAfterTick`, so the logic tick unwinds first. | `[TestMode] external quit` |
+
+Worked drivers: `tools/autotest/watch-replay.sh`, `tools/autotest/screenshot-infopanel.sh`, `tools/autotest/screenshot-hotkeys.sh`.
+
+**A miss is logged, never thrown, so a driver must grep for it.** A driver that does not will photograph whatever was on screen and call it a capture — one run returned two byte-identical frames of an error dialog as two captures. **Treat byte-identical captures as NO-RESULT.** Three details:
+
+- **`NO SUCH VISIBLE WIDGET` is two failures in one string**: `ClickWidget` returns false both when no visible widget has the id and when the visible widget has no public `OnClick` field. A widget plainly on screen with no click handler reports as absent.
+- **`click` matches on `IsVisible()`, not the raw `Visible` field.** They disagree whenever logic assigns the delegate at runtime (the info panel's `TAB_CONTAINER_N` are authored `Visible: False` and switched on by `GameInfoLogic`).
+- **A click sent on a clock can land before the world exists.** Order the miss line against the world-load lines in `debug.log` before blaming the id, and retry against the `→ dispatched` line rather than "the cmd file was consumed", which happens either way.
+
+**Not drivable:** key events, scrolling (`ScrollPanelWidget` exposes no clickable child), and dropdown items — `ScrollItemWidget.Setup` runs inside `ShowDropDown`, so no item widget exists until a human opens the dropdown. Launch-arg hooks cover the dropdowns that matter: `Test.EditorTool`, `Test.OpenIngameInfoPanel`.
 
 ---
 
-## Mode 4 — Direct lobby capture (no human in the loop)
+## Mode 3 — Direct lobby capture (no human in the loop)
 
-For iterating on the skirmish lobby YAML — palette, layout, dropdowns, etc. — without clicking through Singleplayer → Skirmish each time. The game launches, lands straight in the lobby with a real map loaded, snaps one PNG, and exits cleanly.
+For iterating on the skirmish lobby YAML without clicking through Singleplayer → Skirmish each time. The game launches, lands in the lobby with a real map loaded, snaps one PNG, and exits.
 
 ```bash
 ./tools/autotest/screenshot-lobby.sh <label>
 # Prints: /Users/.../manual_lobby_<run-id>/001_<label>.png
 ```
 
-Round trip on a warm cache is ~10–15s; on a cold launch closer to 20s. The captured frame shows the same view a human gets after picking Skirmish: map preview, player rows, options grid, chat, and the green Start Game button.
-
-### Options
-
 | Flag | Meaning |
 |---|---|
-| `--map=<id>` | Override the seed map. Resolves against MapPreview title (`"River Zeta WW3"`), package folder (`river-zeta-ww3`), or Uid. Default: `river-zeta-ww3`. |
-| `--tab=<name>` | Land on a non-default lobby tab. `match` (default), `advanced`, `music`. Wired through to `Test.OpenLobbyTab`. |
-| `--no-quit` | Leave the game running after the capture. Useful while iterating: fire follow-up shots with `tools/autotest/screenshot.sh <next-label> --wait` against the same run dir. |
-| `--timeout=<sec>` | Per-phase timeout (lobby-ready wait, manifest wait, quit wait). Default: 30. |
+| `--map=<id>` | Seed map. Resolves against MapPreview title, package folder, or Uid. Default `river-zeta-ww3`. |
+| `--tab=<name>` | Land on `match` (default), `advanced` or `music` (`Test.OpenLobbyTab`). |
+| `--set-options=<id>=<val>[,…]` | Move lobby options off their defaults once the lobby loads (`Test.SetLobbyOptions`) — needed to capture the ACTIVE CHANGES strip. |
+| `--hover=<id>` | Hover a lobby option's checkbox so the capture shows its tooltip (`Test.HoverLobbyOption`). |
+| `--window=<WxH>` | Capture at a fixed window size instead of the desktop resolution; the options panel is height-proportional, so the fold only shows on a small screen. |
+| `--no-quit` | Leave the game running; fire follow-up shots with `screenshot.sh <label> --wait` against the same run. |
+| `--timeout=<sec>` | Per-phase timeout (lobby-ready, manifest, quit). Default 30. |
 
-### How it works
+It adds three launch args to the Mode 2 plumbing: `Test.OpenSkirmishLobby=true` (`MainMenuLogic` calls `StartSkirmishGame` once the menu loads), `Test.LaunchLobbyMap=<id>` (resolved by `MainMenuLogic.ResolveLobbyMapId`; a miss falls back to the normal initial map), and `Test.LobbyReadyFile=<path>` (`LobbyLogic` touches it once `MapIsPlayable`, so the wrapper polls a marker instead of sleeping). Capture and `quit` go through the command file.
 
-`screenshot-lobby.sh` launches with three lobby-aware test args on top of the existing Mode 2 plumbing:
+### Opening the MAP EDITOR without a human
 
-- `Test.OpenSkirmishLobby=true` — `MainMenuLogic` calls `StartSkirmishGame` straight after the menu loads (no Singleplayer click required).
-- `Test.LaunchLobbyMap=<id>` — `MainMenuLogic.StartSkirmishGame` seeds the lobby with this map instead of whatever the user happens to have last-played. Resolves against `MapPreview.Title`, the package folder name, or the raw Uid.
-- `Test.LobbyReadyFile=<path>` — `LobbyLogic.Tick` touches this file once `MapIsPlayable` becomes true. The wrapper polls for the marker instead of blind-sleeping, so slow machines don't trip the screenshot before the map preview has resolved.
+`Test.OpenEditorMap=<map directory | title | uid>` is the editor sibling of `Test.OpenSkirmishLobby`: `MainMenuLogic` resolves it through the same `ResolveLobbyMapId` and calls `Game.LoadEditor`. `Test.EditorTool=<name>` selects an entry of the Tools dropdown **and flips the right-hand panel to the Tools tab** — the panel is six containers gated by `MapEditorTabsLogic`, defaulting to `Tiles`, and selecting a tool says nothing about which tab is showing. **Unlike the lobby hook, a miss does NOT fall back**: an editor driver asking for one map and silently getting another would be a capture of the wrong thing. Misses log `[TestMode] OpenEditorMap NO SUCH MAP: '<id>'` and `[TestMode] editor tool NO SUCH TOOL: '<name>'`.
 
-Capture and exit go through the same cmd-file watcher Mode 2 uses; `quit` is a new verb that calls `Game.Exit` via `RunAfterTick`, so the active `LogicTick` unwinds cleanly before teardown.
+Worked driver: `tools/autotest/screenshot-editor-zones.sh` — two frames of the Zones panel from one launch (band intact, then cut). It waits on `zone panel shown: components=2` (then `components=1`), and still sleeps before capturing, because the editor's chrome is built before that world's first render pass. **The file is tracked mode `100644`; run it as `sh tools/autotest/screenshot-editor-zones.sh`** — the `./` form exits 126.
 
-### What got added
+---
 
-| Path | Role |
-|---|---|
-| `engine/OpenRA.Game/TestMode.cs` | `OpenSkirmishLobby`, `LaunchLobbyMap`, `LobbyReadyFile`, `OpenLobbyTab` launch-arg properties |
-| `engine/OpenRA.Game/TestModeScreenshots.cs` | `quit` command handler in `PollCommands` |
-| `engine/OpenRA.Mods.Common/Widgets/Logic/MainMenuLogic.cs` | Auto-clicks through to skirmish; `ResolveLobbyMapId` lookup |
-| `engine/OpenRA.Mods.Common/Widgets/Logic/Lobby/LobbyLogic.cs` | Writes the `LobbyReadyFile` marker once per lobby load |
-| `tools/autotest/screenshot-lobby.sh` | The wrapper script |
+## A capture driver's markers must be about the thing IN THE PHOTOGRAPH
+
+The most expensive shape in this pipeline, because every check passes and every check is true. A driver waited for `editor zone selected:`, got it, and returned two distinct, 120 KB+ frames of the **Tiles** tab under a green PASS while claiming the Zones panel. **Construction, selection, state changes and command consumption all happen whether or not the widget is visible**, so every marker of that kind is evidence about the engine and none is evidence about the frame.
+
+**The fix that generalises: log from inside the widget's own `GetText` delegate.** For a label nothing resizes, `LabelWidget.Draw` is the delegate's only caller (`LabelWidget.IncreaseHeightToFitCurrentText` also calls it — check it is unused on your label), and `Widget.DrawOuter` returns early on `!IsVisible()` — so a line written there **cannot exist unless that label was rendered, with that text, in a real frame.** Emit a machine-readable field beside the text (`components=2`) so the driver greps a number rather than a Fluent string a reword would move. `MapZonesLogic.LoggedSplitText` is the worked instance.
+
+**Grade a driver's two claims separately.** That same run did verify the data path — `map.yaml` → `Map.Zones` → overlay → scripted stroke → undo history — because those were visible in the frames. A driver can be right about everything it photographed and wrong about what it says it photographed.
 
 ---
 
 ## Evaluation contract
 
-How I decide whether a screenshot shows what it should:
+1. **Declarative (preferred for regressions).** The capture carries a `note` like `"expects: muzzle flash visible; T-90 in frame"`. Judge each clause true/false; failures are `⚠️` lines, not auto-fail.
+2. **Freeform (preferred for menu/lobby work).** No expectations — describe what is on screen; the user reacts.
 
-1. **Declarative (preferred for regressions).** The test/CLI passes a `note` like `"expects: muzzle flash visible; T-90 in frame"`. I read the PNG, judge each clause true/false, write observations into the end-of-message block. Failures = `⚠️` lines, not auto-fail.
-2. **Freeform (preferred for menu/lobby work).** No expectations — I just describe what I see ("Lobby chat box bottom-left; system message in light-grey; no settings panel open"). User reacts.
-
-**What I'm good at:** presence/absence of UI elements, obvious colour wrongness (pure yellow vs muted gold), animations visibly playing (fire, smoke, muzzle flash), formations bunched vs spread, "did the build break visually".
-
-**What I'm not good at:** pixel-perfect alignment, exact text in cluttered HUDs, counting > 5 similar units, small font readouts at default zoom, frame-exact timing. Use state queries (`unit.IsFiring`, `Test.GetActiveMissileCount`) for those.
-
----
+**Good at:** presence/absence of UI elements, obvious colour wrongness, animations visibly playing, formations bunched vs spread, "did the build break visually". **Not good at:** pixel-perfect alignment, exact text in cluttered HUDs, counting > 5 similar units, small fonts at default zoom, frame-exact timing — use state queries for those.
 
 ## Practical notes
 
-- **One screenshot per test by default.** Multi-shot is opt-in for tests where intermediate state matters. The agent has to `Read` every PNG, so 30-shot tests get expensive in context.
-- **Reading PNGs costs context — *pixels* drive the cost, not file size.** Claude vision is roughly `width × height ÷ 750` tokens. Rough budget per shot:
+- **One screenshot per test by default.** Every PNG has to be `Read`, so multi-shot is opt-in.
+- **Reading PNGs costs context by pixels, not file size** — roughly `width × height ÷ 750` tokens:
 
-  | Resolution | Tokens | Use case |
+  | Resolution | Tokens (by that formula) | Use case |
   |---|---|---|
-  | 2560 × 1440 (desktop fullscreen) | ~4,900 | overkill — only if you need pixel detail |
+  | 2560 × 1440 | ~4,900 | only if you need pixel detail |
   | 1920 × 1080 | ~2,700 | overkill for most checks |
   | 1280 × 720 | ~1,230 | **sweet spot for semantic checks** |
-  | 800 × 450 | ~480 | fine for "did it render at all" |
+  | 800 × 450 | ~480 | "did it render at all" |
 
-- **Downsize at Read time, not save time** (recommended pattern). PNGs land on disk at the game's window resolution — for menu-mode that's the full desktop, 2560×1440 = ~5k tokens each. Before `Read`-ing, shrink to ~1280px wide with one of:
-
-  ```bash
-  # macOS (native, no install)
-  sips -Z 1280 "$SRC" --out /tmp/preview.png
-
-  # ImageMagick if installed
-  magick "$SRC" -resize 1280x /tmp/preview.png
-  ```
-
-  Then `Read /tmp/preview.png`. ~4× context savings on the common case. Skip the downsize only when you actually need pixel detail — UI alignment, small font legibility, etc. Even then, prefer state queries; the agent isn't reliable at pixel work.
-
-- **Screenshots survive between sessions** under `~/.ww3mod-tests/screenshots/`. `run-test.sh` cleans up runs older than 7 days at the start of each test. Manual-mode runs (`manual_*`) are subject to the same cleanup window.
-- **`--minimized` autotest runs may produce blank PNGs.** macOS doesn't redraw minimized windows. Use `--background` (default) or `--visible` if screenshots matter.
-- **Window resolution varies by machine.** Acceptable for semantic evaluation, problematic for any future pixel-diff regression. The current pipeline does *not* support golden-image diffing — that's a deliberate non-goal (see the plan doc).
+  The API downscales images whose long edge exceeds roughly 1568 px, so the top two rows probably overstate the real cost; that has not been measured here.
+- **Downsize at Read time, not save time.** Menu-mode PNGs land at full desktop resolution. Shrink to ~1280 px wide first — `sips -Z 1280 "$SRC" --out /tmp/preview.png` (macOS) or `magick "$SRC" -resize 1280x /tmp/preview.png` — and skip it only when you need pixel detail.
+- **Screenshots live under `~/.ww3mod-tests/screenshots/`**; `run-test.sh` deletes run dirs older than 7 days at the start of each run, `manual_*` included.
+- **Window resolution varies by machine** — fine for semantic evaluation, a problem for pixel diffs. Golden-image diffing is a deliberate non-goal (`WORKSPACE/plans/260512_screenshot_evaluation.md`). A capture making a claim about layout must pin the size (`run-test.sh --size WxH`, `screenshot-lobby.sh --window=WxH`).
 
 ---
 
 ## Measuring a capture instead of describing it
 
-Everything above is about getting the right frame. This is about reading it. Each error below yields a
-**plausible number rather than an obvious failure**, which is why they are worth knowing before you take
-the measurement rather than after.
+Each error below yields a **plausible number rather than an obvious failure**.
 
 ### Sample at DEVICE pixels, not logical ones
 
-`run-test.sh --size 1280x800` yields a **2560x1600** PNG on a 2x display, and Mode 2/4 captures land at
-the full desktop resolution. Sampling a 2x buffer at logical coordinates reads the wrong pixels. **The
-tell is a set of samples that all agree:** eleven fog bands reading within 4% of each other is not
-"uniform fog", it is proof you are not sampling fog at all. **Distinct predicted bands that come back
-identical should be read as an instrument fault before they are read as a finding** — that is the single
-most useful line in this section, and it generalises past brightness to any per-region measurement.
-
-A capture may also be at a non-integer display scale, which moves the cell grid rather than the sample
-point. Measured on a 2026-09-10 frame: `Camera.Zoom = 3` against `TileSize: 24,24` predicts 72 px per
-cell, and column-wise luminance differencing put every straight edge on a **108-pixel** lattice — a 150%
-display scale. Predicted cell boundaries from the scenario's own `Camera.Position` then landed on the
-measured seams to within one pixel (1009/1225/1333/1441/1549 against 1010/1226/1334/1442/1550). **Derive
-the cell pitch from the frame before attributing a feature a size in cells:** the report that started
-that investigation described "hard axis-aligned rectangles several cells across", and the rectangles
-were **one cell each** — a per-cell decal magnified 4.5x. Every candidate explanation about which
-multi-cell terrain template produced them was answering a question the pixels had already closed.
+`run-test.sh --size 1280x800` yields a 2560x1600 PNG on a 2x display, and Mode 2/3 captures land at the full desktop resolution. **The tell is a set of samples that all agree:** distinct predicted bands coming back identical is an instrument fault before it is a finding. A capture may also be at a non-integer display scale: `Camera.Zoom = 3` against `TileSize: 24,24` predicts 72 px per cell, and one frame's straight edges sat on a 108-px lattice (a 150% scale). **Derive the cell pitch from the frame before giving a feature a size in cells** — "hard rectangles several cells across" turned out to be one-cell decals magnified 4.5x.
 
 ### Linearise sRGB before comparing brightness
 
-Raw byte values are gamma-encoded, so ratios taken on them read systematically **high** and will flatter
-any darkening change. Convert to linear light first. The `FogDarkness` ladder only matched prediction
-(mean error 0.045, against 0.215 for the null) once this was done.
+Raw byte values are gamma-encoded, so ratios on them read high and flatter any darkening change. Convert to linear light first.
 
 ### Count an EXACT colour, and expect ~60% of the sheet's opaque pixels
 
-For "is this element highlighted / drawn at all", decode the capture to raw RGBA and **count pixels
-exactly equal to the target colour**, bucketed by each element's derived rect. Counting an exact colour
-is what makes it a measurement — antialiasing blends everything else, so any tolerance turns the count
-into an opinion. Worked rect derivation from the 2026-09-01 command-bar audit:
-`COMMAND_BAR(14,760) + button.X + icon(5,1)`, 24x24, doubled for the 2x capture.
-
-**Calibrate the expectation, or a correct count reads as a failure.** Only the fully-opaque core survives
-as the exact colour, so expect roughly **60% of the sprite sheet's opaque pixel count**, not 100%: for
-one 48x48 cell holding 936 opaque px of which 598 are alpha=255, the frame showed 550 exact plus 154
-near-colour, the antialiased rim landing *near* the value rather than on it. **A count near the total
-opaque figure is its own bug** — it means the sprite is being drawn without alpha blending.
-
-**And take the free check when the art gives you one: two elements drawing the SAME glyph must return the
-same count.** GUARD and PATROL both read exactly **604** across that audit, which is not a finding about
-the buttons — it is the internal proof that the rect mapping is right and the rendering deterministic. In
-the same frame AUTO_ENTER read **0** while PATROL read 604 *from the same source art*, confirming a
-mode-vs-momentary distinction in one frame. Look for a duplicated glyph, a mirrored pair, or a repeated
-row before trusting a per-element table.
+For "is this element highlighted / drawn at all", decode to raw RGBA and **count pixels exactly equal to the target colour**, bucketed by each element's derived rect (e.g. `COMMAND_BAR(14,760) + button.X + icon(5,1)`, 24x24, doubled for a 2x capture). Antialiasing blends everything else, so any tolerance turns the count into an opinion. Only the fully-opaque core survives as the exact colour, so expect about **60% of the sprite's opaque pixel count**; a count near 100% means the sprite is drawn without alpha blending. **Take the free check**: two elements drawing the same glyph must return the same count, which proves the rect mapping and the determinism of the render.
 
 ### A mockup that cannot express the failure always exonerates
 
-Before using an offline render as evidence, **check it has the degrees of freedom to show the defect
-under investigation.** `contact_sheet.py` modelled water as a half-plane — a straight vertical line — so
-it would have drawn a straight edge whatever the code did, and "the render shows a hard edge" was worth
-nothing from it. The replacement read real per-cell terrain and rendered the alpha *field* as its own
-panel, making the mechanism legible with no art in the picture at all. **A simulation structurally
-incapable of the failure mode is not a control; it is a guaranteed pass.**
+Before using an offline render as evidence, check it has the degrees of freedom to show the defect. A contact sheet that modelled water as a half-plane drew a straight edge whatever the code did. **A simulation structurally incapable of the failure mode is not a control; it is a guaranteed pass.**
 
 ### Difference a control frame per cell before theorising
 
-When a scenario captures a before and an after **at the same camera and zoom**, difference them per cell
-first. On the shore-fade investigation that gave a near-uniform **-5.5 to -6.0** luminance step across
-the whole inland field, with outliers only where a tree had burned — which separates *"the change did
-this"* from *"the change made this visible"* in one step, and those two have completely different fixes.
-The quilt visible in the after-frame turned out to be the tileset's own `PickAny` variation **revealed**
-by darkening, not produced by it. Staging a matched control frame costs one `Test.Screenshot` call and is
-worth planning into any scenario whose subject is a visual change; `demo-highyield-nuke` does this
-deliberately.
-
-### A capture driver's markers must be about the thing that would be IN THE PHOTOGRAPH
-
-The most expensive shape in this pipeline, because every check passes and every check is true.
-`screenshot-editor-zones.sh` reported **PASS** with two frames of the map editor's **Tiles** tab while
-claiming to have photographed the **Zones** panel. `debug.log` really did contain `editor tool: Zones`
-and `editor zone selected: DMZ`; the scripted stroke really did cut the band; the two frames really were
-distinct and both over 120 KB. The panel under test was never on screen.
-
-**Construction, selection, state changes and command consumption all happen identically whether or not
-the widget is visible**, so every marker of that kind is evidence about the engine and none of it is
-evidence about the photograph. That driver had four such markers and they bought nothing. This is the
-outer form of the `NO SUCH VISIBLE WIDGET` trap and of the Tiles-tab trap already recorded under Mode 3
-— but one level further out, because here **nothing missed** and the frame was still of the wrong thing.
-
-**The fix that generalises: log from inside the widget's own `GetText` delegate.** `LabelWidget.Draw` is
-that delegate's only caller, and `Widget.DrawOuter` early-returns on `!IsVisible()` (`Widget.cs:500-508`),
-so a line written from there **cannot exist unless that label was rendered, with that text, in a real
-frame** — exactly the proposition a capture driver needs and cannot otherwise get without reading pixels.
-Emit a machine-readable field beside the text (`components=2`) so the driver greps a number rather than a
-Fluent string a reword would move. `MapZonesLogic.LoggedSplitText` is the worked instance.
-
-**And note which half of that run was sound.** The capture did verify the whole data path — `map.yaml` →
-`Map.Zones` → overlay → scripted stroke → undo history — because those were visible IN the frames (the
-band rendered, the hole appeared, Undo lit). Only the claim about the panel was wrong. **A driver can be
-simultaneously right about everything it photographed and wrong about what it says it photographed**, so
-grade the two claims separately.
+With a before and after at the same camera and zoom, difference them per cell first. A near-uniform luminance step with outliers only where something specific changed separates "the change did this" from "the change made this visible" (tileset `PickAny` variation revealed by darkening, not produced by it). A matched control frame costs one `Test.Screenshot`; `demo-highyield-nuke` stages one deliberately.
 
 ### A falloff as wide as the feature it falls off from erases the feature
 
-Not a measurement rule but a review rule for any visual change carrying a radius, and it cost a fix that
-reintroduced the exact artefact the previous fix had removed. A 2-cell shore fade was reasoned about
-against an open coastline, where a 2-cell ramp against a half-plane of water behaves as intended. It was
-deployed against **2-3 cell rivers and 4-cell fords**, where the ramp is as wide as the land it ramps
-across — so the entire crossing was held below full strength and came out as a bright unscarred band.
-**State the width of the smallest instance of the feature before choosing a falloff radius.** Check the
-metric too: Chebyshev iso-contours **are axis-aligned squares**, so a distance ramp in that metric around
-a bend unions into a rectangle whose corners sit clear of anything it was measuring from — which is how a
-fade written to soften a waterline drew straight edges five rows from the nearest water.
+**State the width of the smallest instance of the feature before choosing a falloff radius.** A 2-cell shore fade designed against open coastline was deployed against 2–3 cell rivers and 4-cell fords, holding the whole crossing below full strength. Check the metric too: Chebyshev iso-contours are axis-aligned squares, so a ramp in that metric around a bend unions into a rectangle with corners far from what it measured from.
 
 ---
 
@@ -333,51 +248,19 @@ fade written to soften a waterline drew straight edges five rows from the neares
 
 | File | Role |
 |---|---|
-| `engine/OpenRA.Game/TestModeScreenshots.cs` | Per-run dir, sequence counter, captured list, manifest writer, command-file poller |
-| `engine/OpenRA.Game/TestMode.cs` | `ScreenshotDir`, `ScreenshotCmdFile` launch args; serializes `screenshots[]` into the verdict JSON |
-| `engine/OpenRA.Game/Game.cs` | `TakeScreenshot(string explicitPath)` overload; `LogicTick` calls `PollCommands` |
-| `engine/OpenRA.Game/Renderer.cs` | `SaveScreenshot` sync when `TestMode.IsActive`, async (ThreadPool) otherwise |
-| `engine/OpenRA.Mods.Common/Scripting/Global/TestGlobal.cs` | `Test.Screenshot` Lua binding; `ExitWhenCapturesFlushed` polling loop |
-| `mods/ww3mod/scripts/test-helpers.lua` | `TestHarness.Screenshot` and `TestHarness.ScreenshotAfter` wrappers |
-| `tools/autotest/run-test.sh` | Passes `Test.ScreenshotDir=...`; lists captured PNGs post-run |
+| `engine/OpenRA.Game/TestModeScreenshots.cs` | Per-run dir, sequence counter, captured list, manifest writer, command-file poller and verbs |
+| `engine/OpenRA.Game/TestMode.cs` | `ScreenshotDir`, `ScreenshotCmdFile`, `KeepRenderPlayer` and lobby/editor launch args; serialises `screenshots[]` into the verdict |
+| `engine/OpenRA.Game/Game.cs` | `TakeScreenshot(string explicitPath)`; `RenderTick` consumes the flag; the logic tick calls `PollCommands` |
+| `engine/OpenRA.Game/Renderer.cs` | `SaveScreenshot`: inline under `TestMode.IsActive`, `ThreadPool` otherwise |
+| `engine/OpenRA.Platforms.Default/Sdl2PlatformWindow.cs`, `Sdl2Input.cs` | Hidden/minimized windows set `IsSuspended`, which skips rendering |
+| `engine/OpenRA.Mods.Common/Scripting/Global/TestGlobal.cs` | `Test.Screenshot`; `ExitWhenCapturesFlushed` |
+| `mods/ww3mod/scripts/test-helpers.lua` | `TestHarness.Screenshot`, `TestHarness.ScreenshotAfter` |
+| `tools/autotest/run-test.sh` | Passes `Test.ScreenshotDir=…`; lists captured PNGs post-run |
 | `tools/autotest/screenshot.sh` | External CLI — write a command, optionally `--wait` for the path |
-| `tools/autotest/start-screenshot-mode.sh` | Launches the game with no `Launch.Map`, watcher enabled |
-| `tools/autotest/screenshot-lobby.sh` | Mode 4 — one-shot lobby capture, launches → lobby-ready → screenshot → quit |
-
----
+| `tools/autotest/start-screenshot-mode.sh` | Launches with no `Launch.Map`, watcher enabled |
+| `tools/autotest/screenshot-lobby.sh` | Mode 3 one-shot lobby capture |
+| `tools/autotest/screenshot-editor-zones.sh`, `screenshot-hotkeys.sh`, `screenshot-infopanel.sh`, `watch-replay.sh` | Worked command-file drivers |
 
 ## Existing scenarios using this
 
-- `test-screenshot-smoke` — exercises the pipeline. Three captures at named beats, then
-  `Test.Skip`. It **asserts nothing**: whether the PNGs landed and whether the verdict JSON's
-  `screenshots[]` lists all three is read out of the run directory by you, not by the script.
-  Its verdict was `Test.Pass` until 2026-09-01, which made it read as a guard it never was.
-
-## Phase 3 — programmatic UI driving (PARTLY BUILT, not "sketched")
-
-**`click <widget-id>` and `hover <actor-name>` are BUILT and shipping**, as cmd-file verbs alongside `screenshot` and `quit` (`engine/OpenRA.Game/TestModeScreenshots.cs`, `PollCommands`). `click` invokes the first visible widget of that id through its own `OnClick` — the same handler a real click runs — so a capture driver can change tabs, dismiss dialogs and take menu buttons without touching the host's cursor. `tools/autotest/watch-replay.sh` and `tools/autotest/screenshot-infopanel.sh` both rely on it. **Do not reimplement this**; the "sketched, not built" wording here previously said it did not exist, which is a whole session's worth of reinvention for whoever believes it.
-
-Two properties of `click` worth knowing before you use it:
-
-- **It matches on `IsVisible()`, not the raw `Visible` field** — corrected 2026-08-30. The two disagree whenever logic assigns the delegate at runtime, and the ingame info panel's `TAB_CONTAINER_N` are exactly that case (authored `Visible: False`, switched on by `GameInfoLogic` assigning `IsVisible = () => true`). Under the old field test every tab button in the Esc menu was unreachable and reported as `NO SUCH VISIBLE WIDGET`. See `WORKSPACE/DISCOVERIES.md` 2026-08-30 for the general form of this trap.
-- **A miss is logged, not thrown**: `[TestMode] external click: <id> → NO SUCH VISIBLE WIDGET` in `debug.log`. A driver that does not check for that line will happily photograph whatever was on screen instead and report it as a successful capture — which is how one run came back with two byte-identical frames of an error dialog and called them two captures. **Grep the log for the miss, and treat byte-identical captures as NO-RESULT.**
-  - **The miss line is TWO failures in one message** *(added 2026-10-07, re-read at `c276679c`)*: `ClickWidget` returns false both when `FindVisible` found nothing and when it found a visible widget with no public `OnClick` field (`OpenRA.Game/TestModeScreenshots.cs:305-317`), and `:227` logs the same string for both. A widget plainly on screen with no click handler reports as absent.
-  - **A click sent on a clock can land before the WORLD exists.** One driver's `sleep 20` expired mid-load: the miss line sat *above* the world-construction lines in `debug.log`, and the later frame of the menu with the target on screen was not evidence about t=20 s. Order the miss against the load lines before blaming the id, and retry against the **dispatch** line (`→ dispatched`) rather than against "the cmd file was consumed", which happens either way. `type <widget-id> <text>` sets a text field and invokes its `OnTextEdited` — the invocation is the point, since that is where consumers do their filtering — and is how a scroll list can be narrowed into frame; scrolling itself is still not drivable.
-
-`zone-paint <x>,<y>[,<size>]` and `zone-erase <x>,<y>[,<size>]` are also built, and are the one case where a verb drives a MAP EDITOR tool rather than a menu. They arm `TestMode.ZoneStroke`; `EditorZoneBrush.Tick` replays the stroke through its own `PaintZoneEditorAction`, so a scripted stroke is undoable, appears in the editor's history, and moves the revision the Zones panel's split readout watches — i.e. it is the same operation a dragged stroke is, not a shortcut past it. They are inert unless the zone brush is the current brush, which `Test.EditorTool=Zones` arranges. **A stroke that parses but hits nothing logs `zone stroke applied: … CHANGED NOTHING`** — grep for it, because the resulting frame differs from the previous one (the cursor moved) and so survives the byte-identical check while showing nothing that was asked for.
-
-Still genuinely unbuilt: `text <field-id> <value>` and key events.
-
-### Opening the MAP EDITOR without a human (`Test.OpenEditorMap`)
-
-`Test.OpenEditorMap=<map directory name | title | uid>` is the editor sibling of `Test.OpenSkirmishLobby`: `MainMenuLogic` resolves it through the same `ResolveLobbyMapId` and hands the result to `Game.LoadEditor`. `Test.EditorTool=<name>` then selects an entry of the editor's Tools dropdown.
-
-**`Test.EditorTool` exists because `click` cannot reach a dropdown's items.** `ScrollItemWidget.Setup` runs inside `ShowDropDown`, so until a human opens the dropdown there is no widget with that id in the tree — `click Zones` reports `NO SUCH VISIBLE WIDGET` and a driver that ignores the miss photographs whichever panel was already showing. Same shape as `Test.OpenIngameInfoPanel` existing alongside `click`.
-
-**Unlike the lobby hook, a miss does NOT fall back.** Any map makes a lobby screenshot, so `Test.LaunchLobbyMap` can fall back to `ChooseInitialMap`; an editor driver asked for one specific map and silently opening a different one is a capture of the wrong thing reported as a success. Misses are logged as `[TestMode] OpenEditorMap NO SUCH MAP: '<id>'` and `[TestMode] editor tool NO SUCH TOOL: '<name>'`.
-
-**SELECTING A THING IS NOT SHOWING THE TAB IT LIVES IN — and a driver whose markers are all about the mechanism will pass on a photograph of the wrong panel.** The editor's right-hand panel is six containers gated by `MapEditorTabsLogic` (`container.IsVisible = () => menuType == tabType`), and `menuType` defaults to `Tiles`. `Test.EditorTool=Zones` selects a tool *inside* `TOOLS_WIDGETS`, which says nothing about whether `TOOLS_WIDGETS` is on screen. The first run of the editor driver waited for `editor zone selected:`, got it, and returned two frames of the **Tiles** tab under a green PASS. `Test.EditorTool` now also flips the tab, and the driver's verdict rests on evidence emitted from the *rendered widget* instead.
-
-**The general fix is the interesting half: log from inside the widget's own `GetText`.** `LabelWidget.Draw` is that delegate's only caller, and `Widget.DrawOuter` early-returns on `!IsVisible()` — so a line written from there **cannot exist unless that label was really rendered, with that text, in a real frame**. That is strictly stronger than any marker about construction, selection or state, all of which happen whether or not the thing is visible. Emit a machine-readable field alongside the text (`components=2`) so the driver does not grep a Fluent string that a reword would move.
-
-Worked driver: `tools/autotest/screenshot-editor-zones.sh` (two frames of the Zones panel from one launch — band intact, then cut). It waits on the `[TestMode] editor zone selected:` marker rather than a fixed sleep, then still sleeps before capturing, because **the editor's chrome is built before that world's first render pass** and the black-frame trap above applies here too.
+- `test-screenshot-smoke` exercises the pipeline: three captures at named beats, then `Test.Skip`. It asserts nothing — check the run directory yourself for three PNGs and three `screenshots[]` entries. Run it without `--hidden`, which lists captures it never writes.

@@ -10,16 +10,18 @@
 
 ## What I do
 
-1. **Search `WORKSPACE/RELEASE_V1.md`** for items touching the area — `[T]`, `[~]`, `[ ]` related to it.
-2. **`git log --oneline --since="4 weeks ago" -- <relevant-paths>`** — recent activity on the files.
-3. **Search `WORKSPACE/DISCOVERIES.md`** for dated entries on the topic.
-4. **Search `WORKSPACE/plans/`** for any plan docs touching the area.
-5. **Check `WORKSPACE/archive/sessions/active_*.md`** — anything in flight by another agent on this area.
-6. **Print a tight summary**:
+1. **Check the tree is current**: `git status -sb` and `git rev-list --count HEAD..@{u}`. If behind, say so and scope the summary to the ref actually read.
+2. **What is in motion right now** — `WORKSPACE/HOTBOARD.md` for the area, and `WORKSPACE/PIPELINE.md` stubs touching it (each links its dossier under `WORKSPACE/pipeline/items/`; read only the matching ones). For other agents working in parallel, `git worktree list` and `git branch --no-merged main`.
+3. **`git log --oneline --since="4 weeks ago" -- <relevant-paths>`** — recent activity on the files.
+4. **Scope status** — `WORKSPACE/RELEASE_V1.md` entries for the area (`[T]`, `[~]`, `[ ]`). That file is the v1 scope list, not the live queue, and its own header says which parts are stale.
+5. **Known traps and bugs** — `WORKSPACE/DISCOVERIES.md` (dated entries), `WORKSPACE/bugs/discovered.md`, and the curated `DOCS/reference/` section the CLAUDE.md routing table points to for the area. Closed work and its rulings: `WORKSPACE/pipeline/archive/closed-items.md`.
+6. **Plans** — `WORKSPACE/plans/` for active plan docs; `WORKSPACE/archive/plans/` for finished ones.
+7. **Print a tight summary**:
    - **Current state** — what's working, what's pending playtest, what's broken
    - **Recent activity** — last 3–5 commits, what changed
-   - **Open work / known issues** — relevant `RELEASE_V1.md` entries
+   - **Open work / known issues** — the PIPELINE items, RELEASE_V1 entries and bugs found above
    - **Files to know** — 3–6 most relevant source files
+   - **Ref read** — branch and short SHA
 
 Keep the summary readable in under a minute — this is a starter, not a deep dive.
 
