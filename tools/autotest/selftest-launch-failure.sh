@@ -16,7 +16,18 @@ REPO_ROOT=$(pwd)
 export REPO_ROOT
 . "${TMP}/fns.sh"
 
-LOGS="${TMP}/OpenRA/Logs"
+# find_engine_log resolves the log dir PER PLATFORM, so the synthetic logs must sit
+# where it looks. Until 2026-10-10 this seeded only the Windows (APPDATA) location;
+# on macOS/Linux the function read the USER'S REAL engine logs instead, and five of
+# the nine cases failed there (or passed by accident) regardless of the code under test.
+# HOME is pointed at the temp dir so nothing real is ever read.
+HOME="${TMP}"
+export HOME
+case "$(uname -s)" in
+	Darwin) LOGS="${TMP}/Library/Application Support/OpenRA/Logs" ;;
+	Linux)  LOGS="${TMP}/.config/openra/Logs" ;;
+	*)      LOGS="${TMP}/OpenRA/Logs" ;;
+esac
 mkdir -p "${LOGS}"
 APPDATA="${TMP}"
 export APPDATA
@@ -26,9 +37,12 @@ ok()   { echo "  ok    $1"; }
 bad()  { echo "  FAIL  $1  $2"; FAILED=1; }
 
 LAUNCH_STAMP="${TMP}/launch.stamp"
+# Stands in for ${RUN_DIR}/result.worldloaded, the engine's "a Regular world
+# finished loading" marker. Absent unless a case writes it.
+WORLD_MARKER="${TMP}/result.worldloaded"
 
 reset_logs() {
-	rm -f "${LOGS}"/server.log* "${LOGS}"/client.log* "${LOGS}"/lua.log*
+	rm -f "${LOGS}"/server.log* "${LOGS}"/client.log* "${LOGS}"/lua.log* "${WORLD_MARKER}"
 	printf 'Initial map: be8e78bae179ab7b0703fc3b1b7e1cc40385fe10\n' > "${LOGS}/server.log"
 	printf 'Game started\n' > "${LOGS}/client.log"
 	# The stamp stands in for "this run launched now": anything older than it is
@@ -194,6 +208,45 @@ if check_launch_failure; then
 	ok "the real join refusal still trips with every narrowing applied"
 else
 	bad "the real join refusal still trips" "the narrowing silenced it"
+fi
+
+# ---- 10. A WORLD WITH NO LUA, THEN AN IN-PROCESS RESTART --------------------
+# The 2026-10-10 regression. test-savegame-resume* and tournament-* carry no Lua,
+# so lua.log never appears. GameSaveRoundTripProbe restarts into the saved game
+# in-process, disposing the old connection -- which writes this exact line to
+# client.log (Connection.cs:222). The engine's world-loaded marker must latch the
+# watch off so the restore is not killed as a join refusal.
+reset_logs
+printf 'be8e78bae179ab7b0703fc3b1b7e1cc40385fe10\n' > "${WORLD_MARKER}"
+printf 'Connection to 127.0.0.1:59462 failed: Unable to read data from the transport connection: Software caused connection abort.\n' \
+	>> "${LOGS}/client.log"
+LAUNCH_FAIL_SRC=""
+if check_launch_failure; then
+	bad "an in-process restart after a Lua-less world loaded does not trip" "tripped on ${LAUNCH_FAIL_SRC}"
+else
+	ok "an in-process restart after a Lua-less world loaded does not trip (world marker latch)"
+fi
+
+# ---- 11. ...and the marker latch is sticky too -----------------------------
+rm -f "${WORLD_MARKER}"
+LAUNCH_FAIL_SRC=""
+if check_launch_failure; then
+	bad "the world-marker latch is sticky" "re-armed after the marker vanished"
+else
+	ok "the world-marker latch is sticky once set"
+fi
+
+# ---- 12. NO marker and no lua.log: a real client-side join failure trips ----
+# The guard for the new latch: with neither signal present, the watch must still
+# fire on the same client.log line case 10 must ignore.
+reset_logs
+printf 'Connection to 127.0.0.1:59462 failed: Attempted to read past the end of the stream.\n' \
+	>> "${LOGS}/client.log"
+LAUNCH_FAIL_SRC=""
+if check_launch_failure; then
+	ok "with no world marker and no lua.log, a client-side join failure still trips"
+else
+	bad "no-marker join failure still trips" "the marker latch silenced it"
 fi
 
 echo

@@ -529,13 +529,35 @@ find_debug_log() { find_engine_log "debug.log"; }
 # to prevent that: it polls once a second, and the drop can be written inside the
 # same second as the verdict.
 #
-# lua.log is the latch because its channel is created by ScriptContext when the
-# world's LuaScript initialises (ScriptContext.cs:166) -- so its existence proves
-# a world was built, which is exactly what a JOIN refusal prevents. Every
-# scenario under tools/autotest/scenarios runs Lua, so this is general here.
+# THE LATCH IS "THIS RUN BUILT A REGULAR WORLD", which is exactly what a JOIN
+# refusal prevents. Two signals set it:
+#
+#  * WORLD_MARKER (result.worldloaded beside result.json), written by the engine
+#    under Test.Mode for every Regular world once LoadComplete returns
+#    (TestMode.NoteWorldLoaded, called from Game.StartGame). This is the general
+#    one: it does not depend on the scenario having Lua.
+#  * lua.log newer than the launch stamp -- its channel is created by
+#    ScriptContext when a world's LuaScript initialises (ScriptContext.cs:166).
+#    Kept as a second route; it is no longer the only one.
+#
+# NOT every scenario runs Lua -- 31 of ~369 do not (all test-savegame-resume*,
+# 28 tournament-*). When lua.log was the only latch, the watch stayed armed for
+# their whole run, and GameSaveRoundTripProbe's in-process restart -- which
+# disposes the old connection and so writes "Connection to ... failed" to
+# client.log (Connection.cs:222) -- was killed mid-restore as a "join refusal"
+# (run 261010_130502, WORKSPACE/bugs/discovered.md 2026-10-10).
+#
 # WORLD_SEEN is sticky: once set the watch never re-arms for the rest of the run.
 check_launch_failure() {
 	if [ "${WORLD_SEEN}" = "1" ]; then
+		return 1
+	fi
+
+	# PRESENCE IS ENOUGH here, unlike lua.log below: the marker lives in this run's
+	# own RUN_DIR, which run-test.sh creates fresh (mkdir refuses an existing one),
+	# so no previous run can have left one behind.
+	if [ -n "${WORLD_MARKER}" ] && [ -f "${WORLD_MARKER}" ]; then
+		WORLD_SEEN=1
 		return 1
 	fi
 
@@ -989,6 +1011,9 @@ WORLD_SEEN=0
 # Created after the launch above, so any log older than it is a leftover.
 LAUNCH_STAMP="${RESULT_FILE%.json}.launchstamp"
 : > "${LAUNCH_STAMP}"
+# Engine-written "a Regular world finished loading" marker (TestMode.NoteWorldLoaded:
+# Path.ChangeExtension(Test.ResultPath, ".worldloaded")) -- see check_launch_failure.
+WORLD_MARKER="${RESULT_FILE%.json}.worldloaded"
 _elapsed=0
 while :; do
 	if ! kill -0 "${LAUNCH_PID}" 2>/dev/null; then
