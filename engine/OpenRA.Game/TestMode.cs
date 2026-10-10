@@ -404,6 +404,37 @@ namespace OpenRA
 				Log.Write("debug", $"[TestMode] sync hash log: {SyncHashLogPath}");
 		}
 
+		// ==== "A WORLD WAS BUILT", FOR THE HARNESS'S LAUNCH-FAILURE WATCH ====
+		// run-test.sh kills the game as a launch failure when client.log says "Connection to ...
+		// failed" -- but only until it has seen proof that a world was built, because that same line
+		// is also written by the ORDINARY teardown of a connection (Connection.cs:222), e.g. when
+		// GameSaveRoundTripProbe restarts in-process into a saved game. The proof used to be lua.log
+		// appearing, and lua.log exists only when a LuaScript runs: 31 scenarios have none, so for
+		// them the watch stayed armed all run and killed a restore mid-load.
+		//
+		// This marker is written for EVERY Regular world, Lua or not, as a sibling of the verdict
+		// (result.json -> result.worldloaded) so it carries the run's identity, unlike the global
+		// logs. Shellmap and editor worlds do not count: a refused join can fall back to the main
+		// menu's shellmap, and that must not disarm the watch. No gameplay effect -- one file write
+		// per world load, under Test.Mode only.
+		public static void NoteWorldLoaded(World world)
+		{
+			if (!IsActive || string.IsNullOrEmpty(ResultPath) || world.Type != WorldType.Regular)
+				return;
+
+			Log.Write("debug", $"[TestMode] world loaded: {world.Map.Uid}");
+			try
+			{
+				var marker = Path.ChangeExtension(ResultPath, ".worldloaded");
+				Directory.CreateDirectory(Path.GetDirectoryName(marker));
+				File.WriteAllText(marker, world.Map.Uid + "\n");
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine($"[TestMode] failed to write world-loaded marker: {e.Message}");
+			}
+		}
+
 		public static void WriteResult(string status, string notes)
 		{
 			if (!IsActive || string.IsNullOrEmpty(ResultPath))

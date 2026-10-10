@@ -204,6 +204,8 @@ namespace OpenRA
 			using (new PerfTimer("LoadComplete"))
 				OrderManager.World.LoadComplete(worldRenderer);
 
+			TestMode.NoteWorldLoaded(OrderManager.World);
+
 			// Proactively collect memory during loading to reduce peak memory.
 			GC.Collect();
 

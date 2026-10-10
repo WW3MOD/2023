@@ -6315,3 +6315,9 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   must stay quiet. **NOT FIXED. The restore itself is UNMEASURED since 2026-08-16** — this run says
   nothing about whether saved games still restore.
   (found while working on: manager's post-merge run of the savegame scenario; filed by savegame-reload-triage)
+  **FIX (wt/smoke-latch, 2026-10-10; awaiting the confirming launch).** The engine now writes
+  `result.worldloaded` beside `result.json` for every Regular world under Test.Mode
+  (`TestMode.NoteWorldLoaded`, called from `Game.StartGame` after `LoadComplete`), and
+  `check_launch_failure` latches on it before the lua.log route. `selftest-launch-failure.sh` gains the
+  no-lua.log in-process-restart case (RED against the old script: trips on client.log) — and was itself
+  only valid on Windows until this change: on macOS/Linux it read the user's real engine logs.
