@@ -1,0 +1,1 @@
+Auto: a truck driving to restock at a Logistics Centre that changes hands mid-drive must take nothing from it on arrival.
