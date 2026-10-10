@@ -25,10 +25,11 @@ namespace OpenRA.Test
 	/// nothing re-asked the question, and the passive owner (holding an untargetable MustBeDestroyed
 	/// SR that ConquestVictoryConditions can never fail) stayed Undefined forever: the match did not end.
 	///
-	/// Pinned here: the decision (ShouldEliminateStrandedPassive over HasRescuer, the same predicate
-	/// the first-time fork uses) and that OnDefeatBarFull still asks it. The end-to-end half — a
-	/// teammate's defeat actually resolving the passive owner Lost — is the
-	/// test-contestation-stranded-passive scenario.
+	/// Pinned here: the whole full-bar decision (DecideDefeatBarFull over HasRescuer, the same
+	/// predicate the first-time fork uses) and that OnDefeatBarFull calls it. NOT pinned here, and not
+	/// pinnable by these tools: a guard restored ABOVE that call (`if (isPassive) return;`) reads only a
+	/// field, so neither the truth table nor the IL call scan can see it. That regression is caught by
+	/// the test-contestation-stranded-passive scenario, whose RED arm is exactly that guard.
 	/// </summary>
 	[TestFixture]
 	public class SupplyRouteStrandedPassiveTest
@@ -39,19 +40,49 @@ namespace OpenRA.Test
 			return supplyRoutes;
 		}
 
+		const bool Resolves = true;
+
+		static DefeatBarFullAction Decide(WinState state, bool passive, bool rescuable, bool resolves)
+		{
+			return SupplyRouteContestation.DecideDefeatBarFull(state, passive, rescuable, resolves);
+		}
+
+		// A passive owner, bar held full, in a resolving session: what do these other SRs make it do?
 		static bool Stranded(params (bool, WinState, bool)[] otherSupplyRoutes)
 		{
-			return SupplyRouteContestation.ShouldEliminateStrandedPassive(
-				SupplyRouteContestation.HasRescuer(SRs(otherSupplyRoutes)), resolvesInSession: true);
+			return Decide(WinState.Undefined, true, SupplyRouteContestation.HasRescuer(SRs(otherSupplyRoutes)), Resolves)
+				== DefeatBarFullAction.Eliminate;
+		}
+
+		[Test]
+		public void PassiveWithNoRescuerLeft_IsEliminated()
+		{
+			// THE ROW THE BUG LIVED IN. The old `if (isPassive || ...) return;` answered None here.
+			Assert.That(Decide(WinState.Undefined, passive: true, rescuable: false, resolves: true), Is.EqualTo(DefeatBarFullAction.Eliminate));
 		}
 
 		[Test]
 		public void TruthTable()
 		{
-			Assert.That(SupplyRouteContestation.ShouldEliminateStrandedPassive(rescuable: true, resolvesInSession: true), Is.False);
-			Assert.That(SupplyRouteContestation.ShouldEliminateStrandedPassive(rescuable: false, resolvesInSession: true), Is.True);
-			Assert.That(SupplyRouteContestation.ShouldEliminateStrandedPassive(rescuable: true, resolvesInSession: false), Is.False);
-			Assert.That(SupplyRouteContestation.ShouldEliminateStrandedPassive(rescuable: false, resolvesInSession: false), Is.False,
+			foreach (var resolves in new[] { true, false })
+			{
+				// First time the bar fills. Eliminate even in a declined session: ResolveTeamElimination
+				// owns that decline and logs it once, and the owner still goes passive (unchanged).
+				Assert.That(Decide(WinState.Undefined, false, true, resolves), Is.EqualTo(DefeatBarFullAction.Passivate));
+				Assert.That(Decide(WinState.Undefined, false, false, resolves), Is.EqualTo(DefeatBarFullAction.Eliminate));
+
+				// Already passive, rescuer still there: hold.
+				Assert.That(Decide(WinState.Undefined, true, true, resolves), Is.EqualTo(DefeatBarFullAction.None));
+
+				// Already decided: never touched, whatever else is true.
+				foreach (var decided in new[] { WinState.Won, WinState.Lost })
+					foreach (var passive in new[] { true, false })
+						foreach (var rescuable in new[] { true, false })
+							Assert.That(Decide(decided, passive, rescuable, resolves), Is.EqualTo(DefeatBarFullAction.None),
+								$"a {decided} owner was acted on (passive={passive} rescuable={rescuable} resolves={resolves})");
+			}
+
+			Assert.That(Decide(WinState.Undefined, true, false, resolves: false), Is.EqualTo(DefeatBarFullAction.None),
 				"A declined session (TestMode without RunInTestMode) must not re-enter ResolveTeamElimination every tick: " +
 				"its decline writes a debug.log line, so this would flood the log on every passive tick.");
 		}
@@ -110,27 +141,21 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void OnDefeatBarFullAsksTheStrandedQuestion()
+		public void OnDefeatBarFullDelegatesToTheDecision()
 		{
-			// The bug was not a wrong answer but a question never asked: OnDefeatBarFull returned on
-			// `isPassive` before evaluating anything. Pin that it now consults both halves, so a refactor
-			// that restores the early return fails here and not only in a scenario that times out.
+			// Catches the call being deleted or replaced by an inlined copy. It does NOT catch a field-only
+			// guard restored above the call — see the class summary; the scenario owns that.
 			var method = typeof(SupplyRouteContestation).GetMethod("OnDefeatBarFull", BindingFlags.NonPublic | BindingFlags.Instance);
 			Assert.That(method, Is.Not.Null, "SupplyRouteContestation.OnDefeatBarFull is gone.");
 
 			var decide = typeof(SupplyRouteContestation).GetMethod(
-				nameof(SupplyRouteContestation.ShouldEliminateStrandedPassive), BindingFlags.Public | BindingFlags.Static);
-			var rescuer = typeof(SupplyRouteContestation).GetMethod("HasActiveTeamSupplyRoute", BindingFlags.NonPublic | BindingFlags.Instance);
-			Assert.That(rescuer, Is.Not.Null, "SupplyRouteContestation.HasActiveTeamSupplyRoute is gone.");
+				nameof(SupplyRouteContestation.DecideDefeatBarFull), BindingFlags.Public | BindingFlags.Static);
 
 			var scan = IlScan.Scan(method);
 			Assert.That(scan.ResolvedCalls, Is.GreaterThan(1),
 				$"IL scan resolved only {scan.ResolvedCalls} tokens — the scanner is broken, not the code clean.");
 			Assert.That(scan.Callees.Any(c => c.MetadataToken == decide.MetadataToken && c.Module == decide.Module), Is.True,
-				"OnDefeatBarFull no longer consults ShouldEliminateStrandedPassive: a passive owner whose last rescuer leaves " +
-				"is stranded in an unending match again.");
-			Assert.That(scan.Callees.Count(c => c.MetadataToken == rescuer.MetadataToken && c.Module == rescuer.Module), Is.GreaterThanOrEqualTo(2),
-				"OnDefeatBarFull must ask HasActiveTeamSupplyRoute on both paths: first-time (passive vs eliminated) and passive re-check.");
+				"OnDefeatBarFull no longer asks DecideDefeatBarFull: the passive re-check can silently disappear again.");
 		}
 	}
 }

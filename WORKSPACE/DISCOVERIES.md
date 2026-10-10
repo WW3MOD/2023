@@ -3,6 +3,15 @@
 > Patterns, gotchas, and insights found during work. Dated entries.
 > Stable, broadly applicable items should also go into CLAUDE.md.
 
+
+## 2026-10-11 - `SupplyRouteContestation.OnDefeatBarFull` is no longer one-shot: a passive owner is re-evaluated every tick the bar is held full (`wt/stranded-passive`)
+
+**What changed.** `OnDefeatBarFull` used to open with `if (isPassive || WinState != Undefined) return;`, so it ran its passive-versus-eliminate fork exactly once. It now delegates the whole decision to the pure `DecideDefeatBarFull(winState, isPassive, rescuable, resolvesInSession)` → `None`/`Passivate`/`Eliminate`, with no guard in front of it. Already-passive + no rescuer left (+ a resolving session) → `Eliminate` → the existing `ResolveTeamElimination`. Fixes the stranded passive player: one whose last relieving teammate left by surrender, `ConcedeOnDisconnect` or another win condition used to stay `Undefined` forever (untargetable `MustBeDestroyed` SR, so CVC could never fail them), and the match never ended.
+
+**Bounds.** It is only asked while `cachedNetEnemySurplus > 0` and the bar is full (Tick's depleting branch); a passive owner the attackers have left still drains back to `OnReinstated`. In a TestMode session without `RunInTestMode` the passive re-check answers `None`, so the decline's debug line is not written every tick.
+
+**For curation:** `DOCS/reference/supply-route.md` §"Contestation to zero ends the match", the first bullet (lines 99-101 at `1ff04806`), describes `OnDefeatBarFull` as a single evaluation and passive as waiting only on the bar. That is now incomplete — add the re-check, and re-derive its line citations, which this change moves again. Pins: `SupplyRouteStrandedPassiveTest`; end-to-end: `test-contestation-stranded-passive` (its RED arm is restoring the guard — no unit test can see a field-only guard above the call).
+
 ## 2026-10-07 - On the MBP, HTTPS `origin` stopped authenticating and was switched to SSH; one direct `git push origin main` was then REJECTED by the "Main" ruleset while later SSH pushes of `main` landed — cause unverified (docs-only, `wt/disc-push`, base `main @ 97cc3756`)
 
 **What happened.** On the MBP, pushing over the HTTPS remote failed with `could not read Username` (the `osxkeychain` credential helper returned nothing). `origin` was switched to SSH: `git@github.com:WW3MOD/2023.git`. One direct `git push origin main` over SSH was then rejected by the repository's **"Main" ruleset** with `Changes must be made through a pull request` — yet later SSH pushes of `main` from the same machine landed.

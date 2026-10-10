@@ -711,48 +711,43 @@ namespace OpenRA.Mods.Common.Traits
 
 		void OnDefeatBarFull()
 		{
-			// Already decided
-			if (self.Owner.WinState != WinState.Undefined)
-				return;
-
-			// RE-ASKED EVERY TICK WHILE PASSIVE, not once. Passivity is a promise that a teammate can
-			// still relieve this Supply Route, and that teammate can leave by routes this trait never
-			// sees — surrender, ConcedeOnDisconnect, an objective failed by another win condition. None
-			// of them re-evaluates anybody here, and a passive owner holds an untargetable
+			// THE WHOLE DECISION IS ONE PURE CALL, with no early return in front of it, and that is
+			// load-bearing. This method used to open with `if (isPassive || WinState != Undefined)
+			// return;`, so once the owner was passive nothing re-asked whether a rescue was still
+			// possible. Passivity is a promise that a teammate can still relieve this Supply Route, and
+			// that teammate can leave by routes this trait never sees — surrender, ConcedeOnDisconnect, an
+			// objective failed by another win condition. A passive owner holds an untargetable
 			// MustBeDestroyed SR, so ConquestVictoryConditions never fails them either: the match could
-			// not end. Polling here instead of hooking each exit covers every route, present and future,
-			// and reads only synced state (WinState, isPassive, the lobby alliance masks).
+			// not end. Re-asking here on every tick covers every exit route, present and future, and
+			// reads only synced state (WinState, isPassive, the lobby alliance masks). Put a guard back
+			// above this call and the stranded case returns, and no unit test will notice: the truth table
+			// cannot see a guard that never lets the helper run, and an IL call scan cannot see a guard
+			// that only reads a field. test-contestation-stranded-passive is the witness for this line.
 			//
 			// The question is only asked while the enemy still holds the bar full — Tick reaches this
 			// method in the depleting branch alone. A passive owner the attackers have walked away
 			// from is draining back toward reinstatement, and eliminating them mid-recovery would be
 			// harsher than the rule a never-passive player gets.
-			if (isPassive)
-			{
-				if (ShouldEliminateStrandedPassive(HasActiveTeamSupplyRoute(), ResolvesEliminationInSession(TestMode.IsActive, info.RunInTestMode)))
-					ResolveTeamElimination();
-
-				return;
-			}
-
-			// ONE evaluation, TWO consumers — this is the whole point of the local.
 			//
-			// "Can anybody still relieve this Supply Route?" IS the passive-versus-defeated fork: true
-			// means the owner freezes and can be rescued, false means the team is eliminated in this
-			// same tick. The freeze notifications must be gated on THIS value and not on a re-derived
-			// "is this a team game?", because no such question is answerable here: a lobby team of one,
-			// the last survivor of a team, a player whose only ally is itself overrun, and a
+			// ONE rescuable evaluation, TWO consumers on the first-time path — the passive-versus-defeated
+			// fork and the freeze notifications. The message must be gated on THIS value and not on a
+			// re-derived "is this a team game?", because no such question is answerable here: a lobby
+			// team of one, the last survivor of a team, a player whose only ally is itself overrun, and a
 			// free-for-all player are all indistinguishable and all unrescuable. Deriving the message
 			// separately is what printed "has lost their Supply Route!" one line above "is defeated".
-			//
-			// Evaluated BEFORE isPassive is set for readability only — HasActiveTeamSupplyRoute skips
-			// this actor, so the order does not affect the result.
-			var rescuable = HasActiveTeamSupplyRoute();
+			// HasActiveTeamSupplyRoute skips this actor, so isPassive's value does not affect it.
+			var action = DecideDefeatBarFull(self.Owner.WinState, isPassive, HasActiveTeamSupplyRoute(),
+				ResolvesEliminationInSession(TestMode.IsActive, info.RunInTestMode));
 
-			// Become passive immediately — production halts and the bar drives notifications.
+			if (action == DefeatBarFullAction.None)
+				return;
+
+			// Become passive immediately — production halts and the bar drives notifications. On the
+			// Eliminate path too: a declined TestMode resolution leaves the owner passive, as it always has.
+			var wasPassive = isPassive;
 			isPassive = true;
 
-			if (rescuable)
+			if (action == DefeatBarFullAction.Passivate)
 			{
 				TextNotificationsManager.AddSystemLine(self.Owner.PlayerName + " has lost their Supply Route! Production frozen.");
 
@@ -762,14 +757,36 @@ namespace OpenRA.Mods.Common.Traits
 				{
 					TextNotificationsManager.AddTransientLine(self.Owner, info.PassiveTextNotification);
 				}
+
+				return;
 			}
-			else
-			{
-				// No remaining active team SRs, or no allies at all — the entire team is defeated.
-				// Announcing a freeze here would be announcing a state the player never occupies for
-				// longer than this tick; the defeat line that follows is the correct and only report.
-				ResolveTeamElimination();
-			}
+
+			// Eliminate. First time: no remaining active team SRs, or no allies at all — announcing a
+			// freeze would be announcing a state the player never occupies for longer than this tick.
+			// Already passive: the last rescuer has left. Either way the defeat line is the only report.
+			if (wasPassive)
+				Log.Write("debug", $"SupplyRouteContestation: passive {self.Owner.InternalName} has no rescuer left at tick {self.World.WorldTick} -- resolving.");
+
+			ResolveTeamElimination();
+		}
+
+		// Pure decision: everything a full defeat bar does, given the owner's state.
+		//   - Already decided (Won/Lost): nothing.
+		//   - First time (not passive): Passivate when a teammate can relieve, else Eliminate. Eliminate
+		//     is returned even when this session declines resolution, because ResolveTeamElimination owns
+		//     that decline and logs it once; the owner still goes passive.
+		//   - Already passive: nothing while a rescuer remains; Eliminate once none does (the stranded
+		//     case). A declined session answers None here, not Eliminate — this branch is asked every
+		//     tick, so letting ResolveTeamElimination decline would write its debug line every tick.
+		public static DefeatBarFullAction DecideDefeatBarFull(WinState winState, bool isPassive, bool rescuable, bool resolvesInSession)
+		{
+			if (winState != WinState.Undefined)
+				return DefeatBarFullAction.None;
+
+			if (!isPassive)
+				return rescuable ? DefeatBarFullAction.Passivate : DefeatBarFullAction.Eliminate;
+
+			return !rescuable && resolvesInSession ? DefeatBarFullAction.Eliminate : DefeatBarFullAction.None;
 		}
 
 		bool HasActiveTeamSupplyRoute()
@@ -885,18 +902,6 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Phase 2: award the win to any surviving combatant whose every hostile is now Lost.
 			AwardDecidedSurvivors(self.World);
-		}
-
-		// Pure decision: a PASSIVE owner's bar is still held full — has the rescue it was frozen to wait
-		// for become impossible? True once no teammate holds an active Supply Route (HasRescuer, the
-		// same predicate the first-time fork uses, so the two can never disagree about who can relieve).
-		//
-		// resolvesInSession false (TestMode without RunInTestMode) must answer false and not merely let
-		// ResolveTeamElimination decline: that decline writes a debug.log line, and this is asked every
-		// tick, so the declined case would flood the log. The first-time path already logged it once.
-		public static bool ShouldEliminateStrandedPassive(bool rescuable, bool resolvesInSession)
-		{
-			return !rescuable && resolvesInSession;
 		}
 
 		// Pure decision: does a full defeat bar with nobody left to relieve it resolve WinStates in this
@@ -1109,4 +1114,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool IAlwaysVisibleBar.ShowBarWithoutSelection =>
 			ShouldShowBarWithoutSelection(self.Owner.WinState, self.Owner.NonCombatant, self.Owner.Playable, controlBar, info.BarMax);
 	}
+
+	// What a full defeat bar does — SupplyRouteContestation.DecideDefeatBarFull's answer.
+	public enum DefeatBarFullAction { None, Passivate, Eliminate }
 }
