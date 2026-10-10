@@ -6321,3 +6321,21 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   `check_launch_failure` latches on it before the lua.log route. `selftest-launch-failure.sh` gains the
   no-lua.log in-process-restart case (RED against the old script: trips on client.log) — and was itself
   only valid on Windows until this change: on macOS/Linux it read the user's real engine logs.
+- [2026-10-11] [LOW — SYMPTOM + HYPOTHESIS, NOT MEASURED] **A civilian garrison whose claimant is defeated
+  goes to Neutral with an ALLY's men still inside, and nothing re-derives the owner until somebody exits.**
+  `^CivBuilding` carries `OwnerLostAction: Action: ChangeOwner` (`civilian.yaml:105-106`, default
+  `Owner: Neutral`), so when the player who first boarded (the claimant) is defeated,
+  `OwnerLostAction.OnOwnerLost` (`OwnerLostAction.cs:51-52`) hands the building to Neutral. Since
+  `wt/cogarrison` the allied occupant's shelter men keep their owner through that flip (garrison-only
+  rule in `Cargo.OnOwnerChanged`) — so the building reads Neutral while an active ally holds it.
+  `GarrisonManager.CheckOwnershipAfterExit` (which would pass it to that ally as heir) runs only from
+  `OnPassengerExited`, and `claimedOwner` (`GarrisonManager.cs:222`) is not cleared by the flip, so it still
+  names the defeated player: the boarding filter keeps measuring newcomers against him (`:349`) and the
+  next boarder cannot re-claim (`:293` requires `claimedOwner == null`). **Port soldiers already had this
+  shape before the fix** — they are out of Cargo, so `Cargo.OnOwnerChanged` never re-owned them, and the
+  building went Neutral under them too. **Hypothesis for the fix shape (not done):** GarrisonManager
+  implements `INotifyOwnerChanged` and, when the new owner is not a claimant it chose, re-runs the
+  heir/claim logic (`CheckOwnershipAfterExit`'s ally pick) over the remaining occupants. **Would confirm
+  it:** an allied-cogarrison variant that defeats USA after both men board and asserts the house reads
+  `Allied` within a few ticks; today it should read `Neutral` with AllyMan still inside.
+  (found while working on: wt/cogarrison review, allied co-garrison owner conversion)

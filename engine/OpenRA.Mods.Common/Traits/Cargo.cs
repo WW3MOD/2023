@@ -1278,10 +1278,20 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return;
 
-			// Only the outgoing owner's men follow the transport. A garrison building holds allied
-			// players' soldiers side by side, and its neutral->owner flip is a frame-end task, so an
-			// ally who boarded in the same drain as the claimant was re-owned to him here
-			// (test-garrison-allied-cogarrison, run 261010_233134). See GarrisonOwnershipMath.
+			// Vehicles: every passenger follows, unchanged. Two allies boarding one APC on the same tick
+			// each flip it in Load, and this loop is what makes the crew converge on the last of them.
+			if (!self.Info.HasTraitInfo<GarrisonManagerInfo>())
+			{
+				foreach (var p in Passengers)
+					p.ChangeOwner(newOwner);
+
+				return;
+			}
+
+			// Garrisons: only the outgoing owner's men follow. A garrison holds allied players' soldiers
+			// side by side, and its neutral->owner flip is a frame-end task, so an ally who boarded in the
+			// same drain as the claimant was re-owned to him here (test-garrison-allied-cogarrison, run
+			// 261010_233134). Same exemption as Load above. See GarrisonOwnershipMath.
 			foreach (var p in Passengers)
 				if (GarrisonOwnershipMath.PassengerFollowsOwnerChange(p.Owner, oldOwner, newOwner))
 					p.ChangeOwner(newOwner);

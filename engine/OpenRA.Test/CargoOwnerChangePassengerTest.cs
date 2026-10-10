@@ -18,17 +18,21 @@ using OpenRA.Mods.Common.Traits;
 namespace OpenRA.Test
 {
 	/// <summary>
-	/// When a transport changes hands, only the OUTGOING owner's passengers follow it.
+	/// When a GARRISON building changes hands, only the OUTGOING owner's passengers follow it; a
+	/// vehicle's whole crew still follows, exactly as before.
 	///
-	/// <para>Cargo.OnOwnerChanged used to re-own every passenger. That is right for a vehicle, whose
-	/// crew all share its owner, and wrong for a garrison building, which holds allied players' men
-	/// side by side and whose owner is only whoever boarded first. The neutral->owner flip is a
-	/// frame-end task, so an ally who boarded in the same drain was converted to the claimant —
-	/// measured by test-garrison-allied-cogarrison, run 261010_233134 (both legs converted).</para>
+	/// <para>Cargo.OnOwnerChanged used to re-own every passenger. That is right for a vehicle (two
+	/// allies boarding one APC on a tick rely on it to converge on one owner), and wrong for a garrison
+	/// building, which holds allied players' men side by side and whose owner is only whoever boarded
+	/// first. The neutral->owner flip is a frame-end task, so an ally who boarded in the same drain was
+	/// converted to the claimant — measured by test-garrison-allied-cogarrison, run 261010_233134 (both
+	/// legs converted).</para>
 	///
-	/// <para>RED, both halves: (a) make PassengerFollowsOwnerChange return true unconditionally and
+	/// <para>RED: (a) make PassengerFollowsOwnerChange return true unconditionally and
 	/// AnAllyInsideAFlippingBuildingKeepsHisOwner fails; (b) revert Cargo.OnOwnerChanged to the bare
-	/// loop and TheOwnerChangeHookStillAsks fails, because the body no longer calls the helper.</para>
+	/// loop and TheOwnerChangeHookStillAsks fails, because the body no longer calls the helper;
+	/// (c) swap oldOwner/newOwner at the call and TheHelperIsPassedOldThenNewOwner fails; (d) drop the
+	/// GarrisonManagerInfo test and VehiclesKeepTheAllConvertLoop fails.</para>
 	/// </summary>
 	[TestFixture]
 	public class CargoOwnerChangePassengerTest
@@ -60,12 +64,10 @@ namespace OpenRA.Test
 		}
 
 		[Test]
-		public void TheOutgoingOwnersMenStillFollowTheTransport()
+		public void TheOutgoingOwnersMenStillFollowTheBuilding()
 		{
-			// The vehicle case the original loop exists for: a captured APC's crew changes sides with it.
 			Assert.That(GarrisonOwnershipMath.PassengerFollowsOwnerChange(Usa, Usa, Enemy), Is.True,
-				"the outgoing owner's own passenger no longer follows a transport that changes hands — " +
-				"a captured or mind-controlled vehicle would now carry the previous owner's crew.");
+				"the outgoing owner's own passenger no longer follows a garrison that changes hands.");
 			Assert.That(GarrisonOwnershipMath.PassengerFollowsOwnerChange(Neutral, Neutral, Usa), Is.True,
 				"a Neutral-owned occupant of a neutral building no longer follows its flip, which " +
 				"changes behaviour the allied fix had no reason to touch.");
@@ -78,11 +80,8 @@ namespace OpenRA.Test
 			Assert.That(GarrisonOwnershipMath.PassengerFollowsOwnerChange<object>(null, Neutral, Usa), Is.False);
 		}
 
-		[Test]
-		public void TheOwnerChangeHookStillAsks()
+		static MethodBase OnOwnerChanged()
 		{
-			// THE CALL-SITE PIN. The helper can be perfect and unused: reverting OnOwnerChanged to the
-			// bare loop restores the defect and leaves every test above green.
 			var method = typeof(Cargo)
 				.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
 				.SingleOrDefault(m => m.Name.EndsWith("INotifyOwnerChanged.OnOwnerChanged", StringComparison.Ordinal));
@@ -91,7 +90,15 @@ namespace OpenRA.Test
 				"Cargo no longer implements INotifyOwnerChanged.OnOwnerChanged explicitly, so this fixture " +
 				"is no longer pinning the passenger re-owning hook at all.");
 
-			var scan = IlScan.Scan(method);
+			return method;
+		}
+
+		[Test]
+		public void TheOwnerChangeHookStillAsks()
+		{
+			// THE CALL-SITE PIN. The helper can be perfect and unused: reverting OnOwnerChanged to the
+			// bare loop restores the defect and leaves every test above green.
+			var scan = IlScan.Scan(OnOwnerChanged());
 
 			Assert.That(scan.ResolvedCalls, Is.GreaterThan(2),
 				$"IL scan resolved only {scan.ResolvedCalls} tokens in Cargo.OnOwnerChanged — the scanner " +
@@ -101,6 +108,66 @@ namespace OpenRA.Test
 				"Cargo.OnOwnerChanged no longer calls GarrisonOwnershipMath.PassengerFollowsOwnerChange, " +
 				"so every passenger is re-owned again — an ally inside a garrison building that changes " +
 				"hands becomes the new owner's soldier.");
+		}
+
+		[Test]
+		public void TheHelperIsPassedOldThenNewOwner()
+		{
+			// ARGUMENT ORDER, which a callee list cannot see: swapping oldOwner/newOwner compiles, still
+			// calls the helper, and stops the claimant's own men from following. The explicit
+			// implementation's arguments are (this, self, oldOwner, newOwner), so the two loads directly
+			// before the call must be ldarg.2 (0x04) then ldarg.3 (0x05). Raw bytes, because IlScan
+			// records callees and not their operands.
+			var method = OnOwnerChanged();
+			var il = method.GetMethodBody().GetILAsByteArray();
+			var sites = 0;
+
+			for (var i = 2; i + 4 < il.Length; i++)
+			{
+				if (il[i] != 0x28)
+					continue;
+
+				MethodBase callee;
+				try
+				{
+					callee = method.Module.ResolveMethod(BitConverter.ToInt32(il, i + 1));
+				}
+				catch (ArgumentException)
+				{
+					// Not a method token — the byte matched mid-operand of another instruction.
+					continue;
+				}
+
+				if (callee?.Name != "PassengerFollowsOwnerChange")
+					continue;
+
+				sites++;
+				Assert.That(new[] { il[i - 2], il[i - 1] }, Is.EqualTo(new byte[] { 0x04, 0x05 }),
+					"PassengerFollowsOwnerChange is not passed (oldOwner, newOwner) as its last two " +
+					"arguments. Swapped, it asks whether a passenger belonged to the NEW owner, which nobody " +
+					"about to be converted did — so the claimant's own men would stop following the building.");
+			}
+
+			Assert.That(sites, Is.EqualTo(1),
+				$"found {sites} call(s) to PassengerFollowsOwnerChange in Cargo.OnOwnerChanged; the " +
+				"argument-order check only means something against exactly one.");
+		}
+
+		[Test]
+		public void VehiclesKeepTheAllConvertLoop()
+		{
+			// The helper is GARRISON-ONLY. Two allies boarding one APC on a tick each flip it in
+			// Cargo.Load, and the all-convert loop is what makes the crew converge on the last of them;
+			// the per-passenger rule would leave mixed owners. Keyed exactly like Load's own exemption.
+			var scan = IlScan.Scan(OnOwnerChanged());
+
+			var keyedOnGarrison = scan.Callees.Any(c => c.Name == "HasTraitInfo" && c.IsGenericMethod &&
+				c.GetGenericArguments().SingleOrDefault() == typeof(GarrisonManagerInfo));
+
+			Assert.That(keyedOnGarrison, Is.True,
+				"Cargo.OnOwnerChanged no longer tests HasTraitInfo<GarrisonManagerInfo>, so the " +
+				"per-passenger rule now reaches vehicles too and two allies sharing an APC are left with " +
+				"mixed owners instead of converging.");
 		}
 	}
 }
