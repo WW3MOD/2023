@@ -1010,8 +1010,40 @@ namespace OpenRA.Mods.Common.Traits
 			AutoRearmIfDry(self);
 		}
 
+		/// <summary>
+		/// The ordered form of <c>AutoRearm(self, true, host)</c> for a caller that does not run on every
+		/// client — the bot layer. Target is the host the caller already chose, so its affordability
+		/// pick survives the trip. Distinct from "Resupply", which is the player's "top up" command and
+		/// re-picks the host with <c>dispatchedBecauseDry: false</c>.
+		/// </summary>
+		public const string RearmAtHostOrder = "RearmAtHost";
+
 		void IResolveOrder.ResolveOrder(Actor self, Order order)
 		{
+			if (order.OrderString == RearmAtHostOrder)
+			{
+				// Every AmmoPool on the actor receives the order; the errand is per ACTOR, so only the
+				// first pool acts on it. Two pools would otherwise queue it twice, the second cancelling
+				// the first.
+				if (self.TraitsImplementing<AmmoPool>().First() != this)
+					return;
+
+				// The issuer decided a net frame or more ago, on the host only. Re-check here, where every
+				// client runs it, what that decision rested on: the host must still exist (a dead target
+				// does not deserialise to an Actor target at all), the unit must still be dry (a truck may
+				// have topped it up meanwhile), and it must not already be on a rearm run, which this
+				// would cancel and re-plan — the same guard the issuer applies.
+				if (self.World.IsGameOver || order.Target.Type != TargetType.Actor)
+					return;
+
+				var host = order.Target.Actor;
+				if (host.IsDead || !host.IsInWorld || !AllPoolsEmpty(self) || IsSeekingRearm(self))
+					return;
+
+				AutoRearm(self, true, host);
+				return;
+			}
+
 			if (order.OrderString == "Resupply")
 			{
 				if (self.World.IsGameOver)

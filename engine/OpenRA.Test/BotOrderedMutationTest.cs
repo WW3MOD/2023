@@ -78,6 +78,9 @@ namespace OpenRA.Test
 		// sides cannot be "fixed" by editing one of them.
 		const string GateOrder = "SetAmbushGate";
 
+		// Same rule for the out-of-ammo rearm dispatch fixed 2026-10-10.
+		const string RearmOrder = "RearmAtHost";
+
 		static readonly string[] HelperSuffixes = { "Math", "Tactics", "Gate", "Guard", "Blackboard" };
 
 		static IEnumerable<Type> BotLayerTypes()
@@ -163,6 +166,25 @@ namespace OpenRA.Test
 			var resolved = 0;
 			var offences = new List<string>();
 
+			// ONE HOP DEEPER (2026-10-10). The mutation that shipped in PoiOffensiveBotModule's
+			// out-of-ammo sweep was not in the module: it called AmmoPool.AutoRearm, and AutoRearm
+			// called QueueActivity(false, ...). AmmoPool matches no helper suffix, so the scan above
+			// never opened it. Every same-assembly callee outside the bot layer is now opened once and
+			// checked for the same six mutations — one level only, not a transitive closure: deeper
+			// walks reach the order resolvers themselves (ResolveOrder -> ... -> QueueActivity) through
+			// shared helpers, and a fixture that cannot tell "the bot ordered it" from "the bot did it"
+			// is one that gets switched off.
+			//
+			// BLIND SPOT: the hop follows the call token as compiled. A call through an interface or a
+			// virtual/abstract method resolves to the declaration, which has no body (or the base body),
+			// so a mutation in an implementation reached by dispatch is NOT opened. Those callees are
+			// skipped rather than counted, so the floors below measure only bodies actually read.
+			var botLayer = new HashSet<Type>(types);
+			var assembly = typeof(AutoTarget).Assembly;
+			var hopCache = new Dictionary<MethodBase, List<MethodBase>>();
+			var hopsOpened = 0;
+			var hopResolved = 0;
+
 			foreach (var type in types)
 			{
 				foreach (var method in DeclaredMethods(type))
@@ -173,8 +195,55 @@ namespace OpenRA.Test
 					foreach (var callee in scan.Callees.Where(IsUnorderedMutation).Distinct())
 						offences.Add($"{type.FullName}.{method.Name} calls " +
 							$"{callee.DeclaringType.Name}.{callee.Name}");
+
+					foreach (var callee in scan.Callees.Distinct())
+					{
+						var owner = callee.DeclaringType;
+						if (owner == null || owner.Assembly != assembly || botLayer.Contains(owner)
+							|| (owner.DeclaringType != null && botLayer.Contains(owner.DeclaringType)))
+							continue;
+
+						if (!hopCache.TryGetValue(callee, out var mutations))
+						{
+							mutations = new List<MethodBase>();
+							hopCache[callee] = mutations;
+
+							if (callee.IsAbstract || callee.GetMethodBody() == null)
+								continue;
+
+							IlScan.Result hop;
+							try
+							{
+								hop = IlScan.Scan(callee);
+							}
+							catch (Exception e) when (e is TypeLoadException || e is BadImageFormatException
+								|| e is InvalidOperationException || e is NotSupportedException)
+							{
+								continue;
+							}
+
+							mutations.AddRange(hop.Callees.Where(IsUnorderedMutation).Distinct());
+							hopsOpened++;
+							hopResolved += hop.ResolvedCalls;
+						}
+
+						foreach (var mutation in mutations)
+							offences.Add($"{type.FullName}.{method.Name} calls " +
+								$"{owner.Name}.{callee.Name}, which calls " +
+								$"{mutation.DeclaringType.Name}.{mutation.Name}");
+					}
 				}
 			}
+
+			Assert.That(hopsOpened, Is.GreaterThan(150),
+				$"Only {hopsOpened} same-assembly callees were opened for the second hop — the hop " +
+				"filter is excluding nearly everything, not finding a clean bot layer.");
+
+			// Measured 2026-10-10: 226 callees opened, 908 call tokens resolved. Floors sit well under both so
+			// ordinary refactors do not trip them, and far above what a filter that opens nothing would read.
+			Assert.That(hopResolved, Is.GreaterThan(600),
+				$"The second hop resolved only {hopResolved} call tokens across {hopsOpened} opened " +
+				"callees — the hop is reading empty bodies, not finding a clean bot layer.");
 
 			Assert.That(resolved, Is.GreaterThan(2000),
 				$"IL scan resolved only {resolved} call tokens across {types.Count} bot-layer types — " +
@@ -293,6 +362,58 @@ namespace OpenRA.Test
 				$"{string.Join(", ", literals)}). LaneAmbushBotModule issues exactly that string, so " +
 				"the two halves no longer meet: the grant is ordered, dropped on arrival, and the " +
 				"ambush halt is inert with nothing logged." +
+				Environment.NewLine + Environment.NewLine + Incident);
+		}
+
+		// BOTH HALVES OF THE REARM ORDER (2026-10-10). PoiOffensiveBotModule.SweepOutOfAmmoUnits called
+		// AmmoPool.AutoRearm directly — a QueueActivity that cancelled the unit's current activity on the
+		// host only. The negative scan above now sees that one hop down; this pins that the fix still
+		// travels as an order, that AmmoPool still resolves it, and that the wire names still meet.
+		[Test]
+		public void TheOutOfAmmoRearmStillTravelsAsAnOrderAmmoPoolResolves()
+		{
+			var module = typeof(AutoTarget).Assembly
+				.GetType("OpenRA.Mods.Common.Traits.PoiOffensiveBotModule");
+			var sweep = module?.GetMethod("SweepOutOfAmmoUnits",
+				BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+
+			Assert.That(sweep, Is.Not.Null,
+				"PoiOffensiveBotModule.SweepOutOfAmmoUnits not found — this fixture is no longer pinning " +
+				"the site the out-of-ammo rearm desync was fixed in.");
+
+			var scan = IlScan.Scan(sweep);
+			Assert.That(scan.ResolvedCalls, Is.GreaterThan(5),
+				$"IL scan resolved only {scan.ResolvedCalls} tokens in SweepOutOfAmmoUnits — the scanner " +
+				"is broken, not the method clean.");
+
+			Assert.That(scan.Callees.Any(c => c.Name == "QueueOrder"), Is.True,
+				"SweepOutOfAmmoUnits no longer hands an Order to IBot.QueueOrder, so the rearm dispatch " +
+				"is either gone or back to a direct host-only call." +
+				Environment.NewLine + Environment.NewLine + Incident);
+
+			Assert.That(IlScan.ScanStringLiterals(sweep), Contains.Item(RearmOrder),
+				$"SweepOutOfAmmoUnits issues no Order named \"{RearmOrder}\". AmmoPool.ResolveOrder " +
+				"matches that exact string; a mismatch is silent and dry bot units stop rearming." +
+				Environment.NewLine + Environment.NewLine + Incident);
+
+			var map = typeof(AmmoPool).GetInterfaceMap(typeof(IResolveOrder));
+			var resolveOrder = map.TargetMethods
+				.FirstOrDefault(m => map.InterfaceMethods[Array.IndexOf(map.TargetMethods, m)].Name == "ResolveOrder");
+
+			Assert.That(resolveOrder, Is.Not.Null,
+				"AmmoPool no longer implements IResolveOrder.ResolveOrder — it is the trait that " +
+				"receives the ordered rearm dispatch.");
+
+			var resolveScan = IlScan.Scan(resolveOrder);
+			Assert.That(resolveScan.Callees.Any(c => c.DeclaringType == typeof(AmmoPool) && c.Name == "AutoRearm"),
+				Is.True,
+				"AmmoPool.ResolveOrder no longer calls AutoRearm, so the RearmAtHost order resolves to " +
+				"nothing and dry bot units park where they emptied." +
+				Environment.NewLine + Environment.NewLine + Incident);
+
+			Assert.That(IlScan.ScanStringLiterals(resolveOrder), Contains.Item(RearmOrder),
+				$"AmmoPool.ResolveOrder matches no order named \"{RearmOrder}\"; PoiOffensiveBotModule " +
+				"issues exactly that string, so the two halves no longer meet." +
 				Environment.NewLine + Environment.NewLine + Incident);
 		}
 	}

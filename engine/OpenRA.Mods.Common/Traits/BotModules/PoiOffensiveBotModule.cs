@@ -186,7 +186,7 @@ namespace OpenRA.Mods.Common.Traits
 			"omits this field) keeps recruiting regardless of ammo state, byte-identical.")]
 		public readonly int StarvingRecruitThresholdPerMille = 0;
 
-		[Desc("WAVE A (@experimental) OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits above only stops the offense",
+		[Desc("WAVE A OUT-OF-AMMO DISPOSITION. SkipOutOfAmmoUnits above only stops the offense",
 			"RECRUITING a dry unit — it does not give that unit anything to do, so an empty vehicle just stands",
 			"where it emptied. The engine cannot fix this either: AmmoPool.AutoRearm's else branch, taken when no",
 			"resupplier is found, is FLAG-ONLY (sets NeedsResupply and returns, AmmoPool.cs:313-320) and ground",
@@ -195,8 +195,8 @@ namespace OpenRA.Mods.Common.Traits
 			"and disposes of each one: drive to a rearm source if one is worth reaching, else TERMINAL evac (rotate",
 			"off the map edge, refunding GetEvacuationRefund x HP/MaxHP per economy.md). Decision is the pure",
 			"AmmoEvacMath.Decide (NUnit-pinned), zero RNG. Needs SkipOutOfAmmoUnits to be useful — without it the",
-			"recruit pass re-tasks the unit and cancels its evac. OFF by default = byte-identical; only",
-			"PoiOffensiveBotModule@experimental turns it on.")]
+			"recruit pass re-tasks the unit and cancels its evac. OFF by default, but BOTH shipped profiles turn it",
+			"on (ai.yaml PoiOffensiveBotModule@experimental and @stable), so @stable is not byte-identical here.")]
 		public readonly bool EvacuateOutOfAmmoUnits = false;
 
 		[Desc("PIPELINE item 36 (@experimental) EJECTED-CREW DISPOSITION. Crew that bail out of a wrecked vehicle",
@@ -3349,7 +3349,8 @@ namespace OpenRA.Mods.Common.Traits
 		// Runs BEFORE the free pool is built so a unit disposed of this eval is never also recruited onto an axis.
 		// Per-unit dispositions are independent of one another, so world.Actors' enumeration order cannot change any
 		// outcome (the determinism invariant); the decision itself is the pure AmmoEvacMath.Decide, zero RNG.
-		// Skipped wholesale when the flag is off ⇒ byte-identical for @stable / normal / human.
+		// Skipped wholesale when the flag is off. Both shipped profiles (@experimental and @stable) turn it ON, so
+		// this sweep runs for @stable too; only a profile omitting the flag stays byte-identical.
 		void SweepOutOfAmmoUnits(IBot bot, int tick)
 		{
 			if (!Info.EvacuateOutOfAmmoUnits)
@@ -3400,11 +3401,18 @@ namespace OpenRA.Mods.Common.Traits
 						// Its flag-only else-branch is unreachable here — we only call it with a live host.
 						// dispatchedBecauseDry: the sweep's own candidate filter IS AllPoolsEmpty (IsOutOfAmmo).
 						//
-						// `host` is PASSED. Omitting it lets AutoRearm re-pick via ChooseResupplier one call
-						// deeper, which would hand back the nearest merely-stocked depot and throw away the
-						// affordable choice made above — the exact trap that parameter was added to prevent.
-						AmmoPool.AutoRearm(unit, true, host);
-						sought++;
+						// `host` is PASSED, as the order's target. Omitting it lets AutoRearm re-pick via
+						// ChooseResupplier one call deeper, which would hand back the nearest merely-stocked
+						// depot and throw away the affordable choice made above — the exact trap that parameter
+						// was added to prevent.
+						//
+						// ORDERED, not called. AutoRearm queues an activity and cancels the current one, and
+						// this tick runs on the host only — a direct call moved the host's copy of the unit and
+						// no other client's (multiplayer desync), and was never recorded for replay or restore.
+						// AmmoPool resolves the order on every client and re-validates the host there.
+						if (bot.QueueOrder(new Order(AmmoPool.RearmAtHostOrder, unit, Target.FromActor(host), false)))
+							sought++;
+
 						break;
 
 					case AmmoEvacAction.Evacuate:
