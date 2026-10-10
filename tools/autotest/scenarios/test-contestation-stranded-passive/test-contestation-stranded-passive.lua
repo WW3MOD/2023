@@ -7,14 +7,17 @@
 -- MustBeDestroyed, so ConquestVictoryConditions could never fail it either: the match never ended.
 --
 -- Setup: USA (the client's seat) and USA2 (an `idle` bot seat, Playable, allied) each own a Supply
--- Route. Four Russian T-90s sit in USA's 10-cell ring; USA2's SR is ~23 cells away and untouched.
+-- Route. Russia is an `idle` bot seat as well, so it is Playable: as a bare map player it was not,
+-- and AwardDecidedSurvivors -- which counts Playable hostiles only -- awarded USA the win the moment
+-- USA2 left (run 261011_003027: "phase2 USA2 Lost at +102; USA=Won"). Four Russian T-90s sit in USA's 10-cell ring; USA2's SR is ~23 cells away and untouched.
 --   Phase 1: USA's defeat bar fills. USA2 is an active rescuer, so USA must go PASSIVE, not Lost.
 --   Phase 2: USA2 leaves -- a Primary objective added and failed, which is exactly what surrender
 --            (MissionObjectives.ForceDefeat) and ConcedeOnDisconnect reduce to. ForceDefeat itself
 --            would no-op here: ConquestVictoryConditions never registers its objective under
 --            TestMode, so there is nothing Incomplete for it to fail.
 --
--- GREEN: within StrandedBudgetTicks of USA2 going Lost, USA.WinState == "Lost" and Russia is not.
+-- GREEN: within StrandedBudgetTicks of USA2 going Lost, USA.WinState == "Lost" and Russia == "Won"
+--   (the survivor award: with Russia Playable, the match actually ends for both sides).
 -- RED (fix sabotaged -- restore the `isPassive` early return in OnDefeatBarFull): phase 1 passes,
 --   then times out with "USA still Undefined and passive ... after its last rescuer USA2 went Lost".
 
@@ -61,7 +64,13 @@ WorldLoaded = function()
 		return
 	end
 	if russia == nil then
-		Test.Fail("Russia has no Player object -- the attackers would belong to Neutral and contest nothing")
+		Test.Fail("seat: Russia has no Player object -- Game.LoadMap did not seat its `idle` bot, so the attackers " ..
+			"belong to Neutral and contest nothing")
+		return
+	end
+	if not russia.IsBot then
+		Test.Fail("seat: Russia exists but is not a bot -- it must be a Playable seat, or AwardDecidedSurvivors " ..
+			"sees USA with no hostile at all and awards it Won the moment USA2 leaves")
 		return
 	end
 	for _, a in ipairs({ Tank1, Tank2, Tank3, Tank4 }) do
@@ -129,7 +138,12 @@ WorldLoaded = function()
 				end
 
 				leftTick = t
-				print("[stranded-passive] phase2 USA2 Lost at +" .. (t - startTick) .. "; USA=" .. usa.WinState)
+				print("[stranded-passive] phase2 USA2 Lost at +" .. (t - startTick) .. "; USA=" .. usa.WinState ..
+					" Russia=" .. russia.WinState)
+				if usa.WinState == "Won" then
+					return "fail: phase 2 setup: USA was awarded Won the instant USA2 left -- AwardDecidedSurvivors found no " ..
+						"Undefined Playable hostile (Russia=" .. russia.WinState .. "); the seating, not the fix"
+				end
 				return false
 			end
 
@@ -142,6 +156,11 @@ WorldLoaded = function()
 		end
 
 		if usa.WinState == "Lost" then
+			if russia.WinState ~= "Won" then
+				return "fail: USA resolved Lost but Russia is " .. russia.WinState ..
+					", not Won -- the elimination ran and the survivor award did not, so the match still has no winner"
+			end
+
 			local census = "USA resolved Lost +" .. (t - leftTick) .. " ticks after USA2 left (budget " .. strandedBudgetTicks ..
 				"); passive at +" .. (passiveTick - startTick) .. "; USA2=" .. usa2.WinState .. " Russia=" .. russia.WinState ..
 				" state=" .. Test.SupplyRouteContestationState(OwnSR)

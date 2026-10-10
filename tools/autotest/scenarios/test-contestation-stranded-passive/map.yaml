@@ -16,13 +16,18 @@ Visibility: MissionSelector
 
 Categories: Test
 
-# TWO PLAYABLE SEATS, ON PURPOSE -- the exception to AUTOTEST.md's one-Playable rule, and the reason
+# THREE PLAYABLE SEATS, ON PURPOSE -- the exception to AUTOTEST.md's one-Playable rule, and the reason
 # it is safe here. Every rule this scenario exercises (HasRescuer, ResolveTeamElimination, the
 # survivor award) counts Playable players only, so a teammate must be Playable to be a rescuer at
 # all. USA2 is seated by Game.LoadMap, which under TestMode issues `slot_bot` for every
 # `Playable: True` slot that names a `Bot:`. The bot type `idle` is defined in this scenario's
 # rules.yaml and enables no module, so USA2 owns its Supply Route and does nothing else.
-# USA MUST STAY ABOVE USA2: the single client takes the first empty slot.
+# RUSSIA IS A PLAYABLE `idle` SEAT TOO, and run 261011_003027 is why. As a bare map player it was
+# non-Playable, and AwardDecidedSurvivors (fired from ConquestVictoryConditions.OnPlayerLost the
+# instant USA2 was marked Lost) counts Playable hostiles only -- so USA had NO hostile, every one it
+# had "was Lost" vacuously, and the passive player was awarded Won before its SR ticked again.
+# A real match's enemy is a seated player; the scenario must match that or it measures the award.
+# USA MUST STAY ABOVE USA2 AND RUSSIA: the single client takes the first empty slot.
 Players:
 	PlayerReference@Neutral:
 		Name: Neutral
@@ -50,10 +55,12 @@ Players:
 		Enemies: Russia
 	PlayerReference@Russia:
 		Name: Russia
+		Playable: True
 		LockFaction: True
 		LockColor: True
 		Faction: russia
 		Color: FF4444
+		Bot: idle
 		Enemies: USA, USA2
 
 Actors:
