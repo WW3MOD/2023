@@ -23,7 +23,9 @@ namespace OpenRA.Mods.Common.Traits
 		"Production speed scales with bar level below the slowdown threshold.",
 		"When control bar is fully depleted, a defeat bar fills. At 100% defeat bar, the player",
 		"becomes passive if a teammate still holds an active Supply Route (they can be relieved),",
-		"and is defeated outright if nobody is left to relieve them.")]
+		"and is defeated outright if nobody is left to relieve them. A passive player whose last relieving",
+		"teammate leaves (surrender, disconnect, any other defeat) while the bar is still held full is",
+		"then defeated too, instead of waiting forever for a rescue that can no longer come.")]
 	public class SupplyRouteContestationInfo : TraitInfo
 	{
 		[Desc("Range to detect enemy and friendly forces.")]
@@ -709,9 +711,29 @@ namespace OpenRA.Mods.Common.Traits
 
 		void OnDefeatBarFull()
 		{
-			// Already handled
-			if (isPassive || self.Owner.WinState != WinState.Undefined)
+			// Already decided
+			if (self.Owner.WinState != WinState.Undefined)
 				return;
+
+			// RE-ASKED EVERY TICK WHILE PASSIVE, not once. Passivity is a promise that a teammate can
+			// still relieve this Supply Route, and that teammate can leave by routes this trait never
+			// sees — surrender, ConcedeOnDisconnect, an objective failed by another win condition. None
+			// of them re-evaluates anybody here, and a passive owner holds an untargetable
+			// MustBeDestroyed SR, so ConquestVictoryConditions never fails them either: the match could
+			// not end. Polling here instead of hooking each exit covers every route, present and future,
+			// and reads only synced state (WinState, isPassive, the lobby alliance masks).
+			//
+			// The question is only asked while the enemy still holds the bar full — Tick reaches this
+			// method in the depleting branch alone. A passive owner the attackers have walked away
+			// from is draining back toward reinstatement, and eliminating them mid-recovery would be
+			// harsher than the rule a never-passive player gets.
+			if (isPassive)
+			{
+				if (ShouldEliminateStrandedPassive(HasActiveTeamSupplyRoute(), ResolvesEliminationInSession(TestMode.IsActive, info.RunInTestMode)))
+					ResolveTeamElimination();
+
+				return;
+			}
 
 			// ONE evaluation, TWO consumers — this is the whole point of the local.
 			//
@@ -863,6 +885,18 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Phase 2: award the win to any surviving combatant whose every hostile is now Lost.
 			AwardDecidedSurvivors(self.World);
+		}
+
+		// Pure decision: a PASSIVE owner's bar is still held full — has the rescue it was frozen to wait
+		// for become impossible? True once no teammate holds an active Supply Route (HasRescuer, the
+		// same predicate the first-time fork uses, so the two can never disagree about who can relieve).
+		//
+		// resolvesInSession false (TestMode without RunInTestMode) must answer false and not merely let
+		// ResolveTeamElimination decline: that decline writes a debug.log line, and this is asked every
+		// tick, so the declined case would flood the log. The first-time path already logged it once.
+		public static bool ShouldEliminateStrandedPassive(bool rescuable, bool resolvesInSession)
+		{
+			return !rescuable && resolvesInSession;
 		}
 
 		// Pure decision: does a full defeat bar with nobody left to relieve it resolve WinStates in this

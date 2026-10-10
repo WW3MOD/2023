@@ -1,0 +1,23 @@
+World:
+    -StartGameNotification:
+    -SpawnStartingUnits:
+    -MapStartingLocations:
+    -CrateSpawner:
+    LuaScript:
+        Scripts: test-helpers.lua, test-contestation-stranded-passive.lua
+
+# USA2's seat. A bot type that grants no condition, so no bot module (all gated on enable-ai-*)
+# runs for it: USA2 is a Playable teammate holding an active Supply Route and nothing more. If this
+# block stops merging, `slot_bot ... idle` is refused as an invalid bot type, USA2 has no Player
+# object, and the scenario fails its seat check rather than measuring anything.
+Player:
+    ModularBot@idle:
+        Name: Idle Teammate
+        Type: idle
+
+# Without this, ResolveTeamElimination declines under TestMode and nobody is ever marked Lost --
+# the precondition for watching the stranded re-check do anything. Upper-case key: top-level keys
+# merge case-sensitively and the defining key in rules/ingame/structures.yaml is SUPPLYROUTE.
+SUPPLYROUTE:
+    SupplyRouteContestation:
+        RunInTestMode: true

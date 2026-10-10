@@ -1215,17 +1215,40 @@ namespace OpenRA
 				? TestMode.GameSpeedOverride
 				: "default";
 
-			var orders = new List<Order>
-			{
-				Order.Command($"option gamespeed {gameSpeed}"),
-				Order.Command($"state {Session.ClientState.Ready}")
-			};
-
 			var map = ModData.MapCache.SingleOrDefault(m => m.Uid == launchMap || Path.GetFileName(m.PackageName) == launchMap);
 			if (map == null)
 				throw new ArgumentException($"Could not find map '{launchMap}'.");
 
-			CreateAndStartLocalServer(map.Uid, orders);
+			CreateAndStartLocalServer(map.Uid, LoadMapOrders(map, gameSpeed));
+		}
+
+		// Lazy on purpose: CreateAndStartLocalServer enumerates this inside its LobbyReady callback,
+		// after JoinServer has made this client's OrderManager current, and slot_bot needs the local
+		// client's index as the bot controller. Building the list eagerly would read the previous one.
+		static IEnumerable<Order> LoadMapOrders(MapPreview map, string gameSpeed)
+		{
+			yield return Order.Command($"option gamespeed {gameSpeed}");
+
+			// TESTMODE: SEAT A BOT IN EVERY `Playable: True` SLOT THAT NAMES ONE. run-test.sh connects a
+			// single client, and CreateMapPlayers builds no Player for a slot nobody occupies, so a
+			// scenario could never have two Playable players -- and every Playable-only rule (team
+			// elimination, HasRescuer, the survivor award) needs a Playable TEAMMATE to be reachable at
+			// all. A `Bot:` on a non-playable PlayerReference stays a map player, as before; this only
+			// reads slots that are Playable AND name a bot, a combination no shipped map or pre-existing
+			// scenario authors. The client takes the first empty slot (Session.FirstEmptySlot), so the
+			// human seat must be listed above the bot seats in map.yaml.
+			//
+			// Before `state Ready`, not after: LobbyCommands.ValidateCommand refuses every command but
+			// `state`/`startgame` from a Ready client, and Ready is what triggers CheckAutoStart.
+			if (TestMode.IsActive)
+			{
+				var controller = OrderManager.Connection.LocalClientId;
+				foreach (var pr in map.Players.Players.Values)
+					if (pr.Playable && !string.IsNullOrEmpty(pr.Bot))
+						yield return Order.Command($"slot_bot {pr.Name} {controller} {pr.Bot}");
+			}
+
+			yield return Order.Command($"state {Session.ClientState.Ready}");
 		}
 
 		public static void FinishBenchmark()

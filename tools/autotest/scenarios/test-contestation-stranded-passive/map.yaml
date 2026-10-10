@@ -1,0 +1,82 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Stranded passive player resolves when its last rescuer leaves
+
+Author: WW3MOD regression harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+# TWO PLAYABLE SEATS, ON PURPOSE -- the exception to AUTOTEST.md's one-Playable rule, and the reason
+# it is safe here. Every rule this scenario exercises (HasRescuer, ResolveTeamElimination, the
+# survivor award) counts Playable players only, so a teammate must be Playable to be a rescuer at
+# all. USA2 is seated by Game.LoadMap, which under TestMode issues `slot_bot` for every
+# `Playable: True` slot that names a `Bot:`. The bot type `idle` is defined in this scenario's
+# rules.yaml and enables no module, so USA2 owns its Supply Route and does nothing else.
+# USA MUST STAY ABOVE USA2: the single client takes the first empty slot.
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Allies: USA2
+		Enemies: Russia
+	PlayerReference@USA2:
+		Name: USA2
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 44CCFF
+		Bot: idle
+		Allies: USA
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Color: FF4444
+		Enemies: USA, USA2
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 4,4
+	AllySR: supplyroute
+		Owner: USA2
+		Location: 4,28
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 60,30
+	Tank1: t90
+		Owner: Russia
+		Location: 10,5
+	Tank2: t90
+		Owner: Russia
+		Location: 10,7
+	Tank3: t90
+		Owner: Russia
+		Location: 12,5
+	Tank4: t90
+		Owner: Russia
+		Location: 12,7
+
+Rules: rules.yaml
