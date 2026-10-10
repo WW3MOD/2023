@@ -50,6 +50,21 @@ namespace OpenRA.Mods.Common.Traits
 		}
 
 		/// <summary>
+		/// Whether Cargo.OnOwnerChanged should carry a GARRISON passenger over to the building's new
+		/// owner: only when he belonged to the OUTGOING owner. Garrisons only — Cargo keeps vehicles on
+		/// the all-convert loop, because two allies boarding one APC on a tick rely on it to converge.
+		/// <para>Allied co-garrison is designed (GarrisonBoardingMath admits Ally), and the building's
+		/// owner is just whoever boarded first, so the neutral->owner flip and the CheckOwnershipAfterExit
+		/// heir transfer both re-owned every OTHER ally's men inside. Generic over the owner type
+		/// because Player cannot be constructed outside a World; reference equality is what Cargo
+		/// compares.</para>
+		/// </summary>
+		public static bool PassengerFollowsOwnerChange<T>(T passengerOwner, T oldOwner, T newOwner) where T : class
+		{
+			return passengerOwner != null && passengerOwner == oldOwner && passengerOwner != newOwner;
+		}
+
+		/// <summary>
 		/// Whether UnloadCargo's CargoInfo.Neutral flip may hand this actor to the Neutral player.
 		/// <para><paramref name="holdPassengerCount"/> is Cargo.PassengerCount, which is the HOLD and
 		/// not the building: on a garrisoned actor a soldier deployed to a firing port has left the

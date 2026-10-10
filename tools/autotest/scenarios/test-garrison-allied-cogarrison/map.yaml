@@ -1,0 +1,83 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Two allied players garrisoning one building (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Allies: Allied
+	# The second ALLY. Non-playable, like test-garrison-hostile-cogarrison's Russia. Allies must be
+	# written on BOTH references: CreateMapPlayers.SetupPlayerMasks (:146) reads p's own Allies list
+	# only, so a one-sided entry makes USA see Allied as an ally while Allied sees USA as neutral --
+	# and the boarding filter reads the BUILDING owner's view of the passenger.
+	PlayerReference@Allied:
+		Name: Allied
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 44CC44
+		Allies: USA
+
+Actors:
+	# LEG A -- walked in through the real targeter. v09 is 1x1 (MaxWeight 4), and the two men stand
+	# on the two diagonal cells below it, mirror images of each other, so they have the best chance
+	# of completing entry in the SAME frame-end drain -- the only timing in which the hypothesis can
+	# bite (see the .lua header). Whether they did is measured, not assumed.
+	HouseA: v09
+		Owner: Neutral
+		Location: 20,12
+	UsManA: e1
+		Owner: USA
+		Location: 19,13
+	AllyManA: e1
+		Owner: Allied
+		Location: 21,13
+	# LEG B -- seated by Lua on one tick. Deterministically puts both men in the hold before the
+	# neutral->USA flip (a frame-end task) runs.
+	HouseB: v09
+		Owner: Neutral
+		Location: 40,12
+	UsManB: e1
+		Owner: USA
+		Location: 40,15
+	AllyManB: e1
+		Owner: Allied
+		Location: 42,15
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 5,16
+	AllySR: supplyroute
+		Owner: Allied
+		Location: 60,28
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 19,13
+	SpawnAllied: mpspawn
+		Owner: Neutral
+		Location: 60,28
+
+Rules: rules.yaml
