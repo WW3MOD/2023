@@ -1,0 +1,1 @@
+Auto: a @stable bot sends its dry tank to rearm, then save and reload in-process — the restore must pass its sync check and resume.

@@ -1,0 +1,47 @@
+# Saved-game round trip that carries a BOT-ISSUED rearm (fix a4fd519e, robustness scout #1).
+#
+# PoiOffensiveBotModule.SweepOutOfAmmoUnits gives a dry vehicle a rearm run. It used to do so by calling
+# AmmoPool.AutoRearm directly from BotTick — which runs on the host only and is skipped during a save
+# restore's fast-forward (ModularBot.Tick returns on IsLoadingGameSave). The recording life moved the
+# unit; the restored life never queued the activity, so the restore failed its sync-hash check
+# (World.OutOfSync -> EndGame) and the probe below reads IsGameOver. Since a4fd519e the sweep issues a
+# RearmAtHost Order, which is recorded into the save and replayed, so the restore is sync-identical.
+#
+# A PASS is only evidence if the bot actually issued the rearm before the save, so the probe asserts it:
+# RequireBotRearmActor fails the run (instead of saving) unless DryTank was seen bot-owned, on Hold and
+# AmmoPool.IsSeekingRearm at least RequireBotRearmLeadTicks before SaveAtTick.
+#
+# Timing: @stable's PoiOffensiveBotModule re-evaluates every 100 ticks after a LocalRandom stagger in
+# [0,100), so the first sweep is by tick ~100 and the order resolves a net frame later. 900 leaves
+# ~800 ticks of driving/rearming in the recorded state — far past the 200-tick lead.
+
+Player:
+	-ConquestVictoryConditions:
+	MapLayers:
+		ExploredMapCheckboxEnabled: true
+		FogCheckboxEnabled: false
+	# Zero cash: the bot calls nothing in, so no supply truck can answer DryTank's NeedsResupply flag and
+	# no reinforcement adds state that could rearm or re-task it.
+	PlayerResources:
+		DefaultCash: 0
+
+World:
+	-StartGameNotification:
+	-SpawnStartingUnits:
+	-MapStartingLocations:
+	-CrateSpawner:
+	GameSaveRoundTripProbe:
+		SaveAtTick: 900
+		RequireBotRearmActor: DryTank
+		RequireBotRearmLeadTicks: 200
+
+# Dry from tick 0, and on Hold: AmmoPool.AutoRearmIfDry (the unit-side dispatcher, which runs on every
+# client and so would be restore-safe) only raises NeedsResupply under Hold, leaving the bot sweep as the
+# sole dispatcher. Without Hold the unit self-dispatches on its first idle and the sweep skips it
+# (IsSeekingRearm), so the scenario would never exercise the path under test. Lowercase key: t90 is
+# defined as `t90:` in vehicles-russia.yaml and top-level keys merge case-sensitively.
+t90:
+	AmmoPool@1:
+		InitialAmmo: 0
+	AutoTarget:
+		InitialResupplyBehaviorAI: Hold

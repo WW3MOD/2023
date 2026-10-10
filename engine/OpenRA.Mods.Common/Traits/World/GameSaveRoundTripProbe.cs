@@ -52,6 +52,17 @@ namespace OpenRA.Mods.Common.Traits
 		[Desc("Render frames to observe after dismissing the menu before writing the verdict.")]
 		public readonly int ObserveFrames = 150;
 
+		[Desc("Precondition: a map actor (its map.yaml Actors key) that must have been seen on a BOT-ISSUED rearm",
+			"run before the save, i.e. owned by a bot, under ResupplyBehavior Hold — which stops the unit's own",
+			"AutoRearmIfDry from dispatching it — and AmmoPool.IsSeekingRearm. Unset = no precondition. A miss",
+			"writes a fail verdict INSTEAD of saving, so a round trip that never carried the state under test",
+			"cannot pass.")]
+		public readonly string RequireBotRearmActor = null;
+
+		[Desc("With RequireBotRearmActor: the rearm run must have been first seen at least this many ticks before",
+			"SaveAtTick, so the unit has moved — a queued activity alone changes no synced field.")]
+		public readonly int RequireBotRearmLeadTicks = 200;
+
 		public override object Create(ActorInitializer init) { return new GameSaveRoundTripProbe(this); }
 	}
 
@@ -71,6 +82,7 @@ namespace OpenRA.Mods.Common.Traits
 		bool menuDismissed;
 		int worldTickAtDismiss;
 		int netFrameAtDismiss;
+		int botRearmSeenTick = -1;
 
 		public GameSaveRoundTripProbe(GameSaveRoundTripProbeInfo info)
 		{
@@ -83,8 +95,25 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			var world = self.World;
+			if (info.RequireBotRearmActor != null && botRearmSeenTick < 0 && IsOnBotRearmRun(world))
+			{
+				botRearmSeenTick = world.WorldTick;
+				Log.Write("debug", $"[saveprobe] precondition: {info.RequireBotRearmActor} on a bot-issued rearm run at tick {botRearmSeenTick}");
+			}
+
 			if (world.WorldTick < info.SaveAtTick)
 				return;
+
+			if (info.RequireBotRearmActor != null && (botRearmSeenTick < 0 || world.WorldTick - botRearmSeenTick < info.RequireBotRearmLeadTicks))
+			{
+				stage = Stage.Done;
+				TestMode.WriteResult("fail",
+					$"precondition not met: {info.RequireBotRearmActor} was not on a bot-issued rearm run at least " +
+					$"{info.RequireBotRearmLeadTicks} ticks before the save (first seen at tick {botRearmSeenTick}, " +
+					$"save tick {world.WorldTick}); the round trip would not carry the state under test. " + DescribeRearmActor(world));
+				Game.Exit();
+				return;
+			}
 
 			if (!world.LobbyInfo.GlobalSettings.GameSavesEnabled)
 			{
@@ -227,6 +256,33 @@ namespace OpenRA.Mods.Common.Traits
 				TestMode.WriteResult("fail", "restored game did not resume after closing the menu: " + detail);
 
 			Game.Exit();
+		}
+
+		Actor RearmActor(World world)
+		{
+			var actors = world.WorldActor.TraitOrDefault<SpawnMapActors>()?.Actors;
+			return actors != null && actors.TryGetValue(info.RequireBotRearmActor, out var a) ? a : null;
+		}
+
+		bool IsOnBotRearmRun(World world)
+		{
+			var a = RearmActor(world);
+			return a != null && !a.IsDead && a.IsInWorld && a.Owner.IsBot
+				&& a.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue == ResupplyBehavior.Hold
+				&& AmmoPool.IsSeekingRearm(a);
+		}
+
+		string DescribeRearmActor(World world)
+		{
+			var a = RearmActor(world);
+			if (a == null)
+				return "actor not found in SpawnMapActors";
+
+			if (a.IsDead || !a.IsInWorld)
+				return "actor dead or not in world";
+
+			return $"owner={a.Owner.PlayerName} bot={a.Owner.IsBot} resupply={a.TraitOrDefault<AutoTarget>()?.ResupplyBehaviorValue} " +
+				$"dry={AmmoPool.AllPoolsEmpty(a)} seekingrearm={AmmoPool.IsSeekingRearm(a)} location={a.Location}";
 		}
 
 		static string Describe(World world)

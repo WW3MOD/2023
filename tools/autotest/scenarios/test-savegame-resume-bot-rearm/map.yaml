@@ -1,0 +1,69 @@
+MapFormat: 12
+
+RequiresMod: ww3mod
+
+Title: TEST: Saved game resumes after a bot rearm order (auto)
+
+Author: WW3MOD test harness
+
+Tileset: TEMPERAT
+
+MapSize: 66,34
+
+Bounds: 1,1,64,32
+
+Visibility: MissionSelector
+
+Categories: Test
+
+Players:
+	PlayerReference@Neutral:
+		Name: Neutral
+		OwnsWorld: True
+		NonCombatant: True
+		Faction: america
+	PlayerReference@USA:
+		Name: USA
+		Playable: True
+		LockFaction: True
+		LockColor: True
+		Faction: america
+		Color: 4488FF
+		Enemies: Russia
+	PlayerReference@Russia:
+		Name: Russia
+		LockFaction: True
+		LockColor: True
+		Faction: russia
+		Bot: stable
+		Color: FF4444
+		Enemies: USA
+
+Actors:
+	OwnSR: supplyroute
+		Owner: USA
+		Location: 8,8
+	OpponentSR: supplyroute
+		Owner: Russia
+		Location: 56,26
+	# The rearm host. Russia-owned, so it is in DryTank's RearmCandidates; full TotalSupply (2250),
+	# so it can afford a 70-supply batch and ChooseAffordableResupplier picks it. Chebyshev distance
+	# from DryTank is 22 cells — inside @stable's OutOfAmmoRearmSeekRadiusCells 40, so
+	# AmmoEvacMath.Decide answers SeekRearm, not Evacuate.
+	Depot: logisticscenter
+		Owner: Russia
+		Location: 50,8
+	# The unit under test. rules.yaml starts it dry and on ResupplyBehavior Hold, so the ONLY thing
+	# that can send it to Depot is PoiOffensiveBotModule.SweepOutOfAmmoUnits' RearmAtHost order.
+	DryTank: t90
+		Owner: Russia
+		Location: 28,8
+		Facing: 256
+	SpawnUSA: mpspawn
+		Owner: Neutral
+		Location: 8,12
+	SpawnRussia: mpspawn
+		Owner: Neutral
+		Location: 56,22
+
+Rules: rules.yaml
