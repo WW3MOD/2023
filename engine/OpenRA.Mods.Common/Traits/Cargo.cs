@@ -1278,8 +1278,13 @@ namespace OpenRA.Mods.Common.Traits
 			if (cargo == null)
 				return;
 
+			// Only the outgoing owner's men follow the transport. A garrison building holds allied
+			// players' soldiers side by side, and its neutral->owner flip is a frame-end task, so an
+			// ally who boarded in the same drain as the claimant was re-owned to him here
+			// (test-garrison-allied-cogarrison, run 261010_233134). See GarrisonOwnershipMath.
 			foreach (var p in Passengers)
-				p.ChangeOwner(newOwner);
+				if (GarrisonOwnershipMath.PassengerFollowsOwnerChange(p.Owner, oldOwner, newOwner))
+					p.ChangeOwner(newOwner);
 		}
 
 		void ITransformActorInitModifier.ModifyTransformActorInit(Actor self, TypeDictionary init)
