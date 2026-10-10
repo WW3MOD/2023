@@ -6236,3 +6236,22 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   confirmation (save-restore riverzeta) not yet run.
   (found while working on: engine robustness scout 2026-10-07, finding #1,
   `DOCS/design/261007_engine-robustness-scout.md`; filed by file-desync)
+- [2026-10-10] [LOW] **Symptom, reported as "truck stuck in Move short of the Centre's dock" — the trace
+  says it was still driving when the deadline expired.** Reported observation: in the clone
+  `tools/autotest/scenarios/wip-truck-restock-captured-centre` (then `test-…`) at `wt/supply-guards @ 79ca9d10`,
+  the truck never reaches the Logistics Centre's dock; the run ended with `truck at 48,16,
+  chain=RestockSupply>Move>MoveFirstHalf` (run dir
+  `/Users/fredrik/.ww3mod-tests/screenshots/261010_130959_p56044_test-truck-restock-captured-centre`).
+  **What its lua.log shows, read not inferred:** the `[captured-centre]` trace has the truck advancing
+  steadily along row 16 at ~20 ticks/cell for the whole run — x=12 @ tick 41, 25 @ 302, 38 @ 552, 45 @ 702 —
+  with the Move child alternating MoveFirstHalf/MoveSecondHalf throughout; and `AssertWithin(45)` is 750
+  ticks (`TicksForSeconds` = seconds × 1000 / 60). So the watchdog fired ~3 cells short of the 3×3 Centre at
+  x=50..52 with the drive still in progress. No evidence of a stall was observed; whether the truck would
+  have docked given more time is **unverified** (no run past 750 ticks exists). **Why the parent test would
+  not see either reading:** `test-truck-restock-survives-cancel` uses the same map, the same 40-cell drive
+  and the same 45 s deadline, and passes on `Truck.Location.X >= 46` — a cell this run reached at about
+  tick 720 of 750 even without that test's extra tick-40 pre-emption. It never asserts docking or a
+  transfer, so a truck that never docks passes it, and its own margin to the deadline looks like tens of
+  ticks (**inferred from this run's pace, not measured on the parent**). **NOT FIXED;** the wip clone's
+  deadline was raised to 90 s, unrun.
+  (found while working on: supply-guards, robustness scout #6 scenario; filed by supply-guards)

@@ -52,12 +52,14 @@ namespace OpenRA.Mods.Common.Activities
 		readonly int waitTicks;
 		readonly int hostFootprintCells;
 		readonly int approachMarginCells;
+		readonly PlayerRelationship validRelationships;
 
 		public RestockSupply(Actor self, Actor host, int waitTicks, int approachMarginCells)
 		{
 			this.host = host;
 			this.waitTicks = waitTicks;
 			this.approachMarginCells = approachMarginCells;
+			validRelationships = SupplyTransferMath.ValidHostRelationships(self);
 			supply = self.Trait<SupplyProvider>();
 			move = self.Trait<IMove>();
 			moveInfo = self.Info.TraitInfo<IMoveInfo>();
@@ -86,9 +88,12 @@ namespace OpenRA.Mods.Common.Activities
 				return true;
 
 			// The host is captured at ISSUE time and the transfer happens after a drive, so re-validate:
-			// an LC destroyed or captured mid-drive would otherwise be deducted from as a dead actor. The
-			// truck simply arrives at a stale cell and takes nothing, which its owner re-decides from.
-			if (host.IsDead || !host.IsInWorld)
+			// an LC destroyed mid-drive would otherwise be deducted from as a dead actor, and one CAPTURED
+			// mid-drive is neither dead nor out of the world (OwnerLostAction: ChangeOwner), so without the
+			// ownership term the truck refilled from the enemy's stock. The truck simply arrives and takes
+			// nothing, which its owner re-decides from. See SupplyTransferMath.HostStillServes.
+			if (!SupplyTransferMath.HostStillServes(host.IsDead, host.IsInWorld,
+				self.Owner.RelationshipWith(host.Owner), validRelationships))
 				return true;
 
 			// ARRIVAL CHECK — the guard this activity shipped WITHOUT, while the mirror it is documented

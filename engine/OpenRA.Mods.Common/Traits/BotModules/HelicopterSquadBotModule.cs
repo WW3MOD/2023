@@ -845,7 +845,13 @@ namespace OpenRA.Mods.Common.Traits
 				return;
 
 			// Get idle attack helicopters
+			// LIVENESS FIRST. idleHelicopters is purged only on the ScanInterval cadence (CleanUpHelicopters),
+			// and this runs on its own, so it can hold an airframe that died and was disposed since the last
+			// scan — and TraitOrDefault on a disposed actor THROWS (TraitDictionary.CheckDestroyed).
+			// IsReadyForMission already rejects the dead, but only after the role lookup has run, so it
+			// never got the chance. Filters nothing it would not; removes the host crash.
 			var attackHelicopters = idleHelicopters
+				.Where(h => !h.IsDead && h.IsInWorld)
 				.Where(h =>
 				{
 					var role = h.TraitOrDefault<AIHelicopterRole>();
@@ -908,6 +914,7 @@ namespace OpenRA.Mods.Common.Traits
 			// active-squad cap or the squad manager — the old early-returns on those benched recon
 			// whenever 3 attack/transport squads were live. Task every ready idle scout instead.
 			var scouts = idleHelicopters
+				.Where(h => !h.IsDead && h.IsInWorld)   // before the trait read: see TryLaunchAttackMission
 				.Where(h =>
 				{
 					var role = h.TraitOrDefault<AIHelicopterRole>();
@@ -1090,6 +1097,7 @@ namespace OpenRA.Mods.Common.Traits
 
 			// Get idle transport helicopter
 			var transport = idleHelicopters
+				.Where(h => !h.IsDead && h.IsInWorld)   // before the trait read: see TryLaunchAttackMission
 				.Where(h =>
 				{
 					var role = h.TraitOrDefault<AIHelicopterRole>();
