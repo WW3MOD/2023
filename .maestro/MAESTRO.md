@@ -1,104 +1,106 @@
 # WW3MOD — manager orchestration instructions
 
-You already have CLAUDE.md (auto-loaded) — the game-model hard rules, routing table, and knowledge-bank flow live there. This file only adds what is manager-specific.
+You already have CLAUDE.md (auto-loaded) — the game-model hard rules, routing table, knowledge-bank flow, and the worker-facing half of `## Who runs what` live there. This file adds only what is manager-specific.
 
 ## Knowledge-bank curation — you own it
 
 Workers capture to `WORKSPACE/DISCOVERIES.md`; promotion into `DOCS/reference/` is your responsibility (rules: `DOCS/reference/README.md`).
 
 - **Dispatch a curation worker** at the end of a work batch, or when DISCOVERIES has ~10+ unpromoted entries. The brief: verify each unpromoted entry against the code (read it — don't trust memory or the entry itself), merge verified facts into the right reference doc, tag the source entry `[promoted]` or `[rejected: reason]`. Reject freely.
-- **Seeding a new subject doc**: one focused research agent per subject, instructed to cite `file:line` for every claim and to read the cited code rather than summarize from prior context. Depth over breadth.
-- A worker reporting code-vs-doc contradiction → the doc fix is part of the same work item, not a someday-task.
+- **Seeding a new subject doc**: one focused research agent per subject, instructed to cite `file` + symbol for every claim and to read the cited code rather than summarize from prior context. Depth over breadth.
+- A worker reporting a code-vs-doc contradiction → the doc fix is part of the same work item, not a someday-task.
 
 Why the capture/promote split: free writes by every worker rot the bank until it has to be nuked; write-only-in-big-sessions loses the freshest context. Capture-at-discovery + verified promotion keeps both.
 
-## The user's checkouts must be left on `main` — standing rule (2026-08-30)
+## The user's checkouts stay on `main`
 
-The user tests from a second machine and stated the rule directly: **"I want main always checked out (unless there is a good reason not to) and every implementation is done in worktrees and merged back into main, so main is always stable for me to test."**
-
-That is already how this machine works. The failure was on the *other* machine, and it was a manager's doing: a prompt sent for a cross-machine comparison said `git checkout <40-hex sha>` so both halves would hash identical code — correct, and it left the user staring at `((HEAD detached at 55836dd8))`, silently pinned four merges behind `main`.
+The user tests from more than one machine and wants `main` always checked out there, with every implementation done in a worktree and merged back, so `main` is always the stable thing they test.
 
 **Whenever you hand the user a command, or write a prompt for an agent on another machine:**
 
-- **Never leave a checkout detached.** If you must pin a commit for a comparison, the prompt must end by returning to `main` (`git checkout main && git pull`) as a REQUIRED final step, not a courtesy.
-- Prefer a throwaway worktree at the pinned SHA over checking out a SHA in the user's working checkout at all — a worktree leaves `main` untouched and disposes cleanly.
-- If a pinned checkout is genuinely unavoidable, **say in the prompt what state the machine will be left in and how to undo it**, in the same breath as the instruction that causes it.
-- The user's checkout is a *test* environment, not scratch space. Anything that makes it non-obvious which build they are running — detached HEAD, a stray branch, uncommitted edits — costs them a play session and is worse than the problem it solved.
+- **Never leave a checkout detached.** If a comparison needs a pinned commit, prefer a throwaway worktree at that SHA — it leaves `main` untouched and disposes cleanly.
+- If checking out a SHA in the user's checkout is genuinely unavoidable, the prompt must end by returning to `main` (`git checkout main && git pull`) as a REQUIRED final step, and must say what state the machine is left in and how to undo it, in the same breath as the instruction that causes it.
+- The user's checkout is a *test* environment, not scratch space. Anything that makes it non-obvious which build they are running — detached HEAD, a stray branch, uncommitted edits — costs them a play session.
 
-The general shape: **an instruction that changes the user's environment must carry its own reversal.** Same discipline as removing a worktree after a merge, and it failed for the same reason — the task felt finished the moment the answer arrived.
+The general shape: **an instruction that changes the user's environment must carry its own reversal.** When two rules in this file disagree, the one that touches the user's environment less wins.
+
+## Who runs what — the manager's half
+
+CLAUDE.md `## Who runs what` tells workers what they may run. This is what that policy asks of you.
+
+### Launches and YAML lint are yours, and they run one at a time
+
+A worker you dispatch never starts the game and never runs the YAML lint. You run both, serially, and feed results back. The user granted launch authority to the manager on the condition that several workers do not start simulations at once — concurrent game launches overload and can crash the machine — so **keep an eye on machine load** and do not stack launches. The lint is serialized for a related reason: `utility.sh --check-yaml` jobs from sibling worktrees queue behind one another (eight concurrent jobs held one worker for ~35 minutes), and the queue does not drain while the fleet runs, so one run at merge replaces many contended ones without losing coverage.
+
+Everything that starts the game (each verified to launch, directly or through `run-test.sh`/`launch-game.sh`):
+
+- `launch-game.sh` / `launch-game.cmd`
+- `tools/autotest/run-test.sh`, `run-batch.sh`, `run-demo.sh` (wraps `run-test.sh`)
+- `tools/autotest/run-tournament.sh` (calls `launch-game.sh` directly) and `loop-tournament.sh` (calls `run-tournament.sh`)
+- `tools/autotest/run-smoke.sh`, i.e. `make smoke` / `.\make.ps1 smoke`
+- the screenshot scripts: `start-screenshot-mode.sh`, `screenshot-lobby.sh`, `screenshot-hotkeys.sh`, `screenshot-infopanel.sh`, `screenshot-editor-zones.sh`
+
+The YAML lint is `utility.sh --check-yaml` in any form, including `make test` / `.\make.ps1 test`, which ends with it.
+
+Builds and static gates stay with the worker: `make all`, `make check`, `dotnet test`, and the static gates `lua-gate`, `nav-guard`, `worldactor-gate`, `smudge-gate`, `mount-gate` (each is a target in both `Makefile` and `make.ps1`).
+
+**What every brief must carry**, because workers do not load this file and the recipes they follow by default (`DOCS/recipes/AUTOTEST.md`, `SCREENSHOT.md`, `DEMO.md`, `BALANCE.md`) describe running things yourself:
+
+- The no-launch / no-lint clause, restated explicitly.
+- For anything that needs a run: deliver the scenario **plus an explicit statement of what result counts as the answer**, so you can run it without re-deriving intent.
+- For any YAML touched: list the files and **what lint would say if they got it wrong**. Check the single gate run against those statements — that keeps the worker's intent as a checkable claim.
+- "Run `make all` (or `.\make.ps1 all`) in your worktree before you commit" — plus `make check` if the change touches C#.
+
+**Building is a property of the worktree, not of the change.** `engine/bin` is not in git, so a fresh worktree has no build, and `launch-game.sh` refuses to start without `engine/bin/OpenRA.dll` and a `VERSION` matching `ENGINE_VERSION` — the game never starts and there is nothing to diagnose. A diff with no compiled code does not exempt the tree. **Launch only from a tree that has been built** — your own, or a worker's after its `make all`.
+
+When you lint a single scenario: `./utility.sh --check-yaml ../tools/autotest/scenarios/<name>` from the repository root. The `../` is required because the root `utility.sh` cds into `engine/` before running; it lints YAML, not Lua. Never run `engine/utility.sh`: it is tracked mode `100644`, so `./` exits 126 with a zero-byte log. **Exit 126/127, or a fast non-zero exit with zero-byte output, is a launch failure — nothing ran.**
+
+**Never `pkill -f OpenRA.Utility`** (or any name pattern): with several lint or game jobs on the machine it kills siblings' work. Find your own process (e.g. resolve its cwd with `lsof`) and kill that pid only.
+
+### The merge gate
+
+Run at merge, in order, before pushing `main`:
+
+1. `all` — Release build.
+2. `check` — Debug build with analyzers on. **Release strips every analyzer** (`engine/Directory.Build.props`, target `DisableAnalyzers`), and `dotnet test` also builds Release, so `check` is the only step that sees an analyzer (RCS-class) error. A green Release build is not evidence about the Debug gate.
+3. `dotnet test engine/OpenRA.Test/OpenRA.Test.csproj --configuration Release`
+4. `test` — static gates plus the YAML lint.
+5. `smoke` — for any merge that changes C# under `engine/`. It is the only gate that constructs a World; read its exit code (0 pass, 2 a map started and failed to reach a pass, 3 launch failure — nothing proven).
+
+Use `make <target>` on macOS/Linux and `.\make.ps1 <target>` on Windows.
+
+A branch touching only `mods/` or `tools/` still runs `dotnet test`: NUnit fixtures read the shipped YAML (e.g. `VaporizeScopeTest` scans every `*.yaml` under `mods/ww3mod/rules`), so a YAML-only change can turn the suite red. Only the builds may be skipped, and only when the C# is provably identical to an already-gated ref.
+
+Workers never push. You push `main` after the gate is green.
 
 ## Dispatching workers
 
-- When briefing a worker, name the specific reference docs its task needs (per CLAUDE.md's routing table) rather than "read the docs".
-- ~~The no-autonomous-multi-test rule binds workers you dispatch too: **your plan is not a user goahead** — get explicit user approval before any batch/tournament run.~~ **SUPERSEDED 2026-08-19 — see the two operating rules below.** The gate is no longer "ask the user before a batch", it is **"only the manager runs it"**.
+- Name the specific reference docs a task needs (per CLAUDE.md's routing table) rather than "read the docs".
+- **Every worker gets a worktree — doc workers included.** A shared checkout shares both **HEAD** (a worker's `git checkout -b` moves the branch under every party in that directory, the manager included) and **the index** (any party's `git add` + `git commit` sweeps another's staged files into the wrong commit). Dispatch with `git worktree add <path> -b <branch> main`; never write a brief that runs `git checkout` in a shared checkout. When you do work in a shared checkout yourself, **commit path-limited only** (`git commit <paths> -m ...`).
+- Worktree paths: `/Users/fredrik/worktrees/ww3mod/<name>` on macOS, `C:/Users/fredr/worktrees/ww3mod/<name>` on Windows. Give the path with **forward slashes** in a brief — bash eats backslashes and the worktree lands somewhere wrong. A docs-only worktree needs no build.
+- **A worker-reported suite red is usually its own stale base, and only you can settle it.** A worker cannot tell which commits landed on `main` after it forked; `git merge-base --is-ancestor <fixing-commit> <branch>` answers it from your seat. Resolve it and tell the worker before the next dispatch. General form: **any baseline a worker inherits is a claim about its branch point, not about `main`.**
 
-## Two standing operating rules — added 2026-08-19, re-confirmed in practice 2026-09-01
+## Batch sizing and the merge pipeline
 
-These are manager-facing on purpose. Workers never see this file, so **both must be restated in every worker brief** or the worker will follow `DOCS/recipes/AUTOTEST.md` and `SCREENSHOT.md`, which still tell it to run things itself.
+**Batch by subsystem cohesion, not by size.** Larger per-worker batches win when the items share one subsystem — same files, same concepts, or B-consumes-A ordering: one dispatch-and-review cycle instead of several with no drop in review quality. Don't bundle across subsystems — the brief bloats and the reviewer loses a single story to check.
 
-### 1. Launches serialize through the manager. Workers never start the game.
+- **The cap is one clean brief.** Headings per item are fine; once items need *different* reference docs and constraints, split.
+- **Pipeline shape, regardless of batch size:** implementer on an isolated worktree → explicit do-NOT-merge brief → independent adversarial reviewer (read-only) → manager merges on a green gate and routes FIX items back to the *same* implementer (it has the context; one fix commit, no amend). Reviews have caught real defects (a danger-channel leak, an RNG-stream identity break, an unsafe carrier rule) — the reviewer cost is paid for.
+- **Review sizing:** full adversarial reviewer for behaviour/engine changes; test-only or byte-identical batches can take a manager diff-inspection on merge instead.
+- **Known merge frictions:** `WORKSPACE/DISCOVERIES.md` conflicts append-vs-append when two branches both add entries — resolve keep-both. On Windows, `git worktree remove` fails with "Permission denied" while a worker session still holds the dir as cwd — archive the worker first, then remove (a failed first attempt usually already unregistered it; delete the leftover dir).
 
-The user granted full simulation/launch authority to the *manager* and attached a hard constraint, verbatim:
-
-> "You have full grants to launch simulations but I suggest you do it from here so that multiple workers are not all starting simulations. That will crash my computer. So keep an eye on the load and make sure you dont completely overload the machine."
-
-**The manager is the only party that launches anything.** No worker runs `launch-game.sh`, `run-test.sh`, `run-batch.sh`, `run-tournament.sh`, or any screenshot capture. A worker writes down what it needs run and hands it up; the manager runs it serially and feeds the result back.
-
-Consequences to carry:
-- **Every brief needs the no-launch clause explicitly**, because it contradicts the recipes the worker is told to follow by default.
-- The implement→verify loop is now split across two parties. Ask each worker for the scenario file **plus an explicit "what would count as the answer"**, so the manager can run it without re-deriving intent.
-- The worktree-build rule inverts in part: a fresh worktree still needs `make all` to compile-check, but no longer "before the first launch" — the worker never launches. **The manager's own launch must come from a tree that IS built.**
-
-### 2. Workers do not run the YAML validator. The manager runs it once, at merge.
-
-At ten concurrent workers `./utility.sh --check-yaml` became a hard serialization point. Measured 2026-08-19: one worker's validator **never got a turn** (0-byte output, idle long enough to trip a stall warning), and another measured **eight concurrent lint jobs** across sibling worktrees with its own waiting **~35 minutes**. The queue does not drain while the fleet is running, so "wait it out" is not a strategy.
-
-**Rule: workers run neither `./utility.sh --check-yaml` nor `make test`. The manager runs the YAML gate serially at merge time.** The merge gate is the one that actually protects `main`; a worker's local run is redundant with it and at this fleet size its only marginal effect is queue depth. `make all` and `dotnet test` stay with the worker — neither is contended.
-
-**Compensating requirement, so nothing is lost:** each worker must list in its report **which YAML files it touched and what it would expect lint to say if it got it wrong.** The manager checks the single gate run against those statements — that keeps the worker's intent as a checkable claim instead of discarding it.
-
-**AMENDED 2026-09-11 — the merge gate as written above has a structural hole, and it let a broken commit through.** The gate was `make.ps1 all` → `dotnet test` → `make.ps1 test`. **`Directory.Build.props` strips every analyzer in Release, `make all` builds Release, and `dotnet test` runs Release** — so *no command in that list can see an analyzer error at all*. Only **`.\make.ps1 check`** builds Debug with analyzers on.
-
-Observed: commit `42bc611c` passed the full manager gate — 0 build errors, 3184/3184 NUnit, `Errors: 21` unchanged, 334 maps — and was **failing `.\make.ps1 check` with four `RCS1112` errors in a test file that same commit added**. It was merged on the strength of that green gate. Nothing reached `origin` only because the push happened to be held on an unrelated visual defect; on any normal day it would have shipped.
-
-**The merge gate is now `make.ps1 all` → `make.ps1 check` → `dotnet test` → `make.ps1 test`.**
-
-**AMENDED 2026-09-19 — the "code-identical to the worker's gated ref, so main need not be rebuilt" shortcut does NOT extend to branches that touch only `mods/` or `tools/`.** NUnit fixtures read the shipped YAML: at `b0aa900c` `VaporizeScopeTest` went red on a tree with byte-identical C#, because a new, deliberately unloaded `rules/cameo-captions.yaml` had been merged (at `201df112`) under a YAML-only gate and its second `SUPPLYROUTE` node shadowed the real one for a first-match lookup. Run `dotnet test` for any change under `mods/` or `tools/`; skip only the Release/Debug BUILDS when the C# is provably identical.
-
-**And give `check` to workers as well.** It is a build, not the YAML lint queue, so it is in the same uncontended class as `make all` and `dotnet test` — the serialization argument above does not reach it. *(Not measured at ten-worker scale; if concurrent Debug builds turn out to contend, that is a finding to record here rather than a reason to drop it from the merge gate.)* A worker that runs only `all` and `dotnet test` has no way to see this class of error in its own diff, which is what happened here.
-
-**The general form, and it is the reusable part: a green Release build is not evidence about the Debug/analyzer gate.** They compile different configurations under different rules, so one says nothing about the other. The worker that hit this had filed *exactly* this hazard to `bugs/discovered.md` one turn earlier and then walked into it — which is the argument for the rule living here, in the gate definition, rather than in a discoveries file somebody has to think to consult.
-
-**Related hazard, restated because it nearly fired: never `pkill -f OpenRA.Utility`.** With eight concurrent jobs that kills seven siblings' work. Resolve the cwd with `lsof` and kill only your own pid.
-
-## Batch sizing + the merge pipeline (findings, 2026-07-22 autoburn)
-
-Deliberate experiment: larger per-worker batches vs one-item-per-worker, across five waves (Stage 0 solo; Stages A+B combined; Phase 4a; Stage C large; a 4-item test-hardening batch). Verdict: **larger batches win when the items share one subsystem** — same files, same concepts, or B-consumes-A ordering. A+B in one worker cost one dispatch+review cycle instead of two with no drop in review quality; the 4-item hardening batch landed as one coherent commit. Guidance for future managers:
-
-- **Batch by subsystem cohesion, not by size.** Bundle items that read the same code and would each need the same warm-up. Don't bundle across subsystems — the brief bloats and the reviewer loses a single story to check.
-- **The cap is one clean brief.** If the brief needs headings per item to stay readable (worked at 4 items), fine; if items start needing *different* reference docs and constraints, split.
-- **Keep the pipeline shape regardless of batch size**: implementer on an isolated worktree under `C:\Users\fredr\worktrees\ww3mod\<name>` → explicit do-NOT-merge brief → independent adversarial reviewer (read-only) → manager merges on green and routes FIX items back to the *same* implementer (it has the context; one fix commit, no amend). Reviews caught 3 real defects across the window (ICBM danger-channel leak, RNG-stream identity break, an unsafe carrier rule) — the reviewer cost is paid for.
-- **Review sizing**: full adversarial reviewer for behavior/engine changes; test-only or byte-identical batches can take a manager diff-inspection on merge instead.
-- **Known merge frictions**: `WORKSPACE/DISCOVERIES.md` conflicts append-vs-append when two branches both add entries — resolve keep-both. Windows: `git worktree remove` fails with "Permission denied" while a worker session still holds the dir as cwd — archive the worker first, then remove (a failed first attempt usually already unregistered it; just `rm -rf` the leftover dir). Worker-created worktrees: give the path with FORWARD slashes in the brief, or bash eats the backslashes and the worktree lands somewhere wrong.
-- **A fresh worktree cannot launch the game — say so in every brief that will run or screenshot anything.** `git worktree add` does not bring build output across and `engine/bin` is not in git, so a new worktree has none. `run-test.sh` and `launch-game.sh` both launch from the *worktree's own* `engine/bin`, and `launch-game.sh:42` gates on `OpenRA.dll` present + `VERSION` matching `ENGINE_VERSION`. Missing ⇒ the game never starts: `NO-RESULT (exit 3)`, `lua.log` 0 bytes, run dir empty, nothing to diagnose. **This burned a scarce run grant on 2026-08-17**, and the reasoning that caused it is the reusable part: the worker skipped the build because its *diff* contained no compiled code — true about the diff, irrelevant to whether the game can start from that directory. **Building is a property of the worktree, not of the change.** Boilerplate for any brief involving a run or a screenshot: *"run `make all` inside your worktree before your first launch, not just before your commit."* Free partial substitute worth naming too: `./utility.sh --check-yaml <MAPDIR>` lints a SINGLE map, launches nothing, needs only a build — it validates YAML but **not** Lua.
-- **A worker-reported suite red is usually its own stale base, and only you can settle it.** Two workers in one hour reported ~95 `make test` cordon errors, both correctly declined to chase them, and neither could prove the red wasn't theirs — because knowing *which* commit fixed it requires knowing what landed on `main` after their fork. `git merge-base --is-ancestor <fixing-commit> <branch>` answers it instantly from your seat. Resolve it and tell the worker before the next dispatch; leaving it costs report space and leaves you holding a phantom caveat. General form: **any baseline a worker inherits is a claim about its branch point, not about `main`** — the same shape produced the stale-`[IN FLIGHT]` misdispatch of 2026-08-16.
-- **A shared checkout shares HEAD *and* the index, so EVERY worker gets a worktree — doc workers included.** There is no "small enough to do in the main checkout" tier; the only thing that tier ever bought was skipping one command. Dispatch a doc worker exactly like any other: `git worktree add <path> -b <branch> main` (forward slashes; no build needed for docs, unlike a worktree that will run anything). **Never write a brief that has a worker run `git checkout` in the shared checkout at all.**
-  - *HEAD* — a worker told to work "in the main checkout on a branch" runs `git checkout -b wt/whatever` and **moves HEAD for every party in that directory, including the manager**. Observed live 2026-09-01: the manager's in-progress edit to `mods/ww3mod/lint-baseline.txt` ended up sitting on the worker's branch, and a `git checkout main` by either party at the wrong moment would have yanked the tree out from under the other mid-edit. Caught before anything was committed, purely by chance.
-  - *The index* — a `git add <file> && git commit` by any party sweeps another's staged-but-uncommitted files into the wrong commit (happened at 7385c055). This one still applies to the manager, who legitimately works in the shared checkout: **commit path-limited only** (`git commit <paths> -m ...`, never bare `git add`+`commit`).
-  **This bullet used to say the opposite, and that is the whole lesson.** It opened *"doc-only workers in the main checkout"* and offered a remedy purely about the index — directly contradicting the standing rule above (§"The user's checkouts must be left on `main`") that a worktree is preferred over touching the user's checkout at all. A brief author reading only this bullet got explicit permission to do what that rule forbids, wrote a compliant-looking brief, and walked a worker into the HEAD hazard. **When two rules in this file disagree, the one that touches the user's environment less wins.** And the reason the contradiction survived: **a hazard note that names one mechanism will be read as naming the only one** — when recording a shared-resource trap, enumerate which resources are shared, not just which command misbehaves.
-
-## Autoburn playbook (added 2026-07-26, after the first-window retrospective)
+## Autoburn playbook
 
 Orientation order for a fresh manager told "work the pipeline":
 
-1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. Items marked user-gated need explicit grants — never self-authorize. **It holds stubs only and is meant to be read whole**; the dossier for a chosen item is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, and finished work lives in `WORKSPACE/pipeline/archive/` ([map](../WORKSPACE/pipeline/README.md)). **Check an item's central premise with one `git log -S`/grep before dispatching** — stale items have twice cost a worker. **Sharper form, earned 2026-08-19 and re-confirmed 2026-09-01: a merged branch is not a finished item.** Item 64's branch is an ancestor of `main` and the feature still ships switched OFF; another item's named branch carried only test hygiene while the real fix rode a different one. Read what the branch *contained*. **And read the file, not the commit message** — one finding was nearly closed on the strength of `ed5ee6b6`, which turned out to be a `PIPELINE.md` edit, and R7 has since attracted two more commits that looked like they addressed it and touched none of its five symptoms. **Two documents agreeing on a number is not evidence.**
+1. `WORKSPACE/PIPELINE.md` — the ordered queue; top item = next to start. It holds stubs only and is meant to be read whole; the dossier for a chosen item is `WORKSPACE/pipeline/items/<NN>-<slug>.md`, and finished work lives in `WORKSPACE/pipeline/archive/` ([map](../WORKSPACE/pipeline/README.md)). Items marked user-gated need explicit grants — never self-authorize. **Check an item's central premise with one `git log -S`/grep before dispatching.** **A merged branch is not a finished item** — a feature can merge switched off, or a branch named for an item can carry only test hygiene while the fix rode another; read what the branch contained. **Read the file, not the commit message** — a commit that looks like it addresses an item may touch none of its symptoms. **Two documents agreeing on a number is not evidence.**
 2. `WORKSPACE/cases/README.md` — the scenario-case model: user-authored cases with ONE measurable bar each are the preferred unit of autonomous work. Iterate features/tuning until the case reads GREEN. Case files carry their own dependencies and status logs.
 3. `WORKSPACE/HOTBOARD.md` + `git log --oneline -20` — what just happened.
 4. The routing table in CLAUDE.md for anything a specific item touches.
 
-Retrospective lessons that bind future windows:
+Lessons that bind future windows:
 
-- **Measurement is the product.** The first window's failure mode was shipping well-reviewed changes with no outcome numbers (the Stage-F benchmark re-baseline sat declared-never-run). Prefer queue items whose acceptance is a number; when a bot change ships without a valid benchmark baseline, flag it loudly in the track rather than letting it slide.
-- **Grants are the bottleneck to plan around.** Case calibration and benchmarks are user-gated (no-autonomous-multi-test). Front-load all NON-gated work (recon, features, overlays, scenario authoring) and park measurement steps with a clear "needs grant" flag, so a single user grant unlocks a batch of ready-to-run measurements instead of one.
-- **Cap needs_review pileup.** Ten subjective-review tracks accumulated in window 1. Under the case model, a GREEN bar largely self-certifies — reserve needs_review for genuine taste/feel checks and say precisely what the user should look at.
+- **Measurement is the product.** Shipping well-reviewed changes with no outcome numbers is the failure mode to avoid. Prefer queue items whose acceptance is a number; when a bot change ships without a valid benchmark baseline, flag it loudly in the track rather than letting it slide.
+- **Grants are the bottleneck to plan around.** Case calibration and benchmarks are multi-run and user-gated. Front-load all non-gated work (recon, features, overlays, scenario authoring) and park measurement steps with a clear "needs grant" flag, so one user grant unlocks a batch of ready-to-run measurements.
+- **Cap needs_review pileup.** Under the case model a GREEN bar largely self-certifies — reserve needs_review for genuine taste/feel checks and say precisely what the user should look at.
 - **Persist state relentlessly.** Anything a future manager needs lives in PIPELINE / cases / DISCOVERIES / the manager log — never only in a transcript. Assume every session can be replaced mid-arc.
