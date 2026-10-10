@@ -1,0 +1,1 @@
+REGRESSION: a PASSIVE player (defeat bar full, teammate holds an active Supply Route) resolves Lost once that last teammate leaves by a non-contestation route (here: objective failed, as surrender/ConcedeOnDisconnect do).
