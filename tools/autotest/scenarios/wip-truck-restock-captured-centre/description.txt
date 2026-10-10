@@ -1,0 +1,1 @@
+WIP, NOT A VERDICT: a truck restocking at a Logistics Centre that changes hands during the arrival settle must take nothing from it. Parked after four non-results; see the Lua header.

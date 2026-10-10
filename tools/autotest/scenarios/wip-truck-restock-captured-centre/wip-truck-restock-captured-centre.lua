@@ -1,4 +1,30 @@
--- AUTO TEST: a truck whose restock Centre changes hands before the transfer must take nothing from it.
+-- WIP -- NOT A VERDICT. NEVER READ ANY RESULT OF THIS FILE AS A PIN, GREEN OR RED.
+--
+-- Parked 2026-10-10 by the manager after four launches produced no verdict (wt/supply-guards; the
+-- engine fix it was written for, SupplyTransferMath.HostStillServes, landed on its RED-proven NUnit
+-- tests alone). The `wip-` prefix keeps it out of run-batch.sh, which globs test-* only, and the
+-- would-pass branch below calls Test.Skip rather than passing, so even a manual run cannot go green.
+--
+-- THE FOUR NON-RESULTS, in order:
+--   1. a717789c -- SETUP "owner flip did not take (owner=FreadyFish)": `Actor.Owner =` is applied at
+--      FRAME END (Actor.cs:519-522), and the predicate read Owner.Name in the flip's own tick. Name
+--      also resolves to the seat occupant; use InternalName. Fixed in eed83080.
+--   2. eed83080 -- the game CRASHED before the map loaded: "Sequence contains more than one matching
+--      element" in Game.LoadMap (Game.cs:1222). Caused by EDITING THIS FILE WHILE THE RUN WAS LIVE on the
+--      same worktree: MapDirectoryTracker reloaded the package under a new Uid and the stale preview
+--      kept the same package name. Not a scenario bug; never edit a scenario mid-run.
+--   3. 1a0ce457 (RED arm, flip at tick 40) -- INCONCLUSIVE, the truck never completed the errand.
+--   4. 79ca9d10 (RED arm, flip at the settle) -- INCONCLUSIVE, "flipped=false, settle seen=nil, truck at
+--      48,16, chain=RestockSupply>Move>MoveFirstHalf".
+--
+-- WHAT RUN 4's TRACE ACTUALLY SHOWS, and it is the likely answer to 3 as well: the truck was NOT stuck.
+-- lua.log has it advancing at ~20 ticks per cell the whole way (x=12 @41, 25 @302, 38 @552, 45 @702),
+-- and AssertWithin(45) is 750 ticks (TicksForSeconds = seconds*1000/60), so the deadline expired with
+-- the truck ~3 cells short, still driving. The 40-cell drive does not fit the 45 s window inherited
+-- from test-truck-restock-survives-cancel. DeadlineSeconds is raised to 90 below for whoever picks this
+-- up, UNRUN at that value -- the next launch is the first that can even reach the settle.
+--
+-- (was) AUTO TEST: a truck whose restock Centre changes hands before the transfer must take nothing from it.
 --
 -- The defect (robustness scout 261007 §11): RestockSupply re-validated its host on arrival only for
 -- IsDead / !IsInWorld, while its own comment claimed to guard "captured mid-drive". LOGISTICSCENTER is
@@ -18,7 +44,8 @@
 -- WHEN THE FLIP HAPPENS -- AND WHY IT MOVED. The first RED run flipped at tick 40, mid-drive, with the
 -- guard sabotaged, and the truck NEVER completed the errand: no transfer, no "[supply] restock-refused"
 -- line in debug.log (which RestockSupply writes whenever it reaches its arrival check without having
--- arrived), so the activity never got past its MoveTo/Wait children. What ends the drive was NOT found
+-- arrived), so the activity never got past its MoveTo/Wait children. [SUPERSEDED by run 4, header: almost certainly
+-- the 45 s deadline expiring mid-drive, not anything ending the drive. The ruled-out list below stands.] What ends the drive was NOT found
 -- by reading (ruled out: Target generation -- RestockSupply moves to a CELL and uses Target only for the
 -- target line; Locomotor blocking -- owner-independent for an ignoreActor building; SmartMove -- the
 -- truck has no armament to interrupt with; DropsSupplyCache's dry-move cancel -- exempt on a supply
@@ -52,7 +79,7 @@
 -- TraceEvery ticks, at the flip, and when the errand ends -- so a non-verdict says what the truck did.
 
 local FlipMode = "settle"  -- "settle" (the verdict mode) or "drive" (diagnostic: flip at FlipAtTick)
-local DeadlineSeconds = 45
+local DeadlineSeconds = 90 -- was 45: the drive alone takes ~800 ticks (see header); UNRUN at 90
 local FlipAtTick = 40      -- drive mode only
 local FlipGraceTicks = 25  -- the flip lands at FRAME END, not when the setter returns
 local MinSettleTicks = 20  -- of the Wait's 25: an errand ending sooner was cancelled, not completed
@@ -182,9 +209,11 @@ WorldLoaded = function()
 				.. "cancelled, not completed, so the arrival guard was never reached. Now: " .. chain()
 		end
 
-		return "pass: settle ran " .. settled .. " ticks (seen tick " .. waitSeenAt .. ", ended tick " .. endedAt
+		-- WIP: what WOULD be the pass is reported as a SKIP, so this file can never be read as a green pin.
+		Test.Skip("WIP would-pass (NOT a verdict): settle ran " .. settled .. " ticks (seen tick " .. waitSeenAt .. ", ended tick " .. endedAt
 			.. ") with the Centre Russian since tick " .. flipTick .. "; Centre " .. depotAtFlip .. " -> " .. depotNow
-			.. ", truck " .. truckAtFlip .. " -> " .. Test.GetSupply(Truck) .. " -- the arrival guard refused the transfer"
+			.. ", truck " .. truckAtFlip .. " -> " .. Test.GetSupply(Truck) .. " -- the arrival guard refused the transfer")
+		return false
 	end, function()
 		return "INCONCLUSIVE: the restock errand never ended inside the deadline (flipped=" .. tostring(flipped)
 			.. ", settle seen=" .. tostring(waitSeenAt) .. ", truck at " .. tostring(Truck.Location) .. ", chain="
