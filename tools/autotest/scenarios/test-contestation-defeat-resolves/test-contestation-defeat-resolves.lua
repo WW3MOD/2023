@@ -33,7 +33,25 @@ WorldLoaded = function()
 	local russia = Player.GetPlayer("Russia")
 
 	local raw = Test.SupplyRouteContestationState(OwnSR)
-	print("[contest-defeat] sides=" .. Test.MatchSides() .. " initial=" .. raw)
+	local sides = Test.MatchSides()
+	print("[contest-defeat] sides=" .. sides .. " initial=" .. raw)
+
+	-- USA MUST BE THE SEATED, PLAYABLE SIDE, or both arms time out blaming the wrong thing:
+	-- ResolveTeamElimination only marks Playable players, so a mis-seated USA is never resolved
+	-- whatever RunInTestMode says. Lua has no Playable binding; IsLocalPlayer stands in for it,
+	-- because run-test.sh seats exactly one client and that client takes the map's Playable slot.
+	local seated = false
+	for name in string.gmatch(sides, "[^,]+") do
+		if name == "USA" then
+			seated = true
+		end
+	end
+
+	if usa == nil or not seated or not usa.IsLocalPlayer or usa.IsNonCombatant then
+		Test.Fail("fail: SETUP -- USA is not the seated Playable side (sides=" .. sides ..
+			", local=" .. tostring(usa ~= nil and usa.IsLocalPlayer) .. "); contestation could never resolve it")
+		return
+	end
 
 	if raw == "absent" then
 		Test.Fail("OwnSR carries no SupplyRouteContestation -- the scenario has no subject")
