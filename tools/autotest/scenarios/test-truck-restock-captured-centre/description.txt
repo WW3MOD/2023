@@ -1,1 +1,1 @@
-Auto: a truck driving to restock at a Logistics Centre that changes hands mid-drive must take nothing from it on arrival.
+Auto: a truck restocking at a Logistics Centre that changes hands during the arrival settle must take nothing from it; the errand must be seen to run its settle out, so a cancelled errand cannot pass.

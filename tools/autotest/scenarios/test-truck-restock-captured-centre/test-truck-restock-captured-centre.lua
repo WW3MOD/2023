@@ -1,4 +1,4 @@
--- AUTO TEST: a truck whose restock Centre is captured mid-drive must take nothing from it.
+-- AUTO TEST: a truck whose restock Centre changes hands before the transfer must take nothing from it.
 --
 -- The defect (robustness scout 261007 §11): RestockSupply re-validated its host on arrival only for
 -- IsDead / !IsInWorld, while its own comment claimed to guard "captured mid-drive". LOGISTICSCENTER is
@@ -8,94 +8,143 @@
 --
 -- WHY THE OWNER SETTER STAGES THE REAL THING: `Depot.Owner = x` calls Actor.ChangeOwner, the same hop a
 -- capture takes. The actor object survives, stays in the world, and the truck's activity still holds a
--- reference to it -- which is exactly the state the missing term had to refuse. A truck cannot retake the
--- Centre by driving up to it: LC capture needs a Captures unit, and TRUK has none.
+-- reference to it -- which is exactly the state the missing term had to refuse. It is DEFERRED: the
+-- owner changes at frame end (Actor.cs:519-522), so the owner is read back only after a grace, and by
+-- InternalName -- Name resolves to the seat occupant ("FreadyFish"), which cost the first run.
 --
--- Setup is the cancel scenario's: 40 supply is below RestockThreshold (50) and the truck is on Auto, so the
--- restock drive starts on its own on tick one. At FlipAtTick the Centre goes to Russia.
+-- Setup is the cancel scenario's: 40 supply is below RestockThreshold (50) and the truck is on Auto, so
+-- the restock drive starts on its own on tick one.
 --
--- PASS = the truck reaches the Centre, its restock errand has ENDED (idle, and stationary for longer than
---        the errand's settle could take), and the Centre's supply never dropped.
--- FAIL = the Centre's supply drops after the flip (pre-fix behaviour), or a SETUP guard trips.
--- A TIMEOUT means the truck never arrived: the arrival was never staged, so it is INCONCLUSIVE about the
--- fix, not a red on it.
+-- WHEN THE FLIP HAPPENS -- AND WHY IT MOVED. The first RED run flipped at tick 40, mid-drive, with the
+-- guard sabotaged, and the truck NEVER completed the errand: no transfer, no "[supply] restock-refused"
+-- line in debug.log (which RestockSupply writes whenever it reaches its arrival check without having
+-- arrived), so the activity never got past its MoveTo/Wait children. What ends the drive was NOT found
+-- by reading (ruled out: Target generation -- RestockSupply moves to a CELL and uses Target only for the
+-- target line; Locomotor blocking -- owner-independent for an ignoreActor building; SmartMove -- the
+-- truck has no armament to interrupt with; DropsSupplyCache's dry-move cancel -- exempt on a supply
+-- errand; SupplyProvider -- returns early while Restocking). So this file now flips in the window the
+-- guard actually exists for: AFTER arrival, while RestockSupply's child is the Wait(RestockWaitTicks=25)
+-- settle, i.e. when Test.ActivityChain(Truck) first reads "RestockSupply>Wait". The transfer runs when
+-- that Wait runs out, ~25 ticks after the flip. FlipMode = "drive" restores the old mid-drive flip as a
+-- DIAGNOSTIC run (the trace below will name what replaced the errand); it is not the verdict mode.
 --
--- WHEN THE PRE-FIX TRANSFER LANDS, which is what the pass has to wait out. RestockSupply transfers on
--- the tick after MoveTo completes AND a Wait(RestockWaitTicks = 25) runs out. Crossing DepotLine is
--- NOT that moment: the truck still has ~4 cells to drive (~55 ticks at Speed 75), and it can sit inside
--- its final cell for up to ~14 ticks before MoveTo completes. A first version started a 66-tick clock
--- at DepotLine and could pass at ~tick 66 while the broken build's transfer lands ~tick 80 -- green on
--- broken code. So the clock now starts only when the truck STOPS CHANGING CELL, runs StillTicks (75 >=
--- 14 + 25 + 1 with a wide margin), AND the truck must be idle -- direct evidence the RestockSupply
--- activity has ended, which is the only place a transfer can happen. Post-fix nothing re-queues: the
--- truck's own TryRestock only picks hosts with a.Owner == self.Owner, and none is left.
+-- WHAT A PASS MUST PROVE: not just "nothing was taken" -- a CANCELLED errand also takes nothing, and
+-- would go green on broken code. So the errand must be seen to run its settle out: it has to stay in
+-- RestockSupply for >= MinSettleTicks after the Wait was first seen, which is only possible if the Wait
+-- ran to completion and RestockSupply.Tick then reached its transfer code. An earlier end is reported as
+-- INCONCLUSIVE (cancelled), never as a pass.
+--
+-- PASS = errand ran its full settle after the Centre became Russian, and the Centre lost nothing.
+-- FAIL = the Centre lost supply after the flip (pre-fix behaviour), or a SETUP guard trips.
+-- INCONCLUSIVE (a fail note starting "INCONCLUSIVE") = the errand never reached the settle, or ended
+-- early; the guard was never exercised either way.
 --
 -- RED RUN. In engine/OpenRA.Mods.Common/Traits/SupplyTransferMath.cs, HostStillServes, change
 --     return !hostIsDead && hostIsInWorld && validRelationships.HasRelationship(relationshipToHost);
 -- to
 --     return !hostIsDead && hostIsInWorld;
--- then `make all` and run this once. Expected: "fail: the Centre lost N supply AFTER it changed hands
--- (truck 40 -> M) -- the truck refilled from the enemy's stock", N = M - 40. Revert and rebuild after.
+-- then `make all` and run this once. Expected note: "fail: the Centre lost 710 supply AFTER it changed
+-- hands (truck 40 -> 750) -- the truck refilled from the enemy's stock" (710 = TRUK capacity 750 - 40,
+-- assuming the Centre holds >= 710 at the flip; otherwise N = all it held). Revert and rebuild after.
 -- (The same edit also turns SupplyTransferMathTest.ACentreCapturedMidDriveNoLongerServes red.)
+--
+-- lua.log carries a [captured-centre] trace: position, activity chain and both supply levels every
+-- TraceEvery ticks, at the flip, and when the errand ends -- so a non-verdict says what the truck did.
 
+local FlipMode = "settle"  -- "settle" (the verdict mode) or "drive" (diagnostic: flip at FlipAtTick)
 local DeadlineSeconds = 45
-local FlipAtTick = 40     -- the drive is under way and nowhere near the depot
-local DepotLine = 46      -- the 3x3 depot occupies x=50..52; a truck alongside it sits around x=49
-local StillTicks = 75     -- stationary this long after arriving: >= in-cell drift (~14) + RestockWaitTicks (25) + 1
+local FlipAtTick = 40      -- drive mode only
+local FlipGraceTicks = 25  -- the flip lands at FRAME END, not when the setter returns
+local MinSettleTicks = 20  -- of the Wait's 25: an errand ending sooner was cancelled, not completed
+local TraceEvery = 50
 local StartCell = CPos.New(10, 16) -- Truck's map.yaml Location
-local FlipGraceTicks = 25 -- the flip lands at FRAME END, not when the setter returns; see below
+local TruckStart = 40              -- Truck's map.yaml Supply
 
+local russia = nil
 local flipped = false
 local flipTick = nil
+local waitSeenAt = nil
+local endedAt = nil
 local setupError = nil
 local depotAtFlip = -1
 local truckAtFlip = -1
-local lastCell = nil
-local stillSince = nil
+local lastTrace = -TraceEvery
+
+local function chain()
+	return Test.ActivityChain(Truck)
+end
+
+local function trace(tag)
+	print("[captured-centre] " .. tag .. " tick=" .. DateTime.GameTime .. " truck@" .. tostring(Truck.Location)
+		.. " supply=" .. Test.GetSupply(Truck) .. " centre=" .. Test.GetSupply(Depot)
+		.. " owner=" .. Depot.Owner.InternalName .. " chain=" .. chain())
+end
+
+local function inErrand()
+	return string.find(chain(), "RestockSupply", 1, true) ~= nil
+end
+
+local function inSettle()
+	return string.find(chain(), "RestockSupply>Wait", 1, true) ~= nil
+end
+
+local function flip()
+	depotAtFlip = Test.GetSupply(Depot)
+	truckAtFlip = Test.GetSupply(Truck)
+	Depot.Owner = russia
+	flipTick = DateTime.GameTime
+	flipped = true
+	trace("flip(" .. FlipMode .. ")")
+end
 
 WorldLoaded = function()
-	local russia = Player.GetPlayer("Russia")
+	russia = Player.GetPlayer("Russia")
 	TestHarness.FocusBetween(Truck, Depot)
 	TestHarness.Select(Truck)
 
+	-- The drive must really be under way at FlipAtTick, or both builds time out identically.
 	Trigger.AfterDelay(FlipAtTick, function()
 		if Truck.IsDead or Depot.IsDead then return end
+		trace("drive-check")
 
-		if Truck.Location.X >= DepotLine then
-			setupError = "fail: SETUP -- the truck reached the depot at x=" .. Truck.Location.X
-				.. " before the Centre changed hands, so nothing was captured mid-drive"
+		if not inErrand() or Truck.Location == StartCell then
+			setupError = "fail: SETUP -- at tick " .. FlipAtTick .. " the truck was not on a restock drive (at "
+				.. tostring(Truck.Location) .. ", chain=" .. chain() .. ")"
 			return
 		end
 
-		-- The drive must really be under way, or the Centre changes hands with no errand in flight and
-		-- both builds time out identically -- a non-result dressed as INCONCLUSIVE.
-		if Truck.IsIdle and Truck.Location == StartCell then
-			setupError = "fail: SETUP -- at the flip (tick " .. FlipAtTick .. ") the truck was idle on its start cell "
-				.. tostring(StartCell) .. ", so no restock drive was under way"
-			return
-		end
-
-		depotAtFlip = Test.GetSupply(Depot)
-		truckAtFlip = Test.GetSupply(Truck)
-		Depot.Owner = russia
-		flipTick = DateTime.GameTime
-		flipped = true
+		if FlipMode == "drive" then flip() end
 	end)
 
 	TestHarness.AssertWithin(DeadlineSeconds, function()
 		if setupError then return setupError end
 		if Truck.IsDead then return "fail: the truck died" end
 		if Depot.IsDead then return "fail: the depot died" end
-		if not flipped then return false end
 
-		-- THE OWNER SETTER IS DEFERRED. It calls Actor.ChangeOwner, which only queues ChangeOwnerSync as a
-		-- FrameEndTask (Actor.cs:519-522), so in the tick the setter runs -- and this predicate can run in that
-		-- same tick, after the flip trigger -- Owner still reads USA. The first run of this scenario failed
-		-- SETUP on exactly that ("owner=FreadyFish": the USA seat's resolved display name). So wait a short
-		-- grace for the flip to land, and compare InternalName (the PlayerReference name), never Name, which
-		-- resolves to whoever occupies the seat.
+		local now = DateTime.GameTime
+		if now - lastTrace >= TraceEvery then
+			lastTrace = now
+			trace("periodic")
+		end
+
+		if waitSeenAt == nil and inSettle() then
+			waitSeenAt = now
+			trace("settle-start")
+		end
+
+		if not flipped then
+			-- An allied transfer before the flip would mean the window was missed, not that the guard held.
+			if Test.GetSupply(Truck) > TruckStart then
+				return "fail: SETUP -- the truck refilled (" .. TruckStart .. " -> " .. Test.GetSupply(Truck)
+					.. ") before the Centre changed hands, so the flip came too late"
+			end
+
+			if FlipMode == "settle" and waitSeenAt ~= nil then flip() end
+			return false
+		end
+
 		if Depot.Owner.InternalName ~= "Russia" then
-			if DateTime.GameTime - flipTick <= FlipGraceTicks then return false end
+			if now - flipTick <= FlipGraceTicks then return false end
 			return "fail: SETUP -- the owner flip did not land within " .. FlipGraceTicks .. " ticks (owner="
 				.. Depot.Owner.InternalName .. ")"
 		end
@@ -107,30 +156,38 @@ WorldLoaded = function()
 
 		local depotNow = Test.GetSupply(Depot)
 		if depotNow < depotAtFlip then
+			trace("drained")
 			return "fail: the Centre lost " .. (depotAtFlip - depotNow) .. " supply AFTER it changed hands (truck "
 				.. truckAtFlip .. " -> " .. Test.GetSupply(Truck) .. ") -- the truck refilled from the enemy's stock"
 		end
 
-		if Truck.Location.X < DepotLine then
-			lastCell = nil
-			stillSince = nil
-			return false
+		if inErrand() then return false end
+
+		-- The errand is over. Either its settle ran out (and the transfer code ran and refused), or it was
+		-- ended early by something else -- in which case nothing has been tested.
+		if endedAt == nil then
+			endedAt = now
+			trace("errand-ended")
 		end
 
-		-- Stationary clock: restarts every time the truck changes cell.
-		if lastCell == nil or Truck.Location ~= lastCell then
-			lastCell = Truck.Location
-			stillSince = DateTime.GameTime
-			return false
+		if waitSeenAt == nil then
+			return "fail: INCONCLUSIVE -- the restock errand ended at tick " .. endedAt .. " without ever reaching its "
+				.. "settle (it was cancelled or replaced mid-drive, " .. (endedAt - flipTick) .. " ticks after the flip); "
+				.. "the arrival guard was never reached. Now: " .. chain()
 		end
 
-		if DateTime.GameTime - stillSince < StillTicks or not Truck.IsIdle then
-			return false
+		local settled = endedAt - waitSeenAt
+		if settled < MinSettleTicks then
+			return "fail: INCONCLUSIVE -- the restock errand ended " .. settled .. " ticks into its 25-tick settle: it was "
+				.. "cancelled, not completed, so the arrival guard was never reached. Now: " .. chain()
 		end
 
-		return "pass: truck idle at x=" .. Truck.Location.X .. " for " .. (DateTime.GameTime - stillSince)
-			.. " ticks; Centre " .. depotAtFlip .. " -> " .. depotNow
-			.. ", truck " .. truckAtFlip .. " -> " .. Test.GetSupply(Truck) .. " -- nothing taken from a captured Centre"
-	end, "INCONCLUSIVE: the truck never reached the captured Centre and went idle there, so the arrival check "
-		.. "was never shown to have run")
+		return "pass: settle ran " .. settled .. " ticks (seen tick " .. waitSeenAt .. ", ended tick " .. endedAt
+			.. ") with the Centre Russian since tick " .. flipTick .. "; Centre " .. depotAtFlip .. " -> " .. depotNow
+			.. ", truck " .. truckAtFlip .. " -> " .. Test.GetSupply(Truck) .. " -- the arrival guard refused the transfer"
+	end, function()
+		return "INCONCLUSIVE: the restock errand never ended inside the deadline (flipped=" .. tostring(flipped)
+			.. ", settle seen=" .. tostring(waitSeenAt) .. ", truck at " .. tostring(Truck.Location) .. ", chain="
+			.. (Truck.IsDead and "(dead)" or chain()) .. ") -- see the [captured-centre] trace in lua.log"
+	end)
 end
