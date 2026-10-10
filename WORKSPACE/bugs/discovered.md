@@ -6179,9 +6179,10 @@ Conditional item, closed in the backlog on 2026-09-19 because it turns on an obs
   `4 # note`. **Not fixed here.**
   (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
 
-- [2026-10-07] [LOW] **`tools/autotest/selftest-launch-failure.sh` is tracked mode 100644** (verified
-  `git ls-files -s`), so `./tools/autotest/selftest-launch-failure.sh` dies with exit 126 — the same
-  trap as `engine/utility.sh`. **Not fixed here** (`git update-index --chmod=+x`).
+- [2026-10-07] [LOW] **`tools/autotest/selftest-launch-failure.sh` and `tools/autotest/screenshot-editor-zones.sh`
+  are tracked mode 100644** (verified `git ls-files -s`; the second found 2026-10-10 by the recipes rewrite), so
+  running either as `./…` dies with exit 126 — the same trap as `engine/utility.sh`. **Not fixed here**
+  (`git update-index --chmod=+x`).
   (found while working on: instruction-accuracy audit item 5; filed by file-toolbugs)
 
 - [2026-10-07] [LOW] **Medic `SwitchMargin: 10` now equals the heal pulse, and its PITFALL still says

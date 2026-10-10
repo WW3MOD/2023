@@ -20,6 +20,20 @@
 
 Counts come from the table rows. Several rows bundle a group of drifted line cites in one file, so 170 is a floor on stale *citations*, not a ceiling.
 
+### Post-rewrite state (main @ e34436b6, 2026-10-10)
+
+Every file in scope was rewritten in place: CLAUDE.md (`4a4feb7b`), `.maestro/MAESTRO.md` (`d2402b15`), `DOCS/recipes/*.md` + `tools/autotest/README.md` + launcher header text (`d37e3efb`), `DOCS/reference/conventions.md` + `DOCS/reference/README.md` (`e34436b6`). Each rewriting worker re-verified every claim it kept or wrote by reading the code; the manager spot-checked 41 claims across the four merges (11 / 5 / 10 / 10 plus heading links) and found none wrong. **This is not a re-audit** — the residual figures below are what the rewrite reported, not a fresh count.
+
+| File group | STALE | CONTRADICTED | UNVERIFIABLE (now labelled in-text, run named) |
+|---|---|---|---|
+| CLAUDE.md | 0 | 0 | 2 (`--hidden` no-PNG; Linux `make test` covers scenarios — both read from code, no run) |
+| .maestro/MAESTRO.md | 0 | 0 | 1 (unbuilt worktree → `NO-RESULT` exit 3); item-64/R7 specifics dropped |
+| DOCS/reference/conventions.md + README.md | 0 known; ~550 cite edits spot-checked, not read one by one | 0 | 8 (listed in the `52479eb7` commit message) |
+| DOCS/recipes/ + tools/autotest usage | 0 | 0 | 5 (arty-force-attack red status, Linux scenario lint, top-resolution token costs, DEMO gotcha 7, BALANCE derivation figures) |
+| **Total** | **0 known** | **0** | **16** |
+
+Contradictions were resolved by one policy, CLAUDE.md §"Who runs what" (worker launch/lint ban, direct-agent single `--hidden` run, launch-failure exit codes, merge gate `all → check → dotnet test → test` + `smoke` for `engine/` C#). Out of scope and still stale — they are code comments, not instruction files: `SupplyRouteContestation.cs` (`mod.yaml:381` timestep cite), `AutotestTickRateTest.cs` message citing `conventions.md:1107`, `weapons-superweapons.yaml` decoration cites, `GarrisonManager.SwapPortOccupants` PITFALL cites, `world.yaml` "8 scenarios force the powers-sandbox flag" (18), the 25-tps comments catalogued in conventions.md, `lua-gate/README.md` `Map.cs` cite. `shadow-los-plan.md` belongs in `WORKSPACE/` under the bank's rules.
+
 ## What matters most (read this if nothing else)
 
 1. **Line-number drift is the dominant failure.** About 120 of the 170 STALE rows are a `file:line` that no longer points at the claimed code, while the claim itself is still true. conventions.md is the worst. Its rule 2 says "the only defensible citation is `mod.yaml:358` and `:382`", but the tick-rate lines are now `:407`/`:431`. Every reader who follows that rule cites the wrong lines. **Proposal:** cite `file` + symbol (e.g. `SupplyRouteContestation.cs` `BaseTicks`), and keep line numbers only where a grep cannot find the spot.

@@ -121,8 +121,8 @@ hole from the same cause: scenarios are classified `Unknown` rather than `System
 map-shaped file list skips them. Assume any gate you are about to trust for a scenario change has
 it too, until you have read the line where it builds its list. Both instances, and the targeted
 invocations that DO reach a scenario, are in
-[`DOCS/reference/conventions.md`](../../DOCS/reference/conventions.md) §"Scenarios are NOT maps to
-the tooling".
+[`DOCS/reference/conventions.md`](../../DOCS/reference/conventions.md) §"Scenarios and the map-shaped
+gates".
 
 The decoder itself has no such limit, so the inspection commands can reach a scenario:
 
