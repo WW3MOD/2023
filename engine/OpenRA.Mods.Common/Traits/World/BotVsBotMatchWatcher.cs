@@ -16,7 +16,7 @@
  *
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
- *     "verdict_version": 5,
+ *     "verdict_version": 9,
  *     "scenario": "<test-name>",
  *     "seed": <int>,
  *     "git_sha": "<run-tournament.sh stamps this>",
@@ -67,6 +67,19 @@
  * because "client_index" is NOT a player identity for map-player bots and reads 0 for every
  * one of them (PITFALL at SerializeVerdict). Both new fields index into "players". Telemetry
  * only — no scorer, no win rule, no RNG, no sim state: byte-identical simulation.
+ * v9 (additive, schema-stable): Supply Route contestation telemetry, appended to each player's
+ * "stats" object AFTER poi_income_gross (every earlier field keeps its name, value and order):
+ *   "min_control_bar_pct"       lowest sampled floor(controlBar*100/BarMax) of the player's OWN SR;
+ *                               100 = never dented, 0 = bar emptied (defeat phase entered), -1 = no
+ *                               sample (match shorter than one interval, or SR lacks the trait).
+ *   "ticks_bar_below_100"       sampled ticks with controlBar < BarMax.
+ *   "ticks_with_enemy_in_ring"  sampled ticks with >=1 enemy inside the SR's contestation Range that
+ *                               counts toward it (SupplyRouteContestation.HasEnemyInRange: enemy,
+ *                               Valued.Cost > 0) — PRESENCE, not net surplus, so it can be non-zero
+ *                               while the bar stays full.
+ * Sampled every ContestationSampleInterval ticks (default 25, the eval cadence); each sample is
+ * credited the whole interval, so both tick counts are multiples of it. Fixed tick cadence, pure
+ * reads of SupplyRouteContestation — no scorer, no win rule, no RNG, no sim state.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md
@@ -106,6 +119,11 @@ namespace OpenRA.Mods.Common.Traits
 			"per-tick sample arrays. Observation-only either way — never affects the simulation.")]
 		public readonly bool EmitTimeseries = true;
 
+		[Desc("Verdict v9: tick interval between Supply Route contestation samples (min control bar,",
+			"ticks below full, ticks with an enemy in the ring). Each sample is credited the whole interval.",
+			"Default 25 ticks = 1.5 s at the mod's 60 ms timestep. Observation-only.")]
+		public readonly int ContestationSampleInterval = 25;
+
 		public override object Create(ActorInitializer init) { return new BotVsBotMatchWatcher(this); }
 	}
 
@@ -140,6 +158,7 @@ namespace OpenRA.Mods.Common.Traits
 		// reused to avoid per-tick allocations. sampleCountdown paces the income timeseries.
 		bool poiSeedDone;
 		int sampleCountdown;
+		int contestationCountdown;
 		readonly HashSet<uint> liveThisTick = new HashSet<uint>();
 		readonly List<uint> deadThisTick = new List<uint>();
 
@@ -204,6 +223,7 @@ namespace OpenRA.Mods.Common.Traits
 				active = true;
 				countdown = info.EvaluationInterval;
 				sampleCountdown = info.PoiSampleInterval;
+				contestationCountdown = info.ContestationSampleInterval;
 			}
 			catch (Exception e)
 			{
@@ -318,6 +338,12 @@ namespace OpenRA.Mods.Common.Traits
 			{
 				sampleCountdown = info.PoiSampleInterval;
 				SamplePoiIncome(self.World.WorldTick);
+			}
+
+			if (--contestationCountdown <= 0)
+			{
+				contestationCountdown = info.ContestationSampleInterval;
+				SampleContestation();
 			}
 
 			if (--countdown > 0)
@@ -551,6 +577,29 @@ namespace OpenRA.Mods.Common.Traits
 			}
 		}
 
+		// Verdict v9 — read-only sample of each tracked player's OWN Supply Route contestation state.
+		// Reads ControlBar / Info.BarMax / HasEnemyInRange; writes only MatchTrackingState.Contestation.
+		// A player whose SR actor is gone or carries no SupplyRouteContestation gets no sample (-1/0/0).
+		void SampleContestation()
+		{
+			var ticksPerSample = Math.Max(1, info.ContestationSampleInterval);
+			foreach (var kv in state.OriginalSrOwner)
+			{
+				var sr = kv.Value;
+				var src = sr.IsDead || sr.Disposed ? null : sr.TraitOrDefault<SupplyRouteContestation>();
+				if (src == null)
+					continue;
+
+				if (!state.Contestation.TryGetValue(kv.Key, out var acc))
+				{
+					acc = new ContestationAccumulator();
+					state.Contestation[kv.Key] = acc;
+				}
+
+				acc.Sample(src.ControlBar, src.Info.BarMax, src.HasEnemyInRange(), ticksPerSample);
+			}
+		}
+
 		void WriteVerdictAndExit(MatchVerdict verdict)
 		{
 			var json = SerializeVerdict(verdict, state, capturedSeed, info.EmitTimeseries);
@@ -578,7 +627,7 @@ namespace OpenRA.Mods.Common.Traits
 			var winnerIndex = verdict.Winner != null ? order.IndexOf(verdict.Winner) : -1;
 
 			sb.Append("{");
-			sb.Append("\"verdict_version\":8,");
+			sb.Append("\"verdict_version\":9,");
 			sb.Append($"\"seed\":{seed},");
 			sb.Append($"\"duration_ticks\":{verdict.EndTick},");
 			sb.Append($"\"winner_player_index\":{winnerIndex},");
@@ -648,7 +697,14 @@ namespace OpenRA.Mods.Common.Traits
 				sb.Append($"\"steals_count\":{roll.Steals},");
 				sb.Append($"\"recaptures_count\":{roll.Recaptures},");
 				sb.Append($"\"losses_count\":{roll.Losses},");
-				sb.Append($"\"poi_income_gross\":{state.PoiIncomeFor(player)}");
+				sb.Append($"\"poi_income_gross\":{state.PoiIncomeFor(player)},");
+
+				// v9: Supply Route contestation telemetry (see header). Appended last so every earlier
+				// stats field keeps its position. No accumulator (no sample) serializes -1/0/0.
+				state.Contestation.TryGetValue(player, out var cont);
+				sb.Append($"\"min_control_bar_pct\":{cont?.MinControlBarPct ?? -1},");
+				sb.Append($"\"ticks_bar_below_100\":{cont?.TicksBarBelow100 ?? 0},");
+				sb.Append($"\"ticks_with_enemy_in_ring\":{cont?.TicksWithEnemyInRing ?? 0}");
 				sb.Append("}");
 
 				// v7: per-actor-type composition telemetry — produced/lost/alive counts + costs,

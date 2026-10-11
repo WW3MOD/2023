@@ -94,6 +94,10 @@ namespace OpenRA.Mods.Common.Tournament
 		/// inherit the host's client index, collapsing both sides onto one key.</summary>
 		public readonly Dictionary<Player, int> TrackedSideIndex = new Dictionary<Player, int>();
 
+		/// <summary>verdict_version 9: per-player Supply Route contestation samples (min control bar,
+		/// ticks below full, ticks with an enemy in the ring). Observation-only, like the 4.D block.</summary>
+		public readonly Dictionary<Player, ContestationAccumulator> Contestation = new Dictionary<Player, ContestationAccumulator>();
+
 		public long CaptureIncomeFor(Player p) => CaptureIncome.TryGetValue(p, out var v) ? v : 0;
 		public long KillsValueFor(Player p) => KillsValue.TryGetValue(p, out var v) ? v : 0;
 
@@ -244,6 +248,49 @@ namespace OpenRA.Mods.Common.Tournament
 				return;
 
 			accumulated += totalBuildingIncome / (double)passiveIncomeInterval;
+		}
+	}
+
+	/// <summary>
+	/// <para>Read-only accumulator for one player's Supply Route contestation telemetry (verdict_version
+	/// 9). The watcher feeds it one sample every ContestationSampleInterval ticks, read from the
+	/// player's SupplyRouteContestation; each sample stands for the whole interval, so the two tick
+	/// counters are multiples of ticksPerSample — a step-function estimate, exact only to one interval.</para>
+	///
+	/// <para>World/Actor-free so it is NUnit-pinnable. Nothing here feeds a scorer or win rule.</para>
+	/// </summary>
+	public class ContestationAccumulator
+	{
+		int minControlBarPct = 100;
+
+		/// <summary>Number of samples taken so far.</summary>
+		public int Samples { get; private set; }
+
+		/// <summary>Lowest sampled control bar, as floor(controlBar * 100 / barMax). -1 when no sample
+		/// was ever taken (match ended before the first interval, or the SR had no contestation trait).
+		/// 0 means the bar reached empty, i.e. the defeat phase was entered at a sample.</summary>
+		public int MinControlBarPct => Samples > 0 ? minControlBarPct : -1;
+
+		/// <summary>Sampled ticks with the control bar below full (controlBar &lt; barMax).</summary>
+		public long TicksBarBelow100 { get; private set; }
+
+		/// <summary>Sampled ticks with at least one enemy that counts toward contestation inside the
+		/// SR's ring (SupplyRouteContestation.HasEnemyInRange) — presence, not surplus.</summary>
+		public long TicksWithEnemyInRing { get; private set; }
+
+		public void Sample(int controlBar, int barMax, bool enemyInRing, int ticksPerSample)
+		{
+			Samples++;
+
+			var pct = barMax > 0 ? (int)((long)controlBar * 100 / barMax) : 0;
+			if (pct < minControlBarPct)
+				minControlBarPct = pct;
+
+			if (controlBar < barMax)
+				TicksBarBelow100 += ticksPerSample;
+
+			if (enemyInRing)
+				TicksWithEnemyInRing += ticksPerSample;
 		}
 	}
 

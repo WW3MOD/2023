@@ -207,6 +207,25 @@ for m in matches:
     lo = max(min(s1, s2), 1)  # avoid div-by-zero
     score_ratios.append(hi / lo)
 
+# Verdict v9: per-player Supply Route contestation telemetry, keyed by player name. Matches whose
+# verdict predates v9 carry no such fields and are skipped, so this stays {} on older batches.
+CONTESTATION_FIELDS = ("min_control_bar_pct", "ticks_bar_below_100", "ticks_with_enemy_in_ring")
+contestation_samples = {}
+for m in matches:
+    v = m["verdict"]
+    if not v:
+        continue
+    for p in v.get("players", []):
+        st = p.get("stats", {})
+        if "min_control_bar_pct" not in st:
+            continue
+        per = contestation_samples.setdefault(p.get("name", ""), {k: [] for k in CONTESTATION_FIELDS})
+        for k in CONTESTATION_FIELDS:
+            per[k].append(st.get(k, 0))
+contestation_by_player = {
+    name: {k: stats(xs) for k, xs in per.items()} for name, per in contestation_samples.items()
+}
+
 summary = {
     "total_matches": len(matches),
     "verdict_count": total_with_verdict,
@@ -221,6 +240,7 @@ summary = {
     "duration_ticks_stats": stats(durations),
     "p1_score_stats": stats(p1_scores),
     "p2_score_stats": stats(p2_scores),
+    "contestation_by_player": contestation_by_player,
 }
 print(json.dumps(summary, indent=2))
 PY

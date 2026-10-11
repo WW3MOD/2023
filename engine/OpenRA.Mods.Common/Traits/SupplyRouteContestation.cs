@@ -271,6 +271,26 @@ namespace OpenRA.Mods.Common.Traits
 		public int TeamValue => cachedTeamValue;
 		public bool IsPassive => isPassive;
 
+		// Read-only, for BotVsBotMatchWatcher's contestation telemetry: is at least one enemy actor
+		// that would add to RecalculateForces' enemyValue (enemy relationship, Valued.Cost > 0) inside
+		// Range right now? Same filters RecalculateForces applies, re-evaluated at call time, so it
+		// does not wait for the next ScanInterval. Presence, not surplus: true even when friendly
+		// value outweighs the enemy and the bar is not moving. Reads actorsInRange; writes nothing.
+		public bool HasEnemyInRange()
+		{
+			foreach (var a in actorsInRange)
+			{
+				if (a.Disposed || !a.IsInWorld || self.Owner.RelationshipWith(a.Owner) != PlayerRelationship.Enemy)
+					continue;
+
+				var valued = a.Info.TraitInfoOrDefault<ValuedInfo>();
+				if (valued != null && valued.Cost > 0)
+					return true;
+			}
+
+			return false;
+		}
+
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
 		{
 			radarPings = self.World.WorldActor.TraitOrDefault<MiniMapPings>();
