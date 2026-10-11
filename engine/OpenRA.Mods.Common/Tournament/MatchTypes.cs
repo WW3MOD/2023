@@ -255,7 +255,9 @@ namespace OpenRA.Mods.Common.Tournament
 	/// <para>Read-only accumulator for one player's Supply Route contestation telemetry (verdict_version
 	/// 9). The watcher feeds it one sample every ContestationSampleInterval ticks, read from the
 	/// player's SupplyRouteContestation; each sample stands for the whole interval, so the two tick
-	/// counters are multiples of ticksPerSample — a step-function estimate, exact only to one interval.</para>
+	/// counters are multiples of ticksPerSample — a step-function estimate, exact only to one interval.
+	/// The final partial interval before the verdict is never sampled, and sampling continues after the
+	/// player goes passive or is defeated (the bars freeze, so the counters keep accruing).</para>
 	///
 	/// <para>World/Actor-free so it is NUnit-pinnable. Nothing here feeds a scorer or win rule.</para>
 	/// </summary>

@@ -17,25 +17,33 @@
  * Verdict shape (serialized into TestMode.WriteResult's `notes` field):
  *   {
  *     "verdict_version": 9,
- *     "scenario": "<test-name>",
  *     "seed": <int>,
- *     "git_sha": "<run-tournament.sh stamps this>",
  *     "duration_ticks": <int>,
  *     "winner_player_index": <int>,   // index into "players"; -1 when there is no winner
  *     "winner_client_index": <int>,   // ALWAYS 0 for map-player bots — see the PITFALL below
+ *     "winner_name": "...",
  *     "win_reason": "sr_capture"|"time_limit"|...,
  *     "players": [
- *       { "name": "...", "player_index": 0, "client_index": 0,
+ *       { "name": "...", "player_index": 0, "client_index": 0, "bot_type": "...", "faction": "...",
  *         "score_total": <long>,
  *         "score_components": { "army_value": ..., "capture_income": ..., ... },
  *         "stats": { "units_killed": ..., "units_dead": ..., "buildings_killed": ...,
  *                    "buildings_dead": ..., "kills_cost": ..., "deaths_cost": ...,
  *                    "army_value": ..., "assets_value": ..., "order_count": ...,
- *                    "experience": ..., "resources_earned": ... }
+ *                    "experience": ..., "resources_earned": ..., "capture_income_gross": ...,
+ *                    "time_to_first_capture_tick": ..., "hold_ticks": ..., "captures_count": ...,
+ *                    "steals_count": ..., "recaptures_count": ..., "losses_count": ...,
+ *                    "poi_income_gross": ..., "min_control_bar_pct": ...,
+ *                    "ticks_bar_below_100": ..., "ticks_with_enemy_in_ring": ... },
+ *         "unit_types": { "<actor>": { "produced_count": ..., ... }, ... },
+ *         "income_samples": [ { "tick": ..., ... }, ... ]   // only when EmitTimeseries
  *       },
  *       ...
- *     ]
+ *     ],
+ *     "capture_events": [ { "tick": ..., "poi_id": ..., "event": "capture"|..., ... }, ... ]
  *   }
+ * Not emitted by the watcher: the scenario name and git SHA live in run-tournament.sh's
+ * batch.meta.json, not in this blob.
  *
  * v2 (additive, schema-stable): added the per-player "stats" object carrying the
  * full PlayerStatistics observer menu + cumulative PlayerResources.Earned.
@@ -74,12 +82,18 @@
  *                               sample (match shorter than one interval, or SR lacks the trait).
  *   "ticks_bar_below_100"       sampled ticks with controlBar < BarMax.
  *   "ticks_with_enemy_in_ring"  sampled ticks with >=1 enemy inside the SR's contestation Range that
- *                               counts toward it (SupplyRouteContestation.HasEnemyInRange: enemy,
- *                               Valued.Cost > 0) — PRESENCE, not net surplus, so it can be non-zero
- *                               while the bar stays full.
+ *                               counts toward it (SupplyRouteContestation.HasEnemyInRange: an enemy
+ *                               with a ProximityCaptor matching the SR's CaptorTypes and
+ *                               Valued.Cost > 0; aircraft never count) — PRESENCE, not net surplus,
+ *                               so it can be non-zero while the bar stays full.
  * Sampled every ContestationSampleInterval ticks (default 25, the eval cadence); each sample is
  * credited the whole interval, so both tick counts are multiples of it. Fixed tick cadence, pure
  * reads of SupplyRouteContestation — no scorer, no win rule, no RNG, no sim state.
+ * Two edges a reader must know: (1) sampling does NOT stop when a player goes passive or is
+ * defeated — the bars freeze there (a defeated owner's control bar sits at 0), so
+ * ticks_bar_below_100 keeps accruing to match end, and ticks_with_enemy_in_ring keeps counting
+ * whoever stands in the ring; (2) the final partial interval (up to Interval-1 ticks before the
+ * verdict) is never sampled, so a dent that starts and ends inside it is invisible.
  *
  * See:
  *   WORKSPACE/plans/260511_ai_tournament_harness.md

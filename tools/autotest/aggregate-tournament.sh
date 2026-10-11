@@ -207,8 +207,11 @@ for m in matches:
     lo = max(min(s1, s2), 1)  # avoid div-by-zero
     score_ratios.append(hi / lo)
 
-# Verdict v9: per-player Supply Route contestation telemetry, keyed by player name. Matches whose
-# verdict predates v9 carry no such fields and are skipped, so this stays {} on older batches.
+# Verdict v9: per-player Supply Route contestation telemetry, keyed "<name>/<bot_type>" so a batch
+# that swaps bots between seats does not pool two bots under one seat name. Matches whose verdict
+# predates v9 carry no such fields and are skipped, so this stays {} on older batches.
+# min_control_bar_pct = -1 is the watcher's "never sampled" sentinel, not a reading: it is dropped
+# before stats() so it cannot drag the min/mean below a real 0 (an emptied bar).
 CONTESTATION_FIELDS = ("min_control_bar_pct", "ticks_bar_below_100", "ticks_with_enemy_in_ring")
 contestation_samples = {}
 for m in matches:
@@ -219,8 +222,11 @@ for m in matches:
         st = p.get("stats", {})
         if "min_control_bar_pct" not in st:
             continue
-        per = contestation_samples.setdefault(p.get("name", ""), {k: [] for k in CONTESTATION_FIELDS})
-        for k in CONTESTATION_FIELDS:
+        key = "%s/%s" % (p.get("name", ""), p.get("bot_type", ""))
+        per = contestation_samples.setdefault(key, {k: [] for k in CONTESTATION_FIELDS})
+        if st.get("min_control_bar_pct", -1) >= 0:
+            per["min_control_bar_pct"].append(st["min_control_bar_pct"])
+        for k in ("ticks_bar_below_100", "ticks_with_enemy_in_ring"):
             per[k].append(st.get(k, 0))
 contestation_by_player = {
     name: {k: stats(xs) for k, xs in per.items()} for name, per in contestation_samples.items()

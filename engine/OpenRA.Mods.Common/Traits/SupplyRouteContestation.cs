@@ -271,24 +271,36 @@ namespace OpenRA.Mods.Common.Traits
 		public int TeamValue => cachedTeamValue;
 		public bool IsPassive => isPassive;
 
-		// Read-only, for BotVsBotMatchWatcher's contestation telemetry: is at least one enemy actor
-		// that would add to RecalculateForces' enemyValue (enemy relationship, Valued.Cost > 0) inside
-		// Range right now? Same filters RecalculateForces applies, re-evaluated at call time, so it
-		// does not wait for the next ScanInterval. Presence, not surplus: true even when friendly
-		// value outweighs the enemy and the bar is not moving. Reads actorsInRange; writes nothing.
+		// Read-only, for BotVsBotMatchWatcher's contestation telemetry: is at least one actor inside
+		// Range right now that RecalculateForces would add to enemyValue? actorsInRange only ever
+		// holds what IsRelevantActor admitted on entry — for enemies, a ProximityCaptor whose Types
+		// overlap CaptorTypes — so an enemy without such a captor (aircraft, most support actors) is
+		// never counted, however close. Of those, this applies RecalculateForces' own filter
+		// (CountsTowardEnemyValue) at call time, so it does not wait for the next ScanInterval.
+		// Presence, not surplus: true even when friendly value outweighs the enemy and the bar is not
+		// moving. Reads actorsInRange; writes nothing.
 		public bool HasEnemyInRange()
 		{
 			foreach (var a in actorsInRange)
 			{
-				if (a.Disposed || !a.IsInWorld || self.Owner.RelationshipWith(a.Owner) != PlayerRelationship.Enemy)
+				if (a.Disposed || !a.IsInWorld)
 					continue;
 
-				var valued = a.Info.TraitInfoOrDefault<ValuedInfo>();
-				if (valued != null && valued.Cost > 0)
+				if (CountsTowardEnemyValue(self.Owner.RelationshipWith(a.Owner), a.Info.TraitInfoOrDefault<ValuedInfo>()?.Cost))
 					return true;
 			}
 
 			return false;
+		}
+
+		// Pure: does an in-range actor with this relationship and Valued.Cost (null = no Valued) add to
+		// RecalculateForces' enemyValue? A DELIBERATE COPY of the filter inlined in RecalculateForces,
+		// which is left untouched because it is sim code under a benchmark baseline. The two are pinned
+		// to one truth table by SupplyRouteEnemyFilterTest, which also fails if RecalculateForces' filter
+		// text changes — edit both together.
+		public static bool CountsTowardEnemyValue(PlayerRelationship rel, int? cost)
+		{
+			return cost > 0 && rel == PlayerRelationship.Enemy;
 		}
 
 		void INotifyAddedToWorld.AddedToWorld(Actor self)
