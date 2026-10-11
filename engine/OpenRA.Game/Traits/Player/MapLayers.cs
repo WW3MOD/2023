@@ -120,8 +120,6 @@ namespace OpenRA.Traits
 		readonly ProjectedCellLayer<short> radarCount;
 		readonly ProjectedCellLayer<short> counterBatteryRadarCount;
 
-		readonly ProjectedCellLayer<short> passiveVisibleCount;
-		readonly ProjectedCellLayer<short> visibleCount;
 		/* readonly ProjectedCellLayer<short> generatedShroudCount; */
 		readonly ProjectedCellLayer<bool> explored;
 		readonly ProjectedCellLayer<bool> touched;
@@ -181,8 +179,6 @@ namespace OpenRA.Traits
 			radarCount = new ProjectedCellLayer<short>(map);
 			counterBatteryRadarCount = new ProjectedCellLayer<short>(map);
 
-			passiveVisibleCount = new ProjectedCellLayer<short>(map);
-			visibleCount = new ProjectedCellLayer<short>(map);
 			/* generatedShroudCount = new ProjectedCellLayer<short>(map); */
 			explored = new ProjectedCellLayer<bool>(map);
 			touched = new ProjectedCellLayer<bool>(map);
@@ -410,7 +406,7 @@ namespace OpenRA.Traits
 				var node = nodes[idx];
 				var puv = node.Cell;
 
-				// Cells outside the visible bounds don't increment visibleCount
+				// Cells outside the visible bounds were never counted (AddSource skips them)
 				if (map.Contains(puv))
 				{
 					var index = touched.Index(puv);
@@ -483,10 +479,29 @@ namespace OpenRA.Traits
 			{
 				var index = touched.Index(puv);
 				touched[index] = true;
-				explored[index] = (visibleCount[index] + passiveVisibleCount[index]) > 0;
+				explored[index] = HasCountedVision(visibilityCount[index]);
 			}
 
 			anyCellTouched = true;
+		}
+
+		/// <summary>
+		/// True when a live Vision source is counted on this cell. Same scan as Tick's highest-level
+		/// search: layer 0 is skipped because AddSource clamps every stored strength to at least 1.
+		/// PITFALL (2026-10-11): ResetExploration used to read upstream Shroud's visibleCount +
+		/// passiveVisibleCount, which this class allocated but never incremented, so every reset
+		/// blacked out cells the player's own units were standing in (DevAll off, DevResetExploration).
+		/// </summary>
+		public static bool HasCountedVision(short[] counts)
+		{
+			if (counts == null)
+				return false;
+
+			for (var i = counts.Length - 1; i > 0; i--)
+				if (counts[i] > 0)
+					return true;
+
+			return false;
 		}
 
 		public bool IsExplored(WPos pos)
