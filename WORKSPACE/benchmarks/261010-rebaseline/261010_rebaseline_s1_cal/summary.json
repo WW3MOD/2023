@@ -1,0 +1,47 @@
+{
+  "total_matches": 8,
+  "verdict_count": 8,
+  "fail_count": 0,
+  "side_winrate_pct": {
+    "USA-bot": 75.0,
+    "Russia-bot": 25.0
+  },
+  "faction_winrate_pct": {
+    "america": 100.0
+  },
+  "score_ratio_stats": {
+    "n": 8,
+    "mean": 1.1726394171624264,
+    "median": 1.0872286105954994,
+    "min": 1.0304527050100005,
+    "max": 1.6473458029518475
+  },
+  "sr_capture_count": 0,
+  "time_limit_count": 8,
+  "decisive_count": 0,
+  "winner_counts": {
+    "USA-bot": 6,
+    "Russia-bot": 2
+  },
+  "duration_ticks_stats": {
+    "n": 8,
+    "mean": 7500,
+    "median": 7500.0,
+    "min": 7500,
+    "max": 7500
+  },
+  "p1_score_stats": {
+    "n": 8,
+    "mean": 77475,
+    "median": 78538.5,
+    "min": 56778,
+    "max": 88994
+  },
+  "p2_score_stats": {
+    "n": 8,
+    "mean": 76601.75,
+    "median": 76159.0,
+    "min": 63369,
+    "max": 93533
+  }
+}

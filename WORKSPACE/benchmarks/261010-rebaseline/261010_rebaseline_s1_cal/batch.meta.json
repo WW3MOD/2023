@@ -1,0 +1,9 @@
+{
+  "scenario": "tournament-s1-eco-cal-nn",
+  "config": "tools/autotest/scenarios/tournament-s1-eco-cal-nn/tournament-eco-5min.yaml",
+  "seeds_requested": 10,
+  "git_sha": "69ca8a1370c77058003e15eaca7d48190545c52a",
+  "git_dirty": false,
+  "started_at": "2026-10-10T23:59:57Z",
+  "max_wall_secs": 900
+}

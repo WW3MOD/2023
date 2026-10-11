@@ -1,0 +1,11 @@
+match,status,winner,reason,duration_ticks,p1_name,p1_score,p1_army,p1_bot,p2_name,p2_score,p2_army,p2_bot
+match_1,pass,Russia-bot,time_limit,7500,USA-bot,78292,22800,stable,Russia-bot,81074,25000,experimental
+match_10,pass,USA-bot,time_limit,7500,USA-bot,84295,24100,experimental,Russia-bot,82735,25850,stable
+match_2,pass,USA-bot,time_limit,7500,USA-bot,80672,21050,experimental,Russia-bot,79644,19300,stable
+match_3,pass,USA-bot,time_limit,7500,USA-bot,92386,21750,stable,Russia-bot,81969,17250,experimental
+match_4,pass,USA-bot,time_limit,7500,USA-bot,87336,23500,experimental,Russia-bot,85423,23700,stable
+match_5,pass,Russia-bot,time_limit,7500,USA-bot,81201,26150,stable,Russia-bot,83923,27550,experimental
+match_6,pass,Russia-bot,time_limit,7500,USA-bot,74229,13450,experimental,Russia-bot,89625,20550,stable
+match_7,pass,Russia-bot,time_limit,7500,USA-bot,81245,23100,stable,Russia-bot,87441,27100,experimental
+match_8,pass,Russia-bot,time_limit,7500,USA-bot,70110,20150,experimental,Russia-bot,83837,26600,stable
+match_9,pass,USA-bot,time_limit,7500,USA-bot,79245,17300,stable,Russia-bot,77467,19550,experimental
