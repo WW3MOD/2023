@@ -135,9 +135,9 @@ namespace OpenRA.Test
 			var gates = BotGateConditions();
 			return mergedPlayer.Nodes
 				.Select(n => (Trait: n.Key, Requires: ModRulesYaml.Child(n.Value, "RequiresCondition")))
-				.Where(t => !string.IsNullOrEmpty(t.Requires))
-				.Where(t => TraitType(t.Trait).EndsWith("BotModule", StringComparison.Ordinal)
-					|| ConditionNames(t.Requires).Any(gates.Contains))
+				.Where(t => !string.IsNullOrEmpty(t.Requires)
+					&& (TraitType(t.Trait).EndsWith("BotModule", StringComparison.Ordinal)
+						|| ConditionNames(t.Requires).Any(gates.Contains)))
 				.ToList();
 		}
 
