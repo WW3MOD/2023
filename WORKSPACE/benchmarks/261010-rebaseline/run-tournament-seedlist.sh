@@ -1,0 +1,383 @@
+#!/bin/sh
+# WW3MOD AI tournament harness — batch match runner.
+#
+# Iterates N matches against a tournament scenario, collecting per-match verdict
+# JSON into a timestamped result dir, and writing a summary CSV. It does NOT go
+# through run-test.sh: it calls ./launch-game.sh directly with the same arg shape
+# (so run-test.sh's single-instance lock, watchdog and outcome banner do not apply)
+# and always launches HIDDEN (OPENRA_WINDOW_HIDDEN=1).
+#
+# Usage:
+#   ./tools/autotest/run-tournament.sh <scenario> [options]
+#
+# Options:
+#   --seeds N          Run N matches (each with a per-index seed Test.RandomSeed
+#                      = i*1000+17, which seeds LocalRandom → reproducible per
+#                      seed since commit 2d3c8fe0, verdict v5). Default: 5.
+#   --config <path>    Override the tournament.yaml inside the scenario.
+#                      Default: <scenario>/tournament.yaml.
+#   --result-dir <dir> Where to dump per-match results. Default:
+#                      tools/autotest/tournament-results/<YYMMDD_HHMM>_<scenario>/
+#   --max-wall-secs N  Per-match wall-clock cap (kills the game if it exceeds N
+#                      seconds). Defaults to 4× the config's TimeLimitSeconds.
+#   --mirror <scen2>   Mirror-matching: alternate between the primary scenario
+#                      and <scen2> per seed index. Even seeds run primary, odd
+#                      seeds run mirror. Use with a faction-swapped scenario
+#                      (e.g. tournament-arena-mirror-2p) to attribute winrate
+#                      skew to faction vs side.
+#   -v|--visible       Accepted but currently has NO effect: every match launches
+#                      hidden regardless (bugs/discovered.md, 2026-10-07).
+#
+# Per-match output:
+#   <result-dir>/match_<seed-index>.json  Engine-written verdict + meta
+#   <result-dir>/match_<seed-index>.log   stdout/stderr capture
+#
+# Batch output:
+#   <result-dir>/summary.csv              One row per match
+#   <result-dir>/summary.json             Aggregate stats
+#   <result-dir>/batch.meta.json          Git SHA, scenario, config used
+#
+# Exit code: 3 on a usage or config error; otherwise 0 -- INCLUDING when no match
+# produced a verdict (bugs/discovered.md, 2026-10-07). Read the match_*.json files
+# and summary.json, not the exit code.
+#
+# Phase 1 limitations (plan: WORKSPACE/archive/plans/260511_ai_tournament_harness.md):
+#   - Seeding: RESOLVED (commit 2d3c8fe0). Test.RandomSeed=i*1000+17 seeds the
+#     engine LocalRandom, so a given seed now REPLAYS the same match (verdict v5
+#     stamps the seed). Good for both N-match statistics AND single-match repro.
+#   - Sequential only — parallel runner is Phase 3.
+
+set -e
+
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "${REPO_ROOT}"
+
+# --- Platform portability (macOS / Linux / Windows-Git-Bash) ------------------
+# Detect Git-Bash / MSYS / Cygwin. On those, paths handed to the .NET game
+# process must be Windows-form (C:\...), and pkill/pgrep don't exist.
+IS_WINDOWS=0
+case "$(uname -s)" in
+	MINGW*|MSYS*|CYGWIN*|Windows_NT) IS_WINDOWS=1 ;;
+esac
+
+# Translate a POSIX path to a Windows path for args consumed by the game exe.
+# Identity passthrough on macOS/Linux, so their behavior is byte-for-byte
+# unchanged. Falls back to the POSIX path (relies on MSYS auto-conversion) if
+# cygpath is somehow absent.
+to_game_path() {
+	if [ "${IS_WINDOWS}" = "1" ] && command -v cygpath >/dev/null 2>&1; then
+		cygpath -w "$1"
+	else
+		printf '%s' "$1"
+	fi
+}
+
+# Kill the game process that owns a given result file. macOS/Linux match the
+# full Test.ResultPath launch arg via pkill -f; Windows/Git-Bash has no pkill,
+# so match the (slash-agnostic) result-file basename against each game process'
+# CommandLine via PowerShell CIM and Stop-Process. The image-name filter
+# (dotnet.exe / OpenRA*) is essential: without it the query also matches its own
+# powershell.exe (whose command line embeds the pattern) and self-terminates.
+kill_game_for_result() {
+	_result_file="$1"
+	if [ "${IS_WINDOWS}" = "1" ]; then
+		_base=$(basename "${_result_file}")
+		powershell.exe -NoProfile -Command \
+			"Get-CimInstance Win32_Process | Where-Object { (\$_.Name -eq 'dotnet.exe' -or \$_.Name -like 'OpenRA*') -and \$_.CommandLine -like '*${_base}*' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }" \
+			>/dev/null 2>&1 || true
+	else
+		pkill -KILL -f "Test\\.ResultPath=${_result_file}" 2>/dev/null || true
+	fi
+}
+
+SCENARIO=""
+SEEDS=5
+CONFIG=""
+RESULT_DIR=""
+MAX_WALL_SECS=""
+MIRROR_SCENARIO=""
+RUN_TEST_FLAGS="--background --mute"
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--seeds)         SEEDS="$2"; shift 2 ;;
+		--seeds=*)       SEEDS="${1#*=}"; shift ;;
+		--config)        CONFIG="$2"; shift 2 ;;
+		--config=*)      CONFIG="${1#*=}"; shift ;;
+		--result-dir)    RESULT_DIR="$2"; shift 2 ;;
+		--result-dir=*)  RESULT_DIR="${1#*=}"; shift ;;
+		--max-wall-secs) MAX_WALL_SECS="$2"; shift 2 ;;
+		--max-wall-secs=*) MAX_WALL_SECS="${1#*=}"; shift ;;
+		--mirror)        MIRROR_SCENARIO="$2"; shift 2 ;;
+		--mirror=*)      MIRROR_SCENARIO="${1#*=}"; shift ;;
+		-v|--visible)    RUN_TEST_FLAGS="--visible --mute"; shift ;;
+		--help|-h)
+			sed -n '2,33p' "$0" | sed 's/^# \?//'
+			exit 0 ;;
+		--*)
+			echo "Unknown flag: $1"
+			exit 3 ;;
+		*)
+			if [ -z "${SCENARIO}" ]; then
+				SCENARIO="$1"
+				shift
+			else
+				echo "Unexpected positional arg: $1"
+				exit 3
+			fi
+			;;
+	esac
+done
+
+if [ -z "${SCENARIO}" ]; then
+	echo "Usage: $0 <scenario> [--seeds N] [--config path] [--result-dir dir]"
+	echo "  e.g.  $0 tournament-arena-skirmish-2p --seeds 20"
+	exit 3
+fi
+
+SCENARIO_DIR="tools/autotest/scenarios/${SCENARIO}"
+if [ ! -d "${SCENARIO_DIR}" ]; then
+	echo "Error: scenario not found at ${SCENARIO_DIR}"
+	exit 3
+fi
+
+if [ -z "${CONFIG}" ]; then
+	CONFIG="${SCENARIO_DIR}/tournament.yaml"
+fi
+
+if [ ! -f "${CONFIG}" ]; then
+	echo "Error: tournament config not found at ${CONFIG}"
+	exit 3
+fi
+
+# Extract speed config FIRST so MAX_WALL_SECS auto-calc can use it.
+GAME_SPEED=$(awk '/^GameSpeed:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
+[ -z "${GAME_SPEED}" ] && GAME_SPEED="default"
+SPEED_MULT=$(awk '/^SpeedMultiplier:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
+[ -z "${SPEED_MULT}" ] && SPEED_MULT=1
+
+# Compute default max-wall-secs from TimeLimitSeconds × 4 / effective-speed.
+# SpeedMultiplier dominates GameSpeed because we apply it after the gamespeed
+# initialization. Worst case (rendering bottleneck) the actual speed-up is
+# less than the multiplier; we still budget the full mult for the watchdog.
+if [ -z "${MAX_WALL_SECS}" ]; then
+	TIME_LIMIT_SECS=$(awk '/^TimeLimitSeconds:/ { gsub(",",""); gsub(/\r/,""); print $2; exit }' "${CONFIG}")
+	SPEED_BUDGET_DIV=${SPEED_MULT}
+	[ "${SPEED_BUDGET_DIV}" -lt 1 ] && SPEED_BUDGET_DIV=1
+	if [ -z "${TIME_LIMIT_SECS}" ]; then
+		MAX_WALL_SECS=600
+	else
+		MAX_WALL_SECS=$((TIME_LIMIT_SECS * 4 / SPEED_BUDGET_DIV))
+		[ ${MAX_WALL_SECS} -lt 60 ] && MAX_WALL_SECS=60
+	fi
+fi
+
+# Result dir — auto-generate if not provided.
+if [ -z "${RESULT_DIR}" ]; then
+	TS=$(date +"%y%m%d_%H%M")
+	RESULT_DIR="tools/autotest/tournament-results/${TS}_${SCENARIO}"
+fi
+mkdir -p "${RESULT_DIR}"
+
+GIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+GIT_DIRTY=$(git diff --quiet HEAD 2>/dev/null && echo "false" || echo "true")
+
+# Batch meta — what produced this run.
+cat > "${RESULT_DIR}/batch.meta.json" <<EOF
+{
+  "scenario": "${SCENARIO}",
+  "config": "${CONFIG}",
+  "seeds_requested": ${SEEDS},
+  "git_sha": "${GIT_SHA}",
+  "git_dirty": ${GIT_DIRTY},
+  "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "max_wall_secs": ${MAX_WALL_SECS}
+}
+EOF
+
+echo "==> Tournament:  ${SCENARIO}"
+echo "==> Config:      ${CONFIG}"
+echo "==> Seeds:       ${SEEDS}"
+echo "==> Result dir:  ${RESULT_DIR}"
+echo "==> Git SHA:     ${GIT_SHA} (dirty=${GIT_DIRTY})"
+echo "==> Max-wall:    ${MAX_WALL_SECS}s/match"
+echo
+
+# Hand the engine the absolute config path so it can find it regardless of cwd.
+CONFIG_ABS=$(cd "$(dirname "${CONFIG}")" && pwd)/$(basename "${CONFIG}")
+CONFIG_GAME=$(to_game_path "${CONFIG_ABS}")
+
+# GAME_SPEED + SPEED_MULT already extracted above (above MAX_WALL_SECS calc).
+
+# Locate the engine's settings.yaml once, so we can back it up around each
+# launch (a saved Sound.Mute=true would otherwise leak into normal launches).
+# macOS/Linux use a fixed per-platform path; Windows checks a repo-local
+# engine/Support override, then %APPDATA%\OpenRA (modern), then
+# Documents\OpenRA (legacy). Empty result → backup silently skipped.
+SETTINGS_FILE=""
+case "$(uname -s)" in
+	Darwin) SETTINGS_FILE="${HOME}/Library/Application Support/OpenRA/settings.yaml" ;;
+	Linux)  SETTINGS_FILE="${HOME}/.config/openra/settings.yaml" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
+		for _cand in \
+			"${REPO_ROOT}/engine/Support/settings.yaml" \
+			"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/settings.yaml" \
+			"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/settings.yaml"; do
+			if [ -f "${_cand}" ]; then SETTINGS_FILE="${_cand}"; break; fi
+		done
+		[ -z "${SETTINGS_FILE}" ] && echo "==> Note: no OpenRA settings.yaml found; skipping settings backup."
+		;;
+esac
+
+# Resolve the engine's debug.log so each match's [exp-capture] markers can be
+# preserved. The engine overwrites <SupportDir>/Logs/debug.log every launch, so
+# match N's markers are gone by match N+1 unless we copy them out. Same
+# SupportDir resolution as the settings backup above.
+DEBUG_LOG=""
+case "$(uname -s)" in
+	Darwin) DEBUG_LOG="${HOME}/Library/Application Support/OpenRA/Logs/debug.log" ;;
+	Linux)  DEBUG_LOG="${HOME}/.config/openra/Logs/debug.log" ;;
+	MINGW*|MSYS*|CYGWIN*|Windows_NT)
+		for _cand in \
+			"${REPO_ROOT}/engine/Support/Logs" \
+			"$(cygpath -u "${APPDATA:-}" 2>/dev/null)/OpenRA/Logs" \
+			"$(cygpath -u "${USERPROFILE:-}" 2>/dev/null)/Documents/OpenRA/Logs"; do
+			if [ -d "${_cand}" ]; then DEBUG_LOG="${_cand}/debug.log"; break; fi
+		done
+		;;
+esac
+[ -n "${DEBUG_LOG}" ] && echo "==> Debug log:   ${DEBUG_LOG}"
+
+OK=0
+FAIL=0
+
+for i in ${SEED_LIST:-$(seq 1 ${SEEDS})}; do
+	# Mirror-matching: even seeds run the primary scenario, odd seeds run the
+	# mirror. The watcher writes the same JSON shape; the scenario name in
+	# match_${i}.log (and in this output) lets the aggregator attribute results
+	# correctly.
+	MATCH_SCENARIO="${SCENARIO}"
+	if [ -n "${MIRROR_SCENARIO}" ] && [ $((i % 2)) -eq 1 ]; then
+		MATCH_SCENARIO="${MIRROR_SCENARIO}"
+	fi
+
+	echo "------- match ${i}/${SEEDS} (scenario=${MATCH_SCENARIO}) -------"
+
+	# Engine runs with cwd=engine/, so relative paths land in the wrong place.
+	# Resolve to absolute before handing off.
+	MATCH_RESULT_FILE="${REPO_ROOT}/${RESULT_DIR}/match_${i}.json"
+	MATCH_LOG="${REPO_ROOT}/${RESULT_DIR}/match_${i}.log"
+	# Windows-form path for the game arg; POSIX form stays for shell-side tests.
+	MATCH_RESULT_FILE_GAME=$(to_game_path "${MATCH_RESULT_FILE}")
+
+	# Inject the tournament config into the regular launch via Test.TournamentConfig.
+	# We re-use run-test.sh's launcher but inject extra args via env (run-test.sh
+	# doesn't accept arbitrary engine args today — for Phase 1 we call launch-game.sh
+	# directly with the same arg shape, mirroring run-test.sh).
+	#
+	# Mirror run-test.sh's settings.yaml backup so audio mute doesn't leak.
+	# SETTINGS_FILE resolved once above (incl. the Windows locations).
+	SETTINGS_BACKUP=""
+	if [ -n "${SETTINGS_FILE}" ] && [ -f "${SETTINGS_FILE}" ]; then
+		SETTINGS_BACKUP="${RESULT_DIR}/.settings.yaml.bak"
+		cp "${SETTINGS_FILE}" "${SETTINGS_BACKUP}"
+	fi
+
+	# Per-match deterministic seed: seed index × 1000 + 17 (the 17 just nudges
+	# away from boring round-number seeds). Different match indices → different
+	# games; rerunning the same seed → identical game. See WORKSPACE/ai/archive/PITFALLS.md §15.
+	MATCH_SEED=$((i * 1000 + 17))
+
+	# Background launch — terminal keeps focus.
+	# Mode-B hidden profile: launch HIDDEN (SDL_WINDOW_HIDDEN) with framerate UNCAPPED.
+	# The engine (Sdl2PlatformWindow) creates the window unmapped and sets IsSuspended,
+	# so rendering suspends (Renderer.WindowIsSuspended, Game.cs) exactly as a minimized
+	# window would — RenderTick is skipped, the sim runs CPU-bound with no GPU cost — but
+	# the window is never mapped, so it can't appear on the desktop as a solid-black frame
+	# the way SDL_MinimizeWindow did on Windows (bugs/discovered.md 2026-07-22). CapFramerate
+	# must stay OFF here: a 5 fps cap throttles a *suspended* run to ~5 ticks/s because the
+	# logic gate only clears at the render cadence (Game.cs suspended path).
+	# See WORKSPACE/archive/plans/260721_sim_throughput.md, Option C.
+	(
+		OPENRA_WINDOW_HIDDEN=1 ./launch-game.sh \
+			"Launch.Map=${MATCH_SCENARIO}" \
+			"Test.Mode=true" \
+			"Test.Name=${MATCH_SCENARIO}-match${i}" \
+			"Test.ResultPath=${MATCH_RESULT_FILE_GAME}" \
+			"Test.TournamentConfig=${CONFIG_GAME}" \
+			"Test.GameSpeed=${GAME_SPEED}" \
+			"Test.SpeedMultiplier=${SPEED_MULT}" \
+			"Test.RandomSeed=${MATCH_SEED}" \
+			"Graphics.Mode=Windowed" \
+			"Graphics.CapFramerate=false" \
+			"Sound.Mute=true" \
+			> "${MATCH_LOG}" 2>&1 || true
+	) &
+	GAME_PID=$!
+
+	# Wall-clock watchdog. Polls the result file and the game PID.
+	WALL_START=$(date +%s)
+	while true; do
+		if [ -f "${MATCH_RESULT_FILE}" ]; then
+			# Engine wrote verdict; give it a moment to clean up.
+			sleep 1
+			break
+		fi
+
+		if ! kill -0 "${GAME_PID}" 2>/dev/null; then
+			# Game exited without writing verdict.
+			break
+		fi
+
+		NOW=$(date +%s)
+		ELAPSED=$((NOW - WALL_START))
+		if [ ${ELAPSED} -ge ${MAX_WALL_SECS} ]; then
+			echo "  ! Wall-clock limit (${MAX_WALL_SECS}s) exceeded, killing match."
+			# GAME_PID is the subshell — the actual game process is a child.
+			# Kill by command pattern to be sure. PITFALL: SIGTERM is sometimes
+			# ignored by dotnet (process hangs after Game.Exit); SIGKILL is the
+			# only reliable terminator on macOS. kill_game_for_result is the
+			# cross-platform equivalent (pkill -f on Unix, PowerShell on Windows).
+			kill -KILL "${GAME_PID}" 2>/dev/null || true
+			kill_game_for_result "${MATCH_RESULT_FILE}"
+			break
+		fi
+
+		sleep 2
+	done
+
+	wait "${GAME_PID}" 2>/dev/null || true
+	# Belt-and-braces: ensure no game process is still holding our result path.
+	kill_game_for_result "${MATCH_RESULT_FILE}"
+
+	if [ -n "${SETTINGS_BACKUP}" ] && [ -f "${SETTINGS_BACKUP}" ]; then
+		mv "${SETTINGS_BACKUP}" "${SETTINGS_FILE}"
+	fi
+
+	# Preserve this match's debug.log (the [exp-capture] M-1/M-2/M-3 markers)
+	# before the next launch overwrites it. Best-effort; a no-verdict crash log
+	# is still worth keeping, so this runs regardless of the verdict check below.
+	if [ -n "${DEBUG_LOG}" ] && [ -f "${DEBUG_LOG}" ]; then
+		cp "${DEBUG_LOG}" "${REPO_ROOT}/${RESULT_DIR}/match_${i}_debug.log" 2>/dev/null || true
+	fi
+
+	if [ -f "${MATCH_RESULT_FILE}" ]; then
+		echo "  ok — verdict written"
+		OK=$((OK + 1))
+	else
+		echo "  fail — no verdict file. See ${MATCH_LOG}"
+		FAIL=$((FAIL + 1))
+	fi
+done
+
+echo
+echo "==> Batch complete: ${OK} verdict / ${FAIL} no-verdict (of ${SEEDS})"
+echo "==> Results:  ${RESULT_DIR}"
+echo
+
+# Aggregate if we have at least one match result.
+if [ ${OK} -gt 0 ]; then
+	"${REPO_ROOT}/tools/autotest/aggregate-tournament.sh" "${RESULT_DIR}"
+fi
+
+exit 0

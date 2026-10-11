@@ -1,0 +1,9 @@
+{
+  "scenario": "tournament-s2-combat-river-zeta",
+  "config": "tools/autotest/scenarios/tournament-s2-combat-river-zeta/tournament-combat-12min.yaml",
+  "seeds_requested": 10,
+  "git_sha": "69ca8a1370c77058003e15eaca7d48190545c52a",
+  "git_dirty": false,
+  "started_at": "2026-10-11T12:26:08Z",
+  "max_wall_secs": 4000
+}

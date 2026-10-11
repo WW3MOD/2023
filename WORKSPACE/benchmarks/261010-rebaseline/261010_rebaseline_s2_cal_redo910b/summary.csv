@@ -1,0 +1,3 @@
+match,status,winner,reason,duration_ticks,p1_name,p1_score,p1_army,p1_bot,p2_name,p2_score,p2_army,p2_bot
+match_10,pass,USA-bot,time_limit,18000,USA-bot,242454,32750,stable,Russia-bot,224949,31550,stable
+match_9,pass,USA-bot,time_limit,18000,USA-bot,246755,36100,stable,Russia-bot,235926,28300,stable
